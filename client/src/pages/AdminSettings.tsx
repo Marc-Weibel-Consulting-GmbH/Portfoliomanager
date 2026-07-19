@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Settings, Save, RotateCcw } from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 interface DiversificationRules {
   maxPositionPercent: number;
@@ -95,6 +96,12 @@ export default function AdminSettings() {
   if (isLoading) {
     return (
       <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Einstellungen", icon: <Settings className="h-4 w-4" /> },
+        ]}
+      />
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin h-8 w-8 border-2 border-[#00CFC1] border-t-transparent rounded-full" />
         </div>

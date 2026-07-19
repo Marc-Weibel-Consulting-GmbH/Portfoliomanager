@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Brain, RefreshCw, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
+import {Brain, CheckCircle2, HelpCircle, RefreshCw, SlidersHorizontal, XCircle} from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 const REGIME_LABELS: Record<string, string> = {
   crisis: "Krise",
@@ -50,6 +51,12 @@ export default function AdminSignalConfig() {
 
   return (
     <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Signal-Konfiguration", icon: <SlidersHorizontal className="h-4 w-4" /> },
+        ]}
+      />
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Signal-Gewichtung</h1>

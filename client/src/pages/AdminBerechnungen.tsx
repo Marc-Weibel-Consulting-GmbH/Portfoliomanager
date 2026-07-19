@@ -3,8 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState, useCallback } from "react";
-import { Copy, Check, Download, FileText } from "lucide-react";
+import {Calculator, Check, Copy, Download, FileText} from "lucide-react";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 interface FormulaSection {
   id: string;
@@ -523,6 +524,12 @@ export default function AdminBerechnungen() {
 
   return (
     <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Berechnungen & Formeln", icon: <Calculator className="h-4 w-4" /> },
+        ]}
+      />
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>

@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useState } from "react";
-import { CheckCircle, XCircle, CheckCheck, RefreshCw, Globe, TrendingUp, Info } from "lucide-react";
+import {CheckCheck, CheckCircle, Globe, Info, RefreshCw, Search, TrendingUp, XCircle} from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 function parseNotes(notes: string | null): { gap: string; reason: string } {
   if (!notes) return { gap: "—", reason: "—" };
@@ -51,6 +52,12 @@ export default function AdminWatchlistCandidates() {
 
   return (
     <div className="text-white">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Universum-Kandidaten", icon: <Search className="h-4 w-4" /> },
+        ]}
+      />
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-1">

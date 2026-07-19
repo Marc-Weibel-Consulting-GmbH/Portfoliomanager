@@ -17,6 +17,7 @@ import {
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "sonner";
 import { InsightExpandable } from "@/components/InsightPanel";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 // ─── Badges ──────────────────────────────────────────────────────────────────
 
@@ -679,6 +680,12 @@ export default function AdminProposalAnalysis() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "KI-Analyse Protokoll", icon: <Brain className="h-4 w-4" /> },
+        ]}
+      />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

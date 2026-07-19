@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Loader2, Database, AlertCircle, CheckCircle2 } from "lucide-react";
+import {AlertCircle, CheckCircle2, Database, Loader2, Upload} from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 export default function AdminDataImport() {
   const [fromDate, setFromDate] = useState(() => {
@@ -49,6 +50,12 @@ export default function AdminDataImport() {
 
   return (
     <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Kursdaten-Import", icon: <Upload className="h-4 w-4" /> },
+        ]}
+      />
       <div className="container max-w-4xl py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Historische Daten Import</h1>

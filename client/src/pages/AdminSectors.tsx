@@ -1,11 +1,18 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import {PieChart, Plus} from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 export default function AdminSectors() {
   return (
     <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Sektoren", icon: <PieChart className="h-4 w-4" /> },
+        ]}
+      />
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

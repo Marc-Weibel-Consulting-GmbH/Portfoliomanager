@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 export default function AdminSecretsManagement() {
   const utils = trpc.useUtils();
@@ -83,6 +84,12 @@ export default function AdminSecretsManagement() {
 
   return (
     <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Secrets Verwaltung", icon: <Key className="h-4 w-4" /> },
+        ]}
+      />
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

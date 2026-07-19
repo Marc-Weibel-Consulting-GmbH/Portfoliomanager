@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Search, RefreshCw, CheckCircle, AlertCircle, Clock, Plus, SkipForward } from "lucide-react";
+import {AlertCircle, CheckCircle, Clock, Database, Plus, RefreshCw, Search, SkipForward} from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,12 @@ export default function AdminGapFilling() {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Universum Gap-Filling", icon: <Database className="h-4 w-4" /> },
+        ]}
+      />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

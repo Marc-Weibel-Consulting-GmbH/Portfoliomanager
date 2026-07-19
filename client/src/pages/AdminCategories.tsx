@@ -1,11 +1,18 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import {Grid3x3, Plus} from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 export default function AdminCategories() {
   return (
     <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Kategorien", icon: <Grid3x3 className="h-4 w-4" /> },
+        ]}
+      />
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

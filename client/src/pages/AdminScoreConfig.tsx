@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { Settings, Save, RotateCcw, Eye, ChevronDown, ChevronRight } from "lucide-react";
+import {ChevronDown, ChevronRight, Eye, RotateCcw, Save, Settings, SlidersHorizontal} from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -232,6 +233,12 @@ export default function AdminScoreConfig() {
   return (
     <DashboardLayout>
       <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Score-Konfiguration", icon: <SlidersHorizontal className="h-4 w-4" /> },
+        ]}
+      />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

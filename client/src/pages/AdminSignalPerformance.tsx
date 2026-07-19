@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/Breadcrumb";
 import {
   BarChart3, TrendingUp, TrendingDown, Minus, RefreshCw,
   Target, Activity, Zap, ChevronDown, ChevronUp, Info
@@ -277,6 +278,12 @@ export default function AdminSignalPerformance() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Signal-Performance", icon: <TrendingUp className="h-4 w-4" /> },
+        ]}
+      />
                   {data.engineStats
                     .sort((a, b) => b.hitRate - a.hitRate)
                     .map(stat => (

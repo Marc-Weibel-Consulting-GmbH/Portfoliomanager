@@ -11,12 +11,9 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { trpc } from "@/lib/trpc";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import {
-  Upload, FileText, Brain, Sparkles, Trash2, RefreshCw, Clock,
-  CheckCircle, AlertCircle, Loader2, Send, Bot, Eye, Plus, Key, Download,
-  Globe, TrendingUp, TrendingDown, Minus, Database, BookOpen, ExternalLink
-} from "lucide-react";
+import {AlertCircle, BookOpen, Bot, Brain, CheckCircle, Clock, Database, Download, ExternalLink, Eye, FileText, Globe, Key, Loader2, Minus, Plus, RefreshCw, Search, Send, Sparkles, Trash2, TrendingDown, TrendingUp, Upload} from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 // ============================================
 // Research-Quellen-Bibliothek (kuratiert)
@@ -1549,6 +1546,12 @@ function ApiKeysTab() {
 export default function AdminResearch() {
   return (
     <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Research & Multi-Agent", icon: <Search className="h-4 w-4" /> },
+        ]}
+      />
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">

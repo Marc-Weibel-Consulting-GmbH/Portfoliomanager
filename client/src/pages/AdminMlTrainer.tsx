@@ -1,3 +1,4 @@
+import { BrainCircuit } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -81,6 +83,12 @@ export default function AdminMlTrainer() {
   return (
     <div className="text-white">
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "ML Trainer", icon: <BrainCircuit className="h-4 w-4" /> },
+        ]}
+      />
 
         {/* Header */}
         <div className="flex items-start justify-between">

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Camera, CheckCircle, Download, FileText, Loader2, XCircle } from "lucide-react";
 import { useRef, useState } from "react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 interface PageDefinition {
   label: string;
@@ -246,6 +247,12 @@ export default function AdminScreenshots() {
 
   return (
     <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Screenshots", icon: <Camera className="h-4 w-4" /> },
+        ]}
+      />
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">App-Screenshots</h1>

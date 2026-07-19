@@ -2,7 +2,8 @@ import { trpc } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart2, TrendingDown, TrendingUp, RefreshCw, Minus, Plus, AlertCircle } from "lucide-react";
+import {AlertCircle, BarChart2, MessageSquare, Minus, Plus, RefreshCw, TrendingDown, TrendingUp} from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 const ACTION_CONFIG = {
   reduce: { label: "Reduziert", color: "bg-orange-500/20 text-orange-300 border-orange-500/30", icon: TrendingDown, iconColor: "text-orange-400" },
@@ -20,6 +21,12 @@ export default function AdminFeedbackDashboard() {
   return (
     <DashboardLayout>
       <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Feedback", icon: <MessageSquare className="h-4 w-4" /> },
+        ]}
+      />
         {/* Header */}
         <div className="flex items-center gap-3">
           <BarChart2 className="h-6 w-6 text-[#00CFC1]" />

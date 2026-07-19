@@ -1,7 +1,8 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, TrendingUp, DollarSign, Activity } from "lucide-react";
+import {Activity, BarChart3, DollarSign, TrendingUp, Users} from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 export default function AdminKPIs() {
   // L-18: echte Zahlen aus der DB statt hartkodierter Platzhalter-Nullen.
@@ -43,6 +44,12 @@ export default function AdminKPIs() {
 
   return (
     <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "KPI Übersicht", icon: <BarChart3 className="h-4 w-4" /> },
+        ]}
+      />
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Platform-KPIs</h1>
