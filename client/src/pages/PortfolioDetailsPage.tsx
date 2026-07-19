@@ -917,6 +917,7 @@ export default function PortfolioDetailsPage() {
   // Fortgeschrittene Tabs (nur «detailliert»): KI-Analysen + reine Kennzahlen.
   const ADVANCED_TABS = ['deepdive', 'signale', 'risiko', 'optimierung'];
   const [posView, setPosView] = useState<'tabelle' | 'heatmap' | 'konstellation'>('tabelle');
+  const [showDetailCols, setShowDetailCols] = useState(false);
   // Expandable row state for Positionen table
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
   // Sort state for Positionen table
@@ -2020,6 +2021,20 @@ export default function PortfolioDetailsPage() {
                   </div>
                   {posView === 'tabelle' && (
                     <button
+                      onClick={() => setShowDetailCols(v => !v)}
+                      title="Stück / Kurs FW / Währungskurs / Kurs CHF ein-/ausblenden"
+                      className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded border transition-colors ${
+                        showDetailCols
+                          ? 'border-[#00CFC1]/50 text-[#00CFC1] bg-[#00CFC1]/10'
+                          : 'border-white/20 text-gray-400 hover:text-white hover:border-white/40'
+                      }`}
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>
+                      {showDetailCols ? 'Kurs-Details ausblenden' : 'Kurs-Details'}
+                    </button>
+                  )}
+                  {posView === 'tabelle' && (
+                    <button
                       onClick={() => refreshSignalsMutation.mutate({ portfolioId })}
                       disabled={refreshSignalsMutation.isPending || isSignalsFetching}
                       title="Signal-Cache leeren und Scores neu berechnen"
@@ -2049,6 +2064,14 @@ export default function PortfolioDetailsPage() {
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('weight')}>
                         <span className={sortKey === 'weight' ? 'text-[#00CFC1]' : 'text-gray-400'}>Gewicht {sortKey === 'weight' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
+                      {showDetailCols && (
+                        <>
+                          <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="Anzahl Stück">Stück</th>
+                          <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="Kurs in Fremdwährung">Kurs FW</th>
+                          <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="Wechselkurs zur Referenzwährung CHF">FX-Kurs</th>
+                          <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="Kurs in CHF">Kurs CHF</th>
+                        </>
+                      )}
                       <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Wert</th>
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('today')}>
                         <span className={sortKey === 'today' ? 'text-[#00CFC1]' : 'text-gray-400'}>Heute {sortKey === 'today' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
@@ -2150,6 +2173,30 @@ export default function PortfolioDetailsPage() {
                               <span className="text-xs text-[#00CFC1]/80">{h.sector || '—'}</span>
                             </td>
                             <td className="px-3 py-3.5 text-right text-sm text-gray-300">{weight.toFixed(1)}%</td>
+                            {showDetailCols && (() => {
+                              const sharesVal = parseFloat(h.shares || '0');
+                              const priceLocal = parseFloat(h.currentPriceLocal || h.currentPriceCHF || '0');
+                              const priceCHF = parseFloat(h.currentPriceCHF || '0');
+                              const cur = h.currency || 'CHF';
+                              const isFx = cur !== 'CHF';
+                              const fxRateVal = parseFloat(h.fxRate || '0') || (priceCHF > 0 && priceLocal > 0 ? priceCHF / priceLocal : 0);
+                              return (
+                                <>
+                                  <td className="px-3 py-3.5 text-right text-sm text-gray-300">
+                                    {sharesVal > 0 ? new Intl.NumberFormat('de-CH', { maximumFractionDigits: 4 }).format(sharesVal) : '—'}
+                                  </td>
+                                  <td className="px-3 py-3.5 text-right text-sm text-gray-300">
+                                    {isFx && priceLocal > 0 ? `${cur} ${new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(priceLocal)}` : '—'}
+                                  </td>
+                                  <td className="px-3 py-3.5 text-right text-sm text-gray-300">
+                                    {isFx && fxRateVal > 0 ? new Intl.NumberFormat('de-CH', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(fxRateVal) : '—'}
+                                  </td>
+                                  <td className="px-3 py-3.5 text-right text-sm text-gray-300">
+                                    {priceCHF > 0 ? `CHF ${new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(priceCHF)}` : '—'}
+                                  </td>
+                                </>
+                              );
+                            })()}
                             <td className="px-3 py-3.5 text-right">
                               {(h.priceMissing || h.fxMissing) ? (
                                 <span className="text-sm text-gray-400" aria-label="Wert nicht verfügbar">—</span>

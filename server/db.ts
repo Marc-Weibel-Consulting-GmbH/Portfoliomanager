@@ -859,7 +859,8 @@ export async function getSharesHeldAt(portfolioId: number, ticker: string, atDat
   const trades = rows
     .filter(
       (row: any) =>
-        (row.transactionType === 'buy' || row.transactionType === 'sell') &&
+        // 'entry' zählt wie 'buy' (Live-Aktivierungs-Transaktionen)
+        (row.transactionType === 'buy' || row.transactionType === 'sell' || row.transactionType === 'entry') &&
         new Date(row.transactionDate).getTime() <= atTime
     )
     .sort(
@@ -872,7 +873,7 @@ export async function getSharesHeldAt(portfolioId: number, ticker: string, atDat
   for (const trade of trades) {
     const shares = parseFloat(trade.shares || '0');
     if (!(shares > 0)) continue;
-    held = trade.transactionType === 'buy' ? held + shares : Math.max(0, held - shares);
+    held = (trade.transactionType === 'buy' || trade.transactionType === 'entry') ? held + shares : Math.max(0, held - shares);
   }
   return held;
 }
