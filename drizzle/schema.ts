@@ -1610,3 +1610,25 @@ export const gapFillConfig = mysqlTable("gapFillConfig", {
 });
 export type GapFillConfig = typeof gapFillConfig.$inferSelect;
 export type InsertGapFillConfig = typeof gapFillConfig.$inferInsert;
+
+// ============ Sectors Table ============
+// Managed list of GICS-style sectors used across the platform.
+// Stocks reference sector names as free-text; this table provides the
+// canonical list for the admin UI and for gap-filling logic.
+export const sectors = mysqlTable("sectors", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  /** Hex color for charts/badges, e.g. "#3b82f6" */
+  color: varchar("color", { length: 20 }),
+  /** Emoji or icon name for UI display */
+  icon: varchar("icon", { length: 50 }),
+  /** Whether this sector is included in Gap-Filling checks */
+  includeInGapFilling: tinyint("includeInGapFilling").notNull().default(1),
+  /** Sort order for display */
+  sortOrder: int("sortOrder").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Sector = typeof sectors.$inferSelect;
+export type InsertSector = typeof sectors.$inferInsert;

@@ -2132,5 +2132,224 @@ export const adminRouter = router({
     }
     return { success: true, approved: candidates.length, pricesFetched };
   }),
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CATEGORIES CRUD
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  listCategories: adminProcedure.query(async () => {
+    const { getDb } = await import("../db");
+    const { categories } = await import("../../drizzle/schema");
+    const { asc } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    return db.select().from(categories).orderBy(asc(categories.name));
+  }),
+
+  createCategory: adminProcedure
+    .input(z.object({
+      name: z.string().min(1).max(100),
+      description: z.string().max(500).optional(),
+      color: z.string().max(20).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { categories } = await import("../../drizzle/schema");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.insert(categories).values({
+        name: input.name,
+        description: input.description ?? null,
+        color: input.color ?? null,
+      });
+      return { success: true };
+    }),
+
+  updateCategory: adminProcedure
+    .input(z.object({
+      id: z.number().int(),
+      name: z.string().min(1).max(100),
+      description: z.string().max(500).optional(),
+      color: z.string().max(20).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { categories } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.update(categories).set({
+        name: input.name,
+        description: input.description ?? null,
+        color: input.color ?? null,
+      }).where(eq(categories.id, input.id));
+      return { success: true };
+    }),
+
+  deleteCategory: adminProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { categories } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.delete(categories).where(eq(categories.id, input.id));
+      return { success: true };
+    }),
+
+  /** Count how many stocks use a given category name */
+  getCategoryStockCount: adminProcedure
+    .input(z.object({ name: z.string() }))
+    .query(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { stocks } = await import("../../drizzle/schema");
+      const { eq, count } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return { count: 0 };
+      const result = await db.select({ cnt: count() }).from(stocks).where(eq(stocks.category, input.name));
+      return { count: result[0]?.cnt ?? 0 };
+    }),
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SECTORS CRUD
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  listSectors: adminProcedure.query(async () => {
+    const { getDb } = await import("../db");
+    const { sectors } = await import("../../drizzle/schema");
+    const { asc } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    return db.select().from(sectors).orderBy(asc(sectors.sortOrder), asc(sectors.name));
+  }),
+
+  createSector: adminProcedure
+    .input(z.object({
+      name: z.string().min(1).max(100),
+      description: z.string().max(500).optional(),
+      color: z.string().max(20).optional(),
+      icon: z.string().max(50).optional(),
+      includeInGapFilling: z.number().int().min(0).max(1).default(1),
+      sortOrder: z.number().int().min(0).default(0),
+    }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { sectors } = await import("../../drizzle/schema");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.insert(sectors).values({
+        name: input.name,
+        description: input.description ?? null,
+        color: input.color ?? null,
+        icon: input.icon ?? null,
+        includeInGapFilling: input.includeInGapFilling,
+        sortOrder: input.sortOrder,
+      });
+      return { success: true };
+    }),
+
+  updateSector: adminProcedure
+    .input(z.object({
+      id: z.number().int(),
+      name: z.string().min(1).max(100),
+      description: z.string().max(500).optional(),
+      color: z.string().max(20).optional(),
+      icon: z.string().max(50).optional(),
+      includeInGapFilling: z.number().int().min(0).max(1),
+      sortOrder: z.number().int().min(0),
+    }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { sectors } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.update(sectors).set({
+        name: input.name,
+        description: input.description ?? null,
+        color: input.color ?? null,
+        icon: input.icon ?? null,
+        includeInGapFilling: input.includeInGapFilling,
+        sortOrder: input.sortOrder,
+      }).where(eq(sectors.id, input.id));
+      return { success: true };
+    }),
+
+  deleteSector: adminProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { sectors } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.delete(sectors).where(eq(sectors.id, input.id));
+      return { success: true };
+    }),
+
+  /** Count how many stocks use a given sector name */
+  getSectorStockCount: adminProcedure
+    .input(z.object({ name: z.string() }))
+    .query(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { stocks } = await import("../../drizzle/schema");
+      const { eq, count } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return { count: 0 };
+      const result = await db.select({ cnt: count() }).from(stocks).where(eq(stocks.sector, input.name));
+      return { count: result[0]?.cnt ?? 0 };
+    }),
+
+  /** Seed default GICS sectors if the sectors table is empty */
+  seedDefaultSectors: adminProcedure.mutation(async () => {
+    const { getDb } = await import("../db");
+    const { sectors } = await import("../../drizzle/schema");
+    const { count } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    const existing = await db.select({ cnt: count() }).from(sectors);
+    if ((existing[0]?.cnt ?? 0) > 0) return { success: true, seeded: 0 };
+    const defaults = [
+      { name: "Technology", description: "Technologie-Unternehmen (Software, Hardware, Halbleiter)", color: "#3b82f6", icon: "💻", sortOrder: 1 },
+      { name: "Healthcare", description: "Gesundheitswesen (Pharma, Medtech, Biotech)", color: "#10b981", icon: "🏥", sortOrder: 2 },
+      { name: "Financial Services", description: "Finanzdienstleistungen (Banken, Versicherungen, Asset Management)", color: "#f59e0b", icon: "🏦", sortOrder: 3 },
+      { name: "Consumer Cyclical", description: "Zyklischer Konsum (Automobil, Retail, Tourismus)", color: "#8b5cf6", icon: "🛒", sortOrder: 4 },
+      { name: "Consumer Defensive", description: "Defensiver Konsum (Lebensmittel, Getränke, Haushalt)", color: "#06b6d4", icon: "🛍️", sortOrder: 5 },
+      { name: "Industrials", description: "Industrie (Maschinenbau, Logistik, Rüstung)", color: "#64748b", icon: "🏭", sortOrder: 6 },
+      { name: "Energy", description: "Energie (Öl, Gas, Erneuerbare)", color: "#f97316", icon: "⚡", sortOrder: 7 },
+      { name: "Utilities", description: "Versorger (Strom, Wasser, Gas)", color: "#84cc16", icon: "💡", sortOrder: 8 },
+      { name: "Real Estate", description: "Immobilien (REITs, Immobilienentwickler)", color: "#ec4899", icon: "🏢", sortOrder: 9 },
+      { name: "Basic Materials", description: "Grundstoffe (Bergbau, Chemie, Stahl)", color: "#a16207", icon: "⛏️", sortOrder: 10 },
+      { name: "Communication Services", description: "Kommunikation (Telekom, Medien, Internet)", color: "#7c3aed", icon: "📡", sortOrder: 11 },
+    ];
+    await db.insert(sectors).values(defaults.map(d => ({ ...d, includeInGapFilling: 1 })));
+    return { success: true, seeded: defaults.length };
+  }),
+
+  /** Seed default categories if the categories table is empty */
+  seedDefaultCategories: adminProcedure.mutation(async () => {
+    const { getDb } = await import("../db");
+    const { categories } = await import("../../drizzle/schema");
+    const { count } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    const existing = await db.select({ cnt: count() }).from(categories);
+    if ((existing[0]?.cnt ?? 0) > 0) return { success: true, seeded: 0 };
+    const defaults = [
+      { name: "Dividendenaktien", description: "Aktien mit regelmässigen Dividendenausschüttungen", color: "#10b981" },
+      { name: "Wachstumsaktien", description: "Aktien mit hohem Wachstumspotenzial", color: "#3b82f6" },
+      { name: "Value-Aktien", description: "Unterbewertete Aktien mit solidem Fundament", color: "#f59e0b" },
+      { name: "ETF", description: "Exchange Traded Funds", color: "#8b5cf6" },
+      { name: "Defensiv", description: "Defensive Titel mit niedrigem Beta", color: "#64748b" },
+      { name: "Small Cap", description: "Kleinkapitalisierte Unternehmen", color: "#ec4899" },
+      { name: "Mid Cap", description: "Mittelkapitalisierte Unternehmen", color: "#06b6d4" },
+      { name: "Large Cap", description: "Grosskapitalisierte Blue-Chip-Unternehmen", color: "#f97316" },
+      { name: "Rohstoffe", description: "Rohstoff-bezogene Titel und ETFs", color: "#a16207" },
+      { name: "Immobilien", description: "REITs und Immobilien-Aktien", color: "#84cc16" },
+    ];
+    await db.insert(categories).values(defaults);
+    return { success: true, seeded: defaults.length };
+  }),
 });
 
