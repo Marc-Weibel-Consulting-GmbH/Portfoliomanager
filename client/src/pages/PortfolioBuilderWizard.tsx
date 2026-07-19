@@ -138,6 +138,7 @@ export default function PortfolioBuilderWizard() {
   const [isLive, setIsLive] = useState(false);
   const [isAiOptimized, setIsAiOptimized] = useState(false); // true wenn aus KI-angepasstem Vorschlag
   const [isAdminReviewed, setIsAdminReviewed] = useState(false); // true wenn Vorschlag vom Admin geprüft wurde
+  const [skipAdminReview, setSkipAdminReview] = useState(false); // true = direkt erstellen ohne Admin-Review
 
   // ── Async proposal job polling state ──
   const [proposalJobId, setProposalJobId] = useState<string | null>(null);
@@ -1117,22 +1118,38 @@ export default function PortfolioBuilderWizard() {
                       ⚠️ Automatischer Vorschlag auf Basis historischer Daten — keine Anlageberatung.
                     </p>
                     <div className="flex flex-col gap-2">
-                      {/* Admin-Review Button (nur für Admins sichtbar, nicht wenn bereits geprüft) */}
+                      {/* Admin-Review Toggle + Button (nur für Admins sichtbar, nicht wenn bereits geprüft) */}
                       {isAdmin && !isAdminReviewed && (
-                        <div className="border border-amber-500/30 rounded-lg p-3 bg-amber-500/5">
-                          <div className="flex items-center gap-2 mb-2">
-                            <ShieldCheck className="h-4 w-4 text-amber-400" />
-                            <span className="text-xs font-semibold text-amber-400">Admin-Review</span>
+                        <div className="border border-amber-500/30 rounded-lg p-3 bg-amber-500/5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <ShieldCheck className="h-4 w-4 text-amber-400" />
+                              <span className="text-xs font-semibold text-amber-400">Admin-Review</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-400">{skipAdminReview ? 'Direkt erstellen' : 'Mit Admin-Review'}</span>
+                              <Switch
+                                checked={!skipAdminReview}
+                                onCheckedChange={(checked) => setSkipAdminReview(!checked)}
+                                className="data-[state=checked]:bg-amber-500"
+                              />
+                            </div>
                           </div>
-                          <p className="text-xs text-gray-400 mb-2">Vorschlag im Admin-Bereich prüfen und genehmigen, bevor das Portfolio erstellt wird.</p>
-                          <Button
-                            variant="outline"
-                            className="w-full border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-sm"
-                            onClick={handleSendToAdminReview}
-                          >
-                            <ShieldCheck className="h-4 w-4 mr-2" />
-                            Im Admin-Bereich prüfen &amp; genehmigen
-                          </Button>
+                          {!skipAdminReview ? (
+                            <>
+                              <p className="text-xs text-gray-400">Vorschlag im Admin-Bereich prüfen und genehmigen, bevor das Portfolio erstellt wird.</p>
+                              <Button
+                                variant="outline"
+                                className="w-full border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-sm"
+                                onClick={handleSendToAdminReview}
+                              >
+                                <ShieldCheck className="h-4 w-4 mr-2" />
+                                Im Admin-Bereich prüfen &amp; genehmigen
+                              </Button>
+                            </>
+                          ) : (
+                            <p className="text-xs text-gray-400">Portfolio wird direkt ohne Admin-Review erstellt. Verwenden Sie die Schaltflächen unten.</p>
+                          )}
                         </div>
                       )}
                       <div className="flex flex-wrap justify-between gap-3">
@@ -1150,6 +1167,25 @@ export default function PortfolioBuilderWizard() {
                             Admin-geprüften Vorschlag übernehmen
                             <ChevronRight className="h-4 w-4 ml-1" />
                           </Button>
+                        )}
+                        {/* Admin without review: show direct-create buttons when skipAdminReview is true */}
+                        {isAdmin && !isAdminReviewed && skipAdminReview && (
+                          <div className="flex gap-2 flex-wrap">
+                            {(autoProposal as any).adjustedPositions && (
+                              <Button
+                                variant="outline"
+                                className="border-white/20 text-gray-300 hover:bg-white/5 text-sm"
+                                onClick={() => handleAcceptProposal(false)}
+                                title="Roher Algorithmus-Vorschlag ohne KI-Anpassungen"
+                              >
+                                Ohne KI-Anpassungen
+                              </Button>
+                            )}
+                            <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
+                              {(autoProposal as any).adjustedPositions ? 'KI-Angepasst übernehmen' : 'Direkt erstellen'}
+                              <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
+                          </div>
                         )}
                         {/* Non-admins: show standard accept buttons */}
                         {!isAdmin && (

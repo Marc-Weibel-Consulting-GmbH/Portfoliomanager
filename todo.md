@@ -421,3 +421,8 @@
 
 ## YTD-Inkonsistenz Bug (Jul 2026)
 - [x] Fix: YTD-Inkonsistenz (Dashboard +54.24% vs Portfolio-Details +22.9%) — calculatePortfolioValueAtDate nutzte currentPrice statt historicalPrice für shares-Berechnung
+
+## Wizard Toggle: Mit/Ohne Admin-Review (Jul 2026)
+- [x] Frontend: Toggle/Checkbox im Wizard Step 5 — "Mit Admin-Review" (Standard) vs. "Direkt erstellen"
+- [x] Frontend: Bei "Direkt erstellen" → Proposal direkt als Portfolio speichern (ohne Admin-Genehmigung)
+- [x] Frontend: Beide Aktionsbuttons entsprechend anpassen (Label + Aktion)
