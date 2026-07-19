@@ -1104,6 +1104,78 @@ export const adminRouter = router({
       return { entries: [...history].reverse() };
     }),
 
+    /**
+     * Verbesserungs-Timeline (KIMI-Audit ③): Out-of-Sample-Güte je Optimizer-Lauf
+     * (signalWeights) und je ML-Modell-Version (modelArtifacts) über die Zeit.
+     * Reine Leseansicht — zeigt, wann welche Version aktiv wurde und wie sie OOS
+     * abschnitt. Fehlertolerant (fehlende Tabellen/Felder → leere Serie).
+     */
+    getImprovementTimeline: adminProcedure.query(async () => {
+      const { getDb } = await import("../db");
+      const { signalWeights, modelArtifacts } = await import("../../drizzle/schema");
+      const { desc } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return { weights: [] as any[], models: [] as any[] };
+
+      const num = (v: any): number | null => {
+        const n = typeof v === "string" ? parseFloat(v) : typeof v === "number" ? v : NaN;
+        return Number.isFinite(n) ? n : null;
+      };
+
+      let weights: any[] = [];
+      try {
+        const rows = await db
+          .select({
+            id: signalWeights.id, name: signalWeights.name, hitRate: signalWeights.hitRate,
+            isActive: signalWeights.isActive, optimizerLog: signalWeights.optimizerLog,
+            lastRunAt: signalWeights.lastRunAt, createdAt: signalWeights.createdAt,
+          })
+          .from(signalWeights)
+          .orderBy(desc(signalWeights.createdAt))
+          .limit(60);
+        weights = rows.map((r) => {
+          let wf: any = null, gate: any = null;
+          try { const log = r.optimizerLog ? JSON.parse(r.optimizerLog as string) : null; wf = log?.walkForward ?? null; gate = log?.gate ?? null; } catch { /* alt/ungültig */ }
+          return {
+            id: r.id, name: r.name, isActive: r.isActive === 1,
+            at: (r.lastRunAt ?? r.createdAt) as Date,
+            inSampleHitRate: num(wf?.inSampleHitRate),
+            oosHitRate: num(wf?.outOfSampleHitRate),
+            incumbentOosHitRate: num(wf?.incumbentOutOfSampleHitRate),
+            overfitRatio: num(wf?.overfitRatio),
+            // Gate-Metadaten (ab ①). Fallback: Name-Präfix rejected_/optimized_.
+            activated: gate ? !!gate.activated : (typeof r.name === "string" ? !r.name.startsWith("rejected_") : true),
+            triggeredBy: gate?.triggeredBy ?? null,
+            gateReason: gate?.reason ?? null,
+          };
+        }).reverse();
+      } catch { weights = []; }
+
+      let models: any[] = [];
+      try {
+        const rows = await db
+          .select({
+            id: modelArtifacts.id, kind: modelArtifacts.kind, version: modelArtifacts.version,
+            status: modelArtifacts.status, metrics: modelArtifacts.metrics,
+            promotedAt: modelArtifacts.promotedAt, createdAt: modelArtifacts.createdAt,
+          })
+          .from(modelArtifacts)
+          .orderBy(desc(modelArtifacts.createdAt))
+          .limit(60);
+        models = rows.map((r) => {
+          const m: any = r.metrics ?? {};
+          return {
+            id: r.id, kind: r.kind, version: r.version, status: r.status,
+            at: (r.promotedAt ?? r.createdAt) as Date,
+            promoted: r.status === "active" || r.status === "archived",
+            hitRate: num(m.hitRate), alpha: num(m.alpha), overfitRatio: num(m.overfitRatio),
+          };
+        }).reverse();
+      } catch { models = []; }
+
+      return { weights, models };
+    }),
+
     /** Preview: calculate score with custom config without saving */
     previewScoreConfig: adminProcedure
       .input(z.object({
