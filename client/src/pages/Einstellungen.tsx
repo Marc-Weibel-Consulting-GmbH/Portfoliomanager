@@ -371,8 +371,8 @@ function BenachrichtigungenTab() {
 // ─── FAQ Section ─────────────────────────────────────────────────────────────
 const FAQ_ITEMS = [
   {
-    q: "Wie importiere ich mein Portfolio von Swissquote?",
-    a: "Navigieren Sie zu 'Portfolio erstellen' → 'PDF importieren'. Laden Sie Ihr Swissquote-Kontoauszug-PDF hoch. Das System erkennt automatisch Ihre Positionen."
+    q: "Wie importiere ich mein Portfolio aus einem Bank-PDF?",
+    a: "Navigieren Sie zu 'Portfolio erstellen' → 'PDF importieren'. Laden Sie den Depotauszug Ihrer Bank hoch. Swissquote-Dokumente werden regelbasiert gelesen; Depotauszüge anderer Banken (z.B. LUKB, UBS, ZKB, PostFinance, Raiffeisen, Saxo, DEGIRO) werden automatisch erkannt und via KI-Extraktion verarbeitet. Bitte prüfen Sie die erkannten Positionen vor dem Import."
   },
   {
     q: "Was ist der Unterschied zwischen Live- und Demo-Portfolio?",

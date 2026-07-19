@@ -6,7 +6,8 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { parseSwissquotePDF, toPortfolioTransaction, parseSwissquoteDepotauszug } from "../lib/swissquoteParser";
+import { parseSwissquotePDF, toPortfolioTransaction } from "../lib/swissquoteParser";
+import { parseDepotauszugAuto } from "../lib/bankParsers";
 
 export const pdfImportRouter = router({
   /**
@@ -67,7 +68,9 @@ export const pdfImportRouter = router({
         if (pdfBuffer.length > 20 * 1024 * 1024) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "PDF file is too large (max 20MB)" });
         }
-        const result = await parseSwissquoteDepotauszug(pdfBuffer);
+        // Multi-bank: detect bank, use deterministic Swissquote parser or
+        // generic LLM extraction for all other banks.
+        const result = await parseDepotauszugAuto(pdfBuffer);
         return {
           positions: result.positions,
           parseErrors: result.parseErrors,
@@ -76,6 +79,9 @@ export const pdfImportRouter = router({
           reportDate: result.reportDate,
           accountHolder: result.accountHolder,
           totalValueCHF: result.totalValueCHF,
+          bankId: result.bankId,
+          bankName: result.bankName,
+          parserUsed: result.parserUsed,
           fileName: input.fileName || "unknown.pdf",
         };
       } catch (err: any) {
@@ -96,6 +102,7 @@ export const pdfImportRouter = router({
       z.object({
         portfolioId: z.number().int().positive(),
         reportDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+        bankName: z.string().optional(),
         positions: z.array(
           z.object({
             name: z.string(),
@@ -194,7 +201,7 @@ export const pdfImportRouter = router({
             totalAmountCHF: totalAmountCHF.toString(),
             fees: "0",
             transactionDate: new Date(txDate),
-            notes: `Swissquote Depotauszug Import - ${pos.name}${pos.isin ? ` (${pos.isin})` : ""}`,
+            notes: `${input.bankName || "PDF"} Depotauszug Import - ${pos.name}${pos.isin ? ` (${pos.isin})` : ""}`,
           });
 
           // Track resolved ticker for portfolioData update
@@ -242,7 +249,7 @@ export const pdfImportRouter = router({
                   pegRatio: completeData.peg?.toString() || "0",
                   portfolioWeight: "0",
                   logoUrl: completeData.logoUrl || null,
-                  moat1: "Imported from Swissquote",
+                  moat1: `Imported from ${input.bankName || "PDF"}`,
                   moat2: "",
                   moat3: "",
                 });

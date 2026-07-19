@@ -1,6 +1,7 @@
 /**
  * SwissquotePDFImport Component
- * Allows users to upload Swissquote PDF statements and import transactions
+ * Allows users to upload bank PDF statements (multi-bank) and import transactions/positions.
+ * Swissquote uses a deterministic parser; other banks are read via LLM extraction.
  */
 
 import { useState, useCallback } from "react";
@@ -105,6 +106,8 @@ export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComple
   const [depotReportDate, setDepotReportDate] = useState<string | null>(null);
   const [depotAccountHolder, setDepotAccountHolder] = useState<string | null>(null);
   const [depotTotalCHF, setDepotTotalCHF] = useState<number | null>(null);
+  const [depotBankName, setDepotBankName] = useState<string | null>(null);
+  const [depotParserUsed, setDepotParserUsed] = useState<"deterministic" | "llm" | null>(null);
   const [selectedPositionIndices, setSelectedPositionIndices] = useState<Set<number>>(new Set());
 
   const parseDepotauszugMutation = trpc.pdfImport.parseDepotauszug.useMutation({
@@ -115,6 +118,8 @@ export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComple
       setDepotReportDate(data.reportDate);
       setDepotAccountHolder(data.accountHolder);
       setDepotTotalCHF(data.totalValueCHF);
+      setDepotBankName(data.bankName ?? null);
+      setDepotParserUsed((data.parserUsed as "deterministic" | "llm") ?? null);
       // Pre-select all positions
       setSelectedPositionIndices(new Set(data.positions.map((_, i) => i)));
       setStep("review-positions");
@@ -281,10 +286,10 @@ export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComple
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <FileText className="h-5 w-5 text-[#00CFC1]" />
-            Swissquote PDF importieren
+            PDF importieren (alle Banken)
           </CardTitle>
           <CardDescription className="text-gray-400">
-            Laden Sie Ihre Swissquote PDF hoch — Transaktionsbestätigung <span className="text-white/60">oder</span> Depotauszug. Der Typ wird automatisch erkannt.
+            Laden Sie Ihre Bank-PDF hoch — Transaktionsbestätigung <span className="text-white/60">oder</span> Depotauszug. Swissquote wird regelbasiert gelesen, Depotauszüge anderer Banken (LUKB, UBS, ZKB, PostFinance, Raiffeisen, Saxo, DEGIRO …) via KI-Extraktion. Der Typ wird automatisch erkannt.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -319,7 +324,7 @@ export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComple
               <div className="flex flex-col items-center gap-3">
                 <Upload className="h-10 w-10 text-gray-400" />
                 <p className="text-white font-medium">PDF hier ablegen oder klicken</p>
-                <p className="text-gray-400 text-sm">Swissquote Transaktionsbestätigungen (max. 20 MB)</p>
+                <p className="text-gray-400 text-sm">Depotauszüge & Transaktionsbestätigungen (max. 20 MB)</p>
               </div>
             )}
           </div>
@@ -347,6 +352,21 @@ export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComple
               <CardTitle className="text-white flex items-center gap-2">
                 <Package className="h-5 w-5 text-[#00CFC1]" />
                 Positionen überprüfen
+                {depotBankName && (
+                  <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-white/10 text-gray-300">
+                    {depotBankName}
+                  </span>
+                )}
+                {depotParserUsed === "llm" && (
+                  <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300">
+                    KI-Extraktion — bitte Werte prüfen
+                  </span>
+                )}
+                {depotParserUsed === "deterministic" && (
+                  <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300">
+                    Regel-Parser
+                  </span>
+                )}
               </CardTitle>
               <CardDescription className="text-gray-400 mt-1">
                 {fileName} · {pageCount} Seite{pageCount !== 1 ? "n" : ""} · {depotPositions.length} Positionen erkannt
@@ -441,7 +461,7 @@ export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComple
               onClick={() => {
                 const toImport = depotPositions.filter((_, i) => selectedPositionIndices.has(i));
                 if (toImport.length === 0) { toast.error("Keine Positionen ausgewählt"); return; }
-                importPositionsMutation.mutate({ portfolioId, reportDate: depotReportDate, positions: toImport });
+                importPositionsMutation.mutate({ portfolioId, reportDate: depotReportDate, bankName: depotBankName ?? undefined, positions: toImport });
               }}
               disabled={selectedPositionIndices.size === 0 || importPositionsMutation.isPending}
               className="bg-[#00CFC1] hover:bg-[#00b8ad] text-black font-semibold"
