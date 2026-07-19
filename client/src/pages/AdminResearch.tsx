@@ -633,6 +633,7 @@ function ResearchContextPanel() {
 // ============================================
 function MacroSourcesTab() {
   const { data: indicators, isLoading, refetch } = trpc.macroSources.list.useQuery();
+  const apolloFeed = trpc.macroSources.getApolloFeed.useQuery(undefined, { staleTime: 30 * 60 * 1000 });
   const fetchFredMutation = trpc.macroSources.fetchFred.useMutation();
   const fetchWbMutation = trpc.macroSources.fetchWorldBank.useMutation();
   const [fetchingFred, setFetchingFred] = useState(false);
@@ -850,6 +851,81 @@ function MacroSourcesTab() {
           </div>
         ))
       )}
+
+      {/* ===== Apollo Research-Feed (Torsten Slok) ===== */}
+      <div className="mt-8">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-[#00CFC1]" />
+            <h2 className="text-lg font-semibold">Apollo Research-Feed (Torsten Slok)</h2>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => apolloFeed.refetch()}
+            disabled={apolloFeed.isFetching}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${apolloFeed.isFetching ? "animate-spin" : ""}`} />
+            Aktualisieren
+          </Button>
+        </div>
+        <p className="text-sm text-muted-foreground mb-4">
+          Automatisch aus den öffentlichen Apollo-Academy-RSS-Feeds (Daily Spark + Outlooks) —
+          Titel, Datum und Kurz-Exzerpt mit Rückverweis auf die Originalquelle.
+        </p>
+
+        {apolloFeed.isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
+            <Loader2 className="h-4 w-4 animate-spin" /> Feed wird geladen …
+          </div>
+        ) : apolloFeed.isError || (apolloFeed.data && apolloFeed.data.items.length === 0) ? (
+          <div className="flex items-start gap-2 text-sm text-amber-300 border border-amber-500/30 bg-amber-500/5 rounded-lg p-4">
+            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <span>
+              Apollo-Feed derzeit nicht abrufbar. Quelle direkt öffnen:{" "}
+              <a href="https://www.apolloacademy.com/the-daily-spark/" target="_blank" rel="noopener noreferrer" className="text-[#00CFC1] hover:underline">apolloacademy.com</a>.
+            </span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {apolloFeed.data?.items.map((item) => (
+              <a
+                key={item.link}
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block border border-white/10 rounded-lg p-4 bg-[#0f1420] hover:border-[#00CFC1]/40 transition-colors group"
+              >
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] shrink-0 ${item.feed === "daily-spark" ? "bg-[#00CFC1]/10 text-[#00CFC1] border-[#00CFC1]/30" : "text-gray-400"}`}
+                  >
+                    {item.feed === "daily-spark" ? "Daily Spark" : "Outlook / View"}
+                  </Badge>
+                  {item.publishedAt && (
+                    <span className="text-[11px] text-gray-500 font-mono shrink-0">{item.publishedAt}</span>
+                  )}
+                </div>
+                <h3 className="text-sm font-medium text-white group-hover:text-[#00CFC1] transition-colors mb-1.5 flex items-start gap-1">
+                  <span className="flex-1">{item.title}</span>
+                  <ExternalLink className="h-3 w-3 mt-1 shrink-0 text-gray-600 group-hover:text-[#00CFC1]" />
+                </h3>
+                {item.excerpt && <p className="text-xs text-muted-foreground line-clamp-3">{item.excerpt}</p>}
+                {item.categories.length > 0 && (
+                  <p className="text-[10px] text-gray-600 mt-2 truncate">{item.categories.join(" · ")}</p>
+                )}
+              </a>
+            ))}
+          </div>
+        )}
+        {apolloFeed.data?.fetchedAt && (
+          <p className="text-[11px] text-gray-600 mt-3">
+            Zuletzt abgerufen: {new Date(apolloFeed.data.fetchedAt).toLocaleString("de-CH")} ·
+            Quelle: apolloacademy.com (RSS)
+          </p>
+        )}
+      </div>
 
       {/* ===== Research-Quellen-Bibliothek ===== */}
       <div className="mt-8">

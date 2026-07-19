@@ -336,4 +336,17 @@ export const macroSourcesRouter = router({
         timeseries: r.timeseries as Array<{ date: string; value: number }> | null,
       }));
     }),
+
+  /**
+   * Apollo Academy Research-Feed (Torsten Slok) — liest die öffentlichen
+   * RSS-Feeds (Daily Spark + Outlooks), 30-Min-Server-Cache. Liefert nur
+   * Metadaten (Titel, Link, Datum, Kategorie, Kurz-Exzerpt) mit Rückverweis.
+   * `refresh: true` erzwingt einen frischen Abruf (Cache-Bypass).
+   */
+  getApolloFeed: adminProcedure
+    .input(z.object({ refresh: z.boolean().optional() }).optional())
+    .query(async ({ input }) => {
+      const { getApolloFeed } = await import("../lib/apolloFeed");
+      return getApolloFeed(input?.refresh ?? false);
+    }),
 });
