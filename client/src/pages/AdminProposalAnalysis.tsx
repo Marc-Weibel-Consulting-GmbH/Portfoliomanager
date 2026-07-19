@@ -12,7 +12,7 @@ import {
   ChevronDown, ChevronRight, Brain, TrendingUp, AlertTriangle,
   CheckCircle, XCircle, ArrowDown, ArrowUp, ArrowLeftRight, Check,
   Save, X, PlusCircle, Trash2, Search, Mail, Bell,
-  ShieldCheck, RefreshCw, Columns2
+  ShieldCheck, RefreshCw, Columns2, Cpu
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "sonner";
@@ -596,6 +596,84 @@ function ApprovePanel({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+/**
+ * Modellwahl pro Rolle für die KI-Portfolio-Vorschläge.
+ * - Analyse: kritische Prüfung + finale Empfehlung (Challenger + Synthese).
+ * - Titel-Texte: die einfachen Begründungen je Position.
+ * Gleiches Modell für beide Rollen ⇒ ein Aufruf (schneller). Bei Fehlern
+ * (z.B. fehlendes Guthaben) fällt jede Rolle automatisch auf Kimi zurück.
+ */
+function ProposalModelSettings() {
+  const { data, refetch } = trpc.admin.getProposalModels.useQuery();
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [text, setText] = useState<string | null>(null);
+  const save = trpc.admin.setProposalModels.useMutation({
+    onSuccess: () => { toast.success("Modellwahl gespeichert"); refetch(); },
+    onError: (e) => toast.error("Fehler beim Speichern", { description: e.message }),
+  });
+
+  const cfg = data?.config;
+  const labels: Record<string, string> = data?.labels ?? {};
+  const providers = Object.keys(labels);
+  if (!cfg) return null;
+
+  const a = analysis ?? cfg.analysis;
+  const t = text ?? cfg.text;
+  const dirty = a !== cfg.analysis || t !== cfg.text;
+  const merged = a === t;
+
+  return (
+    <Card className="bg-slate-800/50 border-slate-700">
+      <CardHeader className="py-3 px-4">
+        <div className="flex items-center gap-2">
+          <Cpu className="w-5 h-5 text-teal-400" />
+          <div>
+            <h2 className="text-base font-semibold text-white">Vorschlags-Modelle</h2>
+            <p className="text-xs text-slate-400">Welches KI-Modell übernimmt welche Rolle beim Portfolio-Vorschlag?</p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-4 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="text-sm text-slate-300">Analyse <span className="text-slate-500">(Challenger + Synthese)</span></label>
+            <Select value={a} onValueChange={setAnalysis}>
+              <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-700">
+                {providers.map((p) => <SelectItem key={p} value={p}>{labels[p]}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm text-slate-300">Titel-Texte <span className="text-slate-500">(einfache Begründungen)</span></label>
+            <Select value={t} onValueChange={setText}>
+              <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-700">
+                {providers.map((p) => <SelectItem key={p} value={p}>{labels[p]}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <p className="text-xs text-slate-500">
+          {merged
+            ? "Beide Rollen nutzen dasselbe Modell → ein Aufruf, schnellste Variante."
+            : "Getrennte Modelle → ein zusätzlicher Aufruf für die Texte (etwas langsamer). Fällt ein Modell aus, greift automatisch Kimi."}
+        </p>
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            disabled={!dirty || save.isPending}
+            onClick={() => save.mutate({ analysis: a as any, text: t as any })}
+            className="bg-teal-600 hover:bg-teal-500 text-white"
+          >
+            <Save className="w-4 h-4 mr-1" /> Speichern
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminProposalAnalysis() {
   const [, navigate] = useLocation();
   const [confidence, setConfidence] = useState<string>("all");
@@ -699,6 +777,9 @@ export default function AdminProposalAnalysis() {
           </div>
           <div className="text-sm text-slate-400">{total} Einträge gesamt</div>
         </div>
+
+        {/* Modellwahl pro Rolle */}
+        <ProposalModelSettings />
 
         {/* Filters */}
         <div className="flex gap-3 flex-wrap">
