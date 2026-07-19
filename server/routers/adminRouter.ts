@@ -41,8 +41,59 @@ export const adminRouter = router({
         countOf(savedPortfolios),
       ]);
 
-      return { totalUsers, newUsers30d, premiumUsers, totalPortfolios };
+            return { totalUsers, newUsers30d, premiumUsers, totalPortfolios };
     }),
+
+    /**
+     * Returns the list of users registered in the last N days with name and email.
+     */
+    getNewUsersDetail: adminProcedure
+      .input(z.object({ days: z.number().int().min(1).max(365).default(30) }).optional())
+      .query(async ({ input }) => {
+        const { getDb } = await import("../db");
+        const { users } = await import("../../drizzle/schema");
+        const { gte, desc } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const days = input?.days ?? 30;
+        const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+        const rows = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            createdAt: users.createdAt,
+            hasPaid: users.hasPaid,
+            role: users.role,
+          })
+          .from(users)
+          .where(gte(users.createdAt, since))
+          .orderBy(desc(users.createdAt));
+        return rows;
+      }),
+
+    /**
+     * Returns all users with name and email for the admin user list.
+     */
+    getAllUsersDetail: adminProcedure.query(async () => {
+        const { getDb } = await import("../db");
+        const { users } = await import("../../drizzle/schema");
+        const { desc } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const rows = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            createdAt: users.createdAt,
+            hasPaid: users.hasPaid,
+            role: users.role,
+          })
+          .from(users)
+          .orderBy(desc(users.createdAt));
+        return rows;
+      }),
 
     exportData: adminProcedure.query(async () => {
       const { getAllStocks, getDb } = await import("../db");
