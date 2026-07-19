@@ -272,6 +272,33 @@ export const investRouter = router({
         });
       }
 
+      // 3.1 (KIMI-Audit): EIN kanonischer Signal-Score. Die Aktienliste zeigt
+      // denselben combinedScore (Stack A / stock_signal_cache) wie die
+      // Detailseite — nicht mehr die abweichende Legacy-`stocks.signalScore`.
+      // Fehlt ein Cache-Eintrag, bleibt der Legacy-Wert als Fallback.
+      try {
+        const { stockSignalCache } = await import("../../drizzle/schema");
+        const { inArray } = await import("drizzle-orm");
+        const tickers = results.map(r => r.ticker).filter(Boolean) as string[];
+        if (tickers.length) {
+          const cacheRows = await db
+            .select({ ticker: stockSignalCache.ticker, combinedScore: stockSignalCache.combinedScore })
+            .from(stockSignalCache)
+            .where(inArray(stockSignalCache.ticker, tickers));
+          const csMap = new Map(
+            cacheRows.map(c => [c.ticker, c.combinedScore != null ? Math.round(parseFloat(c.combinedScore as any)) : null]),
+          );
+          results = results.map(r => {
+            const cs = csMap.get(r.ticker);
+            return cs != null && Number.isFinite(cs) ? { ...r, signalScore: cs } : r;
+          });
+          // Nach dem kanonischen Wert neu sortieren (der DB-Sort lief auf Legacy).
+          results.sort((a, b) => Number(b.signalScore ?? -1) - Number(a.signalScore ?? -1));
+        }
+      } catch (e) {
+        console.warn("[invest.filter] Combined-Score-Overlay übersprungen:", (e as Error).message);
+      }
+
       return { results, total: results.length };
     }),
 
