@@ -984,7 +984,9 @@ export default function PortfolioBuilderWizard() {
                         if (divYield && divYield > 0.5) whyThird += ` Er zahlt zudem eine Dividende von rund ${divYield.toFixed(1)} %.`;
                         whyParts.push(whyThird);
                         if ((p.reason ?? '').includes('Watchlist')) whyParts.push('Dieser Titel stammt aus Ihrer Merkliste.');
-                        const whyText = whyParts.join(' ');
+                        // Bevorzugt die individuelle KI-Begründung (nach dem Enhancing-
+                        // Schritt vorhanden); vorher/als Fallback das einfache Template.
+                        const whyText = (typeof p.aiReason === 'string' && p.aiReason.trim()) ? p.aiReason.trim() : whyParts.join(' ');
 
                         // Erklärung des Scores für den Info-Button (einfach gehalten).
                         const scoreInfo = 'Der Signal-Score (0–100) fasst Bewertung, Kursverlauf und Markttrend zu einer Empfehlung zusammen. Note A = sehr gut, F = schwach. Er ist ein Anhaltspunkt, keine Garantie.';

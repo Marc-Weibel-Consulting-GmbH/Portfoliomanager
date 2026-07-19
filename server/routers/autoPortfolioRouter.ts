@@ -1719,7 +1719,7 @@ Antworte im JSON-Format.`,
             const agentResponse = await invokeKimi({
               messages: [
                 { role: 'system', content: 'Du bist zugleich kritischer Portfolio-Analyst ("Challenger") und erfahrener Portfolio-Manager ("Synthesizer"). Prüfe den algorithmischen Vorschlag zuerst kritisch und erstelle im selben Schritt die finale Empfehlung mit konkreten Anpassungen. Antworte immer auf Deutsch, präzise und konstruktiv.' },
-                { role: 'user', content: `Prüfe diesen Portfolio-Vorschlag kritisch und erstelle die finale Empfehlung.\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten:\n${factsSummary}\n\nVorgeschlagene Positionen (mit Gewichten):\n${JSON.stringify(positionSummary, null, 2)}\n\nVerfügbare Alternativen (NUR diese Ticker dürfen als Ersatz dienen):\n${JSON.stringify(candidatePool, null, 2)}${adminFeedbackContext}${marktHubContextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n4. verdict: Dein Gesamturteil in 2-3 Sätzen.\n5. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n6. overallConfidence: "hoch" (FX-Limit eingehalten, kein Sektor > 30%, alle BUY, Sharpe > 0.5, ≤ 1 Einwand) / "niedrig" (FX überschritten, Sektor > 40%, SELL-Titel, Sharpe < 0.2, ≥ 3 Einwände) / "mittel" (sonst).\n\nAntworte im JSON-Format.` },
+                { role: 'user', content: `Prüfe diesen Portfolio-Vorschlag kritisch und erstelle die finale Empfehlung.\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten:\n${factsSummary}\n\nVorgeschlagene Positionen (mit Gewichten):\n${JSON.stringify(positionSummary, null, 2)}\n\nVerfügbare Alternativen (NUR diese Ticker dürfen als Ersatz dienen):\n${JSON.stringify(candidatePool, null, 2)}${adminFeedbackContext}${marktHubContextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n4. verdict: Dein Gesamturteil in 2-3 Sätzen.\n5. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n6. overallConfidence: "hoch" (FX-Limit eingehalten, kein Sektor > 30%, alle BUY, Sharpe > 0.5, ≤ 1 Einwand) / "niedrig" (FX überschritten, Sektor > 40%, SELL-Titel, Sharpe < 0.2, ≥ 3 Einwände) / "mittel" (sonst).\n7. positionReasons: für JEDE vorgeschlagene Position 2-3 Sätze in EINFACHEN Worten, WARUM genau dieser Titel für dieses Profil vorgeschlagen wird. Zielgruppe: Privatanleger 50+ ohne Fachjargon. WICHTIG: jeder Text INDIVIDUELL — konkretes Geschäft/Stärke des Unternehmens nennen, KEINE Schablone, KEINE Wiederholung derselben Formulierung über mehrere Titel. Keine Fachbegriffe (kein "Sharpe", "Volatilität", "Score"), keine Zahlen-Wiederholung des Gewichts.\n\nAntworte im JSON-Format.` },
               ],
               max_tokens: 4096,
               response_format: { type: 'json_schema', json_schema: { name: 'portfolio_review', strict: true, schema: { type: 'object', properties: {
@@ -1729,10 +1729,22 @@ Antworte im JSON-Format.`,
                 verdict: { type: 'string' },
                 adjustments: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, action: { type: 'string', enum: ['keep', 'replace', 'reduce', 'increase'] }, reason: { type: 'string' } }, required: ['ticker', 'action', 'reason'], additionalProperties: false } },
                 overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] },
-              }, required: ['critique', 'rejected', 'alternatives', 'verdict', 'adjustments', 'overallConfidence'], additionalProperties: false } } },
+                positionReasons: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, text: { type: 'string' } }, required: ['ticker', 'text'], additionalProperties: false } },
+              }, required: ['critique', 'rejected', 'alternatives', 'verdict', 'adjustments', 'overallConfidence', 'positionReasons'], additionalProperties: false } } },
             });
             const agentContent = agentResponse.choices[0]?.message?.content as string | undefined;
-            const agentResult = agentContent ? JSON.parse(agentContent) : { critique: '', rejected: [], alternatives: [], verdict: '', adjustments: [], overallConfidence: 'mittel' };
+            const agentResult = agentContent ? JSON.parse(agentContent) : { critique: '', rejected: [], alternatives: [], verdict: '', adjustments: [], overallConfidence: 'mittel', positionReasons: [] };
+
+            // Individuelle Titel-Begründung (2-3 einfache Sätze) an die Positionen
+            // hängen. Ersetzt das schablonenhafte Client-Template. Nur Ticker aus
+            // den Positionen, leere Texte ignoriert — sonst greift der Fallback.
+            const reasonMap = new Map<string, string>();
+            for (const pr of (agentResult.positionReasons ?? [])) {
+              const t = pr?.ticker ? String(pr.ticker).toUpperCase() : '';
+              const text = typeof pr?.text === 'string' ? pr.text.trim() : '';
+              if (t && text && positionTickers.has(t)) reasonMap.set(t, text);
+            }
+            for (const p of positions) { const t = reasonMap.get(p.ticker.toUpperCase()); if (t) (p as any).aiReason = t; }
 
             const challengerResult = {
               critique: agentResult.critique ?? '',
