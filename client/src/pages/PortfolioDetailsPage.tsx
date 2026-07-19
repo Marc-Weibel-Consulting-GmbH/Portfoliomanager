@@ -2593,7 +2593,7 @@ export default function PortfolioDetailsPage() {
               </div>
             )}
             {(() => {
-              const buys = transactions.filter((t: any) => (t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy');
+              const buys = transactions.filter((t: any) => ['BUY', 'buy', 'entry'].includes(t.type || t.transactionType));
               const sells = transactions.filter((t: any) => (t.type || t.transactionType) === 'SELL' || (t.type || t.transactionType) === 'sell');
               const dividends = transactions.filter((t: any) => (t.type || t.transactionType) === 'dividend');
               // Volumen in CHF (totalAmountCHF ist der vom Server umgerechnete Betrag; Fallback shares*price)
@@ -2733,9 +2733,32 @@ export default function PortfolioDetailsPage() {
                               <tbody>
                                 {filteredTx.slice(0, 50).map((t: any) => {
                                   const txType = t.type || t.transactionType;
-                                  const isBuy = txType === 'BUY' || txType === 'buy';
+                                  const isBuy = txType === 'BUY' || txType === 'buy' || txType === 'entry';
                                   const isSell = txType === 'SELL' || txType === 'sell';
                                   const isDiv = txType === 'dividend';
+                                  const isDeposit = txType === 'deposit';
+                                  const isWithdrawal = txType === 'withdrawal';
+                                  const isCashTx = isDeposit || isWithdrawal;
+                                  // For buy/sell: use pricePerShare; if 0, derive from totalAmountCHF/shares; for cash transactions: show '—'
+                                  const displayPrice = isCashTx ? null : (() => {
+                                    const raw = parseFloat(t.price || t.pricePerShare || '0');
+                                    if (raw > 0) return raw;
+                                    // Derive price from totalAmountCHF / shares when pricePerShare not stored
+                                    const shares = parseFloat(t.shares || t.quantity || '0');
+                                    const total = parseFloat(t.totalAmountCHF || t.totalAmount || '0');
+                                    return shares > 0 && total > 0 ? total / shares : 0;
+                                  })();
+                                  // For cash transactions: show totalAmountCHF or totalAmount directly
+                                  // For buy/sell: calculate from shares * price, fallback to totalAmountCHF
+                                  const displayTotal = isCashTx
+                                    ? parseFloat(t.totalAmountCHF || t.totalAmount || '0')
+                                    : (() => {
+                                        const shares = parseFloat(t.shares || t.quantity || '0');
+                                        const price = parseFloat(t.price || t.pricePerShare || '0');
+                                        if (shares > 0 && price > 0) return shares * price;
+                                        return parseFloat(t.totalAmountCHF || t.totalAmount || '0');
+                                      })();
+                                  const displayCurrency = t.currency || 'CHF';
                                   return (
                                     <tr key={t.id} className={`border-b border-white/5 hover:bg-white/[0.03] ${selectedTxIds.has(t.id) ? 'bg-red-500/5' : ''}`}>
                                       {!isDemo && (
@@ -2748,20 +2771,22 @@ export default function PortfolioDetailsPage() {
                                         <span className={`text-xs font-medium px-2 py-0.5 rounded ${
                                           isBuy ? 'bg-emerald-500/10 text-positive' :
                                           isDiv ? 'bg-[#00CFC1]/10 text-[#00CFC1]' :
+                                          isDeposit ? 'bg-blue-500/10 text-blue-400' :
+                                          isWithdrawal ? 'bg-orange-500/10 text-orange-400' :
                                           'bg-red-500/10 text-negative'
                                         }`}>
-                                          {isBuy ? 'Kauf' : isSell ? 'Verkauf' : isDiv ? 'Dividende' : txType}
+                                          {isBuy ? (txType === 'entry' ? 'Eingang' : 'Kauf') : isSell ? 'Verkauf' : isDiv ? 'Dividende' : isDeposit ? 'Einzahlung' : isWithdrawal ? 'Auszahlung' : txType}
                                         </span>
                                       </td>
                                       <td className="px-3 py-3">
-                                        <div className="font-mono font-semibold text-sm text-gray-300">{t.ticker}</div>
+                                        <div className="font-mono font-semibold text-sm text-gray-300">{t.ticker || (isCashTx ? <span className="text-gray-500 text-xs italic">Konto</span> : '—')}</div>
                                         {t.companyName && t.companyName !== t.ticker && (
                                           <div className="text-xs text-gray-500 truncate max-w-[120px]">{t.companyName}</div>
                                         )}
                                       </td>
-                                      <td className="px-3 py-3 text-right text-sm text-white">{t.shares || t.quantity || '—'}</td>
-                                      <td className="px-3 py-3 text-right text-sm text-gray-300">{formatCurrency(t.price || t.pricePerShare || 0, t.currency || 'CHF')}</td>
-                                      <td className="px-5 py-3 text-right text-sm text-white font-semibold">{formatCurrency((t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), t.currency || 'CHF')}</td>
+                                      <td className="px-3 py-3 text-right text-sm text-white">{isCashTx ? '—' : (t.shares || t.quantity || '—')}</td>
+                                      <td className="px-3 py-3 text-right text-sm text-gray-300">{displayPrice != null && displayPrice > 0 ? formatCurrency(displayPrice, displayCurrency) : '—'}</td>
+                                      <td className="px-5 py-3 text-right text-sm text-white font-semibold">{formatCurrency(displayTotal, 'CHF')}</td>
                                       {!isDemo && (
                                         <td className="px-2 py-3">
                                           <DeleteTransactionButton transactionId={t.id} portfolioId={portfolioId} />
