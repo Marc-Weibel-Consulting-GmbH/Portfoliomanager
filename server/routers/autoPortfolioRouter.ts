@@ -14,7 +14,7 @@ import {
 
 // ── In-memory proposal job registry ──────────────────────────────────────────
 // Stores running/completed proposal jobs per user. TTL: 30 minutes.
-type ProposalJobStatus = 'running' | 'done' | 'error';
+type ProposalJobStatus = 'running' | 'enhancing' | 'done' | 'error';
 interface ProposalJob {
   status: ProposalJobStatus;
   progress: string[];
@@ -1508,8 +1508,22 @@ Antworte im JSON-Format.`,
           let backfillFailedTickers: string[] = [];
           try {
             const { autoBackfillNewSymbols } = await import('../autoBackfill');
-            const backfillResult = await autoBackfillNewSymbols(selectedTickersForBackfill);
-            if (backfillResult.newSymbolsDetected > 0) {
+            // C: Backfill zeitlich einboxen — verhindert die minutenlangen
+            // Hänger, wenn viele neue Symbole nachgeladen werden müssen. Läuft
+            // der Backfill länger, wird der Vorschlag mit den vorhandenen Daten
+            // gebaut; die restlichen Kurse landen im Cache und stehen beim
+            // nächsten Lauf bereit.
+            const BACKFILL_TIMEOUT_MS = 15000;
+            const backfillResult = await Promise.race([
+              autoBackfillNewSymbols(selectedTickersForBackfill),
+              new Promise<{ newSymbolsDetected: number; backfillResults: any[]; timedOut: boolean }>((resolve) =>
+                setTimeout(() => resolve({ newSymbolsDetected: 0, backfillResults: [], timedOut: true }), BACKFILL_TIMEOUT_MS),
+              ),
+            ]);
+            if ((backfillResult as any).timedOut) {
+              job.progress.push('Kurshistorie wird im Hintergrund weiter geladen…');
+              console.warn(`[startProposal] Backfill >${BACKFILL_TIMEOUT_MS}ms — Vorschlag mit vorhandenen Daten für Job ${jobId}`);
+            } else if (backfillResult.newSymbolsDetected > 0) {
               job.progress.push(`Kurshistorie: ${backfillResult.newSymbolsDetected} Titel nachgeladen.`);
               console.log(`[startProposal] Auto-backfill: ${backfillResult.newSymbolsDetected} Titel nachgeladen für Job ${jobId}`);
             }
@@ -1611,6 +1625,54 @@ Antworte im JSON-Format.`,
           // Multi-agent challenge layer
           let challengeReport: any = null;
           let proposalLogId: number | null = null;
+
+          // A (progressiv): Ergebnis-Objekt, das sowohl als deterministisches
+          // Zwischenergebnis (report=null) als auch final (mit KI-Report) baubar
+          // ist. So sieht der Nutzer sein Portfolio sofort; die KI-Gegenprüfung
+          // läuft im Hintergrund weiter.
+          const buildResultObject = (report: any) => {
+            const finalAdjustments = report?.finalAdjustments ?? [];
+            const adjustedPositions = (() => {
+              if (!finalAdjustments.length) return null;
+              const adj = finalAdjustments;
+              let adjusted = positions.map(p => ({ ...p }));
+              for (const a of adj) { const pos = adjusted.find(p => p.ticker.toUpperCase() === a.ticker.toUpperCase()); if (!pos) continue; if (a.action === 'reduce') pos.weightPct = Math.max(pos.weightPct * 0.65, 3); if (a.action === 'increase') pos.weightPct = Math.min(pos.weightPct * 1.35, 15); }
+              const replaceAdj = adj.filter((a: any) => a.action === 'replace');
+              if (replaceAdj.length > 0) {
+                const usedTickers = new Set(adjusted.map(p => p.ticker.toUpperCase()));
+                const candidates = scored.filter(x => !usedTickers.has(x.stock.ticker.toUpperCase()) && isBuyable(x) && x.combinedScore >= 45).sort((a, b) => b.combinedScore - a.combinedScore);
+                for (const ra of replaceAdj) { const idx = adjusted.findIndex(p => p.ticker.toUpperCase() === ra.ticker.toUpperCase()); if (idx < 0) continue; const replacement = candidates.shift(); if (!replacement) continue; usedTickers.add(replacement.stock.ticker.toUpperCase()); adjusted[idx] = { ...adjusted[idx], ticker: replacement.stock.ticker, companyName: replacement.stock.companyName, sector: replacement.stock.sector, currency: replacement.stock.currency, currentPrice: parseFloat(String(replacement.stock.currentPrice ?? '0')) || 0, combinedScore: replacement.combinedScore, signal: replacement.signal, reason: `Ersetzt ${ra.ticker} gemäss KI-Empfehlung` }; }
+              }
+              const total = adjusted.reduce((s, p) => s + p.weightPct, 0);
+              if (total > 0) adjusted = adjusted.map(p => ({ ...p, weightPct: Math.round((p.weightPct / total) * 1000) / 10 }));
+              return adjusted;
+            })();
+            const sectorTiltsForBadge = getSectorTilts(marktHubSignals);
+            return {
+              positions,
+              method,
+              methodLabel: weightingSource === 'optimizer' ? (method === 'min_variance' ? 'Min. Varianz' : method === 'max_dividend' ? 'Max. Dividende' : 'Max. Sharpe') : 'Score-gewichtet (Fallback)',
+              weighting: { source: weightingSource, engine: weightingEngine, note: weightingNote, minPositionPct: Math.round(params.minPositionWeight * 1000) / 10, maxPositionPct: Math.round(params.maxPositionWeight * 1000) / 10 },
+              metrics: proposalMetrics,
+              allocation: { sectors: sectorWeights, fxWeightPct, sectorCapPct: rules.maxSectorPercent, fxCapPct: maxFxExposurePct },
+              notes,
+              profile: { riskProfile, investmentGoal: goal, excludedSectors, esgOnly, liquidityNeedPct, targetReturnPct, referenceCurrency, maxFxExposurePct },
+              stats: { universeCount: universe.length, scoredCount: scored.length, buySignals: scored.filter((x) => x.combinedScore >= 55 && x.signal !== 'SELL').length, sellExcluded: scored.filter((x) => x.signal === 'SELL').length, selectedCount: positions.length, watchlistRecommendations: positions.filter((p) => watchlistRecTickers.has(p.ticker.toUpperCase())).length, maxPositionPct: Math.max(...positions.map((p) => p.weightPct)), sectorBenchmarkFiltered: allStocks.length - universe.length, qualityTier },
+              proposalLogId: proposalLogId ?? null,
+              finalAdjustments,
+              synthesizerVerdict: report?.synthesizerVerdict ?? null,
+              overallConfidence: report?.overallConfidence ?? null,
+              adjustedPositions,
+              enhancing: report == null, // true = deterministisches Zwischenergebnis, KI läuft noch
+              marktHubBadge: { hasData: marktHubSignals.hasData, regime: marktHubSignals.regime.regime, leadingFactor: marktHubSignals.factors.leadingFactor, activeSectorTilts: Object.entries(sectorTiltsForBadge).filter(([, v]) => v !== 0).map(([sector, tilt]) => ({ sector, tilt })), dynamicRiskFreeRate: Math.round(dynamicRiskFreeRate * 10000) / 100, macroSignals: { yieldCurveInverted: (marktHubSignals.macro.yieldCurveSpread ?? 0) < 0, inflationHigh: (marktHubSignals.macro.coreCpi ?? 0) > 4, hySpreadElevated: (marktHubSignals.macro.hySpread ?? 0) > 350 } },
+            };
+          };
+
+          // Zwischenergebnis sofort ausliefern — Portfolio ist da, KI verfeinert noch.
+          job.result = buildResultObject(null);
+          job.status = 'enhancing';
+          job.progress.push('Vorschlag steht — die KI verfeinert ihn noch…');
+
           try {
             const positionSummary = positions.map(p => ({ ticker: p.ticker, name: p.companyName, sector: p.sector, currency: p.currency, weight: p.weightPct, score: p.combinedScore, signal: p.signal, ytd: (p as any).ytdPerf ?? null, reason: p.reason }));
             const candidatePool = scored.filter(x => !positions.find(p => p.ticker === x.stock.ticker)).filter(x => isBuyable(x) && x.combinedScore >= 45).sort((a, b) => b.combinedScore - a.combinedScore).slice(0, 15).map(x => ({ ticker: x.stock.ticker, name: x.stock.companyName, sector: x.stock.sector, score: x.combinedScore, signal: x.signal }));
@@ -1721,45 +1783,9 @@ Antworte im JSON-Format.`,
             console.warn(`[startProposal] Multi-agent layer failed (non-fatal): ${agentErr?.message}`);
           }
 
-          // Build final result (same shape as buildProposal)
-          const finalAdjustments = challengeReport?.finalAdjustments ?? [];
-          const adjustedPositions = (() => {
-            if (!finalAdjustments.length) return null;
-            const adj = finalAdjustments;
-            let adjusted = positions.map(p => ({ ...p }));
-            for (const a of adj) { const pos = adjusted.find(p => p.ticker.toUpperCase() === a.ticker.toUpperCase()); if (!pos) continue; if (a.action === 'reduce') pos.weightPct = Math.max(pos.weightPct * 0.65, 3); if (a.action === 'increase') pos.weightPct = Math.min(pos.weightPct * 1.35, 15); }
-            const replaceAdj = adj.filter((a: any) => a.action === 'replace');
-            if (replaceAdj.length > 0) {
-              const usedTickers = new Set(adjusted.map(p => p.ticker.toUpperCase()));
-              const candidates = scored.filter(x => !usedTickers.has(x.stock.ticker.toUpperCase()) && isBuyable(x) && x.combinedScore >= 45).sort((a, b) => b.combinedScore - a.combinedScore);
-              for (const ra of replaceAdj) { const idx = adjusted.findIndex(p => p.ticker.toUpperCase() === ra.ticker.toUpperCase()); if (idx < 0) continue; const replacement = candidates.shift(); if (!replacement) continue; usedTickers.add(replacement.stock.ticker.toUpperCase()); adjusted[idx] = { ...adjusted[idx], ticker: replacement.stock.ticker, companyName: replacement.stock.companyName, sector: replacement.stock.sector, currency: replacement.stock.currency, currentPrice: parseFloat(String(replacement.stock.currentPrice ?? '0')) || 0, combinedScore: replacement.combinedScore, signal: replacement.signal, reason: `Ersetzt ${ra.ticker} gemäss KI-Empfehlung` }; }
-            }
-            const total = adjusted.reduce((s, p) => s + p.weightPct, 0);
-            if (total > 0) adjusted = adjusted.map(p => ({ ...p, weightPct: Math.round((p.weightPct / total) * 1000) / 10 }));
-            return adjusted;
-          })();
-
-          const sectorTiltsForBadge = getSectorTilts(marktHubSignals);
-          const result = {
-            positions,
-            method,
-            methodLabel: weightingSource === 'optimizer' ? (method === 'min_variance' ? 'Min. Varianz' : method === 'max_dividend' ? 'Max. Dividende' : 'Max. Sharpe') : 'Score-gewichtet (Fallback)',
-            weighting: { source: weightingSource, engine: weightingEngine, note: weightingNote, minPositionPct: Math.round(params.minPositionWeight * 1000) / 10, maxPositionPct: Math.round(params.maxPositionWeight * 1000) / 10 },
-            metrics: proposalMetrics,
-            allocation: { sectors: sectorWeights, fxWeightPct, sectorCapPct: rules.maxSectorPercent, fxCapPct: maxFxExposurePct },
-            notes,
-            profile: { riskProfile, investmentGoal: goal, excludedSectors, esgOnly, liquidityNeedPct, targetReturnPct, referenceCurrency, maxFxExposurePct },
-            stats: { universeCount: universe.length, scoredCount: scored.length, buySignals: scored.filter((x) => x.combinedScore >= 55 && x.signal !== 'SELL').length, sellExcluded: scored.filter((x) => x.signal === 'SELL').length, selectedCount: positions.length, watchlistRecommendations: positions.filter((p) => watchlistRecTickers.has(p.ticker.toUpperCase())).length, maxPositionPct: Math.max(...positions.map((p) => p.weightPct)), sectorBenchmarkFiltered: allStocks.length - universe.length, qualityTier },
-            proposalLogId: proposalLogId ?? null,
-            finalAdjustments,
-            synthesizerVerdict: challengeReport?.synthesizerVerdict ?? null,
-            overallConfidence: challengeReport?.overallConfidence ?? null,
-            adjustedPositions,
-            marktHubBadge: { hasData: marktHubSignals.hasData, regime: marktHubSignals.regime.regime, leadingFactor: marktHubSignals.factors.leadingFactor, activeSectorTilts: Object.entries(sectorTiltsForBadge).filter(([, v]) => v !== 0).map(([sector, tilt]) => ({ sector, tilt })), dynamicRiskFreeRate: Math.round(dynamicRiskFreeRate * 10000) / 100, macroSignals: { yieldCurveInverted: (marktHubSignals.macro.yieldCurveSpread ?? 0) < 0, inflationHigh: (marktHubSignals.macro.coreCpi ?? 0) > 4, hySpreadElevated: (marktHubSignals.macro.hySpread ?? 0) > 350 } },
-          };
-
+          // Finales Ergebnis (mit KI-Report) — ersetzt das Zwischenergebnis.
+          job.result = buildResultObject(challengeReport);
           job.status = 'done';
-          job.result = result;
           job.progress.push('✅ Vorschlag fertig!');
           console.log(`[startProposal] Job ${jobId} completed for user ${ctx.user.id}`);
         } catch (err: any) {
