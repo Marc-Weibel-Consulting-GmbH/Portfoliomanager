@@ -67,12 +67,21 @@ async function fetchPricesFromDB(
     .orderBy(asc(hpTable.date));
   // Filter by date (date column is a string 'YYYY-MM-DD')
   const filtered = rows.filter((r: any) => String(r.date).slice(0, 10) >= startDate);
-  const byNorm: Record<string, Array<{ date: string; price: number }>> = {};
+  // Deduplizieren: pro Ticker+Datum nur den letzten Eintrag behalten.
+  // Duplikate in historicalPrices (z.B. durch mehrfache Backfill-Läufe) führen
+  // sonst zu return = (price - price) / price = 0 oder NaN in der Equity-Kurve.
+  const byNormMap: Record<string, Map<string, number>> = {};
   for (const r of filtered) {
     const v = parseFloat((r.adj ?? r.close) as any);
     if (!Number.isFinite(v) || v <= 0) continue;
-    if (!byNorm[r.ticker]) byNorm[r.ticker] = [];
-    byNorm[r.ticker].push({ date: String(r.date).slice(0, 10), price: v });
+    if (!byNormMap[r.ticker]) byNormMap[r.ticker] = new Map();
+    byNormMap[r.ticker].set(String(r.date).slice(0, 10), v); // letzter Wert gewinnt
+  }
+  const byNorm: Record<string, Array<{ date: string; price: number }>> = {};
+  for (const [ticker, dateMap] of Object.entries(byNormMap)) {
+    byNorm[ticker] = Array.from(dateMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, price]) => ({ date, price }));
   }
   const result: Record<string, Array<{ date: string; price: number }>> = {};
   for (const orig of tickers) {
@@ -221,12 +230,22 @@ async function fetchReturnsWithDates(
         prices.map(async (p, i) => p * (await getFxRate(dates[i], pair))),
       );
     }
+    // Titel überspringen wenn FX-Konversion ungültige Preise erzeugt hat
+    // (z.B. getFxRate liefert 0 für fehlende NOKCHF/CADCHF-Kurse).
+    const validPrices = prices.filter((p) => Number.isFinite(p) && p > 0);
+    if (validPrices.length < prices.length * 0.9) {
+      // Mehr als 10% ungültige Preise → Titel ausschliessen
+      continue;
+    }
     const retDates: string[] = [];
     const returns: number[] = [];
     for (let i = 1; i < prices.length; i++) {
-      returns.push((prices[i] - prices[i - 1]) / prices[i - 1]);
+      const ret = prices[i - 1] > 0 ? (prices[i] - prices[i - 1]) / prices[i - 1] : NaN;
+      if (!Number.isFinite(ret)) continue; // Einzelne NaN-Renditen überspringen
+      returns.push(ret);
       retDates.push(dates[i]);
     }
+    if (returns.length < 2) continue;
     out[orig] = { dates: retDates, returns };
   }
   return out;

@@ -428,12 +428,12 @@
 - [x] Frontend: Beide Aktionsbuttons entsprechend anpassen (Label + Aktion)
 
 ## Bug Fixes & UX Improvements (Jul 19, 2026)
-- [ ] Fix: Kaufwerte nach Portfolio-Übernahme — 0×CHF 0.00 / NaN% (adminReviewedPositions haben kein currentPrice)
-- [ ] Fix: KPI-Lücken im KI-Analyse-Protokoll (Sharpe/Erwartete Rendite/Volatilität = "—") — nur wenn Optimizer NaN liefert (fehlende Kurshistorie)
-- [ ] Fix: Div.-Rendite-Diskrepanz Übersicht (3.82%) vs. Deep Dive (3.2%) — unterschiedliche Datenquellen
-- [ ] Feature: Neuoptimierung neue Kandidaten default NICHT angekreuzt + Bulk-Toggle (Alle an/aus)
-- [ ] Feature: Fortschrittsbalken beim Portfolio-Erstellen (Spinner + Schritt-Anzeige)
-- [ ] Feature: Fortschrittsbalken beim Deep Dive laden (Skeleton/Progress statt leere Seite)
+- [x] Fix: Kaufwerte nach Portfolio-Übernahme — 0×CHF 0.00 / NaN% (adminReviewedPositions haben kein currentPrice)
+- [x] Fix: KPI-Lücken im KI-Analyse-Protokoll (Sharpe/Erwartete Rendite/Volatilität = "—") — nur wenn Optimizer NaN liefert (fehlende Kurshistorie)
+- [x] Fix: Div.-Rendite-Diskrepanz Übersicht (3.82%) vs. Deep Dive (3.2%) — unterschiedliche Datenquellen
+- [x] Feature: Neuoptimierung neue Kandidaten default NICHT angekreuzt + Bulk-Toggle (Alle an/aus)
+- [x] Feature: Fortschrittsbalken beim Portfolio-Erstellen (Spinner + Schritt-Anzeige)
+- [x] Feature: Fortschrittsbalken beim Deep Dive laden (Skeleton/Progress statt leere Seite)
 
 ## Fixes 2026-07-19 (Batch 2)
 - [x] Fix: Kaufwerte 0×CHF 0.00 nach Portfolio-Übernahme — adminReviewedPositions mit currentPrice aus Original-Positionen anreichern
