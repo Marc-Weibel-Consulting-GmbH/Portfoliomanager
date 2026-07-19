@@ -19,6 +19,205 @@ import {
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 
 // ============================================
+// Research-Quellen-Bibliothek (kuratiert)
+// ============================================
+// Zwei Stufen: (1) kostenlose Quellen mit hohem Mehrwert (direkt nutzbar,
+// teils automatisch), (2) institutionelles Sell-Side-Research, dessen
+// Vollberichte hinter einer Paywall liegen — dessen Kernaussagen (Kursziele,
+// Up-/Downgrades, Investment-Thesen) aber regelmässig in Finanzmedien
+// erscheinen und als Zusammenfassung/Exzerpt hochgeladen werden können.
+type LibrarySource = {
+  tier: "free" | "premium";
+  name: string;
+  category: string;
+  desc: string;
+  url: string;
+  auto?: boolean;
+  use: string;
+};
+
+const LIBRARY_SOURCES: LibrarySource[] = [
+  // ─── Kostenlos — hoher Mehrwert ───
+  {
+    tier: "free", name: "Apollo Academy (Torsten Slok)", category: "Makro · kostenlos",
+    desc: "Täglich aufbereitete Makro-Charts: Inflation, Arbeitsmarkt, Zinsstruktur, Kreditmärkte, Konsum, AI-Capex, Fiskalpolitik, Private Credit.",
+    url: "https://www.apolloacademy.com", auto: false,
+    use: "The Daily Spark · Weekly Market Charts · Mid-Year Outlook · Investor Presentations",
+  },
+  {
+    tier: "free", name: "SNB Data Portal", category: "Automatisch (FRED)",
+    desc: "CHF-Wechselkurse, Zinsen, Schweizer Renditen, CHF-Risikozinssatz.",
+    url: "https://data.snb.ch", auto: true,
+    use: "FX-Kalkulation, DCF, Sharpe-Ratio, CHF-Portfolios",
+  },
+  {
+    tier: "free", name: "FRED / St. Louis Fed", category: "Automatisch",
+    desc: "Makro-, Zins-, Inflations-, Spread- und Rezessionsdaten.",
+    url: "https://fred.stlouisfed.org", auto: true,
+    use: "Regime-Indikatoren, Zinskurve, Credit Spreads",
+  },
+  {
+    tier: "free", name: "Federal Reserve", category: "Manueller Upload",
+    desc: "FOMC-Statements, Summary of Economic Projections (SEP), H.8 Bankbilanzen, Flow of Funds (Z.1).",
+    url: "https://www.federalreserve.gov/data.htm", auto: false,
+    use: "Geldpolitik-Regime, Liquidität, Kreditwachstum",
+  },
+  {
+    tier: "free", name: "Kenneth French Data Library", category: "Manueller Upload",
+    desc: "Faktor-Renditen: Value, Size, Momentum, Profitability, Investment.",
+    url: "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html", auto: false,
+    use: "Faktorprämien, Backtest, Smart Beta",
+  },
+  {
+    tier: "free", name: "OECD Data", category: "Manueller Upload",
+    desc: "Leading Indicators (CLI), BIP, Inflation, Arbeitsmarkt — international vergleichbar.",
+    url: "https://data.oecd.org", auto: false,
+    use: "Globales Konjunkturregime, Frühindikatoren",
+  },
+  {
+    tier: "free", name: "IMF Data", category: "Manueller Upload",
+    desc: "World Economic Outlook, Global Financial Stability Report, Länderdaten.",
+    url: "https://www.imf.org/en/Data", auto: false,
+    use: "Wachstums-/Risikoausblick, Länder-/Regionenallokation",
+  },
+  {
+    tier: "free", name: "BIS Data Portal", category: "Manueller Upload",
+    desc: "Kreditzyklen, Debt Service Ratios, globale Liquidität, Property Prices.",
+    url: "https://data.bis.org", auto: false,
+    use: "Systemisches Risiko, Kreditblase-Frühindikatoren",
+  },
+  {
+    tier: "free", name: "SEC EDGAR", category: "Automatisch (/edgar)",
+    desc: "Offizielle US-Unternehmensberichte: 10-K, 10-Q, 8-K, XBRL-Fundamentaldaten.",
+    url: "https://www.sec.gov/cgi-bin/browse-edgar", auto: true,
+    use: "Fundamentalanalyse US-Aktien, Bilanzprüfung",
+  },
+  {
+    tier: "free", name: "Aswath Damodaran Data", category: "Manueller Upload",
+    desc: "Equity Risk Premiums, WACC, Country Risk Premiums, Branchen-Multiples.",
+    url: "https://pages.stern.nyu.edu/~adamodar/", auto: false,
+    use: "Bewertungsannahmen, DCF-Modelle, Länderrisiko",
+  },
+  {
+    tier: "free", name: "Research Affiliates (RAFI)", category: "Manueller Upload",
+    desc: "Langfristige erwartete Renditen nach Anlageklasse und Region (10J).",
+    url: "https://www.researchaffiliates.com/asset-allocation-interactive", auto: false,
+    use: "Strategische Asset-Allokation, 10J-Erwartungen",
+  },
+  {
+    tier: "free", name: "J.P. Morgan Guide to the Markets", category: "Manueller Upload",
+    desc: "Marktgrafiken, Makro-Zyklen, Bewertungen, Zinsen, Aktien/Bonds.",
+    url: "https://am.jpmorgan.com/us/en/asset-management/adv/insights/market-insights/guide-to-the-markets/", auto: false,
+    use: "Marktregime-Kontext, Bewertungsniveaus, Zyklusanalyse",
+  },
+  {
+    tier: "free", name: "Unternehmenspräsentationen (IR)", category: "Manueller Upload",
+    desc: "Investor Presentations, Quartals-Decks und Geschäftsberichte direkt von den Unternehmen.",
+    url: "https://www.annualreports.com", auto: false,
+    use: "Fundamentaldaten, Guidance, Segmentanalyse",
+  },
+  // ─── Institutionelles Premium-Research (Kernaussagen via Finanzmedien) ───
+  {
+    tier: "premium", name: "Bernstein Research", category: "Premium · via Medien",
+    desc: "Klassisches Sell-Side-Research. Vollberichte/Modelle nur für Kunden — Kernaussagen via Bloomberg/Reuters/CNBC.",
+    url: "https://www.bernsteinresearch.com", auto: false,
+    use: "Kursziel-Änderungen, Up-/Downgrades, Investment-Thesen",
+  },
+  {
+    tier: "premium", name: "Goldman Sachs Research", category: "Premium · via Medien",
+    desc: "Makro- und Branchen-Research; öffentlich meist nur Insights-Artikel und Medienzitate.",
+    url: "https://www.goldmansachs.com/insights", auto: false,
+    use: "Makro-Ausblick, Sektor-Calls, Top-Ideen (Medienecho)",
+  },
+  {
+    tier: "premium", name: "Morgan Stanley Research", category: "Premium · via Medien",
+    desc: "Strategie- und Unternehmens-Research; öffentlich Ideas-Artikel und Zitate.",
+    url: "https://www.morganstanley.com/ideas", auto: false,
+    use: "Strategie-Thesen, Kursziele, Sektor-Präferenzen",
+  },
+  {
+    tier: "premium", name: "BofA Global Research", category: "Premium · via Medien",
+    desc: "Fund Manager Survey, Flow Show, Sektor-Research; Kernaussagen breit in Medien zitiert.",
+    url: "https://institute.bankofamerica.com", auto: false,
+    use: "Positionierung/Sentiment, Flows, Makro-Ausblick",
+  },
+  {
+    tier: "premium", name: "UBS Research", category: "Premium · via Medien",
+    desc: "CIO-Ausblick und House View öffentlich; Detail-Research für Kunden.",
+    url: "https://www.ubs.com/global/en/wealth-management/insights.html", auto: false,
+    use: "House View, Asset-Allokation, CHF-/Europa-Sicht",
+  },
+  {
+    tier: "premium", name: "Evercore ISI", category: "Premium · via Medien",
+    desc: "Makro-/Strategie-Research (Ed Hyman); Kernaussagen in Finanzmedien.",
+    url: "https://www.evercoreisi.com", auto: false,
+    use: "Makro-Regime, Fed-Pfad, Rezessionswahrscheinlichkeit",
+  },
+  {
+    tier: "premium", name: "Wolfe Research", category: "Premium · via Medien",
+    desc: "Quant-/Portfolio-Strategie und Sektor-Research; überwiegend Kunden-exklusiv.",
+    url: "https://www.wolferesearch.com", auto: false,
+    use: "Faktor-/Quant-Signale, Sektor-Rotation",
+  },
+  {
+    tier: "premium", name: "Redburn Atlantic", category: "Premium · via Medien",
+    desc: "Europäisches/US-Unternehmens-Research; Kernaussagen teils in Medien.",
+    url: "https://www.redburnatlantic.com", auto: false,
+    use: "Europa-Unternehmens-Calls, Kursziele",
+  },
+  {
+    tier: "premium", name: "Autonomous Research", category: "Premium · via Medien",
+    desc: "Spezialist für Financials (Banken/Versicherer); Kunden-exklusiv, Zitate in Medien.",
+    url: "https://www.autonomous.com", auto: false,
+    use: "Financials-Sektor, Banken-/Versicherer-Thesen",
+  },
+];
+
+function SourceCard({ src, onUpload }: { src: LibrarySource; onUpload: (name: string) => void }) {
+  return (
+    <div className="border border-white/10 rounded-lg p-4 bg-[#0f1420] hover:border-white/20 transition-colors">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <span className="font-medium text-sm text-white">{src.name}</span>
+        <Badge
+          variant={src.auto ? "default" : "outline"}
+          className={`text-[10px] shrink-0 ${
+            src.auto
+              ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+              : src.tier === "premium"
+              ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+              : "text-gray-400"
+          }`}
+        >
+          {src.category}
+        </Badge>
+      </div>
+      <p className="text-xs text-muted-foreground mb-2">{src.desc}</p>
+      <p className="text-xs text-[#00CFC1]/70 mb-3">→ {src.use}</p>
+      <div className="flex items-center gap-2">
+        <a
+          href={src.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-[#00CFC1] hover:underline flex items-center gap-1"
+        >
+          <ExternalLink className="h-3 w-3" />
+          Quelle öffnen
+        </a>
+        {!src.auto && (
+          <button
+            onClick={() => onUpload(src.name)}
+            className="text-xs text-[#00CFC1] hover:underline flex items-center gap-1 ml-1"
+          >
+            <Upload className="h-3 w-3" />
+            {src.tier === "premium" ? "Zusammenfassung hochladen" : "PDF hochladen"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
 // Research Documents Tab
 // ============================================
 function ResearchDocumentsTab() {
@@ -654,101 +853,48 @@ function MacroSourcesTab() {
 
       {/* ===== Research-Quellen-Bibliothek ===== */}
       <div className="mt-8">
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-2">
           <BookOpen className="h-5 w-5 text-[#00CFC1]" />
           <h2 className="text-lg font-semibold">Research-Quellen-Bibliothek</h2>
         </div>
         <p className="text-sm text-muted-foreground mb-4">
           Kuratierte Quellen für strategische Allokation, Faktorqualität und Risikobewertung.
-          PDFs können direkt hochgeladen werden und fliessen in KI-Empfehlungen ein.
+          Automatische Quellen fliessen laufend ein; bei den übrigen können PDFs bzw.
+          Zusammenfassungen hochgeladen werden und gehen in die KI-Empfehlungen ein.
         </p>
+
+        {/* Kontext: was ist öffentlich? (Apollo vs. Sell-Side) */}
+        <div className="mb-5 rounded-lg border border-white/10 bg-[#0f1420] p-4 text-xs text-gray-400 leading-relaxed">
+          <span className="text-gray-300 font-medium">Zur Einordnung: </span>
+          Kostenlose Makro-Quellen wie <span className="text-white">Apollo (Torsten Slok)</span> liefern
+          täglich aufbereitete Charts und Outlooks in institutioneller Qualität. Klassisches
+          <span className="text-white"> Sell-Side-Research</span> (Bernstein, Goldman, Morgan Stanley …)
+          ist dagegen überwiegend Kunden-exklusiv — Vollberichte, Bewertungs- und Earnings-Modelle
+          sind nicht öffentlich. Deren <span className="text-white">Kernaussagen</span> (Kursziel-Änderungen,
+          Up-/Downgrades, Investment-Thesen) erscheinen jedoch regelmässig in Finanzmedien und lassen
+          sich als Zusammenfassung erfassen.
+        </div>
+
+        {/* Stufe 1: kostenlos */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+          <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Kostenlos — hoher Mehrwert</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+          {LIBRARY_SOURCES.filter((s) => s.tier === "free").map((src) => (
+            <SourceCard key={src.name} src={src} onUpload={(name) => { setTitle(name); setUploadOpen(true); }} />
+          ))}
+        </div>
+
+        {/* Stufe 2: Premium (via Medien) */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="h-2 w-2 rounded-full bg-amber-400" />
+          <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Institutionelles Premium-Research</h3>
+          <span className="text-[11px] text-gray-500">— Kernaussagen via Finanzmedien</span>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {[
-            {
-              priority: 1, name: "SNB Data Portal", category: "Automatisch (FRED)",
-              desc: "CHF-Wechselkurse, Zinsen, Schweizer Renditen, CHF-Risikozinssatz",
-              url: "https://data.snb.ch", auto: true,
-              use: "FX-Kalkulation, DCF, Sharpe-Ratio, CHF-Portfolios",
-            },
-            {
-              priority: 2, name: "FRED / St. Louis Fed", category: "Automatisch",
-              desc: "Makro-, Zins-, Inflations-, Spread- und Rezessionsdaten",
-              url: "https://fred.stlouisfed.org", auto: true,
-              use: "Regime-Indikatoren, Zinskurve, Credit Spreads",
-            },
-            {
-              priority: 3, name: "SEC EDGAR", category: "Manueller Upload",
-              desc: "Offizielle US-Unternehmensberichte: 10-K, 10-Q, 8-K",
-              url: "https://www.sec.gov/cgi-bin/browse-edgar", auto: false,
-              use: "Fundamentalanalyse US-Aktien, Bilanzprüfung",
-            },
-            {
-              priority: 4, name: "Aswath Damodaran Data", category: "Manueller Upload",
-              desc: "Equity Risk Premiums, WACC, Country Risk Premiums",
-              url: "https://pages.stern.nyu.edu/~adamodar/", auto: false,
-              use: "Bewertungsannahmen, DCF-Modelle, Länderrisiko",
-            },
-            {
-              priority: 5, name: "Kenneth French Data Library", category: "Manueller Upload",
-              desc: "Faktor-Renditen: Value, Size, Momentum, Profitability",
-              url: "https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html", auto: false,
-              use: "Faktorprämien, Backtest, Smart Beta",
-            },
-            {
-              priority: 6, name: "Research Affiliates (RAFI)", category: "Manueller Upload",
-              desc: "Langfristige erwartete Renditen nach Anlageklasse und Region",
-              url: "https://www.researchaffiliates.com/asset-allocation-interactive", auto: false,
-              use: "Strategische Asset-Allokation, 10J-Erwartungen",
-            },
-            {
-              priority: 7, name: "J.P. Morgan Guide to the Markets", category: "Manueller Upload",
-              desc: "Marktgrafiken, Makro-Zyklen, Bewertungen, Zinsen, Aktien/Bonds",
-              url: "https://am.jpmorgan.com/us/en/asset-management/adv/insights/market-insights/guide-to-the-markets/", auto: false,
-              use: "Marktregime-Kontext, Bewertungsniveaus, Zyklusanalyse",
-            },
-            {
-              priority: 8, name: "BIS Data Portal", category: "Manueller Upload",
-              desc: "Kreditzyklen, Debt Service Ratios, globale Liquidität",
-              url: "https://data.bis.org", auto: false,
-              use: "Systemisches Risiko, Kreditblase-Frühindikatoren",
-            },
-          ].map((src) => (
-            <div key={src.name} className="border border-white/10 rounded-lg p-4 bg-[#0f1420] hover:border-white/20 transition-colors">
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono text-gray-600">#{src.priority}</span>
-                  <span className="font-medium text-sm text-white">{src.name}</span>
-                </div>
-                <Badge variant={src.auto ? "default" : "outline"} className={`text-[10px] shrink-0 ${src.auto ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "text-gray-400"}`}>
-                  {src.category}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mb-2">{src.desc}</p>
-              <p className="text-xs text-[#00CFC1]/70 mb-3">→ {src.use}</p>
-              <div className="flex items-center gap-2">
-                <a
-                  href={src.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-[#00CFC1] hover:underline flex items-center gap-1"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  Quelle öffnen
-                </a>
-                {!src.auto && (
-                  <button
-                    onClick={() => {
-                      setTitle(src.name);
-                      setUploadOpen(true);
-                    }}
-                    className="text-xs text-[#00CFC1] hover:underline flex items-center gap-1 ml-1"
-                  >
-                    <Upload className="h-3 w-3" />
-                    PDF hochladen
-                  </button>
-                )}
-              </div>
-            </div>
+          {LIBRARY_SOURCES.filter((s) => s.tier === "premium").map((src) => (
+            <SourceCard key={src.name} src={src} onUpload={(name) => { setTitle(name); setUploadOpen(true); }} />
           ))}
         </div>
       </div>
