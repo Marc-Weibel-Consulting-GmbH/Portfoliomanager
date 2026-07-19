@@ -418,3 +418,6 @@
 - [x] Fehlermeldung verbessern: konkrete Ticker nennen die ausgeschlossen wurden (backfillFailed-Ticker in weightingNote)
 - [x] Admin-Dashboard Backfill-Status-Panel: ausstehende Ticker (amber), zuletzt nachgeladen (grün), dauerhaft keine EODHD-Daten (rot, löschbar per Klick) — aktualisiert alle 10s
 - [x] Backend: permanentlyFailedBackfills-Registry in autoBackfill.ts + clearPermanentlyFailedBackfills-Prozedur in adminRouter
+
+## YTD-Inkonsistenz Bug (Jul 2026)
+- [x] Fix: YTD-Inkonsistenz (Dashboard +54.24% vs Portfolio-Details +22.9%) — calculatePortfolioValueAtDate nutzte currentPrice statt historicalPrice für shares-Berechnung
