@@ -56,20 +56,24 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
   'SRG.MI': 'SNMRF.US',     // Snam → US OTC (SNMRF)
 
   // ─── Singapore Exchange (.SI → .SG) ───
-  'D05.SI': 'D05.SG',       // DBS Group (SGX) — EODHD uses .SG not .SI
+  // D05.SI (DBS Group) — EODHD hat kein .SG-Listing; US ADR DBSDY ist verfügbar
+  'D05.SI': 'DBSDY.US',     // DBS Group → US ADR (DBSDY)
 
-  // ─── Tokyo Stock Exchange (.T → .TSE) ───
-  // EODHD erwartet für japanische Aktien das Suffix .TSE statt .T
-  '6856.T': '6856.TSE',   // Horiba Seisakusho
-  '7203.T': '7203.TSE',   // Toyota
-  '6758.T': '6758.TSE',   // Sony
-  '9984.T': '9984.TSE',   // SoftBank
-  '6861.T': '6861.TSE',   // Keyence
-  '4519.T': '4519.TSE',   // Chugai Pharmaceutical
-  '8306.T': '8306.TSE',   // Mitsubishi UFJ
-  '6954.T': '6954.TSE',   // Fanuc
-  '7267.T': '7267.TSE',   // Honda
-  '6501.T': '6501.TSE',   // Hitachi
+  // ─── Tokyo Stock Exchange (.T) ───
+  // EODHD hat kein .TSE-Exchange — japanische Aktien müssen über Frankfurt (.F) oder US ADR abgerufen werden.
+  // Getestete Mappings (Stand Juli 2026):
+  '6856.T': '01H.F',      // Horiba Seisakusho → Frankfurt (01H.F) ✅
+  '7735.T': 'SCRNY.US',   // Screen Holdings → US ADR (SCRNY) ✅
+  '9962.T': 'MSSMY.US',   // Misumi Group → US ADR (MSSMY) ✅
+  '7203.T': 'TM',         // Toyota → US ADR (TM)
+  '6758.T': 'SONY',       // Sony → US ADR (SONY)
+  '9984.T': 'SFTBY.US',   // SoftBank → US ADR (SFTBY)
+  '6861.T': 'KYCCF.US',   // Keyence → US OTC (KYCCF)
+  '4519.T': 'CHGCY.US',   // Chugai Pharmaceutical → US ADR (CHGCY)
+  '8306.T': 'MUFG',       // Mitsubishi UFJ → US ADR (MUFG)
+  '6954.T': 'FANUY.US',   // Fanuc → US ADR (FANUY)
+  '7267.T': 'HMC',        // Honda → US ADR (HMC)
+  '6501.T': 'HTHIY.US',   // Hitachi → US ADR (HTHIY)
 
   // ─── US / OTC ───
   'MESA': 'RJET',
@@ -89,10 +93,8 @@ export function toEodhdSymbol(ticker: string): string {
   if (!ticker) return ticker;
   // Explizite Mappings haben Vorrang
   if (EODHD_TICKER_MAPPING[ticker]) return EODHD_TICKER_MAPPING[ticker];
-  // Generische Regel: Japanische Aktien (.T) → .TSE
-  // EODHD verwendet .TSE als Suffix für die Tokyo Stock Exchange
-  if (ticker.endsWith('.T') && /^\d+\.T$/.test(ticker)) {
-    return ticker.replace(/\.T$/, '.TSE');
-  }
+  // Generische Regel: Japanische Aktien (.T) — EODHD hat kein .TSE-Exchange.
+  // Unbekannte .T-Ticker werden als nicht verfügbar behandelt (UNAVAILABLE_TICKERS).
+  // Bekannte Ticker sind explizit in EODHD_TICKER_MAPPING oben eingetragen.
   return ticker;
 }
