@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { Settings, Save, RotateCcw, Eye, ChevronDown, ChevronRight } from "lucide-react";
+import {ChevronDown, ChevronRight, Eye, RotateCcw, Save, Settings, SlidersHorizontal} from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,7 @@ const THRESHOLD_LABELS: Record<string, { label: string; unit: string; component:
 
 export default function AdminScoreConfig() {
   const { data, isLoading } = trpc.admin.getScoreConfig.useQuery();
+  const { data: auditData, refetch: refetchAudit } = trpc.admin.getScoreConfigAudit.useQuery();
   const updateMutation = trpc.admin.updateScoreConfig.useMutation();
   const previewMutation = trpc.admin.previewScoreConfig.useMutation();
 
@@ -174,6 +176,7 @@ export default function AdminScoreConfig() {
     try {
       await updateMutation.mutateAsync({ config });
       toast.success("Score-Konfiguration gespeichert");
+      refetchAudit();
     } catch (e: any) {
       toast.error(e.message || "Fehler beim Speichern");
     }
@@ -232,6 +235,12 @@ export default function AdminScoreConfig() {
   return (
     <DashboardLayout>
       <div className="p-6 max-w-5xl mx-auto space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Score-Konfiguration", icon: <SlidersHorizontal className="h-4 w-4" /> },
+        ]}
+      />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -281,6 +290,34 @@ export default function AdminScoreConfig() {
                   <div className="text-xs text-muted-foreground">Abdeckung</div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Audit-Trail (Compliance): letzte Schwellen-Änderungen */}
+        {auditData?.entries && auditData.entries.length > 0 && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Letzte Änderungen (Audit)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-1.5 text-xs">
+                {auditData.entries.slice(0, 8).map((e: any, i: number) => (
+                  <li key={i} className="flex flex-wrap gap-x-2 text-muted-foreground">
+                    <span className="font-mono">{new Date(e.at).toLocaleString("de-CH")}</span>
+                    <span>·</span>
+                    <span>{e.email || `User #${e.userId}`}</span>
+                    {e.oldWeights && e.newWeights && (
+                      <span className="text-foreground/70">
+                        · Gewichte: {(["riskAdjustedReturn","valuation","risk","income","diversification"] as const)
+                          .filter((k) => e.oldWeights[k] !== e.newWeights[k])
+                          .map((k) => `${k} ${Math.round((e.oldWeights[k] ?? 0) * 100)}→${Math.round((e.newWeights[k] ?? 0) * 100)}%`)
+                          .join(", ") || "unverändert"}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </CardContent>
           </Card>
         )}

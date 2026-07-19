@@ -10,7 +10,8 @@ import {
   ensureMaxBackfillForSymbols,
   autoBackfillNewSymbols,
   getBackfillQueueStatus,
-  clearBackfillCache 
+  clearBackfillCache,
+  clearPermanentlyFailedBackfills
 } from "../autoBackfill";
 
 export const adminRouter = router({
@@ -40,8 +41,59 @@ export const adminRouter = router({
         countOf(savedPortfolios),
       ]);
 
-      return { totalUsers, newUsers30d, premiumUsers, totalPortfolios };
+            return { totalUsers, newUsers30d, premiumUsers, totalPortfolios };
     }),
+
+    /**
+     * Returns the list of users registered in the last N days with name and email.
+     */
+    getNewUsersDetail: adminProcedure
+      .input(z.object({ days: z.number().int().min(1).max(365).default(30) }).optional())
+      .query(async ({ input }) => {
+        const { getDb } = await import("../db");
+        const { users } = await import("../../drizzle/schema");
+        const { gte, desc } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const days = input?.days ?? 30;
+        const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+        const rows = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            createdAt: users.createdAt,
+            hasPaid: users.hasPaid,
+            role: users.role,
+          })
+          .from(users)
+          .where(gte(users.createdAt, since))
+          .orderBy(desc(users.createdAt));
+        return rows;
+      }),
+
+    /**
+     * Returns all users with name and email for the admin user list.
+     */
+    getAllUsersDetail: adminProcedure.query(async () => {
+        const { getDb } = await import("../db");
+        const { users } = await import("../../drizzle/schema");
+        const { desc } = await import("drizzle-orm");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        const rows = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            email: users.email,
+            createdAt: users.createdAt,
+            hasPaid: users.hasPaid,
+            role: users.role,
+          })
+          .from(users)
+          .orderBy(desc(users.createdAt));
+        return rows;
+      }),
 
     exportData: adminProcedure.query(async () => {
       const { getAllStocks, getDb } = await import("../db");
@@ -577,6 +629,20 @@ export const adminRouter = router({
         return { success: true, message: 'Backfill cache cleared' };
       }),
 
+    /**
+     * Clear permanently-failed backfills registry
+     * Useful when a ticker becomes available at EODHD after being absent
+     */
+    clearPermanentlyFailedBackfills: adminProcedure
+      .input(z.object({ ticker: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+        clearPermanentlyFailedBackfills(input.ticker);
+        return { success: true, message: input.ticker ? `Registry für ${input.ticker} geleert` : 'Alle permanently-failed Registries geleert' };
+      }),
+
     // ─── ML Trainer ───────────────────────────────────────────────────────────
 
     /**
@@ -973,9 +1039,10 @@ export const adminRouter = router({
       .input(z.object({
         config: z.any(), // ScoreThresholdsConfig shape
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { getDb } = await import("../db");
         const { appSettings } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
         const { invalidateScoreConfigCache } = await import("../lib/portfolioQualityScore");
         const db = await getDb();
         if (!db) throw new Error("Database not available");
@@ -992,6 +1059,29 @@ export const adminRouter = router({
           throw new Error(`Component weights must sum to 1.0 (got ${wSum.toFixed(3)})`);
         }
 
+        // Audit-Trail (Compliance): der Score beeinflusst Kaufhinweise, deshalb
+        // wer/wann/alte→neue Gewichte festhalten. Ablage als JSON in appSettings
+        // (keine eigene Tabelle/Migration nötig), letzte 30 Einträge.
+        try {
+          const rows = await db.select().from(appSettings).where(eq(appSettings.key, "score_thresholds"));
+          const prevWeights = (rows[0]?.value as any)?.componentWeights ?? null;
+          const auditRows = await db.select().from(appSettings).where(eq(appSettings.key, "score_thresholds_audit"));
+          const history: any[] = Array.isArray(auditRows[0]?.value) ? (auditRows[0]!.value as any[]) : [];
+          history.push({
+            at: new Date().toISOString(),
+            userId: ctx.user.id,
+            email: ctx.user.email ?? null,
+            oldWeights: prevWeights,
+            newWeights: cfg.componentWeights,
+          });
+          const trimmed = history.slice(-30);
+          await db.insert(appSettings)
+            .values({ key: "score_thresholds_audit", value: trimmed, description: "Audit-Trail: Änderungen an den Score-Schwellen" })
+            .onDuplicateKeyUpdate({ set: { value: trimmed } });
+        } catch (e) {
+          console.warn("[updateScoreConfig] Audit-Log fehlgeschlagen:", (e as Error).message);
+        }
+
         await db.insert(appSettings)
           .values({ key: "score_thresholds", value: cfg, description: "Portfolio Quality Score Schwellenwerte" })
           .onDuplicateKeyUpdate({ set: { value: cfg, description: "Portfolio Quality Score Schwellenwerte" } });
@@ -1002,15 +1092,121 @@ export const adminRouter = router({
         return { success: true };
       }),
 
+    /** Audit-Trail der Score-Schwellen-Änderungen (neueste zuerst). */
+    getScoreConfigAudit: adminProcedure.query(async () => {
+      const { getDb } = await import("../db");
+      const { appSettings } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return { entries: [] as any[] };
+      const rows = await db.select().from(appSettings).where(eq(appSettings.key, "score_thresholds_audit"));
+      const history: any[] = Array.isArray(rows[0]?.value) ? (rows[0]!.value as any[]) : [];
+      return { entries: [...history].reverse() };
+    }),
+
+    /**
+     * Verbesserungs-Timeline (KIMI-Audit ③): Out-of-Sample-Güte je Optimizer-Lauf
+     * (signalWeights) und je ML-Modell-Version (modelArtifacts) über die Zeit.
+     * Reine Leseansicht — zeigt, wann welche Version aktiv wurde und wie sie OOS
+     * abschnitt. Fehlertolerant (fehlende Tabellen/Felder → leere Serie).
+     */
+    getImprovementTimeline: adminProcedure.query(async () => {
+      const { getDb } = await import("../db");
+      const { signalWeights, modelArtifacts } = await import("../../drizzle/schema");
+      const { desc } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return { weights: [] as any[], models: [] as any[] };
+
+      const num = (v: any): number | null => {
+        const n = typeof v === "string" ? parseFloat(v) : typeof v === "number" ? v : NaN;
+        return Number.isFinite(n) ? n : null;
+      };
+
+      let weights: any[] = [];
+      try {
+        const rows = await db
+          .select({
+            id: signalWeights.id, name: signalWeights.name, hitRate: signalWeights.hitRate,
+            isActive: signalWeights.isActive, optimizerLog: signalWeights.optimizerLog,
+            lastRunAt: signalWeights.lastRunAt, createdAt: signalWeights.createdAt,
+          })
+          .from(signalWeights)
+          .orderBy(desc(signalWeights.createdAt))
+          .limit(60);
+        weights = rows.map((r) => {
+          let wf: any = null, gate: any = null;
+          try { const log = r.optimizerLog ? JSON.parse(r.optimizerLog as string) : null; wf = log?.walkForward ?? null; gate = log?.gate ?? null; } catch { /* alt/ungültig */ }
+          return {
+            id: r.id, name: r.name, isActive: r.isActive === 1,
+            at: (r.lastRunAt ?? r.createdAt) as Date,
+            inSampleHitRate: num(wf?.inSampleHitRate),
+            oosHitRate: num(wf?.outOfSampleHitRate),
+            incumbentOosHitRate: num(wf?.incumbentOutOfSampleHitRate),
+            overfitRatio: num(wf?.overfitRatio),
+            // Gate-Metadaten (ab ①). Fallback: Name-Präfix rejected_/optimized_.
+            activated: gate ? !!gate.activated : (typeof r.name === "string" ? !r.name.startsWith("rejected_") : true),
+            triggeredBy: gate?.triggeredBy ?? null,
+            gateReason: gate?.reason ?? null,
+          };
+        }).reverse();
+      } catch { weights = []; }
+
+      let models: any[] = [];
+      try {
+        const rows = await db
+          .select({
+            id: modelArtifacts.id, kind: modelArtifacts.kind, version: modelArtifacts.version,
+            status: modelArtifacts.status, metrics: modelArtifacts.metrics,
+            promotedAt: modelArtifacts.promotedAt, createdAt: modelArtifacts.createdAt,
+          })
+          .from(modelArtifacts)
+          .orderBy(desc(modelArtifacts.createdAt))
+          .limit(60);
+        models = rows.map((r) => {
+          const m: any = r.metrics ?? {};
+          return {
+            id: r.id, kind: r.kind, version: r.version, status: r.status,
+            at: (r.promotedAt ?? r.createdAt) as Date,
+            promoted: r.status === "active" || r.status === "archived",
+            hitRate: num(m.hitRate), alpha: num(m.alpha), overfitRatio: num(m.overfitRatio),
+          };
+        }).reverse();
+      } catch { models = []; }
+
+      // ④ Stack-A: Outcome des nutzersichtbaren Combined Score.
+      let combinedScoreOutcome: any = { evaluated: 0, hitRate: null, avgAlphaPct: null, pendingSnapshots: 0 };
+      try {
+        const { getCombinedScoreOutcomeStats } = await import("../cron/combinedScoreOutcome");
+        combinedScoreOutcome = await getCombinedScoreOutcomeStats();
+      } catch { /* Tabelle evtl. noch nicht vorhanden */ }
+
+      return { weights, models, combinedScoreOutcome };
+    }),
+
+    /**
+     * Einheitlicher Outcome-Überblick (KIMI-Audit 3.6a): alle vier
+     * Erfolgsmessquellen mit denselben Kennzahlen nebeneinander — ohne die
+     * Tabellen physisch zusammenzuführen.
+     */
+    getOutcomeOverview: adminProcedure.query(async () => {
+      try {
+        const { summarizeOutcomes } = await import("../lib/outcomeSummary");
+        return { sources: await summarizeOutcomes() };
+      } catch {
+        return { sources: [] as any[] };
+      }
+    }),
+
     /** Preview: calculate score with custom config without saving */
     previewScoreConfig: adminProcedure
       .input(z.object({
         config: z.any(),
         sampleInput: z.any(),
+        goal: z.enum(["dividends", "growth", "balanced"]).optional(),
       }))
       .mutation(async ({ input }) => {
         const { calculatePortfolioQualityScore } = await import("../lib/portfolioQualityScore");
-        const result = calculatePortfolioQualityScore(input.sampleInput, input.config);
+        const result = calculatePortfolioQualityScore(input.sampleInput, input.config, input.goal ?? null);
         return result;
       }),
 
@@ -1159,6 +1355,94 @@ export const adminRouter = router({
           .orderBy(desc(gapFillLog.runAt))
           .limit(input.limit);
         return rows;
+      }),
+
+    /**
+     * Get the current Gap-Filling configuration (or defaults if not yet saved)
+     */
+    getGapFillConfig: adminProcedure.query(async () => {
+      const { getDb } = await import("../db");
+      const { gapFillConfig } = await import("../../drizzle/schema");
+      const { desc } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const rows = await db.select().from(gapFillConfig).orderBy(desc(gapFillConfig.updatedAt)).limit(1);
+      if (rows.length === 0) {
+        // Return defaults
+        return {
+          id: null,
+          minStocksPerSector: 3,
+          minDividendStocks: 5,
+          minDividendYield: 2,
+          maxCandidatesPerGap: 3,
+          maxStocksPerRun: 10,
+          minMarketCapBillions: 0,
+          targetSectors: [
+            "Technology", "Healthcare", "Financial Services",
+            "Consumer Cyclical", "Consumer Defensive", "Industrials",
+            "Energy", "Utilities", "Real Estate",
+            "Basic Materials", "Communication Services",
+          ] as string[],
+          allowedExchanges: [] as string[],
+          enableRegionCheck: 0,
+          minStocksPerRegion: 2,
+          enableLowBetaCheck: 0,
+          maxBetaForLowBeta: "0.8",
+          minLowBetaStocks: 3,
+          enableEsgCheck: 0,
+          minEsgStocks: 2,
+          updatedAt: new Date(),
+        };
+      }
+      return rows[0];
+    }),
+
+    /**
+     * Save / update the Gap-Filling configuration
+     */
+    updateGapFillConfig: adminProcedure
+      .input(z.object({
+        minStocksPerSector: z.number().int().min(1).max(20),
+        minDividendStocks: z.number().int().min(0).max(50),
+        minDividendYield: z.number().int().min(0).max(20),
+        maxCandidatesPerGap: z.number().int().min(1).max(10),
+        maxStocksPerRun: z.number().int().min(0).max(50),
+        minMarketCapBillions: z.number().int().min(0).max(1000),
+        targetSectors: z.array(z.string()).min(1).max(20),
+        allowedExchanges: z.array(z.string()).max(20),
+        enableRegionCheck: z.number().int().min(0).max(1),
+        minStocksPerRegion: z.number().int().min(1).max(10),
+        enableLowBetaCheck: z.number().int().min(0).max(1),
+        maxBetaForLowBeta: z.string().max(10),
+        minLowBetaStocks: z.number().int().min(1).max(20),
+        enableEsgCheck: z.number().int().min(0).max(1),
+        minEsgStocks: z.number().int().min(1).max(20),
+      }))
+      .mutation(async ({ input }) => {
+        const { getDb } = await import("../db");
+        const { gapFillConfig } = await import("../../drizzle/schema");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        // Upsert: delete all and re-insert (single-row config pattern)
+        await db.delete(gapFillConfig);
+        await db.insert(gapFillConfig).values({
+          minStocksPerSector: input.minStocksPerSector,
+          minDividendStocks: input.minDividendStocks,
+          minDividendYield: input.minDividendYield,
+          maxCandidatesPerGap: input.maxCandidatesPerGap,
+          maxStocksPerRun: input.maxStocksPerRun,
+          minMarketCapBillions: input.minMarketCapBillions,
+          targetSectors: input.targetSectors,
+          allowedExchanges: input.allowedExchanges,
+          enableRegionCheck: input.enableRegionCheck,
+          minStocksPerRegion: input.minStocksPerRegion,
+          enableLowBetaCheck: input.enableLowBetaCheck,
+          maxBetaForLowBeta: input.maxBetaForLowBeta,
+          minLowBetaStocks: input.minLowBetaStocks,
+          enableEsgCheck: input.enableEsgCheck,
+          minEsgStocks: input.minEsgStocks,
+        });
+        return { success: true };
       }),
 
     /**
@@ -1708,6 +1992,140 @@ export const adminRouter = router({
     };
   }),
 
+  /**
+   * Migration 0033 (algo_backtest_runs / _portfolios / algo_tuning_log) idempotent
+   * anwenden. Wie applyMigration0034: der manus-Deploy führt `drizzle-kit migrate`
+   * nicht aus, weshalb diese Tabellen in Prod fehlen können → die Algo-Backtest-
+   * Seite bleibt leer. CREATE TABLE IF NOT EXISTS + Index-Existenzcheck sind sicher
+   * wiederholbar. Ausserdem wird der Journal-Eintrag nachgetragen.
+   */
+  applyMigration0033: adminProcedure.mutation(async () => {
+    const { getDb } = await import("../db");
+    const { sql } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
+
+    // Tabellen exakt wie in 0033_chief_romulus.sql, aber IF NOT EXISTS.
+    const TABLES: Array<{ name: string; ddl: string }> = [
+      { name: "algo_backtest_portfolios", ddl: `CREATE TABLE IF NOT EXISTS \`algo_backtest_portfolios\` (
+        \`id\` int AUTO_INCREMENT NOT NULL,
+        \`runId\` int NOT NULL,
+        \`riskProfile\` varchar(32) NOT NULL,
+        \`goal\` varchar(32) NOT NULL,
+        \`positionsSnapshot\` text NOT NULL,
+        \`proposalMetrics\` text,
+        \`appliedSectorTilts\` text,
+        \`appliedFactorTilts\` text,
+        \`challengerCritique\` text,
+        \`synthesizerRecommendation\` text,
+        \`actualPerf30dPct\` decimal(8,4),
+        \`actualSharpe30d\` decimal(8,4),
+        \`actualVolatility30d\` decimal(8,4),
+        \`actualMaxDrawdown30d\` decimal(8,4),
+        \`benchmarkPerf30dPct\` decimal(8,4),
+        \`alpha30dPct\` decimal(8,4),
+        \`portfolioAnalysis\` text,
+        \`creationError\` text,
+        \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+        \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT \`algo_backtest_portfolios_id\` PRIMARY KEY(\`id\`)
+      )` },
+      { name: "algo_backtest_runs", ddl: `CREATE TABLE IF NOT EXISTS \`algo_backtest_runs\` (
+        \`id\` int AUTO_INCREMENT NOT NULL,
+        \`runMonth\` date NOT NULL,
+        \`status\` varchar(32) NOT NULL DEFAULT 'creating',
+        \`algoVersion\` varchar(64),
+        \`marktHubSnapshot\` text,
+        \`sectorTiltsSnapshot\` text,
+        \`leadingFactor\` varchar(64),
+        \`marktRegime\` varchar(64),
+        \`llmAnalysis\` text,
+        \`avgPerf30dPct\` decimal(8,4),
+        \`benchmarkPerf30dPct\` decimal(8,4),
+        \`portfolioCount\` int DEFAULT 0,
+        \`evaluatedAt\` timestamp,
+        \`errorDetails\` text,
+        \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+        \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT \`algo_backtest_runs_id\` PRIMARY KEY(\`id\`),
+        CONSTRAINT \`algo_backtest_runs_runMonth_unique\` UNIQUE(\`runMonth\`)
+      )` },
+      { name: "algo_tuning_log", ddl: `CREATE TABLE IF NOT EXISTS \`algo_tuning_log\` (
+        \`id\` int AUTO_INCREMENT NOT NULL,
+        \`triggeredByRunId\` int,
+        \`fromVersion\` varchar(64),
+        \`toVersion\` varchar(64),
+        \`parameterChanged\` varchar(128) NOT NULL,
+        \`oldValue\` varchar(256),
+        \`newValue\` varchar(256),
+        \`rationale\` text NOT NULL,
+        \`overfittingRisk\` varchar(16) DEFAULT 'low',
+        \`expectedImpact\` text,
+        \`actualImpact\` text,
+        \`reverted\` int DEFAULT 0,
+        \`source\` varchar(32) DEFAULT 'llm_auto',
+        \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+        CONSTRAINT \`algo_tuning_log_id\` PRIMARY KEY(\`id\`)
+      )` },
+    ];
+
+    const createdTables: string[] = [];
+    for (const t of TABLES) {
+      const res = await db.execute(sql`
+        SELECT COUNT(*) AS cnt FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ${t.name}
+      `);
+      const existedBefore = Number((res as any)[0]?.[0]?.cnt ?? 0) > 0;
+      await db.execute(sql.raw(t.ddl));
+      if (!existedBefore) createdTables.push(t.name);
+    }
+
+    // Indizes (MySQL kennt kein IF NOT EXISTS für Indizes → über STATISTICS prüfen).
+    const INDEXES: Array<{ table: string; index: string; ddl: string }> = [
+      { table: "algo_backtest_portfolios", index: "idx_abp_run_profile", ddl: "CREATE INDEX `idx_abp_run_profile` ON `algo_backtest_portfolios` (`runId`,`riskProfile`,`goal`)" },
+      { table: "algo_backtest_runs", index: "idx_abt_runs_status", ddl: "CREATE INDEX `idx_abt_runs_status` ON `algo_backtest_runs` (`status`)" },
+      { table: "algo_tuning_log", index: "idx_atl_run", ddl: "CREATE INDEX `idx_atl_run` ON `algo_tuning_log` (`triggeredByRunId`)" },
+    ];
+    const createdIndexes: string[] = [];
+    for (const ix of INDEXES) {
+      const res = await db.execute(sql`
+        SELECT COUNT(*) AS cnt FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ${ix.table} AND INDEX_NAME = ${ix.index}
+      `);
+      if (Number((res as any)[0]?.[0]?.cnt ?? 0) === 0) {
+        try {
+          await db.execute(sql.raw(ix.ddl));
+          createdIndexes.push(ix.index);
+        } catch (e) {
+          console.warn(`[applyMigration0033] Index ${ix.index} konnte nicht erstellt werden:`, (e as Error).message);
+        }
+      }
+    }
+
+    // Journal-Eintrag 0033 nachtragen (sha256 der Migrationsdatei + _journal.when).
+    const HASH = "db9fba011344a5045b55b6a200784194a99ea6f06508f7a8d2015ffef1576c4c";
+    const FOLDER_MILLIS = 1784273092304;
+    let journal = "unverändert";
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS \`__drizzle_migrations\` (
+        id serial primary key,
+        hash text not null,
+        created_at bigint
+      )
+    `);
+    const jRes = await db.execute(sql`
+      SELECT COUNT(*) AS cnt FROM \`__drizzle_migrations\` WHERE created_at = ${FOLDER_MILLIS}
+    `);
+    if (Number((jRes as any)[0]?.[0]?.cnt ?? 0) === 0) {
+      await db.execute(sql`
+        INSERT INTO \`__drizzle_migrations\` (\`hash\`, \`created_at\`) VALUES (${HASH}, ${FOLDER_MILLIS})
+      `);
+      journal = "Eintrag 0033 nachgetragen";
+    }
+
+    return { success: true, createdTables, createdIndexes, journal };
+  }),
+
   // Get a single proposal by ID (for deep-link from wizard)
   getProposalById: adminProcedure
     .input(z.object({ proposalId: z.number() }))
@@ -1843,6 +2261,225 @@ export const adminRouter = router({
       await db.update(stocks).set(updateSet).where(eq(stocks.id, c.id));
     }
     return { success: true, approved: candidates.length, pricesFetched };
+  }),
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // CATEGORIES CRUD
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  listCategories: adminProcedure.query(async () => {
+    const { getDb } = await import("../db");
+    const { categories } = await import("../../drizzle/schema");
+    const { asc } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    return db.select().from(categories).orderBy(asc(categories.name));
+  }),
+
+  createCategory: adminProcedure
+    .input(z.object({
+      name: z.string().min(1).max(100),
+      description: z.string().max(500).optional(),
+      color: z.string().max(20).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { categories } = await import("../../drizzle/schema");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.insert(categories).values({
+        name: input.name,
+        description: input.description ?? null,
+        color: input.color ?? null,
+      });
+      return { success: true };
+    }),
+
+  updateCategory: adminProcedure
+    .input(z.object({
+      id: z.number().int(),
+      name: z.string().min(1).max(100),
+      description: z.string().max(500).optional(),
+      color: z.string().max(20).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { categories } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.update(categories).set({
+        name: input.name,
+        description: input.description ?? null,
+        color: input.color ?? null,
+      }).where(eq(categories.id, input.id));
+      return { success: true };
+    }),
+
+  deleteCategory: adminProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { categories } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.delete(categories).where(eq(categories.id, input.id));
+      return { success: true };
+    }),
+
+  /** Count how many stocks use a given category name */
+  getCategoryStockCount: adminProcedure
+    .input(z.object({ name: z.string() }))
+    .query(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { stocks } = await import("../../drizzle/schema");
+      const { eq, count } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return { count: 0 };
+      const result = await db.select({ cnt: count() }).from(stocks).where(eq(stocks.category, input.name));
+      return { count: result[0]?.cnt ?? 0 };
+    }),
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SECTORS CRUD
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  listSectors: adminProcedure.query(async () => {
+    const { getDb } = await import("../db");
+    const { sectors } = await import("../../drizzle/schema");
+    const { asc } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    return db.select().from(sectors).orderBy(asc(sectors.sortOrder), asc(sectors.name));
+  }),
+
+  createSector: adminProcedure
+    .input(z.object({
+      name: z.string().min(1).max(100),
+      description: z.string().max(500).optional(),
+      color: z.string().max(20).optional(),
+      icon: z.string().max(50).optional(),
+      includeInGapFilling: z.number().int().min(0).max(1).default(1),
+      sortOrder: z.number().int().min(0).default(0),
+    }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { sectors } = await import("../../drizzle/schema");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.insert(sectors).values({
+        name: input.name,
+        description: input.description ?? null,
+        color: input.color ?? null,
+        icon: input.icon ?? null,
+        includeInGapFilling: input.includeInGapFilling,
+        sortOrder: input.sortOrder,
+      });
+      return { success: true };
+    }),
+
+  updateSector: adminProcedure
+    .input(z.object({
+      id: z.number().int(),
+      name: z.string().min(1).max(100),
+      description: z.string().max(500).optional(),
+      color: z.string().max(20).optional(),
+      icon: z.string().max(50).optional(),
+      includeInGapFilling: z.number().int().min(0).max(1),
+      sortOrder: z.number().int().min(0),
+    }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { sectors } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.update(sectors).set({
+        name: input.name,
+        description: input.description ?? null,
+        color: input.color ?? null,
+        icon: input.icon ?? null,
+        includeInGapFilling: input.includeInGapFilling,
+        sortOrder: input.sortOrder,
+      }).where(eq(sectors.id, input.id));
+      return { success: true };
+    }),
+
+  deleteSector: adminProcedure
+    .input(z.object({ id: z.number().int() }))
+    .mutation(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { sectors } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.delete(sectors).where(eq(sectors.id, input.id));
+      return { success: true };
+    }),
+
+  /** Count how many stocks use a given sector name */
+  getSectorStockCount: adminProcedure
+    .input(z.object({ name: z.string() }))
+    .query(async ({ input }) => {
+      const { getDb } = await import("../db");
+      const { stocks } = await import("../../drizzle/schema");
+      const { eq, count } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return { count: 0 };
+      const result = await db.select({ cnt: count() }).from(stocks).where(eq(stocks.sector, input.name));
+      return { count: result[0]?.cnt ?? 0 };
+    }),
+
+  /** Seed default GICS sectors if the sectors table is empty */
+  seedDefaultSectors: adminProcedure.mutation(async () => {
+    const { getDb } = await import("../db");
+    const { sectors } = await import("../../drizzle/schema");
+    const { count } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    const existing = await db.select({ cnt: count() }).from(sectors);
+    if ((existing[0]?.cnt ?? 0) > 0) return { success: true, seeded: 0 };
+    const defaults = [
+      { name: "Technology", description: "Technologie-Unternehmen (Software, Hardware, Halbleiter)", color: "#3b82f6", icon: "💻", sortOrder: 1 },
+      { name: "Healthcare", description: "Gesundheitswesen (Pharma, Medtech, Biotech)", color: "#10b981", icon: "🏥", sortOrder: 2 },
+      { name: "Financial Services", description: "Finanzdienstleistungen (Banken, Versicherungen, Asset Management)", color: "#f59e0b", icon: "🏦", sortOrder: 3 },
+      { name: "Consumer Cyclical", description: "Zyklischer Konsum (Automobil, Retail, Tourismus)", color: "#8b5cf6", icon: "🛒", sortOrder: 4 },
+      { name: "Consumer Defensive", description: "Defensiver Konsum (Lebensmittel, Getränke, Haushalt)", color: "#06b6d4", icon: "🛍️", sortOrder: 5 },
+      { name: "Industrials", description: "Industrie (Maschinenbau, Logistik, Rüstung)", color: "#64748b", icon: "🏭", sortOrder: 6 },
+      { name: "Energy", description: "Energie (Öl, Gas, Erneuerbare)", color: "#f97316", icon: "⚡", sortOrder: 7 },
+      { name: "Utilities", description: "Versorger (Strom, Wasser, Gas)", color: "#84cc16", icon: "💡", sortOrder: 8 },
+      { name: "Real Estate", description: "Immobilien (REITs, Immobilienentwickler)", color: "#ec4899", icon: "🏢", sortOrder: 9 },
+      { name: "Basic Materials", description: "Grundstoffe (Bergbau, Chemie, Stahl)", color: "#a16207", icon: "⛏️", sortOrder: 10 },
+      { name: "Communication Services", description: "Kommunikation (Telekom, Medien, Internet)", color: "#7c3aed", icon: "📡", sortOrder: 11 },
+    ];
+    await db.insert(sectors).values(defaults.map(d => ({ ...d, includeInGapFilling: 1 })));
+    return { success: true, seeded: defaults.length };
+  }),
+
+  /** Seed default categories if the categories table is empty */
+  seedDefaultCategories: adminProcedure.mutation(async () => {
+    const { getDb } = await import("../db");
+    const { categories } = await import("../../drizzle/schema");
+    const { count } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    const existing = await db.select({ cnt: count() }).from(categories);
+    if ((existing[0]?.cnt ?? 0) > 0) return { success: true, seeded: 0 };
+    const defaults = [
+      { name: "Dividendenaktien", description: "Aktien mit regelmässigen Dividendenausschüttungen", color: "#10b981" },
+      { name: "Wachstumsaktien", description: "Aktien mit hohem Wachstumspotenzial", color: "#3b82f6" },
+      { name: "Value-Aktien", description: "Unterbewertete Aktien mit solidem Fundament", color: "#f59e0b" },
+      { name: "ETF", description: "Exchange Traded Funds", color: "#8b5cf6" },
+      { name: "Defensiv", description: "Defensive Titel mit niedrigem Beta", color: "#64748b" },
+      { name: "Small Cap", description: "Kleinkapitalisierte Unternehmen", color: "#ec4899" },
+      { name: "Mid Cap", description: "Mittelkapitalisierte Unternehmen", color: "#06b6d4" },
+      { name: "Large Cap", description: "Grosskapitalisierte Blue-Chip-Unternehmen", color: "#f97316" },
+      { name: "Rohstoffe", description: "Rohstoff-bezogene Titel und ETFs", color: "#a16207" },
+      { name: "Immobilien", description: "REITs und Immobilien-Aktien", color: "#84cc16" },
+    ];
+    await db.insert(categories).values(defaults);
+    return { success: true, seeded: defaults.length };
   }),
 });
 

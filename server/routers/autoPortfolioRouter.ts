@@ -1505,12 +1505,20 @@ Antworte im JSON-Format.`,
           // (verhindert NaN-Kennzahlen und "unvollständige Kurshistorie"-Warnung)
           job.progress.push('Kurshistorie prüfen und nachladen...');
           const selectedTickersForBackfill = selected.map((c) => c.stock.ticker);
+          let backfillFailedTickers: string[] = [];
           try {
             const { autoBackfillNewSymbols } = await import('../autoBackfill');
             const backfillResult = await autoBackfillNewSymbols(selectedTickersForBackfill);
             if (backfillResult.newSymbolsDetected > 0) {
               job.progress.push(`Kurshistorie: ${backfillResult.newSymbolsDetected} Titel nachgeladen.`);
               console.log(`[startProposal] Auto-backfill: ${backfillResult.newSymbolsDetected} Titel nachgeladen für Job ${jobId}`);
+            }
+            // Track tickers where backfill failed (no data available at EODHD)
+            backfillFailedTickers = backfillResult.backfillResults
+              .filter((r) => !r.success && r.pricesInserted === 0)
+              .map((r) => r.ticker);
+            if (backfillFailedTickers.length > 0) {
+              console.warn(`[startProposal] Backfill failed for: ${backfillFailedTickers.join(', ')} — keine Daten bei EODHD`);
             }
           } catch (backfillErr: any) {
             console.warn(`[startProposal] Auto-backfill non-fatal: ${backfillErr?.message}`);
@@ -1534,9 +1542,18 @@ Antworte im JSON-Format.`,
             const rawSharpe = opt.optimalPortfolio.sharpe;
             if (Number.isFinite(rawReturn) && Number.isFinite(rawVol) && Number.isFinite(rawSharpe)) {
               proposalMetrics = { expectedReturnPct: Math.round(rawReturn * 1000) / 10, volatilityPct: Math.round(rawVol * 1000) / 10, sharpe: rawSharpe };
-            } else { proposalMetrics = null; weightingNote = (weightingNote ? weightingNote + ' ' : '') + 'Kennzahlen konnten nicht berechnet werden (unvollständige Kurshistorie für einige Titel).'; }
+            } else {
+              proposalMetrics = null;
+              const nanTickers = backfillFailedTickers.length > 0
+                ? ` Keine EODHD-Daten für: ${backfillFailedTickers.join(', ')}.`
+                : '';
+              weightingNote = (weightingNote ? weightingNote + ' ' : '') + `Kennzahlen konnten nicht berechnet werden (unvollständige Kurshistorie für einige Titel).${nanTickers}`;
+            }
             const excluded = opt.excludedShortHistory ?? [];
-            if (excluded.length > 0) weightingNote = `Ohne ${excluded.map((e: any) => e.ticker).join(', ')} — zu wenig Kurshistorie für die Optimierung.`;
+            if (excluded.length > 0) {
+              const noDataSuffix = backfillFailedTickers.length > 0 ? ` (keine EODHD-Daten für: ${backfillFailedTickers.join(', ')})` : '';
+              weightingNote = `Ohne ${excluded.map((e: any) => e.ticker).join(', ')} — zu wenig Kurshistorie für die Optimierung.${noDataSuffix}`;
+            }
           } catch (e: any) {
             weightingSource = 'score_fallback';
             weightingNote = `Optimierung nicht möglich (${e?.message ?? 'unbekannter Fehler'}) — Gewichtung score-proportional.`;

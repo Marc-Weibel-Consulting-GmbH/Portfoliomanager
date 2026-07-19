@@ -6,6 +6,8 @@ import { CardContent, CardDescription, CardHeader, CardTitle } from "@/component
 import { trpc } from "@/lib/trpc";
 import { Link } from "wouter";
 import { ArrowLeft, Mail, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 
 export default function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
@@ -15,6 +17,7 @@ export default function ForgotPasswordForm() {
     onSuccess: () => {
       setSubmitted(true);
     },
+    onError: (e) => toast.error("Anfrage fehlgeschlagen", { description: getUserErrorMessage(e) }),
   });
 
   const handleSubmit = (e: React.FormEvent) => {

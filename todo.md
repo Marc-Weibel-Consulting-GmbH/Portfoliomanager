@@ -409,3 +409,39 @@
 - [x] Markt-Hub-Faktor-Tilt stärker ins Scoring: Value-Signal → Momentum-Titel abwerten, Momentum-Signal → Value-Titel abwerten
 - [x] Challenger-Prompt: JSON-Schema um swaps-Feld erweitern (remove/add/weightAdjustment), konkrete Tausch-Paare erzwingen
 - [x] Wizard-Ergebnis: currentPrice wird nicht angezeigt — Bug finden und beheben
+
+## Portfolio Aktivieren Bug (Jul 2026)
+- [x] Fix: "Fehler beim Aktivieren" — Deposit-Transaktion wird jetzt vor den Kauftransaktionen erstellt (Cash-Balance-Validierung erforderte positiven Saldo)
+
+## Backfill-Verbesserungen (Jul 2026)
+- [x] Backfill-Timeout: 60s pro Ticker in fetchHistoricalPricesFromAPI (AbortController, verhindert hängende Jobs bei TSE-404-Titeln)
+- [x] Fehlermeldung verbessern: konkrete Ticker nennen die ausgeschlossen wurden (backfillFailed-Ticker in weightingNote)
+- [x] Admin-Dashboard Backfill-Status-Panel: ausstehende Ticker (amber), zuletzt nachgeladen (grün), dauerhaft keine EODHD-Daten (rot, löschbar per Klick) — aktualisiert alle 10s
+- [x] Backend: permanentlyFailedBackfills-Registry in autoBackfill.ts + clearPermanentlyFailedBackfills-Prozedur in adminRouter
+
+## YTD-Inkonsistenz Bug (Jul 2026)
+- [x] Fix: YTD-Inkonsistenz (Dashboard +54.24% vs Portfolio-Details +22.9%) — calculatePortfolioValueAtDate nutzte currentPrice statt historicalPrice für shares-Berechnung
+
+## Wizard Toggle: Mit/Ohne Admin-Review (Jul 2026)
+- [x] Frontend: Toggle/Checkbox im Wizard Step 5 — "Mit Admin-Review" (Standard) vs. "Direkt erstellen"
+- [x] Frontend: Bei "Direkt erstellen" → Proposal direkt als Portfolio speichern (ohne Admin-Genehmigung)
+- [x] Frontend: Beide Aktionsbuttons entsprechend anpassen (Label + Aktion)
+
+## Bug Fixes & UX Improvements (Jul 19, 2026)
+- [x] Fix: Kaufwerte nach Portfolio-Übernahme — 0×CHF 0.00 / NaN% (adminReviewedPositions haben kein currentPrice)
+- [x] Fix: KPI-Lücken im KI-Analyse-Protokoll (Sharpe/Erwartete Rendite/Volatilität = "—") — nur wenn Optimizer NaN liefert (fehlende Kurshistorie)
+- [x] Fix: Div.-Rendite-Diskrepanz Übersicht (3.82%) vs. Deep Dive (3.2%) — unterschiedliche Datenquellen
+- [x] Feature: Neuoptimierung neue Kandidaten default NICHT angekreuzt + Bulk-Toggle (Alle an/aus)
+- [x] Feature: Fortschrittsbalken beim Portfolio-Erstellen (Spinner + Schritt-Anzeige)
+- [x] Feature: Fortschrittsbalken beim Deep Dive laden (Skeleton/Progress statt leere Seite)
+
+## Fixes 2026-07-19 (Batch 2)
+- [x] Fix: Kaufwerte 0×CHF 0.00 nach Portfolio-Übernahme — adminReviewedPositions mit currentPrice aus Original-Positionen anreichern
+- [x] Fix: handleAcceptProposal fallback zu allStocks-Preis wenn currentPrice fehlt
+- [x] Fix: KPI-Lücken (Sharpe/Rendite/Volatilität) — Tooltip-Hinweis auf fehlende Kurshistorie
+- [x] Fix: Div.-Rendite-Diskrepanz — Deep Dive nutzt DB-dividendYield als Fallback wenn EODHD null/0 liefert
+- [x] Fix: Neuoptimierung neue Kandidaten default ALLE deaktiviert (useEffect initialisiert deselectedAdditions)
+- [x] Feature: Bulk-Toggle "Alle ✔ / Alle ✕" für neue Kandidaten in Neuoptimierung
+- [x] Feature: Fortschrittsbalken beim Portfolio-Erstellen (Schritt 5)
+- [x] Feature: Fortschrittsbalken beim KI-Vorschlag erstellen (mit Zeitschätzung + Step-Log)
+- [x] Feature: Fortschrittsbalken im Deep Dive (mit Zeitschätzung + EODHD-Hinweis)

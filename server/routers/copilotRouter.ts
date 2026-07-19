@@ -1011,7 +1011,13 @@ export const copilotRouter = router({
           peRatio: f.peRatio !== null ? Math.round((f.peRatio ?? 0) * 10) / 10 : null,
           pegRatio: f.pegRatio !== null ? Math.round((f.pegRatio ?? 0) * 100) / 100 : null,
           // Treat 0% dividend yield as null so it sorts to the end (non-payers)
-          dividendYield: (f.dividendYield !== null && (f.dividendYield ?? 0) > 0) ? Math.round((f.dividendYield ?? 0) * 10) / 10 : null,
+          // Fallback to DB dividendYield when EODHD returns null/0 (avoids discrepancy with Übersicht tab)
+          dividendYield: (() => {
+            const eodhd = (f.dividendYield !== null && (f.dividendYield ?? 0) > 0) ? Math.round((f.dividendYield ?? 0) * 10) / 10 : null;
+            if (eodhd !== null) return eodhd;
+            const dbDiv = parseFloat(String(s.dividendYield ?? '0'));
+            return dbDiv > 0 ? Math.round(dbDiv * 10) / 10 : null;
+          })(),
           beta: f.beta !== null ? Math.round((f.beta ?? 0) * 100) / 100 : null,
           eps: f.eps,
           marketCap: f.marketCap,

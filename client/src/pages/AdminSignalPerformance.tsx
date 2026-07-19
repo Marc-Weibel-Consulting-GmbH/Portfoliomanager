@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/Breadcrumb";
 import {
   BarChart3, TrendingUp, TrendingDown, Minus, RefreshCw,
   Target, Activity, Zap, ChevronDown, ChevronUp, Info
@@ -41,17 +42,19 @@ function fmtDate(v: unknown) {
   catch { return String(v); }
 }
 
+// Keys = DB-Werte (SignalEngineType / MarketRegime), nicht die Klassennamen.
 const ENGINE_LABELS: Record<string, string> = {
-  trendSignalEngine: "Trend",
-  meanReversionSignalEngine: "Mean Reversion",
-  breakoutSignalEngine: "Breakout",
-  ensembleSignalEngine: "Ensemble",
+  trend: "Trend",
+  mean_reversion: "Mean Reversion",
+  breakout: "Breakout",
+  ensemble: "Ensemble",
 };
 
 const REGIME_LABELS: Record<string, string> = {
   bull_trend: "Bullenmarkt",
   bear_trend: "Bärenmarkt",
-  sideways: "Seitwärts",
+  sideways_low_vol: "Seitwärts (ruhig)",
+  sideways_high_vol: "Seitwärts (volatil)",
   crisis: "Krise",
   recovery: "Erholung",
 };
@@ -144,7 +147,7 @@ export default function AdminSignalPerformance() {
   const isLoading = perfQ.isLoading;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
+    <div className="text-zinc-100">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -277,6 +280,12 @@ export default function AdminSignalPerformance() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Signal-Performance", icon: <TrendingUp className="h-4 w-4" /> },
+        ]}
+      />
                   {data.engineStats
                     .sort((a, b) => b.hitRate - a.hitRate)
                     .map(stat => (

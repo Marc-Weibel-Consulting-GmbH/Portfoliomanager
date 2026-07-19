@@ -7,14 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { User, Bell, Shield, KeyRound, HelpCircle, PlayCircle, Landmark, Info, Target, ChevronDown, ChevronUp, Mail, MessageSquare } from "lucide-react";
+import { User, Bell, Shield, KeyRound, HelpCircle, PlayCircle, Landmark, Info, Target, ChevronDown, ChevronUp, Mail, MessageSquare, CreditCard } from "lucide-react";
 import GuidedTourModal from "@/components/GuidedTourModal";
 import AnlageprofilTab from "@/components/settings/AnlageprofilTab";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { getUserErrorMessage } from "@/lib/errorMessages";
+import { usePlan } from "@/hooks/usePlan";
+import { planLabel } from "@/lib/planLabel";
 
-const VALID_TABS = ["profil", "anlageprofil", "gebuehren", "benachrichtigungen", "sicherheit", "api", "hilfe"] as const;
+const VALID_TABS = ["profil", "abo", "anlageprofil", "gebuehren", "benachrichtigungen", "sicherheit", "api", "hilfe"] as const;
 type SettingsTab = (typeof VALID_TABS)[number];
 
 // Preset broker configurations
@@ -480,6 +482,62 @@ function ContactForm() {
   );
 }
 
+// F1: Abo-Verwaltung. Zeigt den aktuellen Plan und öffnet für zahlende Nutzer
+// das Stripe-Kundenportal (Kündigung, Zahlungsmittel, Rechnungen). Backend:
+// billing.getPlan / billing.createPortalSession.
+function AboTab() {
+  const { plan, isLoading } = usePlan();
+  const [, navigate] = useLocation();
+  const isPaid = plan === "plus" || plan === "pro";
+
+  const portalMutation = trpc.billing.createPortalSession.useMutation({
+    onSuccess: (res) => {
+      if (res.url) window.location.href = res.url;
+    },
+    onError: (e) => toast.error("Abo-Verwaltung nicht verfügbar", { description: getUserErrorMessage(e) }),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" /> Abo</CardTitle>
+        <CardDescription>Ihr aktueller Plan und die Verwaltung Ihres Abonnements</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 p-4">
+          <div className="text-sm text-muted-foreground">Aktueller Plan</div>
+          <span className="text-sm px-2.5 py-1 rounded-full bg-[#00CFC1]/15 text-[#00CFC1] font-semibold">
+            {isLoading ? "…" : planLabel(plan)}
+          </span>
+        </div>
+
+        {isPaid ? (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Kündigung, Zahlungsmittel und Rechnungen verwalten Sie sicher über das
+              Stripe-Kundenportal.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => portalMutation.mutate()} disabled={portalMutation.isPending}>
+                {portalMutation.isPending ? "Wird geöffnet…" : "Abo verwalten"}
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/pricing")}>Pläne vergleichen</Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Sie nutzen aktuell den kostenlosen Free-Plan. Mit Basic oder Pro schalten Sie
+              Live-Portfolios, Echtzeit-Kurse und weitere Funktionen frei.
+            </p>
+            <Button onClick={() => navigate("/pricing")}>Pläne ansehen</Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Einstellungen() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
@@ -504,6 +562,7 @@ export default function Einstellungen() {
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
             {[
               { value: "profil", label: "Profil", icon: User },
+              { value: "abo", label: "Abo", icon: CreditCard },
               { value: "anlageprofil", label: "Anlageprofil", icon: Target },
               { value: "gebuehren", label: "Gebühren", icon: Landmark },
               { value: "benachrichtigungen", label: "Benachrichtigungen", icon: Bell },
@@ -546,6 +605,10 @@ export default function Einstellungen() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="abo" className="mt-6">
+            <AboTab />
           </TabsContent>
 
           <TabsContent value="anlageprofil" className="mt-6">

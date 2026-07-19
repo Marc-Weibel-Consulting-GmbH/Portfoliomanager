@@ -447,11 +447,11 @@ export default function Invest() {
                         Div.% {sortBy === 'dividend' ? (sortDir === 'desc' ? '↓' : '↑') : <span className="text-muted-foreground/40">↕</span>}
                       </th>
                       <th className="text-center p-3 font-medium">Signal</th>
-                      {/* F-07: als Signal-Score gekennzeichnet — nicht der Qualitäts-Score der Detailseite */}
+                      {/* 3.1: derselbe kanonische Signal-Score (Strategie) wie auf der Aktien-Detailseite; nicht der Qualitäts-Score */}
                       <th
                         className="text-center p-3 font-medium cursor-pointer hover:text-foreground select-none"
                         onClick={() => toggleSort('score')}
-                        title="Signal-Score (kurzfristiges Handelssignal) — nicht zu verwechseln mit dem Qualitäts-Score"
+                        title="Signal-Score (Strategie, kurzfristig) — derselbe Wert wie im Kopf der Aktien-Detailseite. Nicht der Qualitäts-Score (langfristig, fundamental)."
                       >
                         Signal-Score {sortBy === 'score' ? (sortDir === 'desc' ? '↓' : '↑') : <span className="text-muted-foreground/40">↕</span>}
                       </th>

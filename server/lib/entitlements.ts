@@ -25,7 +25,6 @@ export type Feature =
   | "optimizer"            // Portfolio-Optimierung (analytics.optimize)
   | "optimizer_exact"      // exakter Optimierer + Sektor-Caps (PyPortfolioOpt, Pro)
   | "challenge_report"     // Multi-Agent-Challenge-Report (Pro)
-  | "tax_report"           // Steuer-Reporting
   | "dividend_tracking";   // Dividenden-Kalender & -Tracking
 
 export interface PlanLimits {
@@ -48,13 +47,13 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     portfolios: 3,
     priceAlerts: 25,
     copilotQuestionsPerMonth: 100,
-    features: F("realtime_prices", "performance_metrics", "auto_portfolio", "optimizer", "tax_report", "dividend_tracking"),
+    features: F("realtime_prices", "performance_metrics", "auto_portfolio", "optimizer", "dividend_tracking"),
   },
   pro: {
     portfolios: Infinity,
     priceAlerts: Infinity,
     copilotQuestionsPerMonth: Infinity,
-    features: F("realtime_prices", "performance_metrics", "auto_portfolio", "optimizer", "optimizer_exact", "challenge_report", "tax_report", "dividend_tracking"),
+    features: F("realtime_prices", "performance_metrics", "auto_portfolio", "optimizer", "optimizer_exact", "challenge_report", "dividend_tracking"),
   },
 };
 

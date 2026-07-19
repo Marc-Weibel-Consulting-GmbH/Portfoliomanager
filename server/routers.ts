@@ -4,7 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { loginSchema, loginUser, registerSchema, registerUser, SESSION_MAX_AGE_MS } from "./_core/authService";
 import { getClientIp, isRateLimited, LOGIN_RATE_LIMIT, RATE_LIMIT_MESSAGE, REGISTER_RATE_LIMIT } from "./_core/rateLimit";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
 import { ENV } from "./_core/env";
 import { stocksRouter } from "./routers/stocksRouter";
 import { portfoliosRouter } from "./routers/portfoliosRouter";
@@ -440,7 +440,7 @@ export const appRouter = router({
       const results = await db.select().from(research).orderBy(desc(research.createdAt));
       return results;
     }),
-    add: protectedProcedure
+    add: adminProcedure
       .input(z.object({
         title: z.string(),
         content: z.string().optional(),
@@ -492,7 +492,7 @@ export const appRouter = router({
         });
         
         return { success: true };
-      }),    delete: protectedProcedure
+      }),    delete: adminProcedure
       .input(z.number())
       .mutation(async ({ input }) => {
         const { getDb } = await import("./db");
@@ -574,7 +574,7 @@ export const appRouter = router({
         }
       }),
     
-    exportList: protectedProcedure
+    exportList: adminProcedure
       .query(async () => {
         const { getDb } = await import("./db");
         const { newsletter } = await import("../drizzle/schema");
@@ -809,33 +809,6 @@ export const appRouter = router({
   }),
 
   user: router({
-    completeRegistration: protectedProcedure
-      .input(z.object({
-        firstName: z.string(),
-        lastName: z.string(),
-        investmentGoal: z.enum(["dividends", "growth", "balanced"]),
-        riskTolerance: z.enum(["low", "medium", "high"]),
-      }))
-      .mutation(async ({ input, ctx }) => {
-        const { getDb } = await import("./db");
-        const { users } = await import("../drizzle/schema");
-        const { eq } = await import("drizzle-orm");
-        const db = await getDb();
-        if (!db) throw new Error("Database not available");
-        
-        await db.update(users)
-          .set({
-            firstName: input.firstName,
-            lastName: input.lastName,
-            investmentGoal: input.investmentGoal,
-            riskTolerance: input.riskTolerance,
-            hasCompletedRegistration: 1,
-          })
-          .where(eq(users.openId, ctx.user.openId));
-        
-        return { success: true };
-      }),
-    
     updateSettings: protectedProcedure
       .input(z.object({
         mobile: z.string().nullish(),

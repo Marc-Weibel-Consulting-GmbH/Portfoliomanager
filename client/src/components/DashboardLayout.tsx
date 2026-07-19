@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
+import { needsOnboardingRedirect } from "@/lib/onboarding";
 import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wrench, Eye, Zap, FlaskConical, Camera, Search, Gauge } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -108,12 +109,16 @@ export default function DashboardLayout({
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
 
-  // Redirect to onboarding only if user hasn't completed registration
+  // Neue Nutzer verlässlich in den Onboarding-Wizard leiten, bis sie ihn
+  // abgeschlossen haben (einzige, nicht-fragile Bedingung).
   useEffect(() => {
-    if (user && onboardingStatus !== undefined && !onboardingStatus.hasCompletedOnboarding && location !== "/onboarding") {
-      if (!user.hasCompletedRegistration) {
-        setLocation("/onboarding");
-      }
+    if (needsOnboardingRedirect({
+      hasUser: !!user,
+      onboardingLoaded: onboardingStatus !== undefined,
+      hasCompletedOnboarding: !!onboardingStatus?.hasCompletedOnboarding,
+      location,
+    })) {
+      setLocation("/onboarding");
     }
   }, [user, onboardingStatus, location, setLocation]);
 

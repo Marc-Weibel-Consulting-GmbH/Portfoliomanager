@@ -859,7 +859,8 @@ export async function getSharesHeldAt(portfolioId: number, ticker: string, atDat
   const trades = rows
     .filter(
       (row: any) =>
-        (row.transactionType === 'buy' || row.transactionType === 'sell') &&
+        // 'entry' zählt wie 'buy' (Live-Aktivierungs-Transaktionen)
+        (row.transactionType === 'buy' || row.transactionType === 'sell' || row.transactionType === 'entry') &&
         new Date(row.transactionDate).getTime() <= atTime
     )
     .sort(
@@ -872,7 +873,7 @@ export async function getSharesHeldAt(portfolioId: number, ticker: string, atDat
   for (const trade of trades) {
     const shares = parseFloat(trade.shares || '0');
     if (!(shares > 0)) continue;
-    held = trade.transactionType === 'buy' ? held + shares : Math.max(0, held - shares);
+    held = (trade.transactionType === 'buy' || trade.transactionType === 'entry') ? held + shares : Math.max(0, held - shares);
   }
   return held;
 }
@@ -942,9 +943,10 @@ export async function createPortfolioTransaction(transaction: any) {
     }
     
     // Validate currency is correct
-    if (!['USD', 'EUR', 'GBP', 'GBp', 'CHF'].includes(transaction.currency)) {
+    const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'GBp', 'CHF', 'CAD', 'NOK', 'SEK', 'DKK', 'AUD', 'JPY', 'SGD', 'ILS', 'PLN', 'HKD', 'NZD', 'MXN', 'BRL', 'ZAR', 'TRY', 'CNY', 'KRW', 'INR'];
+    if (!SUPPORTED_CURRENCIES.includes(transaction.currency)) {
       console.warn(`[Validation] Invalid currency: ${transaction.currency}`);
-      throw new Error(`Invalid currency: ${transaction.currency}. Supported currencies: USD, EUR, GBP, GBp, CHF`);
+      throw new Error(`Invalid currency: ${transaction.currency}. Supported currencies: ${SUPPORTED_CURRENCIES.join(', ')}`);
     }
     
     console.log(`[Validation] Foreign currency transaction validated: ${transaction.currency}, FX rate: ${transaction.fxRate}`);
@@ -1689,7 +1691,24 @@ export async function activatePortfolio(
       }
     }
 
-    // Create all transactions
+    // First create a deposit transaction for the start capital so cash balance is positive
+    // before the buy transactions are processed (otherwise cash-balance validation fails)
+    await createPortfolioTransaction({
+      portfolioId,
+      transactionType: "deposit" as const,
+      ticker: null,
+      shares: null,
+      pricePerShare: null,
+      currency: "CHF",
+      totalAmount: capitalNum.toFixed(2),
+      fxRate: "1",
+      totalAmountCHF: capitalNum.toFixed(2),
+      fees: "0",
+      notes: `Startkapital für Portfolio-Aktivierung`,
+      transactionDate: new Date(),
+    });
+
+    // Create all buy transactions
     for (const transaction of transactions) {
       await createPortfolioTransaction(transaction);
     }

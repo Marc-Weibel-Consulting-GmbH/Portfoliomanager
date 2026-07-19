@@ -8,6 +8,8 @@ import {
 import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap, Play, CheckSquare, Square, Search, X, LineChart as LineChartIcon } from "lucide-react";
 import { PriceChart } from "@/components/charts";
 import { InsightExpandable } from "@/components/InsightPanel";
+import { toast } from "sonner";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -254,7 +256,9 @@ export default function OptimierenTab({
   // deselectedReplacements: Set of weakTicker strings that are unchecked
   const [deselectedReplacements, setDeselectedReplacements] = useState<Set<string>>(new Set());
   // deselectedAdditions: Set of candidate tickers that are unchecked
+  // Default: ALL candidates are deselected (user must explicitly opt-in)
   const [deselectedAdditions, setDeselectedAdditions] = useState<Set<string>>(new Set());
+  const [additionsInitialized, setAdditionsInitialized] = useState<string | null>(null); // tracks which upgradeData was used to init
   // overrideReplacementTicker: map weakTicker → chosen replacement ticker (overrides suggestions[0])
   const [overrideReplacementTicker, setOverrideReplacementTicker] = useState<Record<string, string>>({});
   // openReplacementPicker: weakTicker of the row whose picker is open
@@ -276,6 +280,7 @@ export default function OptimierenTab({
         setTimeout(() => onNavigateToPositions(), 1500);
       }
     },
+    onError: (e) => toast.error("Empfehlungen konnten nicht übernommen werden", { description: getUserErrorMessage(e) }),
   });
   const undoRecMut = trpc.analytics.undoRecommendations.useMutation({
     onSuccess: () => {
@@ -283,6 +288,7 @@ export default function OptimierenTab({
       utils.portfolios.getWithCurrency.invalidate();
       utils.portfolios.list.invalidate();
     },
+    onError: (e) => toast.error("Rückgängig fehlgeschlagen", { description: getUserErrorMessage(e) }),
   });
 
   // Transaktions-Umsetzung: Checkboxen + Bestätigungs-Dialog
@@ -300,6 +306,7 @@ export default function OptimierenTab({
         setTimeout(() => onNavigateToTransactions(), 1500);
       }
     },
+    onError: (e) => toast.error("Umsetzung fehlgeschlagen", { description: getUserErrorMessage(e) }),
   });
 
   // Portfolio-Kopie vor Umsetzung
@@ -311,12 +318,14 @@ export default function OptimierenTab({
     onSuccess: (data) => {
       setCloneCreated({ id: data.cloneId, name: data.cloneName });
     },
+    onError: (e) => toast.error("Kopie konnte nicht erstellt werden", { description: getUserErrorMessage(e) }),
   });
   // Automatischer Snapshot vor der Umsetzung (ohne Dialog)
   const autoSnapshotMut = trpc.analytics.clonePortfolio.useMutation({
     onSuccess: (data) => {
       setAutoSnapshotInfo({ id: data.cloneId, name: data.cloneName });
     },
+    onError: (e) => toast.error("Snapshot konnte nicht erstellt werden", { description: getUserErrorMessage(e) }),
   });
 
   // Wöchentliches Optimierungs-Abo
@@ -326,9 +335,11 @@ export default function OptimierenTab({
   );
   const subscribeMut = trpc.analytics.subscribeOptimizationAlert.useMutation({
     onSuccess: () => refetchSub(),
+    onError: (e) => toast.error("Abo konnte nicht aktiviert werden", { description: getUserErrorMessage(e) }),
   });
   const unsubscribeMut = trpc.analytics.unsubscribeOptimizationAlert.useMutation({
     onSuccess: () => refetchSub(),
+    onError: (e) => toast.error("Abo konnte nicht deaktiviert werden", { description: getUserErrorMessage(e) }),
   });
   const isSubscribed = !!(subData && subData.isActive);
   const [driftThreshold, setDriftThreshold] = useState<number>(
@@ -423,6 +434,7 @@ export default function OptimierenTab({
   // ─── Backtest der optimierten Ziel-Allokation ───────────────────────────────
   const [showBacktest, setShowBacktest] = useState(false);
   const [btRebalance, setBtRebalance] = useState<"monthly" | "none">("monthly");
+  const [btLookback, setBtLookback] = useState<252 | 756 | 1260>(756); // 1J / 3J / 5J
   const optimizedWeights = useMemo(() => {
     const w = (result as any)?.weights as Record<string, number> | undefined;
     if (!w) return null;
@@ -435,7 +447,7 @@ export default function OptimierenTab({
       {
         tickers: optimizedWeights?.tickers ?? [],
         weights: optimizedWeights?.weights ?? [],
-        lookbackDays: 756,
+        lookbackDays: btLookback,
         rebalance: btRebalance,
       },
       { enabled: showBacktest && !!optimizedWeights, staleTime: 5 * 60 * 1000, retry: false },
@@ -455,10 +467,21 @@ export default function OptimierenTab({
       method,
     },
     {
-      enabled: portfolioId > 0 && holdingsWithScores.length > 0,
+            enabled: portfolioId > 0 && holdingsWithScores.length > 0,
       staleTime: 0, // Kein Cache: Ranking ändert sich mit method
     }
   );
+
+  // When upgradeData loads (or reloads), initialize ALL candidates as deselected
+  // so the user must explicitly opt-in to each new candidate
+  useEffect(() => {
+    if (!upgradeData?.additionSuggestions?.length) return;
+    const key = upgradeData.additionSuggestions.map((c: any) => c.ticker).join(',');
+    if (additionsInitialized === key) return; // already initialized for this exact set
+    const allTickers = new Set<string>(upgradeData.additionSuggestions.map((c: any) => c.ticker));
+    setDeselectedAdditions(allTickers);
+    setAdditionsInitialized(key);
+  }, [upgradeData?.additionSuggestions]);
 
   const frontierData = useMemo(() => {
     if (!result?.efficientFrontier) return [];
@@ -1103,8 +1126,26 @@ export default function OptimierenTab({
                     <h4 className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                       <Plus className="w-3.5 h-3.5" />
                       Neue Kandidaten — Ergänzungs-Vorschläge (Score ≥ 65)
-                      <span className="ml-auto text-[10px] font-normal text-gray-500 normal-case">
-                        {upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker)).length} ausgewählt
+                      <span className="ml-auto flex items-center gap-2">
+                        <span className="text-[10px] font-normal text-gray-500 normal-case">
+                          {upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker)).length} / {upgradeData.additionSuggestions.length} ausgewählt
+                        </span>
+                        {/* Bulk-Toggle: Alle an */}
+                        <button
+                          onClick={() => setDeselectedAdditions(new Set())}
+                          className="text-[10px] font-normal text-indigo-400 hover:text-indigo-300 normal-case px-1.5 py-0.5 rounded border border-indigo-500/30 hover:border-indigo-400/50 transition-colors"
+                          title="Alle Kandidaten auswählen"
+                        >
+                          Alle ✔
+                        </button>
+                        {/* Bulk-Toggle: Alle aus */}
+                        <button
+                          onClick={() => setDeselectedAdditions(new Set(upgradeData.additionSuggestions.map((c: any) => c.ticker)))}
+                          className="text-[10px] font-normal text-gray-500 hover:text-gray-300 normal-case px-1.5 py-0.5 rounded border border-gray-600/30 hover:border-gray-500/50 transition-colors"
+                          title="Alle Kandidaten abwählen"
+                        >
+                          Alle ✕
+                        </button>
                       </span>
                     </h4>
                     <div className="space-y-1.5">
@@ -1359,9 +1400,22 @@ export default function OptimierenTab({
               <div className="flex items-center gap-2">
                 <LineChartIcon className="w-4 h-4 text-[#00CFC1]" />
                 <span className="text-sm font-semibold text-white">Backtest der Ziel-Allokation</span>
-                <span className="text-[11px] text-gray-500">— historische Entwicklung (3 J.), in CHF</span>
+                <span className="text-[11px] text-gray-500">— historische Entwicklung ({btLookback === 252 ? '1 J.' : btLookback === 756 ? '3 J.' : '5 J.'}) in CHF</span>
               </div>
               <div className="flex items-center gap-2">
+                {showBacktest && (
+                  <div className="inline-flex rounded-md border border-white/10 bg-[#1a2332] p-0.5" role="group" aria-label="Zeitraum wählen">
+                    {([252, 756, 1260] as const).map((days) => (
+                      <button
+                        key={days}
+                        onClick={() => setBtLookback(days)}
+                        className={`px-2.5 py-1 text-xs rounded ${btLookback === days ? 'bg-[#00CFC1] text-black font-semibold' : 'text-gray-400 hover:text-gray-200'}`}
+                      >
+                        {days === 252 ? '1J' : days === 756 ? '3J' : '5J'}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {showBacktest && (
                   <div className="inline-flex rounded-md border border-white/10 bg-[#1a2332] p-0.5" role="group" aria-label="Rebalancing wählen">
                     {([["monthly", "Monatl. Rebalancing"], ["none", "Buy & Hold"]] as const).map(([val, lbl]) => (

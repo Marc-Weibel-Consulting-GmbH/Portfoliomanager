@@ -877,6 +877,34 @@ export const signalHistory = mysqlTable("signal_history", {
 export type SignalHistoryRow = typeof signalHistory.$inferSelect;
 export type InsertSignalHistory = typeof signalHistory.$inferInsert;
 
+// Outcome-Tracking für den NUTZERSICHTBAREN Combined Score (Stack A, KIMI-Audit ④).
+// stock_signal_cache hält nur den aktuellen Zustand; diese Tabelle snapshotet den
+// combinedScore täglich und misst nach `horizonDays` den realisierten Return vs.
+// SMI (Alpha) + directionCorrect — analog signal_history (Stack B). Daten
+// akkumulieren ab Deployment.
+export const combinedScoreHistory = mysqlTable("combined_score_history", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 20 }).notNull(),
+  snapshotDate: varchar("snapshotDate", { length: 10 }).notNull(), // YYYY-MM-DD (1×/Tag)
+  combinedScore: decimal("combinedScore", { precision: 6, scale: 2 }), // 0..100
+  signalType: varchar("signalType", { length: 16 }), // buy | hold | sell
+  priceAtSnapshot: decimal("priceAtSnapshot", { precision: 12, scale: 4 }),
+  horizonDays: int("horizonDays").notNull().default(30),
+  computedAt: timestamp("computedAt").defaultNow().notNull(),
+  evaluatedAt: timestamp("evaluatedAt"),
+  priceAtEvaluation: decimal("priceAtEvaluation", { precision: 12, scale: 4 }),
+  actualReturnPct: decimal("actualReturnPct", { precision: 7, scale: 4 }),
+  benchmarkReturnPct: decimal("benchmarkReturnPct", { precision: 7, scale: 4 }),
+  alphaPct: decimal("alphaPct", { precision: 7, scale: 4 }),
+  directionCorrect: tinyint("directionCorrect"),
+}, (t) => ({
+  tickerDateUnique: unique("uq_combined_score_history_ticker_date").on(t.ticker, t.snapshotDate),
+  computedAtIdx: index("ix_combined_score_history_computed_at").on(t.computedAt),
+}));
+
+export type CombinedScoreHistoryRow = typeof combinedScoreHistory.$inferSelect;
+export type InsertCombinedScoreHistory = typeof combinedScoreHistory.$inferInsert;
+
 // ============================================
 // Market Analysis — KI-Tages/Wochenbericht (Dashboard)
 // ============================================
@@ -1570,3 +1598,65 @@ export const algoTuningLog = mysqlTable("algo_tuning_log", {
 ]);
 export type AlgoTuningLog = typeof algoTuningLog.$inferSelect;
 export type InsertAlgoTuningLog = typeof algoTuningLog.$inferInsert;
+
+// ============ Gap-Filling Configuration ============
+// Stores the admin-configurable criteria for the Universum Gap-Filling job.
+// Only one active config row exists at a time (upserted via id=1).
+export const gapFillConfig = mysqlTable("gapFillConfig", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Minimum stocks required per sector before a gap is declared */
+  minStocksPerSector: int("minStocksPerSector").notNull().default(3),
+  /** Minimum dividend stocks (yield >= minDividendYield%) */
+  minDividendStocks: int("minDividendStocks").notNull().default(5),
+  /** Minimum dividend yield threshold (%) */
+  minDividendYield: int("minDividendYield").notNull().default(2),
+  /** Maximum candidates to fetch per gap (limits API calls) */
+  maxCandidatesPerGap: int("maxCandidatesPerGap").notNull().default(3),
+  /** Maximum total stocks to add per run (0 = unlimited) */
+  maxStocksPerRun: int("maxStocksPerRun").notNull().default(10),
+  /** Minimum market cap in USD billions (0 = no filter) */
+  minMarketCapBillions: int("minMarketCapBillions").notNull().default(0),
+  /** Target sectors as JSON array of strings */
+  targetSectors: json("targetSectors").notNull().$type<string[]>(),
+  /** Allowed exchanges/regions as JSON array (empty = all) */
+  allowedExchanges: json("allowedExchanges").notNull().$type<string[]>(),
+  /** Check for geographic diversification */
+  enableRegionCheck: tinyint("enableRegionCheck").notNull().default(0),
+  /** Minimum stocks per region (US / Europe / Asia) */
+  minStocksPerRegion: int("minStocksPerRegion").notNull().default(2),
+  /** Check for low-beta / defensive gap */
+  enableLowBetaCheck: tinyint("enableLowBetaCheck").notNull().default(0),
+  /** Maximum beta for low-beta stocks */
+  maxBetaForLowBeta: varchar("maxBetaForLowBeta", { length: 10 }).notNull().default("0.8"),
+  /** Minimum number of low-beta stocks */
+  minLowBetaStocks: int("minLowBetaStocks").notNull().default(3),
+  /** Check for ESG / sustainability gap */
+  enableEsgCheck: tinyint("enableEsgCheck").notNull().default(0),
+  /** Minimum ESG stocks (tagged via sector heuristic) */
+  minEsgStocks: int("minEsgStocks").notNull().default(2),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type GapFillConfig = typeof gapFillConfig.$inferSelect;
+export type InsertGapFillConfig = typeof gapFillConfig.$inferInsert;
+
+// ============ Sectors Table ============
+// Managed list of GICS-style sectors used across the platform.
+// Stocks reference sector names as free-text; this table provides the
+// canonical list for the admin UI and for gap-filling logic.
+export const sectors = mysqlTable("sectors", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  /** Hex color for charts/badges, e.g. "#3b82f6" */
+  color: varchar("color", { length: 20 }),
+  /** Emoji or icon name for UI display */
+  icon: varchar("icon", { length: 50 }),
+  /** Whether this sector is included in Gap-Filling checks */
+  includeInGapFilling: tinyint("includeInGapFilling").notNull().default(1),
+  /** Sort order for display */
+  sortOrder: int("sortOrder").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Sector = typeof sectors.$inferSelect;
+export type InsertSector = typeof sectors.$inferInsert;

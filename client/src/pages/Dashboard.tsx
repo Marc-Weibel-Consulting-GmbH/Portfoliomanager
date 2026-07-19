@@ -13,6 +13,8 @@ import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 import { formatCHF, formatPercent } from "@/lib/format";
 import DashboardLayout from "@/components/DashboardLayout";
 import WelcomeBanner from "@/components/WelcomeBanner";
@@ -630,6 +632,7 @@ export default function Dashboard() {
       utils.dashboard.getAggregatedHoldings.invalidate(undefined, { refetchType: 'all' });
       setDeleteConfirm(null);
     },
+    onError: (e) => toast.error("Portfolio konnte nicht gelöscht werden", { description: getUserErrorMessage(e) }),
   });
 
   const scopeName = useMemo(() => {

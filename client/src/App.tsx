@@ -4,6 +4,7 @@ import { lazy, Suspense } from "react";
 import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import RequireAdmin from "./components/RequireAdmin";
+import DashboardLayout from "./components/DashboardLayout";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { ViewDensityProvider } from "./contexts/ViewDensityContext";
 
@@ -79,6 +80,7 @@ const AdminFeedbackDashboard = lazy(() => import("./pages/AdminFeedbackDashboard
 const AdminScoreConfig = lazy(() => import("./pages/AdminScoreConfig"));
 const AdminAlgoBacktest = lazy(() => import("./pages/AdminAlgoBacktest"));
 const AdminWatchlistCandidates = lazy(() => import("./pages/AdminWatchlistCandidates"));
+const AdminImprovementTimeline = lazy(() => import("./pages/AdminImprovementTimeline"));
 
 function Router() {
   return (
@@ -174,9 +176,9 @@ function Router() {
         <Route path="/admin/data-import"><RequireAdmin><AdminDataImport /></RequireAdmin></Route>
         <Route path="/admin/watchlist"><RequireAdmin><AdminWatchlist /></RequireAdmin></Route>
         <Route path="/admin/optimizer"><RequireAdmin><AdminOptimizer /></RequireAdmin></Route>
-        <Route path="/admin/logs"><RequireAdmin><AdminLogs /></RequireAdmin></Route>
-        <Route path="/admin/ml-trainer"><RequireAdmin><AdminMlTrainer /></RequireAdmin></Route>
-        <Route path="/admin/signal-performance"><RequireAdmin><AdminSignalPerformance /></RequireAdmin></Route>
+        <Route path="/admin/logs"><RequireAdmin><DashboardLayout><AdminLogs /></DashboardLayout></RequireAdmin></Route>
+        <Route path="/admin/ml-trainer"><RequireAdmin><DashboardLayout><AdminMlTrainer /></DashboardLayout></RequireAdmin></Route>
+        <Route path="/admin/signal-performance"><RequireAdmin><DashboardLayout><AdminSignalPerformance /></DashboardLayout></RequireAdmin></Route>
         <Route path="/admin/wikifolio"><RequireAdmin><AdminWikifolio /></RequireAdmin></Route>
         <Route path="/admin/settings"><RequireAdmin><AdminSettings /></RequireAdmin></Route>
         <Route path="/admin/research"><RequireAdmin><AdminResearch /></RequireAdmin></Route>
@@ -189,7 +191,8 @@ function Router() {
         <Route path="/admin/feedback-dashboard"><RequireAdmin><AdminFeedbackDashboard /></RequireAdmin></Route>
         <Route path="/admin/score-config"><RequireAdmin><AdminScoreConfig /></RequireAdmin></Route>
         <Route path="/admin/algo-backtest"><RequireAdmin><AdminAlgoBacktest /></RequireAdmin></Route>
-        <Route path="/admin/watchlist-candidates"><RequireAdmin><AdminWatchlistCandidates /></RequireAdmin></Route>
+        <Route path="/admin/improvement-timeline"><RequireAdmin><AdminImprovementTimeline /></RequireAdmin></Route>
+        <Route path="/admin/watchlist-candidates"><RequireAdmin><DashboardLayout><AdminWatchlistCandidates /></DashboardLayout></RequireAdmin></Route>
 
         {/* ═══ Legacy Redirects ═══ */}
         <Route path="/home"><Redirect to="/dashboard" /></Route>

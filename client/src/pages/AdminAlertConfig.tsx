@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { Bell, Save, RotateCcw, Info } from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 const DEFAULT_CONFIG = {
   // P/E
@@ -179,6 +180,12 @@ export default function AdminAlertConfig() {
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-4xl">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Watchlist-Alert Kriterien", icon: <Bell className="h-4 w-4" /> },
+        ]}
+      />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

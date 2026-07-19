@@ -27,17 +27,31 @@ export function aggregateHoldingsFromTransactions(
 
 /**
  * Fallback ohne Transaktionen: Stückzahlen aus den portfolioData-Stocks.
- * Positionen ohne Stückzahl ergeben 0 und werden später herausgefiltert —
- * kein `|| 1`-Phantom-Bestand mehr (R-31).
+ * Wenn shares=0 aber weight>0 und currentPrice>0 (KI-Portfolio), werden
+ * Stückzahlen aus investmentAmount × weight / currentPrice geschätzt.
+ * investmentAmount-Parameter: Gesamtinvestition in CHF (default 100'000).
  */
 export function aggregateHoldingsFromPortfolioData(
   stocks: any[],
-  holdings: Record<string, number> = {}
+  holdings: Record<string, number> = {},
+  investmentAmount: number = 100000
 ): Record<string, number> {
   for (const stock of stocks) {
     if (!stock?.ticker || stock.ticker === "CASH") continue;
     const shares = parseFloat(stock.shares || stock.quantity || "0") || 0;
-    if (shares > 0) holdings[stock.ticker] = (holdings[stock.ticker] || 0) + shares;
+    if (shares > 0) {
+      holdings[stock.ticker] = (holdings[stock.ticker] || 0) + shares;
+    } else {
+      // KI-Portfolio: shares=0, schätze aus weight + currentPrice
+      const weight = parseFloat(stock.weight || "0") / 100;
+      const price = parseFloat(stock.currentPrice || stock.priceCHF || "0");
+      if (weight > 0 && price > 0) {
+        const estimatedShares = (investmentAmount * weight) / price;
+        if (estimatedShares > 0) {
+          holdings[stock.ticker] = (holdings[stock.ticker] || 0) + estimatedShares;
+        }
+      }
+    }
   }
   return holdings;
 }
@@ -78,7 +92,8 @@ export const dividendCalendarRouter = router({
         aggregateHoldingsFromTransactions(transactions, holdings);
       } else {
         // Fallback: use portfolio data shares (for builder portfolios without transactions)
-        aggregateHoldingsFromPortfolioData(portfolioData, holdings);
+        const investmentAmt = parseFloat((portfolio as any).investmentAmount || '100000') || 100000;
+        aggregateHoldingsFromPortfolioData(portfolioData, holdings, investmentAmt);
       }
 
       // Fetch upcoming dividends (365 days ahead)
@@ -141,7 +156,8 @@ export const dividendCalendarRouter = router({
         aggregateHoldingsFromTransactions(transactions, holdings);
       } else {
         // Fallback: use portfolio data shares (for builder portfolios without transactions)
-        aggregateHoldingsFromPortfolioData(portfolioData2, holdings);
+        const investmentAmt2 = parseFloat((portfolio as any).investmentAmount || '100000') || 100000;
+        aggregateHoldingsFromPortfolioData(portfolioData2, holdings, investmentAmt2);
       }
 
       const dividends = await getAllPortfolioDividends(tickers);
@@ -200,7 +216,8 @@ export const dividendCalendarRouter = router({
         aggregateHoldingsFromTransactions(transactions, holdings);
       } else {
         // Fallback: use portfolio data shares (for builder portfolios without transactions)
-        aggregateHoldingsFromPortfolioData(portfolioData3, holdings);
+        const investmentAmt3 = parseFloat((portfolio as any).investmentAmount || '100000') || 100000;
+        aggregateHoldingsFromPortfolioData(portfolioData3, holdings, investmentAmt3);
       }
 
       // Nur Titel abfragen, die wir tatsächlich halten (Stückzahl > 0). So wird die

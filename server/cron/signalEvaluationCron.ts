@@ -247,19 +247,26 @@ export function initSignalEvaluationCron(): void {
     evaluatePendingSignals().catch((e) =>
       console.error("[signalEvalCron] Eval error:", e)
     );
+    // ④ Stack-A: Combined-Score-Outcome mit derselben Kadenz messen.
+    import("./combinedScoreOutcome")
+      .then((m) => m.evaluateCombinedScores())
+      .catch((e) => console.error("[combinedScoreOutcome] Eval error:", e));
   }, EVAL_INTERVAL_MS);
 
   // Snapshot: täglich um 18:00 (nach EU-Marktschluss)
   // Für den ersten Run: nach 5 Minuten starten (Server-Warmup)
-  setTimeout(() => {
+  const snapshotAll = () => {
     snapshotSignalsForPortfolio().catch((e) =>
       console.error("[signalEvalCron] Snapshot error:", e)
     );
-    setInterval(() => {
-      snapshotSignalsForPortfolio().catch((e) =>
-        console.error("[signalEvalCron] Snapshot error:", e)
-      );
-    }, EVAL_INTERVAL_MS);
+    // ④ Stack-A: den nutzersichtbaren Combined Score täglich mit-snapshotten.
+    import("./combinedScoreOutcome")
+      .then((m) => m.snapshotCombinedScores())
+      .catch((e) => console.error("[combinedScoreOutcome] Snapshot error:", e));
+  };
+  setTimeout(() => {
+    snapshotAll();
+    setInterval(snapshotAll, EVAL_INTERVAL_MS);
   }, 5 * 60 * 1000);
 
   console.log("[signalEvalCron] Initialized (eval: 24h, snapshot: 24h with 5min delay)");

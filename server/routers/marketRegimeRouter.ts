@@ -2,6 +2,7 @@ import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
 import { fetchHistoricalPrices } from "../_core/stockDataApi";
 import { ENV } from "../_core/env";
+import { apiCache, CACHE_TTL } from "../_core/apiCache";
 
 type RegimeLevel = "bullish" | "neutral" | "bearish";
 type EngineResult = {
@@ -371,13 +372,22 @@ async function fetchSectorPerformance(): Promise<Array<{
 
 export const marketRegimeRouter = router({
   sectorPerformance: publicProcedure.query(async () => {
-    return fetchSectorPerformance();
+    const cacheKey = "marketRegime:sectorPerformance";
+    const cached = apiCache.get<Awaited<ReturnType<typeof fetchSectorPerformance>>>(cacheKey);
+    if (cached) return cached;
+    const result = await fetchSectorPerformance();
+    apiCache.set(cacheKey, result, CACHE_TTL.QUOTE);
+    return result;
   }),
 
   // Markt-Hub Überblick (Mockup S.13): Index-KPIs (SMI / S&P 500 / MSCI World / Gold)
   // + normalisierte YTD-Performance-Serie für das "Indizes Performance YTD"-Chart.
   // Echte Indexpunkte via EODHD (SSMI.INDX=SMI, GSPC.INDX=S&P 500, URTH.US=MSCI World ETF, GLD.US=Gold ETF).
   getIndices: publicProcedure.query(async () => {
+    const cacheKey = "marketRegime:getIndices";
+    const cachedIndices = apiCache.get<{ indices: any[]; chart: any[]; asOf: string }>(cacheKey);
+    if (cachedIndices) return cachedIndices;
+
     const EODHD_API_KEY = ENV.eodhdApiKey;
     const EODHD_BASE_URL = "https://eodhd.com/api";
 
@@ -508,11 +518,18 @@ export const marketRegimeRouter = router({
       return { date: d, smi: +lastSmi.toFixed(2), sp500: +lastSp.toFixed(2), msci: +lastMsci.toFixed(2) };
     });
 
-    return { indices, chart, asOf: todayStr };
+    const payload = { indices, chart, asOf: todayStr };
+    apiCache.set(cacheKey, payload, CACHE_TTL.QUOTE);
+    return payload;
   }),
 
   getRegime: publicProcedure.query(async () => {
-    return computeRegime();
+    const cacheKey = "marketRegime:getRegime";
+    const cached = apiCache.get<Awaited<ReturnType<typeof computeRegime>>>(cacheKey);
+    if (cached) return cached;
+    const result = await computeRegime();
+    apiCache.set(cacheKey, result, CACHE_TTL.QUOTE);
+    return result;
   }),
 
   // Regime-Verlauf (R4): letzte `days` Handelstage des Gesamt-Scores für die

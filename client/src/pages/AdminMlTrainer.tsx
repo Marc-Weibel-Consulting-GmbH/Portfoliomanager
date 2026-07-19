@@ -1,3 +1,4 @@
+import { BrainCircuit } from "lucide-react";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -5,8 +6,8 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { AdminTopbar } from "@/components/AdminTopbar";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -80,9 +81,14 @@ export default function AdminMlTrainer() {
   const activeMetrics = active?.metrics as Record<string, number> | null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
-      <AdminTopbar />
+    <div className="text-white">
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "ML Trainer", icon: <BrainCircuit className="h-4 w-4" /> },
+        ]}
+      />
 
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -158,8 +164,8 @@ export default function AdminMlTrainer() {
                 <MetricCard
                   label="Overfit-Ratio"
                   value={fmtNum(activeMetrics?.overfitRatio)}
-                  highlight={Number(activeMetrics?.overfitRatio) <= 1.6}
-                  target="≤ 1.6"
+                  highlight={Number(activeMetrics?.overfitRatio) <= 2.0}
+                  target="≤ 2.0"
                 />
                 <MetricCard
                   label="Trainingsperiode"
@@ -184,7 +190,7 @@ export default function AdminMlTrainer() {
               </div>
               <div className="bg-zinc-800/50 rounded p-3">
                 <div className="text-zinc-400 text-xs mb-1">Overfit-Ratio</div>
-                <div className="text-white font-semibold">≤ 1.6</div>
+                <div className="text-white font-semibold">≤ 2.0</div>
                 <div className="text-zinc-500 text-xs mt-1">IS-HitRate / OOS-HitRate (Overfitting-Indikator)</div>
               </div>
               <div className="bg-zinc-800/50 rounded p-3">

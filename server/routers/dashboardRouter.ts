@@ -194,13 +194,14 @@ export const dashboardRouter = router({
           const historicalPrice = usePricesMap.get(ticker);
           if (!historicalPrice) continue;
           
-          // Calculate shares using CURRENT price (same as calculatePortfolioValueFromData)
-          // This ensures dayChange reflects actual price movement, not share count differences
+          // Calculate shares using the HISTORICAL price at the target date (YTD start price).
+          // Using current price here would inflate YTD because shares × ytdStartPrice would be too low.
+          // Correct formula: shares = allocation / ytdStartPrice, then ytdStartValue = shares × ytdStartPrice = allocation.
           let shares = parseFloat(stock.shares || '0') || 0;
           if (shares === 0 && investmentAmount > 0 && weight > 0) {
-            const currentPrice = parseFloat(stockData.currentPrice || '0');
-            const currentPriceCHF = await convertToCHF(currentPrice, currency, todayForFx);
-            shares = (currentPriceCHF > 0 ? (investmentAmount * weight) / currentPriceCHF : 0) || 0;
+            // Use historical price at the target date for shares calculation (same as portfoliosRouter)
+            const historicalPriceCHF = await convertToCHF(historicalPrice, currency, dateStr);
+            shares = (historicalPriceCHF > 0 ? (investmentAmount * weight) / historicalPriceCHF : 0) || 0;
           }
           
           const priceCHF = await convertToCHF(historicalPrice, currency, dateStr);
