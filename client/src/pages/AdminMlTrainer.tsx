@@ -79,7 +79,7 @@ export default function AdminMlTrainer() {
   const activeMetrics = active?.metrics as Record<string, number> | null;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white">
+    <div className="text-white">
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
 
         {/* Header */}
