@@ -105,7 +105,6 @@ export default function Pricing() {
                 <FeatureItem included text="3 Preisalarme" />
                 <FeatureItem included={false} text="Live-Portfolios" />
                 <FeatureItem included={false} text="KI-Auto-Portfolio" />
-                <FeatureItem included={false} text="Steuer-Reporting" />
               </ul>
               <Button variant="outline" className="w-full"
                 onClick={() => window.location.href = isAuthenticated ? "/dashboard" : "/register"}>
@@ -134,7 +133,7 @@ export default function Pricing() {
                 <FeatureItem included premium text="Portfolio-Optimierung (unbegrenzt)" />
                 <FeatureItem included premium text="100 Copilot-Fragen/Monat" />
                 <FeatureItem included premium text="25 Preisalarme" />
-                <FeatureItem included premium text="Steuer-Reporting & Dividenden" />
+                <FeatureItem included premium text="Dividenden-Übersicht" />
               </ul>
               <Button className="w-full bg-primary hover:bg-primary/90 text-slate-900"
                 disabled={checkout.isPending} onClick={() => startCheckout("plus")}>
@@ -188,7 +187,7 @@ export default function Pricing() {
           <h2 className="text-3xl font-bold text-white mb-8 text-center">Häufig gestellte Fragen</h2>
           <div className="space-y-6">
             <FAQItem question="Was unterscheidet Basic von Pro?"
-              answer="Basic deckt alles ab, was Sie für Ihr reales Depot brauchen: Echtzeit-Tracking, KI-Auto-Portfolio, Steuer-Reporting. Pro ist für aktive Anleger mit mehreren Depots — mit exaktem Optimierer, Sektor-Caps, Multi-Agent-Challenge-Report und unbegrenztem Copilot." />
+              answer="Basic deckt alles ab, was Sie für Ihr reales Depot brauchen: Echtzeit-Tracking, KI-Auto-Portfolio, Dividenden-Übersicht. Pro ist für aktive Anleger mit mehreren Depots — mit exaktem Optimierer, Sektor-Caps, Multi-Agent-Challenge-Report und unbegrenztem Copilot." />
             <FAQItem question="Kann ich jederzeit kündigen?"
               answer="Ja. Sie verwalten Ihr Abo (Kündigung, Zahlungsmittel, Rechnungen) selbst über das Kundenportal unter Einstellungen › Abo. Bei jährlicher Zahlung läuft der Zugriff bis zum Periodenende." />
             <FAQItem question="Welche Zahlungsmethoden werden akzeptiert?"
