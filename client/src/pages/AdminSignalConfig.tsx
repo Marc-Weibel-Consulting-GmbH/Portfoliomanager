@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AdminTopbar } from "@/components/AdminTopbar";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Brain, RefreshCw, CheckCircle2, XCircle, HelpCircle } from "lucide-react";
@@ -52,7 +51,6 @@ export default function AdminSignalConfig() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <AdminTopbar />
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Signal-Gewichtung</h1>
           <p className="text-muted-foreground mt-2">

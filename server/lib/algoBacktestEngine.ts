@@ -835,28 +835,46 @@ export async function applyFeedbackLoopToSignalWeights(currentRunId: number): Pr
 // 5. HILFSFUNKTIONEN FÜR ADMIN-UI
 // ============================================================
 
+// Die Getter degradieren bewusst zu [] statt zu werfen: Ist die Migration 0033
+// (algo_backtest_*, algo_tuning_log) in der Ziel-DB noch nicht angewendet, soll
+// die Admin-Seite einen leeren Zustand zeigen statt einen 500-Fehler auszulösen.
 export async function getBacktestRuns(limit = 12) {
   const db = await getDb();
   if (!db) return [];
-  const { algoBacktestRuns } = await import("../../drizzle/schema");
-  const { desc } = await import("drizzle-orm");
-  return db.select().from(algoBacktestRuns).orderBy(desc(algoBacktestRuns.runMonth)).limit(limit);
+  try {
+    const { algoBacktestRuns } = await import("../../drizzle/schema");
+    const { desc } = await import("drizzle-orm");
+    return await db.select().from(algoBacktestRuns).orderBy(desc(algoBacktestRuns.runMonth)).limit(limit);
+  } catch (e) {
+    console.warn("[algoBacktest] getBacktestRuns fehlgeschlagen (Tabelle fehlt?):", (e as Error).message);
+    return [];
+  }
 }
 
 export async function getBacktestPortfolios(runId: number) {
   const db = await getDb();
   if (!db) return [];
-  const { algoBacktestPortfolios } = await import("../../drizzle/schema");
-  const { eq } = await import("drizzle-orm");
-  return db.select().from(algoBacktestPortfolios).where(eq(algoBacktestPortfolios.runId, runId));
+  try {
+    const { algoBacktestPortfolios } = await import("../../drizzle/schema");
+    const { eq } = await import("drizzle-orm");
+    return await db.select().from(algoBacktestPortfolios).where(eq(algoBacktestPortfolios.runId, runId));
+  } catch (e) {
+    console.warn("[algoBacktest] getBacktestPortfolios fehlgeschlagen:", (e as Error).message);
+    return [];
+  }
 }
 
 export async function getTuningLog(limit = 20) {
   const db = await getDb();
   if (!db) return [];
-  const { algoTuningLog } = await import("../../drizzle/schema");
-  const { desc } = await import("drizzle-orm");
-  return db.select().from(algoTuningLog).orderBy(desc(algoTuningLog.createdAt)).limit(limit);
+  try {
+    const { algoTuningLog } = await import("../../drizzle/schema");
+    const { desc } = await import("drizzle-orm");
+    return await db.select().from(algoTuningLog).orderBy(desc(algoTuningLog.createdAt)).limit(limit);
+  } catch (e) {
+    console.warn("[algoBacktest] getTuningLog fehlgeschlagen (Tabelle fehlt?):", (e as Error).message);
+    return [];
+  }
 }
 
 export async function getPendingEvaluations(): Promise<Array<{ runId: number; runMonth: string }>> {

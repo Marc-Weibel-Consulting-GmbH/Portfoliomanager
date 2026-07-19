@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Key, Trash2, Copy, Check, Pencil } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AdminTopbar } from "@/components/AdminTopbar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
@@ -85,7 +84,6 @@ export default function AdminSecretsManagement() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <AdminTopbar />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">API & Secrets</h1>
