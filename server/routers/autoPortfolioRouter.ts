@@ -1694,39 +1694,10 @@ Antworte im JSON-Format.`,
             const sectorTiltsDescription = describeSectorTilts(sectorTilts);
             const marktHubContextBlock = marktHubContext ? `\n\n**Aktuelle Markt-Hub-Signale:**\n${marktHubContext}\n\nAktive Sektor-Tilts: ${sectorTiltsDescription}\nMSCI Führender Faktor: ${marktHubSignals.factors.leadingFactor ?? 'unbekannt'}\n` : '';
 
-            job.progress.push('KI-Analyse: Challenger prüft Vorschlag...');
-            const challengerResponse = await invokeKimi({
-              messages: [
-                { role: 'system', content: 'Du bist ein kritischer Portfolio-Analyst ("Challenger"). Du hinterfragst algorithmisch erstellte Portfolio-Vorschläge und lieferst IMMER konkrete, umsetzbare Optimierungsvorschläge. Antworte immer auf Deutsch. Sei präzise und konstruktiv. PFLICHT: Das Feld "swaps" muss mindestens 1 konkretes Tausch-Paar enthalten (remove + add aus dem Kandidatenpool). Ohne konkreten Swap ist deine Analyse unvollständig.' },
-                { role: 'user', content: `Analysiere diesen Portfolio-Vorschlag kritisch und liefere KONKRETE Optimierungsvorschläge:\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten:\n${factsSummary}\n\nVorgeschlagene Positionen (mit Gewichten):\n${JSON.stringify(positionSummary, null, 2)}\n\nVeefügbare Alternativen (NUR diese Ticker dürfen als Ersatz vorgeschlagen werden):\n${JSON.stringify(candidatePool, null, 2)}${marktHubContextBlock}\n\nDeine Aufgabe:\n1. Identifiziere 1-3 Schwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub-Signalen, schlechte Diversifikation)\n2. Schlage für JEDE Schwachstelle einen konkreten Tausch vor: welcher Titel raus (aus den Positionen), welcher rein (aus dem Kandidatenpool)\n3. Gib für jeden Tausch an, ob das Gewicht angepasst werden soll (+/-5% oder beibehalten)\n\nWICHTIG: Das Feld "swaps" MUSS mindestens 1 Eintrag haben. Wähle nur Ticker aus dem Kandidatenpool als Ersatz.\n\nAntworte im JSON-Format.` },
-              ],
-              max_tokens: 4096,
-              response_format: { type: 'json_schema', json_schema: { name: 'challenger_analysis', strict: true, schema: { type: 'object', properties: {
-                critique: { type: 'string', description: 'Gesamteinschätzung: Hauptschwachstellen in 2-3 Sätzen' },
-                rejected: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } },
-                alternatives: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } },
-                swaps: { type: 'array', description: 'Konkrete Tausch-Paare: remove=raus, add=rein aus Kandidatenpool', items: { type: 'object', properties: {
-                  remove: { type: 'string', description: 'Ticker der zu entfernenden Position' },
-                  add: { type: 'string', description: 'Ticker des Ersatztitels aus dem Kandidatenpool' },
-                  weightAdjustment: { type: 'string', enum: ['+5%', '+3%', '0%', '-3%', '-5%'], description: 'Gewichtsänderung für den neuen Titel vs. alten' },
-                  rationale: { type: 'string', description: 'Begründung für diesen Tausch' }
-                }, required: ['remove', 'add', 'weightAdjustment', 'rationale'], additionalProperties: false } }
-              }, required: ['critique', 'rejected', 'alternatives', 'swaps'], additionalProperties: false } } },
-            });
-            const challengerContent = challengerResponse.choices[0]?.message?.content as string | undefined;
-            const challengerResult = challengerContent ? JSON.parse(challengerContent) : { critique: '', rejected: [], alternatives: [], swaps: [] };
             const positionTickers = new Set(positions.map((p) => p.ticker.toUpperCase()));
             const poolTickers = new Set(candidatePool.map((c) => c.ticker.toUpperCase()));
-            challengerResult.rejected = (challengerResult.rejected ?? []).filter((r: any) => r?.ticker && positionTickers.has(String(r.ticker).toUpperCase()));
-            challengerResult.alternatives = (challengerResult.alternatives ?? []).filter((a: any) => a?.ticker && poolTickers.has(String(a.ticker).toUpperCase()));
-            // Validate swaps: remove must be in positions, add must be in candidate pool
-            challengerResult.swaps = (challengerResult.swaps ?? []).filter((s: any) => {
-              const removeOk = s?.remove && positionTickers.has(String(s.remove).toUpperCase());
-              const addOk = s?.add && poolTickers.has(String(s.add).toUpperCase());
-              return removeOk && addOk;
-            });
 
-            // Admin feedback context for synthesizer
+            // Admin-Feedback-Kontext (fliesst in die finale Empfehlung ein)
             let adminFeedbackContext = '';
             try {
               const { portfolioProposalLog } = await import('../../drizzle/schema');
@@ -1740,19 +1711,39 @@ Antworte im JSON-Format.`,
               }
             } catch (fbErr) { console.warn('[startProposal] Could not load admin feedback:', fbErr); }
 
-            job.progress.push('KI-Analyse: Synthesizer erstellt Empfehlung...');
+            // B (Latenz halbiert): Challenger + Synthesizer in EINEM Aufruf. Das
+            // Modell kritisiert den Vorschlag UND erstellt direkt die finale
+            // Empfehlung — ein LLM-Aufruf statt zwei sequenziellen.
+            job.progress.push('KI-Analyse: Vorschlag prüfen & finalisieren...');
             const agentStart = Date.now();
-            const synthesizerResponse = await invokeKimi({
+            const agentResponse = await invokeKimi({
               messages: [
-                { role: 'system', content: 'Du bist ein erfahrener Portfolio-Manager ("Synthesizer"). Du erhältst einen algorithmischen Portfolio-Vorschlag und eine kritische Analyse eines Challengers. Moderiere die Erkenntnisse und erstelle eine finale Empfehlung. Antworte immer auf Deutsch.' },
-                { role: 'user', content: `Algorithmischer Vorschlag:\n${JSON.stringify(positionSummary, null, 2)}\n\nBerechnete Fakten:\n${factsSummary}\n\nChallenger-Kritik:\nGesamteinschätzung: ${challengerResult.critique}\nAbgelehnte Titel: ${JSON.stringify(challengerResult.rejected)}\nAlternativen: ${JSON.stringify(challengerResult.alternatives)}\n\nAnlegerprofil: ${profileSummary}${adminFeedbackContext}${marktHubContextBlock}\n\nErstelle:\n1. Dein Gesamturteil (2-3 Sätze)\n2. Konkrete Anpassungen: behalten/reduzieren/erhöhen/ersetzen?\n3. Gesamtvertrauen: "hoch" (FX-Limit eingehalten, kein Sektor > 30%, alle BUY, Sharpe > 0.5, ≤ 1 Einwand) / "niedrig" (FX überschritten, Sektor > 40%, SELL-Titel, Sharpe < 0.2, ≥ 3 Einwände) / "mittel" (alle anderen)\n\nAntworte im JSON-Format.` },
+                { role: 'system', content: 'Du bist zugleich kritischer Portfolio-Analyst ("Challenger") und erfahrener Portfolio-Manager ("Synthesizer"). Prüfe den algorithmischen Vorschlag zuerst kritisch und erstelle im selben Schritt die finale Empfehlung mit konkreten Anpassungen. Antworte immer auf Deutsch, präzise und konstruktiv.' },
+                { role: 'user', content: `Prüfe diesen Portfolio-Vorschlag kritisch und erstelle die finale Empfehlung.\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten:\n${factsSummary}\n\nVorgeschlagene Positionen (mit Gewichten):\n${JSON.stringify(positionSummary, null, 2)}\n\nVerfügbare Alternativen (NUR diese Ticker dürfen als Ersatz dienen):\n${JSON.stringify(candidatePool, null, 2)}${adminFeedbackContext}${marktHubContextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n4. verdict: Dein Gesamturteil in 2-3 Sätzen.\n5. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n6. overallConfidence: "hoch" (FX-Limit eingehalten, kein Sektor > 30%, alle BUY, Sharpe > 0.5, ≤ 1 Einwand) / "niedrig" (FX überschritten, Sektor > 40%, SELL-Titel, Sharpe < 0.2, ≥ 3 Einwände) / "mittel" (sonst).\n\nAntworte im JSON-Format.` },
               ],
               max_tokens: 4096,
-              response_format: { type: 'json_schema', json_schema: { name: 'synthesizer_verdict', strict: true, schema: { type: 'object', properties: { verdict: { type: 'string' }, adjustments: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, action: { type: 'string', enum: ['keep', 'replace', 'reduce', 'increase'] }, reason: { type: 'string' } }, required: ['ticker', 'action', 'reason'], additionalProperties: false } }, overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] } }, required: ['verdict', 'adjustments', 'overallConfidence'], additionalProperties: false } } },
+              response_format: { type: 'json_schema', json_schema: { name: 'portfolio_review', strict: true, schema: { type: 'object', properties: {
+                critique: { type: 'string' },
+                rejected: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } },
+                alternatives: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } },
+                verdict: { type: 'string' },
+                adjustments: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, action: { type: 'string', enum: ['keep', 'replace', 'reduce', 'increase'] }, reason: { type: 'string' } }, required: ['ticker', 'action', 'reason'], additionalProperties: false } },
+                overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] },
+              }, required: ['critique', 'rejected', 'alternatives', 'verdict', 'adjustments', 'overallConfidence'], additionalProperties: false } } },
             });
-            const synthContent = synthesizerResponse.choices[0]?.message?.content as string | undefined;
-            const synthResult = synthContent ? JSON.parse(synthContent) : { verdict: '', adjustments: [], overallConfidence: 'mittel' };
-            synthResult.adjustments = (synthResult.adjustments ?? []).filter((adj: any) => { const t = adj?.ticker ? String(adj.ticker).toUpperCase() : ''; return t && (positionTickers.has(t) || poolTickers.has(t)); });
+            const agentContent = agentResponse.choices[0]?.message?.content as string | undefined;
+            const agentResult = agentContent ? JSON.parse(agentContent) : { critique: '', rejected: [], alternatives: [], verdict: '', adjustments: [], overallConfidence: 'mittel' };
+
+            const challengerResult = {
+              critique: agentResult.critique ?? '',
+              rejected: (agentResult.rejected ?? []).filter((r: any) => r?.ticker && positionTickers.has(String(r.ticker).toUpperCase())),
+              alternatives: (agentResult.alternatives ?? []).filter((a: any) => a?.ticker && poolTickers.has(String(a.ticker).toUpperCase())),
+            };
+            const synthResult = {
+              verdict: agentResult.verdict ?? '',
+              adjustments: (agentResult.adjustments ?? []).filter((adj: any) => { const t = adj?.ticker ? String(adj.ticker).toUpperCase() : ''; return t && (positionTickers.has(t) || poolTickers.has(t)); }),
+              overallConfidence: agentResult.overallConfidence ?? 'mittel',
+            };
             const agentDuration = Date.now() - agentStart;
 
             challengeReport = { challengerCritique: challengerResult.critique, challengerRejected: challengerResult.rejected, challengerAlternatives: challengerResult.alternatives, synthesizerVerdict: synthResult.verdict, finalAdjustments: synthResult.adjustments, overallConfidence: synthResult.overallConfidence as 'hoch' | 'mittel' | 'niedrig', agentDuration };
