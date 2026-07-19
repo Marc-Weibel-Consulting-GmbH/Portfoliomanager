@@ -877,6 +877,34 @@ export const signalHistory = mysqlTable("signal_history", {
 export type SignalHistoryRow = typeof signalHistory.$inferSelect;
 export type InsertSignalHistory = typeof signalHistory.$inferInsert;
 
+// Outcome-Tracking für den NUTZERSICHTBAREN Combined Score (Stack A, KIMI-Audit ④).
+// stock_signal_cache hält nur den aktuellen Zustand; diese Tabelle snapshotet den
+// combinedScore täglich und misst nach `horizonDays` den realisierten Return vs.
+// SMI (Alpha) + directionCorrect — analog signal_history (Stack B). Daten
+// akkumulieren ab Deployment.
+export const combinedScoreHistory = mysqlTable("combined_score_history", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 20 }).notNull(),
+  snapshotDate: varchar("snapshotDate", { length: 10 }).notNull(), // YYYY-MM-DD (1×/Tag)
+  combinedScore: decimal("combinedScore", { precision: 6, scale: 2 }), // 0..100
+  signalType: varchar("signalType", { length: 16 }), // buy | hold | sell
+  priceAtSnapshot: decimal("priceAtSnapshot", { precision: 12, scale: 4 }),
+  horizonDays: int("horizonDays").notNull().default(30),
+  computedAt: timestamp("computedAt").defaultNow().notNull(),
+  evaluatedAt: timestamp("evaluatedAt"),
+  priceAtEvaluation: decimal("priceAtEvaluation", { precision: 12, scale: 4 }),
+  actualReturnPct: decimal("actualReturnPct", { precision: 7, scale: 4 }),
+  benchmarkReturnPct: decimal("benchmarkReturnPct", { precision: 7, scale: 4 }),
+  alphaPct: decimal("alphaPct", { precision: 7, scale: 4 }),
+  directionCorrect: tinyint("directionCorrect"),
+}, (t) => ({
+  tickerDateUnique: unique("uq_combined_score_history_ticker_date").on(t.ticker, t.snapshotDate),
+  computedAtIdx: index("ix_combined_score_history_computed_at").on(t.computedAt),
+}));
+
+export type CombinedScoreHistoryRow = typeof combinedScoreHistory.$inferSelect;
+export type InsertCombinedScoreHistory = typeof combinedScoreHistory.$inferInsert;
+
 // ============================================
 // Market Analysis — KI-Tages/Wochenbericht (Dashboard)
 // ============================================

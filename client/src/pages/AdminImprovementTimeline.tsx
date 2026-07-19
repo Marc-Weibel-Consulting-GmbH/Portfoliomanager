@@ -24,6 +24,7 @@ export default function AdminImprovementTimeline() {
 
   const weights = data?.weights ?? [];
   const models = data?.models ?? [];
+  const cso = data?.combinedScoreOutcome ?? { evaluated: 0, hitRate: null, avgAlphaPct: null, pendingSnapshots: 0 };
 
   // Chart-Daten: OOS-Trefferquote je Optimizer-Lauf über Zeit.
   const weightSeries = weights
@@ -47,6 +48,39 @@ export default function AdminImprovementTimeline() {
         </div>
 
         {isLoading && <div className="text-sm text-muted-foreground">Lädt…</div>}
+
+        {/* Stack A: nutzersichtbarer Combined Score */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Combined Score (nutzersichtbar) — gemessene Güte</CardTitle>
+            <CardDescription>
+              Realisierter 30-Tage-Return des angezeigten Signals vs. SMI. Werte akkumulieren ab Aktivierung —
+              {cso.evaluated === 0 ? " noch keine reifen Snapshots (erste Ergebnisse nach ~30 Tagen)." : ""}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <div className="text-[11px] text-zinc-400 uppercase tracking-wide">Trefferquote</div>
+                <div className="text-xl font-bold font-mono">{cso.hitRate == null ? "–" : `${cso.hitRate.toFixed(1)}%`}</div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <div className="text-[11px] text-zinc-400 uppercase tracking-wide">Ø Alpha (30T)</div>
+                <div className={`text-xl font-bold font-mono ${cso.avgAlphaPct == null ? "" : cso.avgAlphaPct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                  {cso.avgAlphaPct == null ? "–" : `${cso.avgAlphaPct >= 0 ? "+" : ""}${cso.avgAlphaPct.toFixed(2)}%`}
+                </div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <div className="text-[11px] text-zinc-400 uppercase tracking-wide">Bewertet</div>
+                <div className="text-xl font-bold font-mono">{cso.evaluated}</div>
+              </div>
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3">
+                <div className="text-[11px] text-zinc-400 uppercase tracking-wide">Offen</div>
+                <div className="text-xl font-bold font-mono">{cso.pendingSnapshots}</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Signal-Gewichte */}
         <Card>
