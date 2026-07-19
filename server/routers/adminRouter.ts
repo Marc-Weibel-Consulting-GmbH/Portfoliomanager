@@ -1228,6 +1228,94 @@ export const adminRouter = router({
       }),
 
     /**
+     * Get the current Gap-Filling configuration (or defaults if not yet saved)
+     */
+    getGapFillConfig: adminProcedure.query(async () => {
+      const { getDb } = await import("../db");
+      const { gapFillConfig } = await import("../../drizzle/schema");
+      const { desc } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const rows = await db.select().from(gapFillConfig).orderBy(desc(gapFillConfig.updatedAt)).limit(1);
+      if (rows.length === 0) {
+        // Return defaults
+        return {
+          id: null,
+          minStocksPerSector: 3,
+          minDividendStocks: 5,
+          minDividendYield: 2,
+          maxCandidatesPerGap: 3,
+          maxStocksPerRun: 10,
+          minMarketCapBillions: 0,
+          targetSectors: [
+            "Technology", "Healthcare", "Financial Services",
+            "Consumer Cyclical", "Consumer Defensive", "Industrials",
+            "Energy", "Utilities", "Real Estate",
+            "Basic Materials", "Communication Services",
+          ] as string[],
+          allowedExchanges: [] as string[],
+          enableRegionCheck: 0,
+          minStocksPerRegion: 2,
+          enableLowBetaCheck: 0,
+          maxBetaForLowBeta: "0.8",
+          minLowBetaStocks: 3,
+          enableEsgCheck: 0,
+          minEsgStocks: 2,
+          updatedAt: new Date(),
+        };
+      }
+      return rows[0];
+    }),
+
+    /**
+     * Save / update the Gap-Filling configuration
+     */
+    updateGapFillConfig: adminProcedure
+      .input(z.object({
+        minStocksPerSector: z.number().int().min(1).max(20),
+        minDividendStocks: z.number().int().min(0).max(50),
+        minDividendYield: z.number().int().min(0).max(20),
+        maxCandidatesPerGap: z.number().int().min(1).max(10),
+        maxStocksPerRun: z.number().int().min(0).max(50),
+        minMarketCapBillions: z.number().int().min(0).max(1000),
+        targetSectors: z.array(z.string()).min(1).max(20),
+        allowedExchanges: z.array(z.string()).max(20),
+        enableRegionCheck: z.number().int().min(0).max(1),
+        minStocksPerRegion: z.number().int().min(1).max(10),
+        enableLowBetaCheck: z.number().int().min(0).max(1),
+        maxBetaForLowBeta: z.string().max(10),
+        minLowBetaStocks: z.number().int().min(1).max(20),
+        enableEsgCheck: z.number().int().min(0).max(1),
+        minEsgStocks: z.number().int().min(1).max(20),
+      }))
+      .mutation(async ({ input }) => {
+        const { getDb } = await import("../db");
+        const { gapFillConfig } = await import("../../drizzle/schema");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        // Upsert: delete all and re-insert (single-row config pattern)
+        await db.delete(gapFillConfig);
+        await db.insert(gapFillConfig).values({
+          minStocksPerSector: input.minStocksPerSector,
+          minDividendStocks: input.minDividendStocks,
+          minDividendYield: input.minDividendYield,
+          maxCandidatesPerGap: input.maxCandidatesPerGap,
+          maxStocksPerRun: input.maxStocksPerRun,
+          minMarketCapBillions: input.minMarketCapBillions,
+          targetSectors: input.targetSectors,
+          allowedExchanges: input.allowedExchanges,
+          enableRegionCheck: input.enableRegionCheck,
+          minStocksPerRegion: input.minStocksPerRegion,
+          enableLowBetaCheck: input.enableLowBetaCheck,
+          maxBetaForLowBeta: input.maxBetaForLowBeta,
+          minLowBetaStocks: input.minLowBetaStocks,
+          enableEsgCheck: input.enableEsgCheck,
+          minEsgStocks: input.minEsgStocks,
+        });
+        return { success: true };
+      }),
+
+    /**
      * List portfolio proposal logs (Multi-Agent KI-Analyse Resultate)
      * Nur im Admin-Bereich sichtbar — nicht für Endnutzer.
      */
