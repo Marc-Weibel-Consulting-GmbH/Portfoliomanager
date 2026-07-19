@@ -472,9 +472,9 @@ export default function PortfolioBuilderWizard() {
         const fallback = stockPriceMap.get(String(p.ticker ?? '').toUpperCase());
         if (fallback) rawPrice = fallback.price;
       }
-      // exchangeRateToChf = "1 CHF = X foreign currency" → to convert foreign→CHF: divide by fxRate
-      // For CHF stocks fxRate=1 so rawPrice/1=rawPrice ✓
-      const priceCHF = fxRate > 0 ? rawPrice / fxRate : rawPrice;
+      // exchangeRateToChf = "1 foreign currency unit = X CHF" → to convert foreign→CHF: multiply by fxRate
+      // For CHF stocks fxRate=1 so rawPrice*1=rawPrice ✓
+      const priceCHF = fxRate > 0 ? rawPrice * fxRate : rawPrice;
       const qty = priceCHF > 0 ? value / priceCHF : 0;
       return { ticker: p.ticker, companyName: p.companyName, quantity: Math.round(qty), purchasePrice: priceCHF, assetType: "stock" as const, weightPct: p.weightPct };
     });
