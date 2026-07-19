@@ -1,4 +1,3 @@
-import { AdminTopbar } from "@/components/AdminTopbar";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -247,7 +246,6 @@ export default function AdminScreenshots() {
 
   return (
     <DashboardLayout>
-      <AdminTopbar />
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-zinc-100">App-Screenshots</h1>

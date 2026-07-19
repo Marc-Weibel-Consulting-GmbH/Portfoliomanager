@@ -1,7 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain, RefreshCw, CheckCircle2, XCircle, TrendingUp, FlaskConical, AlertTriangle, Clock, Database } from "lucide-react";
+import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain, RefreshCw, CheckCircle2, XCircle, TrendingUp, FlaskConical, AlertTriangle, Clock, Database, Upload, Zap, ScrollText, Settings, Calculator, SlidersHorizontal, Camera, Bell, Search, MessageSquare, Gauge, Globe } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -106,83 +106,59 @@ export default function AdminDashboard() {
     },
   });
 
-  const adminSections = [
+  // Vollständige, kategorisierte Admin-Navigation — jede Admin-Route ist hier
+  // als Karte erreichbar (vorher fehlten 12 von 24 Funktionen einen Button).
+  const adminGroups: {
+    title: string;
+    sections: { icon: any; title: string; description: string; path: string; color: string }[];
+  }[] = [
     {
-      icon: Grid3x3,
-      title: "Kategorien-Verwaltung",
-      description: "Kategorien erstellen und bearbeiten",
-      path: "/admin/categories",
-      color: "text-green-500",
+      title: "Daten & Universum",
+      sections: [
+        { icon: Eye, title: "Aktienliste & Watchlist", description: "Aktien-Universum kuratieren (max. 200 Titel) — inkl. Portfolio-Titel", path: "/admin/watchlist", color: "text-emerald-500" },
+        { icon: Globe, title: "Universum-Kandidaten", description: "Vorgeschlagene Titel für die Aufnahme ins Universum prüfen", path: "/admin/watchlist-candidates", color: "text-sky-500" },
+        { icon: Search, title: "Universum Gap-Filling", description: "Fehlende Titel/Daten im Universum systematisch nachladen", path: "/admin/gap-filling", color: "text-cyan-500" },
+        { icon: Upload, title: "Historische Daten Import", description: "Kurshistorie und Fundamentaldaten importieren", path: "/admin/data-import", color: "text-blue-500" },
+        { icon: Grid3x3, title: "Kategorien-Verwaltung", description: "Kategorien erstellen und bearbeiten", path: "/admin/categories", color: "text-green-500" },
+        { icon: PieChart, title: "Sektoren-Verwaltung", description: "Sektoren erstellen und bearbeiten", path: "/admin/sectors", color: "text-purple-500" },
+      ],
     },
     {
-      icon: PieChart,
-      title: "Sektoren-Verwaltung",
-      description: "Sektoren erstellen und bearbeiten",
-      path: "/admin/sectors",
-      color: "text-purple-500",
+      title: "Signale, Scores & ML",
+      sections: [
+        { icon: SlidersHorizontal, title: "Signal-Gewichtung", description: "Gewichte der Signal-Faktoren konfigurieren", path: "/admin/signal-config", color: "text-indigo-500" },
+        { icon: Activity, title: "Signal-Performance", description: "Trefferquote, Rendite und Kalibrierung je Signal-Engine", path: "/admin/signal-performance", color: "text-teal-500" },
+        { icon: Gauge, title: "Score-Konfiguration", description: "Schwellen und Gewichte des Bewertungs-Scores", path: "/admin/score-config", color: "text-rose-500" },
+        { icon: Zap, title: "Signal-Optimizer", description: "Signal-Gewichte automatisch per Grid-Search tunen", path: "/admin/optimizer", color: "text-yellow-500" },
+        { icon: BrainCircuit, title: "ML Trainer", description: "Gradient-Boosting-Modell trainieren, Metriken & Historie", path: "/admin/ml-trainer", color: "text-violet-500" },
+        { icon: FlaskConical, title: "Algo Self-Learning Backtest", description: "Monatliche Test-Portfolios (6 Profile), 30-Tage-Performance, LLM-Analyse & Tuning-Log", path: "/admin/algo-backtest", color: "text-emerald-400" },
+      ],
     },
     {
-      icon: Key,
-      title: "Secrets-Verwaltung",
-      description: "API-Keys und Secrets verwalten",
-      path: "/admin/secrets",
-      color: "text-orange-500",
+      title: "Research & KI",
+      sections: [
+        { icon: Brain, title: "Research & Multi-Agent", description: "Dokumente, Makro-Quellen (Apollo/FRED), KI-Analyse & Multi-Agent", path: "/admin/research", color: "text-pink-500" },
+        { icon: FlaskConical, title: "KI-Analyse Protokoll", description: "Multi-Agent Portfolio-Vorschläge: Vertrauen, Filter, Challenger-Kritik", path: "/admin/proposal-analysis", color: "text-fuchsia-500" },
+        { icon: Wallet, title: "Wikifolio Portfolio", description: "Positionen aus Wikifolio abrufen, analysieren, in die Watchlist importieren", path: "/admin/wikifolio", color: "text-amber-500" },
+        { icon: Calculator, title: "Berechnungen & Formeln", description: "Kennzahlen- und Formel-Referenz der Engine", path: "/admin/berechnungen", color: "text-lime-500" },
+      ],
     },
     {
-      icon: BarChart3,
-      title: "Platform-KPIs",
-      description: "Benutzer-Statistiken und Metriken",
-      path: "/admin/kpis",
-      color: "text-cyan-500",
+      title: "Konfiguration",
+      sections: [
+        { icon: Settings, title: "App-Einstellungen", description: "Globale Parameter, Diversifikationsregeln, Feature-Flags", path: "/admin/settings", color: "text-slate-400" },
+        { icon: Bell, title: "Alert-Kriterien", description: "Schwellen für Watchlist-/Preisalarme konfigurieren", path: "/admin/alert-config", color: "text-orange-400" },
+        { icon: Key, title: "API & Secrets", description: "API-Keys und Secrets verwalten", path: "/admin/secrets", color: "text-orange-500" },
+        { icon: Camera, title: "App-Screenshots", description: "Screenshots für Doku und Marketing erzeugen", path: "/admin/screenshots", color: "text-zinc-400" },
+      ],
     },
     {
-      icon: Eye,
-      title: "Aktienliste & Watchlist",
-      description: "Aktien-Universum kuratieren (max. 200 Titel) — inkl. nicht-kuratierter Portfolio-Titel",
-      path: "/admin/watchlist",
-      color: "text-emerald-500",
-    },
-    {
-      icon: BrainCircuit,
-      title: "ML Trainer",
-      description: "Gradient-Boosting Modell trainieren, Metriken & Historie",
-      path: "/admin/ml-trainer",
-      color: "text-violet-500",
-    },
-    {
-      icon: Activity,
-      title: "Signal-Performance",
-      description: "Trefferquote, Rendite und Kalibrierung je Signal-Engine — Basis für Signalmix-Optimierung",
-      path: "/admin/signal-performance",
-      color: "text-teal-500",
-    },
-    {
-      icon: Wallet,
-      title: "Wikifolio Portfolio",
-      description: "Portfoliopositionen aus Wikifolio abrufen, analysieren und in die Watchlist importieren",
-      path: "/admin/wikifolio",
-      color: "text-amber-500",
-    },
-    {
-      icon: Brain,
-      title: "Research & Multi-Agent",
-      description: "Dokumente hochladen, KI-Analyse und Multi-Agent-System (Anthropic + Perplexity + Manus)",
-      path: "/admin/research",
-      color: "text-pink-500",
-    },
-    {
-      icon: Brain,
-      title: "KI-Analyse Protokoll",
-      description: "Multi-Agent Portfolio-Vorschläge: Vertrauen, Kennzahlen-Filter, Challenger-Kritik — intern für Training",
-      path: "/admin/proposal-analysis",
-      color: "text-violet-500",
-    },
-    {
-      icon: FlaskConical,
-      title: "Algo Self-Learning Backtest",
-      description: "Monatliche Test-Portfolios (6 Profile), 30-Tage-Performance, LLM-Analyse & Tuning-Log mit Overfitting-Schutz",
-      path: "/admin/algo-backtest",
-      color: "text-emerald-400",
+      title: "System & Betrieb",
+      sections: [
+        { icon: BarChart3, title: "Platform-KPIs", description: "Benutzer-Statistiken und Metriken", path: "/admin/kpis", color: "text-cyan-500" },
+        { icon: MessageSquare, title: "Feedback-Dashboard", description: "Nutzer-Feedback und Fehlermeldungen einsehen", path: "/admin/feedback-dashboard", color: "text-blue-400" },
+        { icon: ScrollText, title: "Server-Logs", description: "Server-Protokolle und Fehler einsehen", path: "/admin/logs", color: "text-gray-400" },
+      ],
     },
   ];
 
@@ -381,40 +357,38 @@ export default function AdminDashboard() {
           )}
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {adminSections.map((section) => (
-            <Card
-              key={section.path}
-              className="hover:shadow-lg transition-shadow cursor-pointer group"
-              onClick={() => setLocation(section.path)}
-            >
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div className={`p-3 rounded-lg bg-muted group-hover:bg-accent transition-colors`}>
-                    <section.icon className={`h-6 w-6 ${section.color}`} />
-                  </div>
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{section.title}</CardTitle>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-sm">
-                  {section.description}
-                </CardDescription>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-4 w-full"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLocation(section.path);
-                  }}
-                >
-                  Öffnen →
-                </Button>
-              </CardContent>
-            </Card>
+        {/* Kategorisierte Admin-Funktionen — alle Bereiche per Karte erreichbar */}
+        <div className="space-y-8">
+          {adminGroups.map((group) => (
+            <div key={group.title}>
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                {group.title}
+                <span className="ml-2 text-xs font-normal text-muted-foreground/60">({group.sections.length})</span>
+              </h2>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {group.sections.map((section) => (
+                  <Card
+                    key={section.path}
+                    className="hover:shadow-lg hover:border-primary/30 transition-all cursor-pointer group"
+                    onClick={() => setLocation(section.path)}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-lg bg-muted group-hover:bg-accent transition-colors shrink-0">
+                          <section.icon className={`h-5 w-5 ${section.color}`} />
+                        </div>
+                        <CardTitle className="text-base leading-tight">{section.title}</CardTitle>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="text-xs leading-relaxed">
+                        {section.description}
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>

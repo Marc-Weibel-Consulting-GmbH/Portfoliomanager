@@ -5,7 +5,6 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { AdminTopbar } from "@/components/AdminTopbar";
 import { toast } from "sonner";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -81,7 +80,6 @@ export default function AdminMlTrainer() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
-      <AdminTopbar />
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
 
         {/* Header */}

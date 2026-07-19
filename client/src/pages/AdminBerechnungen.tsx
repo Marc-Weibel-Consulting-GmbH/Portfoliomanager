@@ -1,4 +1,3 @@
-import { AdminTopbar } from "@/components/AdminTopbar";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -524,7 +523,6 @@ export default function AdminBerechnungen() {
 
   return (
     <DashboardLayout>
-      <AdminTopbar />
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
