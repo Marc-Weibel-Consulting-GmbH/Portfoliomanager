@@ -144,7 +144,7 @@ export default function AdminSignalPerformance() {
   const isLoading = perfQ.isLoading;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
+    <div className="text-zinc-100">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

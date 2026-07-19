@@ -1723,6 +1723,140 @@ export const adminRouter = router({
     };
   }),
 
+  /**
+   * Migration 0033 (algo_backtest_runs / _portfolios / algo_tuning_log) idempotent
+   * anwenden. Wie applyMigration0034: der manus-Deploy führt `drizzle-kit migrate`
+   * nicht aus, weshalb diese Tabellen in Prod fehlen können → die Algo-Backtest-
+   * Seite bleibt leer. CREATE TABLE IF NOT EXISTS + Index-Existenzcheck sind sicher
+   * wiederholbar. Ausserdem wird der Journal-Eintrag nachgetragen.
+   */
+  applyMigration0033: adminProcedure.mutation(async () => {
+    const { getDb } = await import("../db");
+    const { sql } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB not available" });
+
+    // Tabellen exakt wie in 0033_chief_romulus.sql, aber IF NOT EXISTS.
+    const TABLES: Array<{ name: string; ddl: string }> = [
+      { name: "algo_backtest_portfolios", ddl: `CREATE TABLE IF NOT EXISTS \`algo_backtest_portfolios\` (
+        \`id\` int AUTO_INCREMENT NOT NULL,
+        \`runId\` int NOT NULL,
+        \`riskProfile\` varchar(32) NOT NULL,
+        \`goal\` varchar(32) NOT NULL,
+        \`positionsSnapshot\` text NOT NULL,
+        \`proposalMetrics\` text,
+        \`appliedSectorTilts\` text,
+        \`appliedFactorTilts\` text,
+        \`challengerCritique\` text,
+        \`synthesizerRecommendation\` text,
+        \`actualPerf30dPct\` decimal(8,4),
+        \`actualSharpe30d\` decimal(8,4),
+        \`actualVolatility30d\` decimal(8,4),
+        \`actualMaxDrawdown30d\` decimal(8,4),
+        \`benchmarkPerf30dPct\` decimal(8,4),
+        \`alpha30dPct\` decimal(8,4),
+        \`portfolioAnalysis\` text,
+        \`creationError\` text,
+        \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+        \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT \`algo_backtest_portfolios_id\` PRIMARY KEY(\`id\`)
+      )` },
+      { name: "algo_backtest_runs", ddl: `CREATE TABLE IF NOT EXISTS \`algo_backtest_runs\` (
+        \`id\` int AUTO_INCREMENT NOT NULL,
+        \`runMonth\` date NOT NULL,
+        \`status\` varchar(32) NOT NULL DEFAULT 'creating',
+        \`algoVersion\` varchar(64),
+        \`marktHubSnapshot\` text,
+        \`sectorTiltsSnapshot\` text,
+        \`leadingFactor\` varchar(64),
+        \`marktRegime\` varchar(64),
+        \`llmAnalysis\` text,
+        \`avgPerf30dPct\` decimal(8,4),
+        \`benchmarkPerf30dPct\` decimal(8,4),
+        \`portfolioCount\` int DEFAULT 0,
+        \`evaluatedAt\` timestamp,
+        \`errorDetails\` text,
+        \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+        \`updatedAt\` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+        CONSTRAINT \`algo_backtest_runs_id\` PRIMARY KEY(\`id\`),
+        CONSTRAINT \`algo_backtest_runs_runMonth_unique\` UNIQUE(\`runMonth\`)
+      )` },
+      { name: "algo_tuning_log", ddl: `CREATE TABLE IF NOT EXISTS \`algo_tuning_log\` (
+        \`id\` int AUTO_INCREMENT NOT NULL,
+        \`triggeredByRunId\` int,
+        \`fromVersion\` varchar(64),
+        \`toVersion\` varchar(64),
+        \`parameterChanged\` varchar(128) NOT NULL,
+        \`oldValue\` varchar(256),
+        \`newValue\` varchar(256),
+        \`rationale\` text NOT NULL,
+        \`overfittingRisk\` varchar(16) DEFAULT 'low',
+        \`expectedImpact\` text,
+        \`actualImpact\` text,
+        \`reverted\` int DEFAULT 0,
+        \`source\` varchar(32) DEFAULT 'llm_auto',
+        \`createdAt\` timestamp NOT NULL DEFAULT (now()),
+        CONSTRAINT \`algo_tuning_log_id\` PRIMARY KEY(\`id\`)
+      )` },
+    ];
+
+    const createdTables: string[] = [];
+    for (const t of TABLES) {
+      const res = await db.execute(sql`
+        SELECT COUNT(*) AS cnt FROM information_schema.TABLES
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ${t.name}
+      `);
+      const existedBefore = Number((res as any)[0]?.[0]?.cnt ?? 0) > 0;
+      await db.execute(sql.raw(t.ddl));
+      if (!existedBefore) createdTables.push(t.name);
+    }
+
+    // Indizes (MySQL kennt kein IF NOT EXISTS für Indizes → über STATISTICS prüfen).
+    const INDEXES: Array<{ table: string; index: string; ddl: string }> = [
+      { table: "algo_backtest_portfolios", index: "idx_abp_run_profile", ddl: "CREATE INDEX `idx_abp_run_profile` ON `algo_backtest_portfolios` (`runId`,`riskProfile`,`goal`)" },
+      { table: "algo_backtest_runs", index: "idx_abt_runs_status", ddl: "CREATE INDEX `idx_abt_runs_status` ON `algo_backtest_runs` (`status`)" },
+      { table: "algo_tuning_log", index: "idx_atl_run", ddl: "CREATE INDEX `idx_atl_run` ON `algo_tuning_log` (`triggeredByRunId`)" },
+    ];
+    const createdIndexes: string[] = [];
+    for (const ix of INDEXES) {
+      const res = await db.execute(sql`
+        SELECT COUNT(*) AS cnt FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ${ix.table} AND INDEX_NAME = ${ix.index}
+      `);
+      if (Number((res as any)[0]?.[0]?.cnt ?? 0) === 0) {
+        try {
+          await db.execute(sql.raw(ix.ddl));
+          createdIndexes.push(ix.index);
+        } catch (e) {
+          console.warn(`[applyMigration0033] Index ${ix.index} konnte nicht erstellt werden:`, (e as Error).message);
+        }
+      }
+    }
+
+    // Journal-Eintrag 0033 nachtragen (sha256 der Migrationsdatei + _journal.when).
+    const HASH = "db9fba011344a5045b55b6a200784194a99ea6f06508f7a8d2015ffef1576c4c";
+    const FOLDER_MILLIS = 1784273092304;
+    let journal = "unverändert";
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS \`__drizzle_migrations\` (
+        id serial primary key,
+        hash text not null,
+        created_at bigint
+      )
+    `);
+    const jRes = await db.execute(sql`
+      SELECT COUNT(*) AS cnt FROM \`__drizzle_migrations\` WHERE created_at = ${FOLDER_MILLIS}
+    `);
+    if (Number((jRes as any)[0]?.[0]?.cnt ?? 0) === 0) {
+      await db.execute(sql`
+        INSERT INTO \`__drizzle_migrations\` (\`hash\`, \`created_at\`) VALUES (${HASH}, ${FOLDER_MILLIS})
+      `);
+      journal = "Eintrag 0033 nachgetragen";
+    }
+
+    return { success: true, createdTables, createdIndexes, journal };
+  }),
+
   // Get a single proposal by ID (for deep-link from wizard)
   getProposalById: adminProcedure
     .input(z.object({ proposalId: z.number() }))
