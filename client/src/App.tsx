@@ -80,6 +80,7 @@ const AdminFeedbackDashboard = lazy(() => import("./pages/AdminFeedbackDashboard
 const AdminScoreConfig = lazy(() => import("./pages/AdminScoreConfig"));
 const AdminAlgoBacktest = lazy(() => import("./pages/AdminAlgoBacktest"));
 const AdminWatchlistCandidates = lazy(() => import("./pages/AdminWatchlistCandidates"));
+const AdminImprovementTimeline = lazy(() => import("./pages/AdminImprovementTimeline"));
 
 function Router() {
   return (
@@ -190,6 +191,7 @@ function Router() {
         <Route path="/admin/feedback-dashboard"><RequireAdmin><AdminFeedbackDashboard /></RequireAdmin></Route>
         <Route path="/admin/score-config"><RequireAdmin><AdminScoreConfig /></RequireAdmin></Route>
         <Route path="/admin/algo-backtest"><RequireAdmin><AdminAlgoBacktest /></RequireAdmin></Route>
+        <Route path="/admin/improvement-timeline"><RequireAdmin><AdminImprovementTimeline /></RequireAdmin></Route>
         <Route path="/admin/watchlist-candidates"><RequireAdmin><DashboardLayout><AdminWatchlistCandidates /></DashboardLayout></RequireAdmin></Route>
 
         {/* ═══ Legacy Redirects ═══ */}

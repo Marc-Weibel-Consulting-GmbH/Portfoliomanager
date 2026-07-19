@@ -132,6 +132,7 @@ export default function AdminDashboard() {
         { icon: Zap, title: "Signal-Optimizer", description: "Signal-Gewichte automatisch per Grid-Search tunen", path: "/admin/optimizer", color: "text-yellow-500" },
         { icon: BrainCircuit, title: "ML Trainer", description: "Gradient-Boosting-Modell trainieren, Metriken & Historie", path: "/admin/ml-trainer", color: "text-violet-500" },
         { icon: FlaskConical, title: "Algo Self-Learning Backtest", description: "Monatliche Test-Portfolios (6 Profile), 30-Tage-Performance, LLM-Analyse & Tuning-Log", path: "/admin/algo-backtest", color: "text-emerald-400" },
+        { icon: TrendingUp, title: "Verbesserungs-Timeline", description: "OOS-Trefferquote/Alpha je aktivierter Gewichts- und ML-Modell-Version über Zeit", path: "/admin/improvement-timeline", color: "text-teal-400" },
       ],
     },
     {
