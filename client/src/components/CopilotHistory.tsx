@@ -6,6 +6,8 @@
  */
 
 import { trpc } from '@/lib/trpc';
+import { toast } from 'sonner';
+import { getUserErrorMessage } from '@/lib/errorMessages';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -34,13 +36,17 @@ export default function CopilotHistory({ portfolioId }: CopilotHistoryProps) {
     { portfolioId },
     { staleTime: 60 * 1000 }
   );
-  const evaluateMutation = trpc.copilot.evaluateHistory.useMutation();
   const utils = trpc.useUtils();
+  const evaluateMutation = trpc.copilot.evaluateHistory.useMutation({
+    onSuccess: () => {
+      utils.copilot.getHistory.invalidate();
+      utils.copilot.getHistoryStats.invalidate();
+    },
+    onError: (e) => toast.error("Auswertung fehlgeschlagen", { description: getUserErrorMessage(e) }),
+  });
 
-  const handleEvaluate = async () => {
-    await evaluateMutation.mutateAsync();
-    utils.copilot.getHistory.invalidate();
-    utils.copilot.getHistoryStats.invalidate();
+  const handleEvaluate = () => {
+    evaluateMutation.mutate();
   };
 
   return (

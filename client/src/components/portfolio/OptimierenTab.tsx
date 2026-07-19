@@ -8,6 +8,8 @@ import {
 import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap, Play, CheckSquare, Square, Search, X, LineChart as LineChartIcon } from "lucide-react";
 import { PriceChart } from "@/components/charts";
 import { InsightExpandable } from "@/components/InsightPanel";
+import { toast } from "sonner";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -278,6 +280,7 @@ export default function OptimierenTab({
         setTimeout(() => onNavigateToPositions(), 1500);
       }
     },
+    onError: (e) => toast.error("Empfehlungen konnten nicht übernommen werden", { description: getUserErrorMessage(e) }),
   });
   const undoRecMut = trpc.analytics.undoRecommendations.useMutation({
     onSuccess: () => {
@@ -285,6 +288,7 @@ export default function OptimierenTab({
       utils.portfolios.getWithCurrency.invalidate();
       utils.portfolios.list.invalidate();
     },
+    onError: (e) => toast.error("Rückgängig fehlgeschlagen", { description: getUserErrorMessage(e) }),
   });
 
   // Transaktions-Umsetzung: Checkboxen + Bestätigungs-Dialog
@@ -302,6 +306,7 @@ export default function OptimierenTab({
         setTimeout(() => onNavigateToTransactions(), 1500);
       }
     },
+    onError: (e) => toast.error("Umsetzung fehlgeschlagen", { description: getUserErrorMessage(e) }),
   });
 
   // Portfolio-Kopie vor Umsetzung
@@ -313,12 +318,14 @@ export default function OptimierenTab({
     onSuccess: (data) => {
       setCloneCreated({ id: data.cloneId, name: data.cloneName });
     },
+    onError: (e) => toast.error("Kopie konnte nicht erstellt werden", { description: getUserErrorMessage(e) }),
   });
   // Automatischer Snapshot vor der Umsetzung (ohne Dialog)
   const autoSnapshotMut = trpc.analytics.clonePortfolio.useMutation({
     onSuccess: (data) => {
       setAutoSnapshotInfo({ id: data.cloneId, name: data.cloneName });
     },
+    onError: (e) => toast.error("Snapshot konnte nicht erstellt werden", { description: getUserErrorMessage(e) }),
   });
 
   // Wöchentliches Optimierungs-Abo
@@ -328,9 +335,11 @@ export default function OptimierenTab({
   );
   const subscribeMut = trpc.analytics.subscribeOptimizationAlert.useMutation({
     onSuccess: () => refetchSub(),
+    onError: (e) => toast.error("Abo konnte nicht aktiviert werden", { description: getUserErrorMessage(e) }),
   });
   const unsubscribeMut = trpc.analytics.unsubscribeOptimizationAlert.useMutation({
     onSuccess: () => refetchSub(),
+    onError: (e) => toast.error("Abo konnte nicht deaktiviert werden", { description: getUserErrorMessage(e) }),
   });
   const isSubscribed = !!(subData && subData.isActive);
   const [driftThreshold, setDriftThreshold] = useState<number>(
