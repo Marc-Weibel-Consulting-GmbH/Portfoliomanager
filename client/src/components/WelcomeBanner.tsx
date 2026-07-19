@@ -41,7 +41,7 @@ export default function WelcomeBanner({ userName, hasPortfolios }: WelcomeBanner
       icon: <Sparkles className="h-4 w-4 text-[#00CFC1]" />,
       title: "KI-Portfolio-Builder",
       desc: "Portfolio in 5 Schritten erstellen",
-      action: () => navigate("/builder"),
+      action: () => navigate("/portfolio-builder"),
       cta: "Starten",
     },
     {
@@ -55,7 +55,7 @@ export default function WelcomeBanner({ userName, hasPortfolios }: WelcomeBanner
       icon: <Bell className="h-4 w-4 text-[#00CFC1]" />,
       title: "Kursalarme",
       desc: "Preisziele & Benachrichtigungen",
-      action: () => navigate("/alerts"),
+      action: () => navigate("/price-alerts"),
       cta: "Einrichten",
     },
   ];
@@ -108,7 +108,7 @@ export default function WelcomeBanner({ userName, hasPortfolios }: WelcomeBanner
         <Button
           size="sm"
           className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold text-sm"
-          onClick={() => navigate("/builder")}
+          onClick={() => navigate("/portfolio-builder")}
         >
           <Sparkles className="h-3.5 w-3.5 mr-1.5" />
           Jetzt KI-Portfolio erstellen

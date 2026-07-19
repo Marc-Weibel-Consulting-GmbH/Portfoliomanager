@@ -4,7 +4,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { loginSchema, loginUser, registerSchema, registerUser, SESSION_MAX_AGE_MS } from "./_core/authService";
 import { getClientIp, isRateLimited, LOGIN_RATE_LIMIT, RATE_LIMIT_MESSAGE, REGISTER_RATE_LIMIT } from "./_core/rateLimit";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
 import { ENV } from "./_core/env";
 import { stocksRouter } from "./routers/stocksRouter";
 import { portfoliosRouter } from "./routers/portfoliosRouter";
@@ -440,7 +440,7 @@ export const appRouter = router({
       const results = await db.select().from(research).orderBy(desc(research.createdAt));
       return results;
     }),
-    add: protectedProcedure
+    add: adminProcedure
       .input(z.object({
         title: z.string(),
         content: z.string().optional(),
@@ -492,7 +492,7 @@ export const appRouter = router({
         });
         
         return { success: true };
-      }),    delete: protectedProcedure
+      }),    delete: adminProcedure
       .input(z.number())
       .mutation(async ({ input }) => {
         const { getDb } = await import("./db");
@@ -574,7 +574,7 @@ export const appRouter = router({
         }
       }),
     
-    exportList: protectedProcedure
+    exportList: adminProcedure
       .query(async () => {
         const { getDb } = await import("./db");
         const { newsletter } = await import("../drizzle/schema");
