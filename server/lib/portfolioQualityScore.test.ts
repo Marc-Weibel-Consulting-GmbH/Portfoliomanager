@@ -58,7 +58,8 @@ describe("portfolioQualityScore", () => {
     });
 
     it("renormalizes when some components are missing", () => {
-      // Only risk-adjusted return and risk available
+      // v2: risk-adjusted return (Sharpe/Sortino/MaxDD), risk (Vol/Beta) and
+      // diversification (Titel-HHI ist v2 hier) available.
       const input: QualityScoreInput = {
         sharpe: 0.8,
         sortino: 1.0,
@@ -68,10 +69,39 @@ describe("portfolioQualityScore", () => {
         hhi: 0.08,
       };
       const result = calculatePortfolioQualityScore(input);
-      expect(result.dataCoveragePct).toBe(50); // 30% + 20% = 50%
+      expect(result.dataCoveragePct).toBe(60); // 30% + 15% Risk + 15% Div = 60%
       expect(result.totalScore).toBeGreaterThan(0);
-      // Only 2 of 5 components available
-      expect(result.components.filter((c) => c.available).length).toBe(2);
+      // 3 of 5 components available (RAR, Risiko, Diversifikation)
+      expect(result.components.filter((c) => c.available).length).toBe(3);
+      // Titel-HHI zählt jetzt zu «Diversifikation», nicht «Risiko»
+      const risiko = result.components.find((c) => c.name === "Risiko");
+      expect(risiko?.inputs.hhi).toBeUndefined();
+      const div = result.components.find((c) => c.name === "Diversifikation");
+      expect(div?.inputs.hhi).toBe(0.08);
+    });
+
+    it("penalizes non-positive PEG and negative PE instead of ignoring them", () => {
+      // PEG ≤ 0 (Nullwachstum) und PE < 0 (Verlust) → explizit niedrig, available.
+      const input: QualityScoreInput = { avgPEG: 0, avgPE: -12 };
+      const result = calculatePortfolioQualityScore(input);
+      const bewertung = result.components.find((c) => c.name === "Bewertung");
+      expect(bewertung?.available).toBe(true);
+      expect(bewertung!.score).toBeLessThan(25); // PEG→20, PE→5, gewichtet
+    });
+
+    it("goal 'growth' does not structurally punish a dividend-free portfolio", () => {
+      // Growth-Portfolio: gute Rendite/Bewertung, aber 0 % Dividende.
+      const input: QualityScoreInput = {
+        sharpe: 1.2, sortino: 1.5, maxDrawdown: -0.06,
+        avgPEG: 1.2, avgPE: 22,
+        volatility: 0.14, avgBeta: 1.1,
+        hhi: 0.08, sectorHHI: 0.15, foreignCurrencyPct: 0.4, positionCount: 18,
+        avgDividendYield: 0,
+      };
+      const balanced = calculatePortfolioQualityScore(input, undefined, "balanced");
+      const growth = calculatePortfolioQualityScore(input, undefined, "growth");
+      // Mit «growth» wiegt die schwache Ertragskomponente weniger → höherer Score.
+      expect(growth.totalScore).toBeGreaterThan(balanced.totalScore);
     });
 
     it("is deterministic (same inputs → same score)", () => {

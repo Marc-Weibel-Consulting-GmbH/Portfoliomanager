@@ -1039,9 +1039,10 @@ export const adminRouter = router({
       .input(z.object({
         config: z.any(), // ScoreThresholdsConfig shape
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { getDb } = await import("../db");
         const { appSettings } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
         const { invalidateScoreConfigCache } = await import("../lib/portfolioQualityScore");
         const db = await getDb();
         if (!db) throw new Error("Database not available");
@@ -1058,6 +1059,29 @@ export const adminRouter = router({
           throw new Error(`Component weights must sum to 1.0 (got ${wSum.toFixed(3)})`);
         }
 
+        // Audit-Trail (Compliance): der Score beeinflusst Kaufhinweise, deshalb
+        // wer/wann/alte→neue Gewichte festhalten. Ablage als JSON in appSettings
+        // (keine eigene Tabelle/Migration nötig), letzte 30 Einträge.
+        try {
+          const rows = await db.select().from(appSettings).where(eq(appSettings.key, "score_thresholds"));
+          const prevWeights = (rows[0]?.value as any)?.componentWeights ?? null;
+          const auditRows = await db.select().from(appSettings).where(eq(appSettings.key, "score_thresholds_audit"));
+          const history: any[] = Array.isArray(auditRows[0]?.value) ? (auditRows[0]!.value as any[]) : [];
+          history.push({
+            at: new Date().toISOString(),
+            userId: ctx.user.id,
+            email: ctx.user.email ?? null,
+            oldWeights: prevWeights,
+            newWeights: cfg.componentWeights,
+          });
+          const trimmed = history.slice(-30);
+          await db.insert(appSettings)
+            .values({ key: "score_thresholds_audit", value: trimmed, description: "Audit-Trail: Änderungen an den Score-Schwellen" })
+            .onDuplicateKeyUpdate({ set: { value: trimmed } });
+        } catch (e) {
+          console.warn("[updateScoreConfig] Audit-Log fehlgeschlagen:", (e as Error).message);
+        }
+
         await db.insert(appSettings)
           .values({ key: "score_thresholds", value: cfg, description: "Portfolio Quality Score Schwellenwerte" })
           .onDuplicateKeyUpdate({ set: { value: cfg, description: "Portfolio Quality Score Schwellenwerte" } });
@@ -1068,15 +1092,28 @@ export const adminRouter = router({
         return { success: true };
       }),
 
+    /** Audit-Trail der Score-Schwellen-Änderungen (neueste zuerst). */
+    getScoreConfigAudit: adminProcedure.query(async () => {
+      const { getDb } = await import("../db");
+      const { appSettings } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return { entries: [] as any[] };
+      const rows = await db.select().from(appSettings).where(eq(appSettings.key, "score_thresholds_audit"));
+      const history: any[] = Array.isArray(rows[0]?.value) ? (rows[0]!.value as any[]) : [];
+      return { entries: [...history].reverse() };
+    }),
+
     /** Preview: calculate score with custom config without saving */
     previewScoreConfig: adminProcedure
       .input(z.object({
         config: z.any(),
         sampleInput: z.any(),
+        goal: z.enum(["dividends", "growth", "balanced"]).optional(),
       }))
       .mutation(async ({ input }) => {
         const { calculatePortfolioQualityScore } = await import("../lib/portfolioQualityScore");
-        const result = calculatePortfolioQualityScore(input.sampleInput, input.config);
+        const result = calculatePortfolioQualityScore(input.sampleInput, input.config, input.goal ?? null);
         return result;
       }),
 

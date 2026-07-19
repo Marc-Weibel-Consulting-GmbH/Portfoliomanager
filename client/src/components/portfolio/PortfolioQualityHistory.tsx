@@ -18,6 +18,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { InsightPanel, InsightExpandable } from "@/components/InsightPanel";
+import { getScoreBand } from "@/lib/scoreBand";
 import { KpiTooltip as RichKpiTooltip, type KpiKey } from "@/components/ui/KpiTooltip";
 import {
   LineChart,
@@ -146,10 +147,11 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           label="Quality Score"
           value={qualityScore != null ? `${qualityScore}` : "—"}
           unit="/100"
+          suffix={qualityScore != null ? getScoreBand(qualityScore).label : undefined}
           delta={qualityDelta}
           icon={<Shield className="w-4 h-4" />}
           color="text-cyan-400"
-          tooltip="Gewichteter Score aus 5 Komponenten (Rendite 30%, Bewertung 25%, Risiko 20%, Ertrag 15%, Diversifikation 10%)"
+          tooltip="Gewichteter Score aus 5 Komponenten (Rendite 30%, Bewertung 25%, Risiko 15%, Ertrag 15%, Diversifikation 15%). Bänder: ≥80 Exzellent, 60–79 Solide, 40–59 Ausbaufähig, <40 Kritisch."
         />
         <KPICard
           label="Sharpe"
@@ -256,11 +258,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
               const best = sorted[0];
               const worst = sorted[sorted.length - 1];
               const qs = qualityScore ?? 0;
-              const intro = qs >= 75
-                ? `Ihr Portfolio erzielt einen Quality Score von ${qs}/100 — eine starke Gesamtbewertung.`
-                : qs >= 50
-                ? `Ihr Portfolio erzielt einen Quality Score von ${qs}/100 — solide, mit Verbesserungspotenzial.`
-                : `Ihr Portfolio erzielt einen Quality Score von ${qs}/100 — hier besteht Optimierungspotenzial.`;
+              const intro = `Ihr Portfolio erzielt einen Quality Score von ${qs}/100 — Einordnung: ${getScoreBand(qs).label}.`;
               const detail = best && worst && best.name !== worst.name
                 ? ` Stärkster Faktor: ${best.name} (${best.score}/100, Gewicht ${Math.round(best.weight * 100)}%). Schwächster Faktor: ${worst.name} (${worst.score}/100, Gewicht ${Math.round(worst.weight * 100)}%).`
                 : '';
@@ -540,13 +538,7 @@ function Interpretation({
   // Build interpretation text (§4.5 — regelbasiert, deterministisch)
   const parts: string[] = [];
 
-  if (qualityScore >= 75) {
-    parts.push(`Das Portfolio erreicht einen Quality Score von ${qualityScore}/100 — eine starke Gesamtbewertung.`);
-  } else if (qualityScore >= 50) {
-    parts.push(`Das Portfolio erreicht einen Quality Score von ${qualityScore}/100 — solide, mit Verbesserungspotenzial.`);
-  } else {
-    parts.push(`Das Portfolio erreicht einen Quality Score von ${qualityScore}/100 — hier besteht deutliches Optimierungspotenzial.`);
-  }
+  parts.push(`Das Portfolio erreicht einen Quality Score von ${qualityScore}/100 — Einordnung: ${getScoreBand(qualityScore).label}.`);
 
   const sorted = [...components].filter((c: any) => c.available).sort((a: any, b: any) => b.score - a.score);
   if (sorted.length >= 2) {
