@@ -2,6 +2,7 @@ import { router, protectedProcedure } from "../_core/trpc";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 import { invokeLLM, invokeKimi } from "../_core/llm";
+import { getProposalModelConfig, invokeProposalAgent } from "../lib/proposalModels";
 import {
   getMarktHubSignals,
   getSectorTilts,
@@ -1711,29 +1712,52 @@ Antworte im JSON-Format.`,
               }
             } catch (fbErr) { console.warn('[startProposal] Could not load admin feedback:', fbErr); }
 
-            // B (Latenz halbiert): Challenger + Synthesizer in EINEM Aufruf. Das
-            // Modell kritisiert den Vorschlag UND erstellt direkt die finale
-            // Empfehlung — ein LLM-Aufruf statt zwei sequenziellen.
-            job.progress.push('KI-Analyse: Vorschlag prüfen & finalisieren...');
+            // Modellwahl pro Rolle (Admin-konfigurierbar): Das Analyse-Modell
+            // prüft kritisch UND erstellt die finale Empfehlung (Challenger +
+            // Synthese in einem Aufruf, Option B). Das Text-Modell formuliert die
+            // einfachen Titel-Begründungen. Sind beide Rollen derselbe Anbieter,
+            // laufen sie in EINEM Aufruf (schneller); sonst folgt ein separater
+            // Text-Aufruf. Jeder Anbieter fällt bei Fehlern auf Kimi zurück.
+            const models = await getProposalModelConfig();
+            const mergeText = models.text === models.analysis;
+            job.progress.push(`KI-Analyse (${models.analysis}): Vorschlag prüfen & finalisieren...`);
             const agentStart = Date.now();
-            const agentResponse = await invokeKimi({
-              messages: [
-                { role: 'system', content: 'Du bist zugleich kritischer Portfolio-Analyst ("Challenger") und erfahrener Portfolio-Manager ("Synthesizer"). Prüfe den algorithmischen Vorschlag zuerst kritisch und erstelle im selben Schritt die finale Empfehlung mit konkreten Anpassungen. Antworte immer auf Deutsch, präzise und konstruktiv.' },
-                { role: 'user', content: `Prüfe diesen Portfolio-Vorschlag kritisch und erstelle die finale Empfehlung.\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten:\n${factsSummary}\n\nVorgeschlagene Positionen (mit Gewichten):\n${JSON.stringify(positionSummary, null, 2)}\n\nVerfügbare Alternativen (NUR diese Ticker dürfen als Ersatz dienen):\n${JSON.stringify(candidatePool, null, 2)}${adminFeedbackContext}${marktHubContextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n4. verdict: Dein Gesamturteil in 2-3 Sätzen.\n5. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n6. overallConfidence: "hoch" (FX-Limit eingehalten, kein Sektor > 30%, alle BUY, Sharpe > 0.5, ≤ 1 Einwand) / "niedrig" (FX überschritten, Sektor > 40%, SELL-Titel, Sharpe < 0.2, ≥ 3 Einwände) / "mittel" (sonst).\n7. positionReasons: für JEDE vorgeschlagene Position 2-3 Sätze in EINFACHEN Worten, WARUM genau dieser Titel für dieses Profil vorgeschlagen wird. Zielgruppe: Privatanleger 50+ ohne Fachjargon. WICHTIG: jeder Text INDIVIDUELL — konkretes Geschäft/Stärke des Unternehmens nennen, KEINE Schablone, KEINE Wiederholung derselben Formulierung über mehrere Titel. Keine Fachbegriffe (kein "Sharpe", "Volatilität", "Score"), keine Zahlen-Wiederholung des Gewichts.\n\nAntworte im JSON-Format.` },
-              ],
-              max_tokens: 4096,
-              response_format: { type: 'json_schema', json_schema: { name: 'portfolio_review', strict: true, schema: { type: 'object', properties: {
-                critique: { type: 'string' },
-                rejected: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } },
-                alternatives: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } },
-                verdict: { type: 'string' },
-                adjustments: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, action: { type: 'string', enum: ['keep', 'replace', 'reduce', 'increase'] }, reason: { type: 'string' } }, required: ['ticker', 'action', 'reason'], additionalProperties: false } },
-                overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] },
-                positionReasons: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, text: { type: 'string' } }, required: ['ticker', 'text'], additionalProperties: false } },
-              }, required: ['critique', 'rejected', 'alternatives', 'verdict', 'adjustments', 'overallConfidence', 'positionReasons'], additionalProperties: false } } },
+
+            const posReasonsSchema = { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, text: { type: 'string' } }, required: ['ticker', 'text'], additionalProperties: false } };
+            const posReasonsInstruction = 'für JEDE vorgeschlagene Position 2-3 Sätze in EINFACHEN Worten, WARUM genau dieser Titel für dieses Profil vorgeschlagen wird. Zielgruppe: Privatanleger 50+ ohne Fachjargon. WICHTIG: jeder Text INDIVIDUELL — konkretes Geschäft/Stärke des Unternehmens nennen, KEINE Schablone, KEINE Wiederholung derselben Formulierung über mehrere Titel. Keine Fachbegriffe (kein "Sharpe", "Volatilität", "Score"), keine Zahlen-Wiederholung des Gewichts.';
+
+            const analysisProps: Record<string, any> = {
+              critique: { type: 'string' },
+              rejected: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } },
+              alternatives: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } },
+              verdict: { type: 'string' },
+              adjustments: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, action: { type: 'string', enum: ['keep', 'replace', 'reduce', 'increase'] }, reason: { type: 'string' } }, required: ['ticker', 'action', 'reason'], additionalProperties: false } },
+              overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] },
+            };
+            const analysisRequired = ['critique', 'rejected', 'alternatives', 'verdict', 'adjustments', 'overallConfidence'];
+            if (mergeText) { analysisProps.positionReasons = posReasonsSchema; analysisRequired.push('positionReasons'); }
+
+            const { result: agentResult } = await invokeProposalAgent(models.analysis, {
+              system: 'Du bist zugleich kritischer Portfolio-Analyst ("Challenger") und erfahrener Portfolio-Manager ("Synthesizer"). Prüfe den algorithmischen Vorschlag zuerst kritisch und erstelle im selben Schritt die finale Empfehlung mit konkreten Anpassungen. Antworte immer auf Deutsch, präzise und konstruktiv.',
+              user: `Prüfe diesen Portfolio-Vorschlag kritisch und erstelle die finale Empfehlung.\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten:\n${factsSummary}\n\nVorgeschlagene Positionen (mit Gewichten):\n${JSON.stringify(positionSummary, null, 2)}\n\nVerfügbare Alternativen (NUR diese Ticker dürfen als Ersatz dienen):\n${JSON.stringify(candidatePool, null, 2)}${adminFeedbackContext}${marktHubContextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n4. verdict: Dein Gesamturteil in 2-3 Sätzen.\n5. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n6. overallConfidence: "hoch" (FX-Limit eingehalten, kein Sektor > 30%, alle BUY, Sharpe > 0.5, ≤ 1 Einwand) / "niedrig" (FX überschritten, Sektor > 40%, SELL-Titel, Sharpe < 0.2, ≥ 3 Einwände) / "mittel" (sonst).${mergeText ? `\n7. positionReasons: ${posReasonsInstruction}` : ''}\n\nAntworte im JSON-Format.`,
+              schema: { name: 'portfolio_review', strict: true, schema: { type: 'object', properties: analysisProps, required: analysisRequired, additionalProperties: false } },
+              maxTokens: 4096,
             });
-            const agentContent = agentResponse.choices[0]?.message?.content as string | undefined;
-            const agentResult = agentContent ? JSON.parse(agentContent) : { critique: '', rejected: [], alternatives: [], verdict: '', adjustments: [], overallConfidence: 'mittel', positionReasons: [] };
+            if (!Array.isArray(agentResult.positionReasons)) agentResult.positionReasons = [];
+
+            // Split-Modus: eigenes Text-Modell für die Titel-Begründungen.
+            if (!mergeText) {
+              try {
+                job.progress.push(`KI-Texte (${models.text}): Titel-Begründungen formulieren...`);
+                const { result: textResult } = await invokeProposalAgent(models.text, {
+                  system: 'Du bist ein einfühlsamer Schweizer Anlageberater, der Aktien in einfacher, warmer Sprache für Privatanleger 50+ erklärt. Antworte immer auf Deutsch, ohne Fachjargon.',
+                  user: `Formuliere für JEDE dieser Positionen 2-3 Sätze in einfachen Worten, WARUM sie für dieses Profil vorgeschlagen wird — ${posReasonsInstruction}\n\nAnlegerprofil: ${profileSummary}\n\nPositionen:\n${JSON.stringify(positionSummary, null, 2)}\n\nGesamturteil der Analyse: ${agentResult.verdict ?? ''}`,
+                  schema: { name: 'position_reasons', strict: true, schema: { type: 'object', properties: { positionReasons: posReasonsSchema }, required: ['positionReasons'], additionalProperties: false } },
+                  maxTokens: 4096,
+                });
+                if (Array.isArray(textResult?.positionReasons)) agentResult.positionReasons = textResult.positionReasons;
+              } catch (textErr: any) { console.warn(`[startProposal] Text-Modell (${models.text}) fehlgeschlagen: ${textErr?.message}`); }
+            }
 
             // Individuelle Titel-Begründung (2-3 einfache Sätze) an die Positionen
             // hängen. Ersetzt das schablonenhafte Client-Template. Nur Ticker aus

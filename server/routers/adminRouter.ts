@@ -1027,6 +1027,31 @@ export const adminRouter = router({
         return { success: true };
       }),
 
+    // ─── KI-Vorschlag: Modellwahl pro Rolle ────────────────────────────────
+
+    getProposalModels: adminProcedure.query(async () => {
+      const { getProposalModelConfig, DEFAULT_PROPOSAL_MODELS, PROVIDER_LABELS } = await import("../lib/proposalModels");
+      const config = await getProposalModelConfig();
+      return { config, defaults: DEFAULT_PROPOSAL_MODELS, labels: PROVIDER_LABELS };
+    }),
+
+    setProposalModels: adminProcedure
+      .input(z.object({
+        analysis: z.enum(["kimi", "gemini", "claude", "perplexity"]),
+        text: z.enum(["kimi", "gemini", "claude", "perplexity"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const { getDb } = await import("../db");
+        const { appSettings } = await import("../../drizzle/schema");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        await db.insert(appSettings)
+          .values({ key: "proposal_agent_models", value: input, description: "Modellwahl pro Rolle für KI-Portfolio-Vorschläge" })
+          .onDuplicateKeyUpdate({ set: { value: input } });
+        return { success: true };
+      }),
+
     // ─── Score-Schwellen Konfiguration ─────────────────────────────────────
 
     getScoreConfig: adminProcedure.query(async () => {
