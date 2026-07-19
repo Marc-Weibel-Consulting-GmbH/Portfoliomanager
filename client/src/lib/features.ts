@@ -8,7 +8,6 @@ export type Feature =
   | "optimizer"
   | "optimizer_exact"
   | "challenge_report"
-  | "tax_report"
   | "dividend_tracking";
 
 // Mindeststufe, die das Feature freischaltet (DB-Enum-Wert; «plus» = Anzeige «Basic»).
@@ -17,7 +16,6 @@ export const FEATURE_MIN_PLAN: Record<Feature, "plus" | "pro"> = {
   performance_metrics: "plus",
   auto_portfolio: "plus",
   optimizer: "plus",
-  tax_report: "plus",
   dividend_tracking: "plus",
   optimizer_exact: "pro",
   challenge_report: "pro",
@@ -31,6 +29,5 @@ export const FEATURE_LABELS: Record<Feature, string> = {
   optimizer: "Portfolio-Optimierung",
   optimizer_exact: "Exakter Optimierer & Sektor-Caps",
   challenge_report: "Multi-Agent-Challenge-Report",
-  tax_report: "Steuer-Reporting",
   dividend_tracking: "Dividenden-Kalender & -Tracking",
 };
