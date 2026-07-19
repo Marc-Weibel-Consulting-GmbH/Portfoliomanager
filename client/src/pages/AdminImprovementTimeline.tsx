@@ -21,7 +21,9 @@ const fmtNum = (n: number | null) => (n == null ? "–" : n.toFixed(2));
 
 export default function AdminImprovementTimeline() {
   const { data, isLoading } = trpc.admin.getImprovementTimeline.useQuery();
+  const { data: outcomeData } = trpc.admin.getOutcomeOverview.useQuery();
 
+  const outcomeSources = outcomeData?.sources ?? [];
   const weights = data?.weights ?? [];
   const models = data?.models ?? [];
   const cso = data?.combinedScoreOutcome ?? { evaluated: 0, hitRate: null, avgAlphaPct: null, pendingSnapshots: 0 };
@@ -48,6 +50,48 @@ export default function AdminImprovementTimeline() {
         </div>
 
         {isLoading && <div className="text-sm text-muted-foreground">Lädt…</div>}
+
+        {/* Einheitlicher Outcome-Überblick (3.6a) — alle Messquellen nebeneinander */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Erfolgsmessung — alle Quellen im Vergleich</CardTitle>
+            <CardDescription>
+              Gemeinsame Kennzahlen über die vier Messpfade. Die «Treffer»-Definition unterscheidet sich je Quelle (Spalte rechts).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {outcomeSources.length === 0 ? (
+              <div className="text-sm text-muted-foreground">Noch keine bewerteten Ergebnisse.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="text-zinc-400 border-b border-white/10">
+                    <tr>
+                      <th className="text-left py-1.5 pr-3">Quelle</th>
+                      <th className="text-right py-1.5 pr-3">Bewertet</th>
+                      <th className="text-right py-1.5 pr-3">Trefferquote</th>
+                      <th className="text-right py-1.5 pr-3">Ø Alpha</th>
+                      <th className="text-left py-1.5">Treffer-Definition</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {outcomeSources.map((s: any) => (
+                      <tr key={s.key} className="border-b border-white/5">
+                        <td className="py-1.5 pr-3 font-medium">{s.label}</td>
+                        <td className="py-1.5 pr-3 text-right font-mono">{s.evaluated}</td>
+                        <td className="py-1.5 pr-3 text-right font-mono">{s.hitRatePct == null ? "–" : `${s.hitRatePct.toFixed(1)}%`}</td>
+                        <td className={`py-1.5 pr-3 text-right font-mono ${s.avgAlphaPct == null ? "" : s.avgAlphaPct >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          {s.avgAlphaPct == null ? "–" : `${s.avgAlphaPct >= 0 ? "+" : ""}${s.avgAlphaPct.toFixed(2)}%`}
+                        </td>
+                        <td className="py-1.5 text-zinc-400">{s.hitDefinition}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Stack A: nutzersichtbarer Combined Score */}
         <Card>

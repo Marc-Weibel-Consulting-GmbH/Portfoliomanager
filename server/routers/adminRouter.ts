@@ -1183,6 +1183,20 @@ export const adminRouter = router({
       return { weights, models, combinedScoreOutcome };
     }),
 
+    /**
+     * Einheitlicher Outcome-Überblick (KIMI-Audit 3.6a): alle vier
+     * Erfolgsmessquellen mit denselben Kennzahlen nebeneinander — ohne die
+     * Tabellen physisch zusammenzuführen.
+     */
+    getOutcomeOverview: adminProcedure.query(async () => {
+      try {
+        const { summarizeOutcomes } = await import("../lib/outcomeSummary");
+        return { sources: await summarizeOutcomes() };
+      } catch {
+        return { sources: [] as any[] };
+      }
+    }),
+
     /** Preview: calculate score with custom config without saving */
     previewScoreConfig: adminProcedure
       .input(z.object({
