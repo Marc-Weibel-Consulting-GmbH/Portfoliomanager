@@ -144,6 +144,7 @@ export default function PortfolioBuilderWizard() {
   const [proposalJobId, setProposalJobId] = useState<string | null>(null);
   const [proposalProgress, setProposalProgress] = useState<string[]>([]);
   const [isProposalRunning, setIsProposalRunning] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
 
   // ── Queries & mutations ──
@@ -176,7 +177,8 @@ export default function PortfolioBuilderWizard() {
       refetchInterval: (query) => {
         const data = query.state.data;
         if (!data) return 3000;
-        if (data.status === 'running') return 3000;
+        // Auch während der KI-Verfeinerung (enhancing) weiterpollen.
+        if (data.status === 'running' || data.status === 'enhancing') return 3000;
         return false; // stop polling when done/error
       },
       refetchIntervalInBackground: true,
@@ -190,12 +192,19 @@ export default function PortfolioBuilderWizard() {
     if (progress && progress.length > proposalProgress.length) {
       setProposalProgress(progress);
     }
-    if (status === 'done' && result) {
+    if (status === 'enhancing' && result) {
+      // A: deterministisches Zwischenergebnis anzeigen, KI verfeinert im Hintergrund.
+      setAutoProposal(result);
+      setIsEnhancing(true);
+      // isProposalRunning bleibt true → Polling läuft bis 'done' weiter.
+    } else if (status === 'done' && result) {
       setIsProposalRunning(false);
+      setIsEnhancing(false);
       setProposalJobId(null);
       setAutoProposal(result);
     } else if (status === 'error') {
       setIsProposalRunning(false);
+      setIsEnhancing(false);
       setProposalJobId(null);
       toast.error('Vorschlag konnte nicht erstellt werden', { description: error ?? 'Unbekannter Fehler' });
     }
@@ -204,7 +213,7 @@ export default function PortfolioBuilderWizard() {
   // Compatibility shim: buildProposal.isPending is used in the JSX below
   const buildProposal = {
     isPending: isProposalRunning || startProposal.isPending,
-    reset: () => { setIsProposalRunning(false); setProposalJobId(null); setProposalProgress([]); startProposal.reset(); },
+    reset: () => { setIsProposalRunning(false); setIsEnhancing(false); setProposalJobId(null); setProposalProgress([]); startProposal.reset(); },
   };
 
   // Freundliche, wechselnde Lade-Botschaften (statt technischer Einzelschritte).
@@ -861,6 +870,16 @@ export default function PortfolioBuilderWizard() {
                 {/* Proposal result */}
                 {autoProposal ? (
                   <div className="space-y-4">
+                    {/* A: Hinweis, dass die KI-Gegenprüfung noch läuft und sich der Vorschlag noch ändern kann */}
+                    {isEnhancing && (
+                      <div className="flex items-start gap-3 rounded-lg border border-[#00CFC1]/25 bg-[#00CFC1]/8 px-4 py-3">
+                        <div className="h-4 w-4 mt-0.5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                        <p className="text-sm text-slate-200 leading-relaxed">
+                          Ihr Portfolio steht schon — die KI prüft es gerade noch kritisch gegen und verfeinert es.
+                          <span className="text-slate-400"> Einzelne Titel oder Gewichte können sich gleich noch ändern.</span>
+                        </p>
+                      </div>
+                    )}
                     {/* Ein kompakter KPI-Balken mit den wichtigsten Kennzahlen
                         (statt mehrerer gestapelter Info-Zeilen), grössere Schrift. */}
                     <div className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#0f1420] border border-white/10 rounded-lg px-5 py-3.5">
