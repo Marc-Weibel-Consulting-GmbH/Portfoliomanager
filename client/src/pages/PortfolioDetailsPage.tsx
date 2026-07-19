@@ -2183,7 +2183,7 @@ export default function PortfolioDetailsPage() {
                               return (
                                 <>
                                   <td className="px-3 py-3.5 text-right text-sm text-gray-300">
-                                    {sharesVal > 0 ? new Intl.NumberFormat('de-CH', { maximumFractionDigits: 4 }).format(sharesVal) : '—'}
+                                    {sharesVal > 0 ? new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Math.round(sharesVal)) : '—'}
                                   </td>
                                   <td className="px-3 py-3.5 text-right text-sm text-gray-300">
                                     {isFx && priceLocal > 0 ? `${cur} ${new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(priceLocal)}` : '—'}
