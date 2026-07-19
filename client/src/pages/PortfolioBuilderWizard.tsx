@@ -12,7 +12,7 @@ import {
   ChevronLeft, ChevronRight, Check, Search, Plus, X,
   TrendingUp, DollarSign, Scale, PieChart, PencilRuler,
   Upload, Shield, Flame, Sparkles, Clock, Ban, Leaf,
-  ArrowDownCircle, ArrowUpCircle, RefreshCw, CheckCircle, ShieldCheck
+  ArrowDownCircle, ArrowUpCircle, RefreshCw, CheckCircle, ShieldCheck, Info
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -841,98 +841,41 @@ export default function PortfolioBuilderWizard() {
                 {/* Proposal result */}
                 {autoProposal ? (
                   <div className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
-                      <span className="px-2 py-0.5 rounded bg-[#00CFC1]/15 text-[#00CFC1] font-medium">
-                        {autoProposal.positions.length} Titel
-                      </span>
-                      <span>Methode: {autoProposal.methodLabel}</span>
-                      <span>·</span>
-                      <span>{autoProposal.stats.scoredCount} bewertet, {autoProposal.stats.buySignals} Kaufsignale</span>
-                      {(autoProposal.stats as any).watchlistRecommendations > 0 && (
+                    {/* Ein kompakter KPI-Balken mit den wichtigsten Kennzahlen
+                        (statt mehrerer gestapelter Info-Zeilen), grössere Schrift. */}
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#0f1420] border border-white/10 rounded-lg px-5 py-3.5">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-xl font-bold text-[#00CFC1]">{autoProposal.positions.length}</span>
+                        <span className="text-sm text-gray-400">Titel</span>
+                      </div>
+                      {(autoProposal as any).metrics && (
                         <>
-                          <span>·</span>
-                          <span className="text-[#00CFC1]">
-                            {(autoProposal.stats as any).watchlistRecommendations} Watchlist-Empfehlung{(autoProposal.stats as any).watchlistRecommendations > 1 ? "en" : ""}
-                          </span>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-base font-mono font-semibold text-white">~{(autoProposal as any).metrics.expectedReturnPct.toFixed(1)}%</span>
+                            <span className="text-sm text-gray-400">Rendite p.a.</span>
+                          </div>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-base font-mono font-semibold text-white">~{(autoProposal as any).metrics.volatilityPct.toFixed(1)}%</span>
+                            <span className="text-sm text-gray-400">Schwankung</span>
+                          </div>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-base font-mono font-semibold text-white">{(autoProposal as any).metrics.sharpe.toFixed(2)}</span>
+                            <span className="text-sm text-gray-400">Sharpe</span>
+                          </div>
                         </>
                       )}
-                      {autoExcluded.length > 0 && (
-                        <>
-                          <span>·</span>
-                          <span className="text-red-400">
-                            {autoExcluded.length} Sektor{autoExcluded.length > 1 ? "en" : ""} ausgeschlossen
-                            {" ("}{autoExcluded.map((s) => EXCLUDED_SECTORS.find((e) => e.value === s)?.label ?? s).join(", ")}{")"}  
-                          </span>
-                        </>
+                      {(autoProposal as any).profile?.liquidityNeedPct > 0 && (
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-base font-mono font-semibold text-emerald-400">{(autoProposal as any).profile.liquidityNeedPct}%</span>
+                          <span className="text-sm text-gray-400">Cash-Reserve</span>
+                        </div>
                       )}
-                      {autoProposal.profile?.referenceCurrency && (
-                        <>
-                          <span>·</span>
-                          <span className="text-blue-300">
-                            Ref.-Währung: {autoProposal.profile.referenceCurrency} · FX-Limit: {autoProposal.profile.maxFxExposurePct}%
-                          </span>
-                        </>
-                      )}
+                      <span className="text-xs text-gray-500 ml-auto self-center">historisch geschätzt</span>
                     </div>
                     {(autoProposal as any).weighting?.note && (
                       <p className="text-xs text-amber-400">
                         Hinweis zur Gewichtung: {(autoProposal as any).weighting.note}
                       </p>
-                    )}
-                    {/* Erwartete Kennzahlen des optimierten Vorschlags («was darf ich erwarten?») */}
-                    {(autoProposal as any).metrics && (
-                      <div className="flex flex-wrap gap-4 text-xs bg-[#0f1420] border border-white/10 rounded-lg px-4 py-2.5">
-                        <span className="text-gray-400">Erwartet (historisch geschätzt):</span>
-                        <span className="text-white font-mono">Rendite ~{(autoProposal as any).metrics.expectedReturnPct.toFixed(1)}% p.a.</span>
-                        <span className="text-white font-mono">Schwankung ~{(autoProposal as any).metrics.volatilityPct.toFixed(1)}%</span>
-                        <span className="text-white font-mono">Sharpe {(autoProposal as any).metrics.sharpe.toFixed(2)}</span>
-                        {(autoProposal as any).allocation && (
-                          <span className="text-gray-400">Fremdwährung {(autoProposal as any).allocation.fxWeightPct.toFixed(0)}%</span>
-                        )}
-                        {(autoProposal as any).profile?.liquidityNeedPct > 0 && (
-                          <span className="text-emerald-400 font-mono">Cash-Reserve {(autoProposal as any).profile.liquidityNeedPct}%</span>
-                        )}
-                      </div>
-                    )}
-                    {/* Markt-Hub-Badge: aktive Sektor-Tilts und MSCI-Faktor */}
-                    {(autoProposal as any).marktHubBadge?.hasData && (
-                      <div className="flex flex-wrap items-center gap-2 text-xs bg-[#0a1628] border border-[#00CFC1]/20 rounded-lg px-3 py-2">
-                        <span className="text-[#00CFC1] font-semibold flex items-center gap-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                          Markt-Hub
-                        </span>
-                        <span className="text-gray-300">
-                          Regime: <span className={`font-medium ${
-                            (autoProposal as any).marktHubBadge.regime === 'Risk-On' ? 'text-emerald-400' :
-                            (autoProposal as any).marktHubBadge.regime === 'Risk-Off' ? 'text-red-400' :
-                            'text-amber-400'
-                          }`}>{(autoProposal as any).marktHubBadge.regime}</span>
-                        </span>
-                        {(autoProposal as any).marktHubBadge.leadingFactor && (
-                          <span className="text-gray-300">
-                            MSCI: <span className="text-purple-400 font-medium">{(autoProposal as any).marktHubBadge.leadingFactor} führend</span>
-                          </span>
-                        )}
-                        {(autoProposal as any).marktHubBadge.activeSectorTilts?.length > 0 && (
-                          <span className="text-gray-300 flex items-center gap-1">
-                            Tilts:
-                            {(autoProposal as any).marktHubBadge.activeSectorTilts.map((t: any) => (
-                              <span key={t.sector} className={`px-1.5 py-0.5 rounded text-xs font-mono ${
-                                t.tilt > 0 ? 'bg-emerald-900/60 text-emerald-300' : 'bg-red-900/60 text-red-300'
-                              }`}>
-                                {t.sector} {t.tilt > 0 ? '+' : ''}{t.tilt}
-                              </span>
-                            ))}
-                          </span>
-                        )}
-                        {(autoProposal as any).marktHubBadge.macroSignals?.yieldCurveInverted && (
-                          <span className="text-amber-400">⚡ Invertierte Zinskurve</span>
-                        )}
-                        {(autoProposal as any).marktHubBadge.macroSignals?.inflationHigh && (
-                          <span className="text-orange-400">🔥 Inflation &gt;4%</span>
-                        )}
-                        <span className="text-gray-500 ml-auto">riskFree: {(autoProposal as any).marktHubBadge.dynamicRiskFreeRate?.toFixed(2)}%</span>
-                      </div>
                     )}
                     {/* Ehrliche Hinweise (ESG nicht verfügbar, Qualitätsstufe, Cap-Überschreitungen) */}
                     {Array.isArray((autoProposal as any).notes) && (autoProposal as any).notes.length > 0 && (
@@ -988,17 +931,24 @@ export default function PortfolioBuilderWizard() {
                         const divYield = p.dividendYield ? parseFloat(p.dividendYield) : null;
                         const priceNum = p.currentPrice ? parseFloat(String(p.currentPrice)) : null;
 
-                        // Build a readable 2-sentence explanation
-                        const signalLabel = signal === 'BUY' || signal === 'STRONG_BUY' ? 'Kaufsignal' : signal === 'SELL' || signal === 'STRONG_SELL' ? 'Verkaufssignal' : 'Halte-Signal';
-                        const scoreText = `Score ${score}/100 (Note ${scoreGrade})`;
-                        const ytdText = ytdNum !== null ? `, YTD ${ytdNum > 0 ? '+' : ''}${ytdNum.toFixed(1)}%` : '';
-                        const divText = divYield && divYield > 0.5 ? `, Dividende ${divYield.toFixed(1)}%` : '';
-                        const sourceText = p.isUniverseExpansion ? ' Titel aus dem erweiterten Aktienuniversum.' : '';
-                        const watchlistText = (p.reason ?? '').includes('Watchlist') ? ' Watchlist-Empfehlung.' : '';
-                        const lpplText = (p.reason ?? '').includes('LPPL') ? ' ⚠ LPPL-Warnung aktiv.' : '';
+                        // Einfache, nicht-technische Begründung in 2–3 Sätzen: WARUM
+                        // dieser Titel vorgeschlagen wird (statt roher Score-Fachbegriffe).
+                        const isBuy = signal === 'BUY' || signal === 'STRONG_BUY';
+                        const isSell = signal === 'SELL' || signal === 'STRONG_SELL';
+                        const gradeWord = score >= 75 ? 'sehr gut' : score >= 60 ? 'gut' : score >= 45 ? 'solide' : 'eher zurückhaltend';
+                        const whyParts: string[] = [];
+                        whyParts.push(`${p.companyName} ist ein Wert aus dem Bereich ${p.sector}.`);
+                        if (isBuy) whyParts.push(`Unsere Analyse bewertet ihn aktuell als ${gradeWord} und sieht einen guten Einstiegszeitpunkt.`);
+                        else if (isSell) whyParts.push(`Unsere Analyse bewertet ihn als ${gradeWord}, rät derzeit aber eher zur Zurückhaltung.`);
+                        else whyParts.push(`Unsere Analyse bewertet ihn als ${gradeWord} und empfiehlt, ihn ruhig zu halten.`);
+                        let whyThird = `Deshalb schlagen wir dafür ${p.weightPct.toFixed(1)} % Ihres Kapitals vor.`;
+                        if (divYield && divYield > 0.5) whyThird += ` Er zahlt zudem eine Dividende von rund ${divYield.toFixed(1)} %.`;
+                        whyParts.push(whyThird);
+                        if ((p.reason ?? '').includes('Watchlist')) whyParts.push('Dieser Titel stammt aus Ihrer Merkliste.');
+                        const whyText = whyParts.join(' ');
 
-                        const explanationLine1 = `${signalLabel} · ${scoreText}${ytdText}${divText}.`;
-                        const explanationLine2 = `${p.sector}-Titel mit ${p.weightPct.toFixed(1)}% Portfoliogewicht.${sourceText}${watchlistText}${lpplText}`;
+                        // Erklärung des Scores für den Info-Button (einfach gehalten).
+                        const scoreInfo = 'Der Signal-Score (0–100) fasst Bewertung, Kursverlauf und Markttrend zu einer Empfehlung zusammen. Note A = sehr gut, F = schwach. Er ist ein Anhaltspunkt, keine Garantie.';
 
                         // 3 key facts
                         const keyFacts = [
@@ -1040,14 +990,16 @@ export default function PortfolioBuilderWizard() {
                                 </div>
                               </div>
 
-                              {/* Right: inline KI explanation */}
-                              <div className="hidden md:flex flex-col items-end gap-1.5 shrink-0 max-w-[280px]">
-                                <p className="text-xs text-slate-300 text-right leading-relaxed">{explanationLine1}</p>
-                                <p className="text-xs text-slate-500 text-right leading-relaxed">{explanationLine2}</p>
-                                <div className="flex flex-wrap gap-1 justify-end">
+                              {/* Right: einfache Begründung (WARUM) + Score-Info-Button */}
+                              <div className="hidden md:flex flex-col items-end gap-1.5 shrink-0 max-w-[340px]">
+                                <p className="text-sm text-slate-300 text-right leading-relaxed">{whyText}</p>
+                                <div className="flex flex-wrap gap-1 justify-end items-center">
                                   {keyFacts.map((f, i) => (
                                     <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
                                   ))}
+                                  <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
+                                    <Info className="h-4 w-4" />
+                                  </button>
                                 </div>
                               </div>
 
@@ -1055,12 +1007,17 @@ export default function PortfolioBuilderWizard() {
                               <span className="text-sm font-mono font-semibold text-white shrink-0">{p.weightPct.toFixed(1)}%</span>
                             </div>
 
-                            {/* Mobile: show key facts inline below */}
-                            <div className="flex md:hidden flex-wrap gap-1 mt-2">
-                              {keyFacts.map((f, i) => (
-                                <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
-                              ))}
-                              <span className="text-xs text-slate-400 ml-1">{explanationLine1}</span>
+                            {/* Mobile: Begründung + Badges + Score-Info */}
+                            <div className="flex md:hidden flex-col gap-2 mt-2">
+                              <p className="text-sm text-slate-300 leading-relaxed">{whyText}</p>
+                              <div className="flex flex-wrap gap-1 items-center">
+                                {keyFacts.map((f, i) => (
+                                  <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
+                                ))}
+                                <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
+                                  <Info className="h-4 w-4" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
