@@ -2,12 +2,23 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const mysql = require('mysql2/promise');
 
-const PAIRS_TO_BACKFILL = ['NOKCHF', 'CADCHF'];
+// All currency pairs that need historical data from 2020
+const PAIRS_MISSING_HISTORY = ['ILSCHF', 'PLNCHF', 'DKKCHF', 'SEKCHF', 'AUDCHF', 'JPYCHF', 'SGDCHF'];
 const START_DATE = '2020-01-01';
-
 const conn = await mysql.createConnection(process.env.DATABASE_URL || '');
 
-for (const pair of PAIRS_TO_BACKFILL) {
+for (const pair of PAIRS_MISSING_HISTORY) {
+  // Check existing range
+  const [existing] = await conn.execute(
+    'SELECT MIN(date) as minDate, COUNT(*) as cnt FROM exchangeRates WHERE currencyPair = ?',
+    [pair]
+  );
+  const ex = existing[0];
+  if (ex.minDate && new Date(ex.minDate) <= new Date('2020-06-01')) {
+    console.log(`${pair}: already has data from 2020 (${ex.cnt} rows), skipping`);
+    continue;
+  }
+  
   console.log(`Backfilling ${pair} from ${START_DATE}...`);
   const symbol = `${pair}=X`;
   const ts1 = Math.floor(new Date(START_DATE).getTime() / 1000);
@@ -16,7 +27,10 @@ for (const pair of PAIRS_TO_BACKFILL) {
   
   try {
     const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!resp.ok) { console.error(`Failed: ${resp.status} for ${url}`); continue; }
+    if (!resp.ok) { 
+      console.error(`${pair}: HTTP ${resp.status}`); 
+      continue; 
+    }
     const data = await resp.json();
     const timestamps = data?.chart?.result?.[0]?.timestamp ?? [];
     const closes = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
@@ -32,13 +46,14 @@ for (const pair of PAIRS_TO_BACKFILL) {
           [date, pair, rate.toFixed(6)]
         );
         inserted++;
-      } catch(e) { console.error('Insert error:', e.message); }
+      } catch(e) { /* ignore */ }
     }
-    console.log(`${pair}: inserted ${inserted} rates from ${timestamps.length} timestamps`);
+    console.log(`${pair}: inserted ${inserted} rates`);
+    await new Promise(r => setTimeout(r, 300));
   } catch(e) {
-    console.error(`Error for ${pair}:`, e.message);
+    console.error(`${pair}: Error - ${e.message}`);
   }
 }
 
 await conn.end();
-console.log('Done!');
+console.log('FX backfill done!');

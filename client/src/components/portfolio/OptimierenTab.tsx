@@ -425,6 +425,7 @@ export default function OptimierenTab({
   // ─── Backtest der optimierten Ziel-Allokation ───────────────────────────────
   const [showBacktest, setShowBacktest] = useState(false);
   const [btRebalance, setBtRebalance] = useState<"monthly" | "none">("monthly");
+  const [btLookback, setBtLookback] = useState<252 | 756 | 1260>(756); // 1J / 3J / 5J
   const optimizedWeights = useMemo(() => {
     const w = (result as any)?.weights as Record<string, number> | undefined;
     if (!w) return null;
@@ -437,7 +438,7 @@ export default function OptimierenTab({
       {
         tickers: optimizedWeights?.tickers ?? [],
         weights: optimizedWeights?.weights ?? [],
-        lookbackDays: 756,
+        lookbackDays: btLookback,
         rebalance: btRebalance,
       },
       { enabled: showBacktest && !!optimizedWeights, staleTime: 5 * 60 * 1000, retry: false },
@@ -1390,9 +1391,22 @@ export default function OptimierenTab({
               <div className="flex items-center gap-2">
                 <LineChartIcon className="w-4 h-4 text-[#00CFC1]" />
                 <span className="text-sm font-semibold text-white">Backtest der Ziel-Allokation</span>
-                <span className="text-[11px] text-gray-500">— historische Entwicklung (3 J.), in CHF</span>
+                <span className="text-[11px] text-gray-500">— historische Entwicklung ({btLookback === 252 ? '1 J.' : btLookback === 756 ? '3 J.' : '5 J.'}) in CHF</span>
               </div>
               <div className="flex items-center gap-2">
+                {showBacktest && (
+                  <div className="inline-flex rounded-md border border-white/10 bg-[#1a2332] p-0.5" role="group" aria-label="Zeitraum wählen">
+                    {([252, 756, 1260] as const).map((days) => (
+                      <button
+                        key={days}
+                        onClick={() => setBtLookback(days)}
+                        className={`px-2.5 py-1 text-xs rounded ${btLookback === days ? 'bg-[#00CFC1] text-black font-semibold' : 'text-gray-400 hover:text-gray-200'}`}
+                      >
+                        {days === 252 ? '1J' : days === 756 ? '3J' : '5J'}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {showBacktest && (
                   <div className="inline-flex rounded-md border border-white/10 bg-[#1a2332] p-0.5" role="group" aria-label="Rebalancing wählen">
                     {([["monthly", "Monatl. Rebalancing"], ["none", "Buy & Hold"]] as const).map(([val, lbl]) => (
