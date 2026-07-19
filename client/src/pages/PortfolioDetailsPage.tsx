@@ -2002,7 +2002,7 @@ export default function PortfolioDetailsPage() {
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="YTD = seit Jahresbeginn" onClick={() => handleSort('ytd')}>
                         <span className={sortKey === 'ytd' ? 'text-[#00CFC1]' : 'text-gray-400'}>YTD {sortKey === 'ytd' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Bewertungs-Score 0-100 (P/E, PEG, Beta, Volatilität, Sharpe) — klicken zum Sortieren. Hinweis: Der Qualitäts-Score in den Aktiendetails misst Fundamentaldaten (ROE, Verschuldung, FCF, Marge) und ist daher ein anderer Wert." onClick={() => handleSort('qualityScore')}>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Bewertungs-Score 0-100: wie attraktiv die Aktie preislich/risikoseitig bewertet ist (P/E, PEG, Beta, Volatilität, Sharpe). Nicht zu verwechseln mit «Qualität (Fund.)» im Signal-Score (ROE, Verschuldung, FCF, Marge). Klicken zum Sortieren." onClick={() => handleSort('qualityScore')}>
                         <span className={sortKey === 'qualityScore' ? 'text-[#00CFC1]' : 'text-gray-400'}>Bewertung {sortKey === 'qualityScore' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Signal-Score 0-100 (Momentum + Qualität + LPPL) — klicken zum Sortieren" onClick={() => handleSort('signalScore')}>
@@ -2158,12 +2158,29 @@ export default function PortfolioDetailsPage() {
                                   <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
                                     <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Scores & Signal</h4>
 
-                                    {/* Haupt-Scores: Qualität + Signal nebeneinander */}
+                                    {/* Haupt-Scores: Bewertung + Signal nebeneinander */}
                                     <div className="grid grid-cols-2 gap-3 mb-3">
                                       <div className="bg-[#0a0f1a] rounded-md p-2.5">
                                         <div className="flex items-center gap-1.5 mb-1">
                                           <ShieldCheck className="h-3.5 w-3.5 text-[#00CFC1]" />
-                                          <p className="text-xs text-gray-400">Qualitäts-Score</p>
+                                          <p className="text-xs text-gray-400">Bewertungs-Score</p>
+                                          <UiTooltip>
+                                            <TooltipTrigger asChild>
+                                              <button type="button" aria-label="Was ist der Bewertungs-Score?" className="text-gray-600 hover:text-gray-300">
+                                                <Info className="h-3 w-3" />
+                                              </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="bg-[#1a1f2e] border-white/20 text-white max-w-[260px] p-3">
+                                              <p className="text-xs font-semibold mb-1">Bewertungs-Score (0–100)</p>
+                                              <p className="text-xs text-gray-300">
+                                                Wie attraktiv ist die Aktie preislich/risikoseitig bewertet — aus
+                                                P/E, PEG, Beta, Volatilität und Sharpe. Höher = günstiger/robuster.
+                                                <br /><br />
+                                                Nicht verwechseln mit der «Qualität (Fund.)» im Signal-Score: die misst
+                                                die <em>fundamentale</em> Unternehmensqualität (ROE, Verschuldung, FCF, Marge).
+                                              </p>
+                                            </TooltipContent>
+                                          </UiTooltip>
                                         </div>
                                         <p className={`text-xl font-bold font-mono ${qualColor}`}>
                                           {qualScore !== null ? qualScore : '—'}<span className="text-xs text-gray-500">/100</span>
@@ -2174,6 +2191,21 @@ export default function PortfolioDetailsPage() {
                                         <div className="flex items-center gap-1.5 mb-1">
                                           <Zap className="h-3.5 w-3.5 text-yellow-400" />
                                           <p className="text-xs text-gray-400">Signal-Score</p>
+                                          <UiTooltip>
+                                            <TooltipTrigger asChild>
+                                              <button type="button" aria-label="Was ist der Signal-Score?" className="text-gray-600 hover:text-gray-300">
+                                                <Info className="h-3 w-3" />
+                                              </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="bg-[#1a1f2e] border-white/20 text-white max-w-[260px] p-3">
+                                              <p className="text-xs font-semibold mb-1">Signal-Score (0–100)</p>
+                                              <p className="text-xs text-gray-300">
+                                                Kauf-/Verkaufssignal aus Momentum, fundamentaler Qualität und
+                                                LPPL-Bubble-Risiko. Höher = stärkeres Kaufsignal. Die Einzelteile
+                                                sehen Sie unter «Score-Komponenten».
+                                              </p>
+                                            </TooltipContent>
+                                          </UiTooltip>
                                         </div>
                                         <p className={`text-xl font-bold font-mono ${sigColor}`}>
                                           {signalScore !== null ? Math.round(signalScore) : '—'}<span className="text-xs text-gray-500">/100</span>
@@ -2202,9 +2234,12 @@ export default function PortfolioDetailsPage() {
                                           </div>
                                         </div>
 
-                                        {/* Komponenten-Breakdown */}
-                                        <div className="border-t border-white/5 pt-2">
-                                          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Score-Komponenten</p>
+                                        {/* Komponenten-Breakdown — standardmässig eingeklappt (Details-Toggle) */}
+                                        <details className="border-t border-white/5 pt-2 group">
+                                          <summary className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5 cursor-pointer hover:text-gray-300 flex items-center gap-1 list-none select-none [&::-webkit-details-marker]:hidden">
+                                            <ChevronDown className="h-3 w-3 -rotate-90 group-open:rotate-0 transition-transform" />
+                                            Score-Komponenten
+                                          </summary>
                                           <div className="grid grid-cols-2 gap-1.5">
                                             {/* Momentum */}
                                             <div className="flex items-center justify-between bg-[#0a0f1a] rounded px-2 py-1">
@@ -2266,7 +2301,7 @@ export default function PortfolioDetailsPage() {
                                               }`}>{(sig.bubbleScore * 100).toFixed(0)}%</span>
                                             </div>
                                           )}
-                                        </div>
+                                        </details>
                                       </div>
                                     )}
                                   </div>
