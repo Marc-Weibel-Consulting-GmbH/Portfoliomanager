@@ -3480,7 +3480,37 @@ export const portfoliosRouter = router({
         })
       );
       
-      return results;
+            return results;
     }),
 
+  /**
+   * Einzahlung für Demo-Portfolios: erhöht investmentAmount und cashBalance.
+   * Nur für nicht-aktivierte (Demo) Portfolios zugänglich.
+   */
+  deposit: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number().int().positive(),
+      amount: z.number().positive().max(10_000_000),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user?.id || ctx.user.id === 1) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
+      }
+      const { getSavedPortfolioById, updateSavedPortfolio } = await import('../db');
+      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+      if (!portfolio) throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio nicht gefunden' });
+      // Only allow for demo (non-live) portfolios
+      if (portfolio.isLive === 1) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Einzahlung nur für Demo-Portfolios möglich. Für Live-Portfolios bitte eine Transaktion erfassen.' });
+      }
+      const currentInvestment = parseFloat(portfolio.investmentAmount || '0') || 0;
+      const currentCash = parseFloat(String(portfolio.cashBalance ?? '0')) || 0;
+      const newInvestment = currentInvestment + input.amount;
+      const newCash = currentCash + input.amount;
+      await updateSavedPortfolio(input.portfolioId, ctx.user.id, {
+        investmentAmount: String(newInvestment),
+        cashBalance: String(newCash),
+      });
+      return { success: true, newInvestmentAmount: newInvestment, newCashBalance: newCash };
+    }),
 });

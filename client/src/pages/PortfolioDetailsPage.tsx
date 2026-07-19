@@ -974,7 +974,11 @@ export default function PortfolioDetailsPage() {
 
   // U-19: Live-Tracking deaktivieren (Live -> Demo) mit Bestätigungsdialog
   const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
-  
+
+  // Einzahlung für Demo-Portfolios
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+
   // Fetch transactions for edit modal
   const { data: transactions = [] } = trpc.portfolioTransactions.list.useQuery(
     { portfolioId },
@@ -1023,9 +1027,23 @@ export default function PortfolioDetailsPage() {
   const { data: multiPeriod } = trpc.portfolios.getMultiPeriodPerformanceV2.useQuery();
   // Investor profile for reference currency and FX limit
   const { data: profile } = trpc.investmentProfile.get.useQuery();
-  const deletePortfolio = trpc.portfolios.delete.useMutation();
+    const deletePortfolio = trpc.portfolios.delete.useMutation();
   const utils = trpc.useUtils();
-  
+
+  // Einzahlung-Mutation für Demo-Portfolios
+  const depositMutation = trpc.portfolios.deposit.useMutation({
+    onSuccess: (data) => {
+      toast.success('Einzahlung erfolgreich', {
+        description: `CHF ${data.newInvestmentAmount.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Gesamtkapital · CHF ${data.newCashBalance.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Cash`,
+      });
+      setIsDepositModalOpen(false);
+      setDepositAmount('');
+      utils.portfolios.getWithCurrency.invalidate(portfolioId);
+      utils.portfolios.list.invalidate();
+    },
+    onError: (error) => toast.error('Einzahlung fehlgeschlagen', { description: error.message }),
+  });
+
   // Activate portfolio mutation (Demo -> Live)
   const activatePortfolio = trpc.portfolioManagement.activatePortfolio.useMutation({
     onSuccess: (data) => {
@@ -1478,14 +1496,26 @@ export default function PortfolioDetailsPage() {
             <div className="flex items-center gap-2 flex-shrink-0">
               <ViewDensityToggle className="mr-1" />
               {isDemo && (
-                <Button
-                  size="sm"
-                  onClick={() => setIsActivationModalOpen(true)}
-                  className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black"
-                >
-                  <Play className="h-4 w-4 mr-2" />
-                  Aktivieren
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsDepositModalOpen(true)}
+                    className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                    title="Kapital einzahlen (Demo-Portfolio)"
+                  >
+                    <DollarSign className="h-4 w-4 mr-1" />
+                    Einzahlung
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsActivationModalOpen(true)}
+                    className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black"
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Aktivieren
+                  </Button>
+                </>
               )}
               {/* U-19: Live-Tracking deaktivieren (mit Warnhinweis) */}
               {!isDemo && (
@@ -2780,6 +2810,17 @@ export default function PortfolioDetailsPage() {
                 <Bell className="h-4 w-4 mr-2" />
                 Alarm erstellen
               </Button>
+              {isDemo && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsDepositModalOpen(true)}
+                  className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                >
+                  <DollarSign className="h-4 w-4 mr-2" />
+                  Einzahlung
+                </Button>
+              )}
               <Button 
                 variant="outline" 
                 size="sm"
@@ -3050,6 +3091,66 @@ export default function PortfolioDetailsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Einzahlung Dialog für Demo-Portfolios */}
+      <Dialog open={isDepositModalOpen} onOpenChange={(open) => { setIsDepositModalOpen(open); if (!open) setDepositAmount(''); }}>
+        <DialogContent className="bg-[#1a1f2e] border-[#00CFC1]/30 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-emerald-400" />
+              Einzahlung
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Kapital einzahlen und als Cash-Position im Demo-Portfolio verbuchen.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="deposit-amount" className="text-gray-300 text-sm">Betrag (CHF)</Label>
+              <Input
+                id="deposit-amount"
+                type="number"
+                min="1"
+                max="10000000"
+                step="1000"
+                placeholder="z.B. 10000"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                className="bg-[#0f1420] border-white/20 text-white placeholder:text-gray-500 focus:border-emerald-400"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && depositAmount && parseFloat(depositAmount) > 0) {
+                    depositMutation.mutate({ portfolioId, amount: parseFloat(depositAmount) });
+                  }
+                }}
+              />
+            </div>
+            <div className="bg-[#0f1420] rounded-lg p-3 space-y-1 text-xs text-gray-400">
+              <div className="flex justify-between">
+                <span>Aktuelles Kapital</span>
+                <span className="text-white font-mono">CHF {parseFloat(portfolio.investmentAmount || '0').toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+              </div>
+              {depositAmount && parseFloat(depositAmount) > 0 && (
+                <div className="flex justify-between text-emerald-400">
+                  <span>Nach Einzahlung</span>
+                  <span className="font-mono">CHF {(parseFloat(portfolio.investmentAmount || '0') + parseFloat(depositAmount)).toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsDepositModalOpen(false); setDepositAmount(''); }} className="border-white/10 text-gray-300 hover:bg-white/10">
+              Abbrechen
+            </Button>
+            <Button
+              onClick={() => depositMutation.mutate({ portfolioId, amount: parseFloat(depositAmount) })}
+              disabled={!depositAmount || parseFloat(depositAmount) <= 0 || depositMutation.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {depositMutation.isPending ? 'Wird verbucht…' : 'Einzahlen'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
