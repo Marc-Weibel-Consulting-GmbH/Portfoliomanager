@@ -1689,7 +1689,24 @@ export async function activatePortfolio(
       }
     }
 
-    // Create all transactions
+    // First create a deposit transaction for the start capital so cash balance is positive
+    // before the buy transactions are processed (otherwise cash-balance validation fails)
+    await createPortfolioTransaction({
+      portfolioId,
+      transactionType: "deposit" as const,
+      ticker: null,
+      shares: null,
+      pricePerShare: null,
+      currency: "CHF",
+      totalAmount: capitalNum.toFixed(2),
+      fxRate: "1",
+      totalAmountCHF: capitalNum.toFixed(2),
+      fees: "0",
+      notes: `Startkapital für Portfolio-Aktivierung`,
+      transactionDate: new Date(),
+    });
+
+    // Create all buy transactions
     for (const transaction of transactions) {
       await createPortfolioTransaction(transaction);
     }
