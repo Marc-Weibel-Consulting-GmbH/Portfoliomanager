@@ -362,7 +362,7 @@ export default function PortfolioBuilderWizard() {
           const weight = s.weightPct != null ? s.weightPct : (a?.weight || 0);
           return {
             ticker: s.ticker, companyName: s.companyName,
-            weight, shares: s.quantity.toFixed(6),
+            weight, shares: Math.round(s.quantity).toString(),
             currentPrice: s.purchasePrice.toFixed(2), avgBuyPrice: s.purchasePrice.toFixed(2),
             totalValue: (s.quantity * s.purchasePrice).toFixed(2),
             currency: currency || "CHF", assetType: s.assetType,
@@ -464,7 +464,7 @@ export default function PortfolioBuilderWizard() {
       // For CHF stocks fxRate=1 so rawPrice/1=rawPrice ✓
       const priceCHF = fxRate > 0 ? rawPrice / fxRate : rawPrice;
       const qty = priceCHF > 0 ? value / priceCHF : 0;
-      return { ticker: p.ticker, companyName: p.companyName, quantity: parseFloat(qty.toFixed(4)), purchasePrice: priceCHF, assetType: "stock" as const, weightPct: p.weightPct };
+      return { ticker: p.ticker, companyName: p.companyName, quantity: Math.round(qty), purchasePrice: priceCHF, assetType: "stock" as const, weightPct: p.weightPct };
     });
     setSelectedStocks(seeded);
     const goalToType: Record<string, PortfolioType> = { dividends: "dividends", growth: "growth", balanced: "balanced" };
@@ -1439,7 +1439,7 @@ export default function PortfolioBuilderWizard() {
                               <div className="text-sm text-muted-foreground">{stock.companyName}</div>
                             </div>
                             <div className="text-right mr-4">
-                              <div className="text-sm font-medium">{stock.quantity} × {currency} {stock.purchasePrice.toFixed(2)}</div>
+                              <div className="text-sm font-medium">{Math.round(stock.quantity)} × {currency} {stock.purchasePrice.toFixed(2)}</div>
                               <div className="text-xs text-muted-foreground">{alloc ? `${alloc.weight.toFixed(1)}%` : ""}</div>
                             </div>
                             <Button variant="ghost" size="sm" onClick={() => handleRemoveStock(stock.ticker)}><X className="h-4 w-4" /></Button>
@@ -1552,7 +1552,7 @@ export default function PortfolioBuilderWizard() {
                         {allocation.map((item) => (
                           <tr key={item.ticker} className="border-t">
                             <td className="p-3"><div className="font-medium font-mono text-xs text-[#00CFC1]">{item.ticker}</div><div className="text-xs text-muted-foreground">{item.companyName}</div></td>
-                            <td className="text-right p-3">{item.quantity}</td>
+                            <td className="text-right p-3">{Math.round(item.quantity)}</td>
                             <td className="text-right p-3">{currency} {item.purchasePrice.toFixed(2)}</td>
                             <td className="text-right p-3">{currency} {item.value.toFixed(2)}</td>
                             <td className="text-right p-3"><Badge variant="outline">{item.weight.toFixed(1)}%</Badge></td>
@@ -1635,7 +1635,7 @@ export default function PortfolioBuilderWizard() {
                         {allocation.map((item) => (
                           <tr key={item.ticker} className="border-t">
                             <td className="p-2"><div className="font-mono text-xs text-[#00CFC1]">{item.ticker}</div><div className="text-xs text-muted-foreground">{item.companyName}</div></td>
-                            <td className="text-right p-2">{item.quantity}</td>
+                            <td className="text-right p-2">{Math.round(item.quantity)}</td>
                             <td className="text-right p-2">{currency} {item.purchasePrice.toFixed(2)}</td>
                             <td className="text-right p-2">{currency} {item.value.toFixed(2)}</td>
                             <td className="text-right p-2">{item.weight.toFixed(1)}%</td>
