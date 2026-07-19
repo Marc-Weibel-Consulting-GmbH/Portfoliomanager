@@ -144,6 +144,7 @@ export default function PortfolioBuilderWizard() {
   const [proposalJobId, setProposalJobId] = useState<string | null>(null);
   const [proposalProgress, setProposalProgress] = useState<string[]>([]);
   const [isProposalRunning, setIsProposalRunning] = useState(false);
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
 
   // ── Queries & mutations ──
   const utils = trpc.useUtils();
@@ -205,6 +206,25 @@ export default function PortfolioBuilderWizard() {
     isPending: isProposalRunning || startProposal.isPending,
     reset: () => { setIsProposalRunning(false); setProposalJobId(null); setProposalProgress([]); startProposal.reset(); },
   };
+
+  // Freundliche, wechselnde Lade-Botschaften (statt technischer Einzelschritte).
+  // Mischt Beruhigung + einfache Erklärungen, wie das System arbeitet.
+  const universeCount = allStocks.length;
+  const loadingMessages = [
+    universeCount > 0
+      ? `Einen Moment bitte — ich prüfe gerade ein Universum von ${universeCount} Titeln und suche die Aktien mit der besten Qualität für Sie.`
+      : `Einen Moment bitte — ich prüfe gerade mehrere Hundert Titel und suche die Aktien mit der besten Qualität für Sie.`,
+    `So bewerte ich: Jeder Titel bekommt einen Score von 0–100 aus drei Bausteinen — ist er günstig bewertet, wie verläuft der Kurs, und passt er zum aktuellen Markttrend.`,
+    `Jetzt stelle ich Ihr Portfolio zusammen und achte auf eine gute Streuung über verschiedene Branchen und Währungen.`,
+    `Ein zweites KI-Modell prüft den Vorschlag nun kritisch gegen und verbessert ihn dort, wo es sinnvoll ist.`,
+    `Fast geschafft — ich berechne noch die erwartete Rendite, das Risiko und die wichtigsten Kennzahlen.`,
+  ];
+  useEffect(() => {
+    if (!buildProposal.isPending) { setLoadingMsgIdx(0); return; }
+    const id = setInterval(() => setLoadingMsgIdx((i) => (i + 1) % loadingMessages.length), 5000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildProposal.isPending]);
 
   // Reset all wizard state whenever the user navigates (back) to /portfolio-builder.
   // Using location as dependency ensures the reset fires on every visit, not just on first mount.
@@ -1195,24 +1215,18 @@ export default function PortfolioBuilderWizard() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="h-5 w-5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                        <span className="text-sm text-[#00CFC1] font-medium">KI-Analyse läuft…</span>
+                        <span className="text-sm text-[#00CFC1] font-medium">Ihr Portfolio wird erstellt…</span>
                       </div>
-                      <span className="text-xs text-gray-500">ca. 60–120 Sek.</span>
+                      <span className="text-xs text-gray-500">meist 1–3 Minuten</span>
                     </div>
                     {/* Indeterminate progress bar */}
                     <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
                       <div className="h-full bg-[#00CFC1] rounded-full" style={{ animation: 'indeterminate 2s ease-in-out infinite' }} />
                     </div>
-                    {/* Step log */}
-                    <div className="space-y-1.5">
-                      {proposalProgress.slice(-5).map((step, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs text-gray-400">
-                          <span className="h-1.5 w-1.5 rounded-full bg-[#00CFC1]/60 flex-shrink-0" />
-                          {step}
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-600">Multi-Agent-System: Scoring → Optimierung → Challenger → Synthesizer</p>
+                    {/* Eine freundliche, wechselnde Botschaft statt technischer Einzelschritte */}
+                    <p className="text-sm text-slate-300 leading-relaxed min-h-[3rem]">
+                      {loadingMessages[loadingMsgIdx]}
+                    </p>
                   </div>
                 ) : (
                   <Button
