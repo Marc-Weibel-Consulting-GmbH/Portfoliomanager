@@ -456,11 +456,22 @@ export default function PortfolioBuilderWizard() {
       : autoProposal.positions;
     // Track whether KI adjustments were applied
     setIsAiOptimized(useAdjusted && !!(autoProposal as any).adjustedPositions?.length);
+    // Build a lookup map from the allStocks list as a fallback for missing prices
+    const stockPriceMap = new Map<string, { price: number; fxRate: number }>();
+    allStocks.forEach((s) => {
+      const p = parseFloat(s.currentPrice || '0');
+      if (p > 0) stockPriceMap.set(s.ticker.toUpperCase(), { price: p, fxRate: 1 });
+    });
     const seeded: StockSelection[] = positionsToUse.map((p: any) => {
       const value = (p.weightPct / 100) * capital;
       const fxRate = parseFloat(String(p.exchangeRateToChf || '1')) || 1;
       // currentPrice can be a string (raw DB value) or a number — always coerce to float
-      const rawPrice = parseFloat(String(p.currentPrice ?? '0')) || 0;
+      let rawPrice = parseFloat(String(p.currentPrice ?? '0')) || 0;
+      // Fallback: if price is missing, try allStocks lookup
+      if (rawPrice <= 0) {
+        const fallback = stockPriceMap.get(String(p.ticker ?? '').toUpperCase());
+        if (fallback) rawPrice = fallback.price;
+      }
       // exchangeRateToChf = "1 CHF = X foreign currency" → to convert foreign→CHF: divide by fxRate
       // For CHF stocks fxRate=1 so rawPrice/1=rawPrice ✓
       const priceCHF = fxRate > 0 ? rawPrice / fxRate : rawPrice;
@@ -498,8 +509,21 @@ export default function PortfolioBuilderWizard() {
   useEffect(() => {
     if (!getReviewedProposal.data) return;
     const proposal = getReviewedProposal.data;
-    const reviewedPositions = (proposal.adminReviewedPositions as any[]) ?? (proposal.positions as any[]) ?? [];
-    if (reviewedPositions.length === 0) return;
+    const rawReviewed = (proposal.adminReviewedPositions as any[]) ?? (proposal.positions as any[]) ?? [];
+    if (rawReviewed.length === 0) return;
+    // Enrich adminReviewedPositions with currentPrice + exchangeRateToChf from the original positions
+    // (adminReviewedPositions only store ticker/weightPct, not price data)
+    const origByTicker = new Map<string, any>();
+    ((proposal.positions as any[]) ?? []).forEach((p: any) => origByTicker.set(String(p.ticker ?? '').toUpperCase(), p));
+    const reviewedPositions = rawReviewed.map((p: any) => {
+      const orig = origByTicker.get(String(p.ticker ?? '').toUpperCase());
+      return {
+        ...p,
+        currentPrice: (p.currentPrice != null && p.currentPrice !== 0) ? p.currentPrice : (orig?.currentPrice ?? 0),
+        exchangeRateToChf: (p.exchangeRateToChf != null && p.exchangeRateToChf !== 0) ? p.exchangeRateToChf : (orig?.exchangeRateToChf ?? 1),
+        companyName: p.companyName ?? orig?.companyName ?? p.ticker,
+      };
+    });
     const capital = parseFloat(initialCapital) || 100000;
     // Build a synthetic autoProposal from the reviewed positions
     const methodLabelMap: Record<string, string> = {
@@ -1211,19 +1235,27 @@ export default function PortfolioBuilderWizard() {
                   </div>
                 ) : buildProposal.isPending ? (
                   <div className="space-y-3 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-5 w-5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                      <span className="text-sm text-[#00CFC1] font-medium">KI-Analyse läuft…</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-5 w-5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                        <span className="text-sm text-[#00CFC1] font-medium">KI-Analyse läuft…</span>
+                      </div>
+                      <span className="text-xs text-gray-500">ca. 60–120 Sek.</span>
                     </div>
-                    <div className="space-y-1.5 pl-8">
-                      {proposalProgress.slice(-4).map((step, i) => (
+                    {/* Indeterminate progress bar */}
+                    <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                      <div className="h-full bg-[#00CFC1] rounded-full" style={{ animation: 'indeterminate 2s ease-in-out infinite' }} />
+                    </div>
+                    {/* Step log */}
+                    <div className="space-y-1.5">
+                      {proposalProgress.slice(-5).map((step, i) => (
                         <div key={i} className="flex items-center gap-2 text-xs text-gray-400">
                           <span className="h-1.5 w-1.5 rounded-full bg-[#00CFC1]/60 flex-shrink-0" />
                           {step}
                         </div>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-500 pl-8">Die KI-Analyse dauert 60–120 Sekunden. Bitte warten Sie…</p>
+                    <p className="text-xs text-gray-600">Multi-Agent-System: Scoring → Optimierung → Challenger → Synthesizer</p>
                   </div>
                 ) : (
                   <Button
@@ -1715,10 +1747,26 @@ export default function PortfolioBuilderWizard() {
           {currentStep < totalSteps ? (
             <Button onClick={handleNext}>Weiter <ChevronRight className="h-4 w-4 ml-1" /></Button>
           ) : (
-            <Button onClick={handleFinish} disabled={createPortfolioMutation.isPending} className="bg-green-600 hover:bg-green-700">
-              <Check className="h-4 w-4 mr-1" />
-              {createPortfolioMutation.isPending ? "Erstelle..." : "Portfolio erstellen"}
-            </Button>
+            <div className="flex flex-col items-end gap-2">
+              {createPortfolioMutation.isPending && (
+                <div className="w-64">
+                  <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      Portfolio wird angelegt…
+                    </span>
+                    <span className="text-gray-600">Bitte warten</span>
+                  </div>
+                  <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full bg-green-500 rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '60%', animation: 'indeterminate 1.5s ease-in-out infinite' }} />
+                  </div>
+                </div>
+              )}
+              <Button onClick={handleFinish} disabled={createPortfolioMutation.isPending} className="bg-green-600 hover:bg-green-700">
+                <Check className="h-4 w-4 mr-1" />
+                {createPortfolioMutation.isPending ? "Wird angelegt…" : "Portfolio erstellen"}
+              </Button>
+            </div>
           )}
         </div>
       </div>

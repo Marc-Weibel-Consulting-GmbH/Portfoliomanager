@@ -263,3 +263,10 @@
   backdrop-filter: blur(12px);
   border: 1px solid oklch(0.30 0.015 240 / 0.5);
 }
+
+/* Indeterminate progress bar animation */
+@keyframes indeterminate {
+  0% { transform: translateX(-100%) scaleX(0.5); }
+  50% { transform: translateX(50%) scaleX(0.8); }
+  100% { transform: translateX(200%) scaleX(0.5); }
+}

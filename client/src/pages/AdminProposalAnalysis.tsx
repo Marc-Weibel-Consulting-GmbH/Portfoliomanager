@@ -785,17 +785,20 @@ export default function AdminProposalAnalysis() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {[
                           { label: "Methode", value: row.method },
-                          { label: "Erwartete Rendite", value: row.expectedReturnPct ? `${parseFloat(row.expectedReturnPct).toFixed(1)}%` : "—" },
-                          { label: "Volatilität", value: row.volatilityPct ? `${parseFloat(row.volatilityPct).toFixed(1)}%` : "—" },
-                          { label: "Sharpe", value: row.sharpe ? parseFloat(row.sharpe).toFixed(2) : "—" },
+                          { label: "Erwartete Rendite", value: row.expectedReturnPct ? `${parseFloat(row.expectedReturnPct).toFixed(1)}%` : "—", hint: !row.expectedReturnPct ? 'Nicht berechenbar — unvollständige Kurshistorie für einige Titel' : undefined },
+                          { label: "Volatilität", value: row.volatilityPct ? `${parseFloat(row.volatilityPct).toFixed(1)}%` : "—", hint: !row.volatilityPct ? 'Nicht berechenbar — unvollständige Kurshistorie für einige Titel' : undefined },
+                          { label: "Sharpe", value: row.sharpe ? parseFloat(row.sharpe).toFixed(2) : "—", hint: !row.sharpe ? 'Nicht berechenbar — unvollständige Kurshistorie für einige Titel' : undefined },
                           { label: "FX-Anteil", value: row.fxWeightPct ? `${parseFloat(row.fxWeightPct).toFixed(1)}%` : "—" },
                           { label: "FX-Limit", value: row.maxFxExposurePct ? `${row.maxFxExposurePct}%` : "—" },
                           { label: "Agenten-Dauer", value: row.agentDurationMs ? `${(row.agentDurationMs / 1000).toFixed(1)}s` : "—" },
                           { label: "Challenger-Ablehnungen", value: row.challengerRejectedCount ?? "—" },
-                        ].map(({ label, value }) => (
-                          <div key={label} className="bg-slate-900/50 rounded p-2">
-                            <div className="text-xs text-slate-500">{label}</div>
-                            <div className="text-sm text-white font-medium">{value}</div>
+                        ].map(({ label, value, hint }: any) => (
+                          <div key={label} className="bg-slate-900/50 rounded p-2" title={hint}>
+                            <div className="text-xs text-slate-500 flex items-center gap-1">
+                              {label}
+                              {hint && <span className="text-amber-500 text-[10px]" title={hint}>⚠️</span>}
+                            </div>
+                            <div className={`text-sm font-medium ${value === '—' ? 'text-slate-500 italic text-xs' : 'text-white'}`}>{value}</div>
                           </div>
                         ))}
                       </div>

@@ -426,3 +426,22 @@
 - [x] Frontend: Toggle/Checkbox im Wizard Step 5 — "Mit Admin-Review" (Standard) vs. "Direkt erstellen"
 - [x] Frontend: Bei "Direkt erstellen" → Proposal direkt als Portfolio speichern (ohne Admin-Genehmigung)
 - [x] Frontend: Beide Aktionsbuttons entsprechend anpassen (Label + Aktion)
+
+## Bug Fixes & UX Improvements (Jul 19, 2026)
+- [ ] Fix: Kaufwerte nach Portfolio-Übernahme — 0×CHF 0.00 / NaN% (adminReviewedPositions haben kein currentPrice)
+- [ ] Fix: KPI-Lücken im KI-Analyse-Protokoll (Sharpe/Erwartete Rendite/Volatilität = "—") — nur wenn Optimizer NaN liefert (fehlende Kurshistorie)
+- [ ] Fix: Div.-Rendite-Diskrepanz Übersicht (3.82%) vs. Deep Dive (3.2%) — unterschiedliche Datenquellen
+- [ ] Feature: Neuoptimierung neue Kandidaten default NICHT angekreuzt + Bulk-Toggle (Alle an/aus)
+- [ ] Feature: Fortschrittsbalken beim Portfolio-Erstellen (Spinner + Schritt-Anzeige)
+- [ ] Feature: Fortschrittsbalken beim Deep Dive laden (Skeleton/Progress statt leere Seite)
+
+## Fixes 2026-07-19 (Batch 2)
+- [x] Fix: Kaufwerte 0×CHF 0.00 nach Portfolio-Übernahme — adminReviewedPositions mit currentPrice aus Original-Positionen anreichern
+- [x] Fix: handleAcceptProposal fallback zu allStocks-Preis wenn currentPrice fehlt
+- [x] Fix: KPI-Lücken (Sharpe/Rendite/Volatilität) — Tooltip-Hinweis auf fehlende Kurshistorie
+- [x] Fix: Div.-Rendite-Diskrepanz — Deep Dive nutzt DB-dividendYield als Fallback wenn EODHD null/0 liefert
+- [x] Fix: Neuoptimierung neue Kandidaten default ALLE deaktiviert (useEffect initialisiert deselectedAdditions)
+- [x] Feature: Bulk-Toggle "Alle ✔ / Alle ✕" für neue Kandidaten in Neuoptimierung
+- [x] Feature: Fortschrittsbalken beim Portfolio-Erstellen (Schritt 5)
+- [x] Feature: Fortschrittsbalken beim KI-Vorschlag erstellen (mit Zeitschätzung + Step-Log)
+- [x] Feature: Fortschrittsbalken im Deep Dive (mit Zeitschätzung + EODHD-Hinweis)

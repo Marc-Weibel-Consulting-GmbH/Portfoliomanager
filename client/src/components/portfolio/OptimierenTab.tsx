@@ -254,7 +254,9 @@ export default function OptimierenTab({
   // deselectedReplacements: Set of weakTicker strings that are unchecked
   const [deselectedReplacements, setDeselectedReplacements] = useState<Set<string>>(new Set());
   // deselectedAdditions: Set of candidate tickers that are unchecked
+  // Default: ALL candidates are deselected (user must explicitly opt-in)
   const [deselectedAdditions, setDeselectedAdditions] = useState<Set<string>>(new Set());
+  const [additionsInitialized, setAdditionsInitialized] = useState<string | null>(null); // tracks which upgradeData was used to init
   // overrideReplacementTicker: map weakTicker → chosen replacement ticker (overrides suggestions[0])
   const [overrideReplacementTicker, setOverrideReplacementTicker] = useState<Record<string, string>>({});
   // openReplacementPicker: weakTicker of the row whose picker is open
@@ -455,10 +457,21 @@ export default function OptimierenTab({
       method,
     },
     {
-      enabled: portfolioId > 0 && holdingsWithScores.length > 0,
+            enabled: portfolioId > 0 && holdingsWithScores.length > 0,
       staleTime: 0, // Kein Cache: Ranking ändert sich mit method
     }
   );
+
+  // When upgradeData loads (or reloads), initialize ALL candidates as deselected
+  // so the user must explicitly opt-in to each new candidate
+  useEffect(() => {
+    if (!upgradeData?.additionSuggestions?.length) return;
+    const key = upgradeData.additionSuggestions.map((c: any) => c.ticker).join(',');
+    if (additionsInitialized === key) return; // already initialized for this exact set
+    const allTickers = new Set<string>(upgradeData.additionSuggestions.map((c: any) => c.ticker));
+    setDeselectedAdditions(allTickers);
+    setAdditionsInitialized(key);
+  }, [upgradeData?.additionSuggestions]);
 
   const frontierData = useMemo(() => {
     if (!result?.efficientFrontier) return [];
@@ -1103,8 +1116,26 @@ export default function OptimierenTab({
                     <h4 className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                       <Plus className="w-3.5 h-3.5" />
                       Neue Kandidaten — Ergänzungs-Vorschläge (Score ≥ 65)
-                      <span className="ml-auto text-[10px] font-normal text-gray-500 normal-case">
-                        {upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker)).length} ausgewählt
+                      <span className="ml-auto flex items-center gap-2">
+                        <span className="text-[10px] font-normal text-gray-500 normal-case">
+                          {upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker)).length} / {upgradeData.additionSuggestions.length} ausgewählt
+                        </span>
+                        {/* Bulk-Toggle: Alle an */}
+                        <button
+                          onClick={() => setDeselectedAdditions(new Set())}
+                          className="text-[10px] font-normal text-indigo-400 hover:text-indigo-300 normal-case px-1.5 py-0.5 rounded border border-indigo-500/30 hover:border-indigo-400/50 transition-colors"
+                          title="Alle Kandidaten auswählen"
+                        >
+                          Alle ✔
+                        </button>
+                        {/* Bulk-Toggle: Alle aus */}
+                        <button
+                          onClick={() => setDeselectedAdditions(new Set(upgradeData.additionSuggestions.map((c: any) => c.ticker)))}
+                          className="text-[10px] font-normal text-gray-500 hover:text-gray-300 normal-case px-1.5 py-0.5 rounded border border-gray-600/30 hover:border-gray-500/50 transition-colors"
+                          title="Alle Kandidaten abwählen"
+                        >
+                          Alle ✕
+                        </button>
                       </span>
                     </h4>
                     <div className="space-y-1.5">

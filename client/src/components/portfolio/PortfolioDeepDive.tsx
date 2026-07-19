@@ -121,8 +121,24 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
       </div>
 
       {isLoading && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1,2,3,4].map(i => <Skeleton key={i} className="h-20 bg-slate-800/50" />)}
+        <div className="space-y-4">
+          {/* Progress indicator with estimated time */}
+          <div className="bg-slate-900/60 border border-slate-700/40 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-slate-300 flex items-center gap-2">
+                <span className="inline-block w-2 h-2 rounded-full bg-[#00CFC1] animate-pulse" />
+                Fundamentaldaten werden geladen…
+              </span>
+              <span className="text-xs text-slate-500">ca. 15–30 Sek.</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+              <div className="h-full bg-[#00CFC1] rounded-full" style={{ width: '100%', animation: 'indeterminate 2s ease-in-out infinite' }} />
+            </div>
+            <p className="text-xs text-slate-600 mt-2">EODHD-API · KI-Analyse · Sektorverteilung</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[1,2,3,4].map(i => <Skeleton key={i} className="h-20 bg-slate-800/50" />)}
+          </div>
         </div>
       )}
 
