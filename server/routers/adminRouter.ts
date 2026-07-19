@@ -1173,7 +1173,14 @@ export const adminRouter = router({
         }).reverse();
       } catch { models = []; }
 
-      return { weights, models };
+      // ④ Stack-A: Outcome des nutzersichtbaren Combined Score.
+      let combinedScoreOutcome: any = { evaluated: 0, hitRate: null, avgAlphaPct: null, pendingSnapshots: 0 };
+      try {
+        const { getCombinedScoreOutcomeStats } = await import("../cron/combinedScoreOutcome");
+        combinedScoreOutcome = await getCombinedScoreOutcomeStats();
+      } catch { /* Tabelle evtl. noch nicht vorhanden */ }
+
+      return { weights, models, combinedScoreOutcome };
     }),
 
     /** Preview: calculate score with custom config without saving */
