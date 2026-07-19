@@ -1,5 +1,6 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
+import { perfCache, PERF_CACHE_TTL } from "../_core/perfCache";
 import { z } from "zod";
 import { computeWeightedReturnSeries } from "../lib/weightedReturnSeries";
 import { applyCashDrag } from "../lib/cashAdjust";
@@ -1411,6 +1412,19 @@ export const portfoliosRouter = router({
       .query(async ({ input, ctx }) => {
         const { portfolioId, period, benchmark, debug: debugEnabled } = input;
         
+        // --- perfCache: return cached result if available (skip for debug requests) ---
+        const histCacheDateStr = new Date().toISOString().split('T')[0];
+        const histCacheKey = `perf:hist:${portfolioId}:${period}:${benchmark}:${histCacheDateStr}`;
+        if (!debugEnabled) {
+          const histCached = await perfCache.get(histCacheKey);
+          if (histCached !== null) {
+            console.log(`[getHistoricalPerformance] Cache HIT for portfolio ${portfolioId} period ${period}`);
+            return histCached as any;
+          }
+          console.log(`[getHistoricalPerformance] Cache MISS for portfolio ${portfolioId} period ${period}, computing...`);
+        }
+        // --- end cache check ---
+
         // === LOCAL HELPERS FOR DEBUG ===
         const mkRangeInfo = (points: any[]) => ({
           count: points?.length || 0,
@@ -2595,6 +2609,12 @@ export const portfoliosRouter = router({
           }
         }
         
+        // --- perfCache: store result ---
+        if (!debugEnabled) {
+          await perfCache.set(histCacheKey, { chartData }, PERF_CACHE_TTL.HISTORICAL);
+          console.log(`[getHistoricalPerformance] Cached result for portfolio ${portfolioId} period ${period}`);
+        }
+        // --- end cache store ---
         return { chartData };
       }),
 
@@ -3213,6 +3233,17 @@ export const portfoliosRouter = router({
      * Replaces the old weight-based getMultiPeriodPerformanceV2
      */
     getMultiPeriodPerformanceV2: protectedProcedure.query(async ({ ctx }) => {
+      // --- perfCache: return cached result if available ---
+      const todayCacheStr = new Date().toISOString().split('T')[0];
+      const cacheKey = `perf:v2:${ctx.user.id}:${todayCacheStr}`;
+      const cached = await perfCache.get(cacheKey);
+      if (cached !== null) {
+        console.log(`[getMultiPeriodPerformanceV2] Cache HIT for user ${ctx.user.id}`);
+        return cached as any[];
+      }
+      console.log(`[getMultiPeriodPerformanceV2] Cache MISS for user ${ctx.user.id}, computing...`);
+      // --- end cache check ---
+
       const { getSavedPortfolios, getSavedPortfolioById, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
       const { convertToCHF, getFxRate } = await import("../fxHelper");
       const { historicalPrices } = await import("../../drizzle/schema");
@@ -3480,12 +3511,16 @@ export const portfoliosRouter = router({
         })
       );
       
+            // --- perfCache: store results before returning ---
+            await perfCache.set(cacheKey, results, PERF_CACHE_TTL.MULTI_PERIOD);
+            console.log(`[getMultiPeriodPerformanceV2] Cached result for user ${ctx.user.id}`);
+            // --- end cache store ---
             return results;
     }),
 
   /**
-   * Einzahlung für Demo-Portfolios: erhöht investmentAmount und cashBalance.
-   * Nur für nicht-aktivierte (Demo) Portfolios zugänglich.
+   * Einzahlung: erhöht investmentAmount und cashBalance für Demo-Portfolios,
+   * oder erstellt eine 'deposit'-Transaktion für Live-Portfolios.
    */
   deposit: protectedProcedure
     .input(z.object({
@@ -3496,21 +3531,44 @@ export const portfoliosRouter = router({
       if (!ctx.user?.id || ctx.user.id === 1) {
         throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
       }
-      const { getSavedPortfolioById, updateSavedPortfolio } = await import('../db');
+      const { getSavedPortfolioById, updateSavedPortfolio, createPortfolioTransaction } = await import('../db');
       const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
       if (!portfolio) throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio nicht gefunden' });
-      // Only allow for demo (non-live) portfolios
+
       if (portfolio.isLive === 1) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Einzahlung nur für Demo-Portfolios möglich. Für Live-Portfolios bitte eine Transaktion erfassen.' });
+        // Live-Portfolio: Einzahlung als 'deposit'-Transaktion erfassen
+        const todayStr = new Date().toISOString().split('T')[0];
+        await createPortfolioTransaction({
+          portfolioId: input.portfolioId,
+          userId: ctx.user.id,
+          transactionType: 'deposit',
+          ticker: null,
+          shares: '0',
+          pricePerShare: '0',
+          totalAmount: String(input.amount),
+          currency: 'CHF',
+          transactionDate: todayStr,
+          notes: `Einzahlung CHF ${input.amount.toLocaleString('de-CH')}`,
+        });
+        // Also update investmentAmount to reflect the new total invested
+        const currentInvestment = parseFloat(portfolio.investmentAmount || '0') || 0;
+        await updateSavedPortfolio(input.portfolioId, ctx.user.id, {
+          investmentAmount: String(currentInvestment + input.amount),
+        });
+        // Invalidate performance cache for this user
+        await perfCache.invalidate(`perf:v2:${ctx.user.id}`);
+        return { success: true, type: 'live', newInvestmentAmount: currentInvestment + input.amount };
+      } else {
+        // Demo-Portfolio: investmentAmount und cashBalance direkt erhöhen
+        const currentInvestment = parseFloat(portfolio.investmentAmount || '0') || 0;
+        const currentCash = parseFloat(String(portfolio.cashBalance ?? '0')) || 0;
+        const newInvestment = currentInvestment + input.amount;
+        const newCash = currentCash + input.amount;
+        await updateSavedPortfolio(input.portfolioId, ctx.user.id, {
+          investmentAmount: String(newInvestment),
+          cashBalance: String(newCash),
+        });
+        return { success: true, type: 'demo', newInvestmentAmount: newInvestment, newCashBalance: newCash };
       }
-      const currentInvestment = parseFloat(portfolio.investmentAmount || '0') || 0;
-      const currentCash = parseFloat(String(portfolio.cashBalance ?? '0')) || 0;
-      const newInvestment = currentInvestment + input.amount;
-      const newCash = currentCash + input.amount;
-      await updateSavedPortfolio(input.portfolioId, ctx.user.id, {
-        investmentAmount: String(newInvestment),
-        cashBalance: String(newCash),
-      });
-      return { success: true, newInvestmentAmount: newInvestment, newCashBalance: newCash };
     }),
 });

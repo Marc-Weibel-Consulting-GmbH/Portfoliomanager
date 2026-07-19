@@ -1033,13 +1033,25 @@ export default function PortfolioDetailsPage() {
   // Einzahlung-Mutation für Demo-Portfolios
   const depositMutation = trpc.portfolios.deposit.useMutation({
     onSuccess: (data) => {
-      toast.success('Einzahlung erfolgreich', {
-        description: `CHF ${data.newInvestmentAmount.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Gesamtkapital · CHF ${data.newCashBalance.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Cash`,
-      });
+      const isLiveDeposit = (data as any).type === 'live';
+      if (isLiveDeposit) {
+        toast.success('Einzahlung erfolgreich', {
+          description: `CHF ${(data as any).newInvestmentAmount.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Gesamtkapital · Als Transaktion erfasst`,
+        });
+      } else {
+        const demoData = data as any;
+        toast.success('Einzahlung erfolgreich', {
+          description: `CHF ${demoData.newInvestmentAmount.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Gesamtkapital · CHF ${demoData.newCashBalance.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Cash`,
+        });
+      }
       setIsDepositModalOpen(false);
       setDepositAmount('');
       utils.portfolios.getWithCurrency.invalidate(portfolioId);
       utils.portfolios.list.invalidate();
+      if (isLiveDeposit) {
+        utils.portfolioTransactions.list.invalidate({ portfolioId });
+        utils.portfolios.getMultiPeriodPerformanceV2.invalidate();
+      }
     },
     onError: (error) => toast.error('Einzahlung fehlgeschlagen', { description: error.message }),
   });
@@ -1519,14 +1531,26 @@ export default function PortfolioDetailsPage() {
               )}
               {/* U-19: Live-Tracking deaktivieren (mit Warnhinweis) */}
               {!isDemo && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsDeactivateDialogOpen(true)}
-                  className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
-                >
-                  Deaktivieren
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsDepositModalOpen(true)}
+                    className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                    title="Kapital einzahlen (Live-Portfolio)"
+                  >
+                    <DollarSign className="h-4 w-4 mr-1" />
+                    Einzahlung
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsDeactivateDialogOpen(true)}
+                    className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                  >
+                    Deaktivieren
+                  </Button>
+                </>
               )}
               <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
                 + Position
@@ -2810,17 +2834,15 @@ export default function PortfolioDetailsPage() {
                 <Bell className="h-4 w-4 mr-2" />
                 Alarm erstellen
               </Button>
-              {isDemo && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsDepositModalOpen(true)}
-                  className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
-                >
-                  <DollarSign className="h-4 w-4 mr-2" />
-                  Einzahlung
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsDepositModalOpen(true)}
+                className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+              >
+                <DollarSign className="h-4 w-4 mr-2" />
+                Einzahlung
+              </Button>
               <Button 
                 variant="outline" 
                 size="sm"
@@ -3101,7 +3123,9 @@ export default function PortfolioDetailsPage() {
               Einzahlung
             </DialogTitle>
             <DialogDescription className="text-gray-400">
-              Kapital einzahlen und als Cash-Position im Demo-Portfolio verbuchen.
+              {isDemo
+                ? 'Kapital einzahlen und als Cash-Position im Demo-Portfolio verbuchen.'
+                : 'Kapital einzahlen und als Deposit-Transaktion im Live-Portfolio erfassen.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
