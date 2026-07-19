@@ -164,8 +164,8 @@ export default function AdminMlTrainer() {
                 <MetricCard
                   label="Overfit-Ratio"
                   value={fmtNum(activeMetrics?.overfitRatio)}
-                  highlight={Number(activeMetrics?.overfitRatio) <= 1.6}
-                  target="≤ 1.6"
+                  highlight={Number(activeMetrics?.overfitRatio) <= 2.0}
+                  target="≤ 2.0"
                 />
                 <MetricCard
                   label="Trainingsperiode"
@@ -190,7 +190,7 @@ export default function AdminMlTrainer() {
               </div>
               <div className="bg-zinc-800/50 rounded p-3">
                 <div className="text-zinc-400 text-xs mb-1">Overfit-Ratio</div>
-                <div className="text-white font-semibold">≤ 1.6</div>
+                <div className="text-white font-semibold">≤ 2.0</div>
                 <div className="text-zinc-500 text-xs mt-1">IS-HitRate / OOS-HitRate (Overfitting-Indikator)</div>
               </div>
               <div className="bg-zinc-800/50 rounded p-3">
