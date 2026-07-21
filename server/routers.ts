@@ -52,6 +52,7 @@ import { marketReportRouter } from "./routers/marketReportRouter";
 import { kiBoomRouter } from "./routers/kiBoomRouter";
 import { userSettingsRouter } from "./routers/userSettingsRouter";
 import { alertConfigRouter } from "./routers/alertConfigRouter";
+import { stockCheckRouter } from "./routers/stockCheckRouter";
 import { fetchLogo } from "./logoService";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
@@ -1057,6 +1058,7 @@ export const appRouter = router({
   portfolioComparison: portfolioComparisonRouter,
   signals: signalsRouter,
   portfolioOptimizer: portfolioOptimizerRouter,
+  stockCheck: stockCheckRouter,
 
   fx: router({
     getCurrentRate: publicProcedure
