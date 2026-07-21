@@ -934,12 +934,18 @@ export default function PortfolioBuilderWizard() {
                       const ret = metrics?.expectedReturnPct ?? null;
                       const vol = metrics?.volatilityPct ?? null;
                       const fxPct = (autoProposal as any).allocation?.fxWeightPct ?? null;
+                      // Bevorzugt die ausführliche KI-Gesamtbewertung (verdict, nach
+                      // dem Enhancing-Schritt vorhanden); vorher/als Fallback das
+                      // einfache Kennzahlen-Template.
+                      const llmVerdict = (autoProposal as any).synthesizerVerdict;
                       const portfolioSummary =
-                        `Dieses Portfolio umfasst ${autoProposal.positions.length} Titel` +
-                        (ret != null ? ` mit einer erwarteten Rendite von ~${ret.toFixed(1)}% p.a.` : '') +
-                        (sharpe != null ? ` und einer Sharpe-Ratio von ${sharpe.toFixed(2)}` : '') +
-                        (vol != null ? ` (Volatilität ~${vol.toFixed(1)}%)` : '') +
-                        '. Die Zusammensetzung basiert auf Score-Ranking, Sektor-Diversifikation und Markt-Regime-Analyse.'
+                        (typeof llmVerdict === 'string' && llmVerdict.trim().length > 40)
+                          ? llmVerdict.trim()
+                          : `Dieses Portfolio umfasst ${autoProposal.positions.length} Titel` +
+                            (ret != null ? ` mit einer erwarteten Rendite von ~${ret.toFixed(1)}% p.a.` : '') +
+                            (sharpe != null ? ` und einer Sharpe-Ratio von ${sharpe.toFixed(2)}` : '') +
+                            (vol != null ? ` (Volatilität ~${vol.toFixed(1)}%)` : '') +
+                            '. Die Zusammensetzung basiert auf Score-Ranking, Sektor-Diversifikation und Markt-Regime-Analyse.'
                       const portfolioFactors = [
                         ...(sharpe != null ? [{ label: 'Sharpe', value: sharpe.toFixed(2), sentiment: sharpe >= 0.5 ? 'positive' as const : sharpe >= 0.3 ? 'neutral' as const : 'negative' as const }] : []),
                         ...(ret != null ? [{ label: 'Erw. Rendite', value: `${ret.toFixed(1)}% p.a.`, sentiment: ret >= 8 ? 'positive' as const : ret >= 5 ? 'neutral' as const : 'negative' as const }] : []),
