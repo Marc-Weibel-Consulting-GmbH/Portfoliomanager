@@ -1402,7 +1402,7 @@ export const dashboardRouter = router({
             const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
             for (const stock of stocks) {
               if (!stock.ticker) continue;
-              let shares = parseFloat(stock.shares || '0');
+              const shares = parseFloat(stock.shares || '0');
               if (shares === 0 && investmentAmount > 0) {
                 holdingsAgg.set(stock.ticker, holdingsAgg.get(stock.ticker) || -1);
               } else if (shares > 0) {
@@ -1537,7 +1537,7 @@ export const dashboardRouter = router({
             const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
             for (const stock of stocks) {
               if (!stock.ticker) continue;
-              let shares = parseFloat(stock.shares || '0');
+              const shares = parseFloat(stock.shares || '0');
               if (shares === 0 && investmentAmount > 0) {
                 holdingsAgg.set(stock.ticker, holdingsAgg.get(stock.ticker) || -1);
               } else if (shares > 0) {
@@ -2031,7 +2031,7 @@ export const dashboardRouter = router({
             const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
             for (const stock of stocks) {
               if (!stock.ticker) continue;
-              let shares = parseFloat(stock.shares || '0');
+              const shares = parseFloat(stock.shares || '0');
               if (shares === 0 && investmentAmount > 0) {
                 holdingsAgg.set(stock.ticker, holdingsAgg.get(stock.ticker) || -1);
               } else if (shares > 0) {
@@ -2874,7 +2874,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
       }
 
       // Signal-Cache für Score-Daten laden (für LLM-Kontext)
-      let signalCacheMap = new Map<string, { combinedScore: number | null; signalType: string | null }>();
+      const signalCacheMap = new Map<string, { combinedScore: number | null; signalType: string | null }>();
       try {
         const { stockSignalCache } = await import('../../drizzle/schema');
         const { inArray } = await import('drizzle-orm');

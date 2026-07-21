@@ -63,7 +63,7 @@ async function detectProfileMismatch(
     const stocks: any[] = portfolioData?.stocks ?? [];
 
     // Enrich stocks with live data from the stocks table (dividendYield, beta)
-    let enrichedStockData: Map<string, { dividendYield: string | null; beta: string | null }> = new Map();
+    const enrichedStockData: Map<string, { dividendYield: string | null; beta: string | null }> = new Map();
     if (stocks.length > 0) {
       try {
         const tickers = stocks

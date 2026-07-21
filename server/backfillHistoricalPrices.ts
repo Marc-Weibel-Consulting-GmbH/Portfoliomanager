@@ -152,7 +152,7 @@ function splitDateRange(
   const startDate = new Date(fromDate);
   const endDate = new Date(toDate);
   
-  let currentStart = new Date(startDate);
+  const currentStart = new Date(startDate);
   
   while (currentStart < endDate) {
     const currentEnd = new Date(currentStart);

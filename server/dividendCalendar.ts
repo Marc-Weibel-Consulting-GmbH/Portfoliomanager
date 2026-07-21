@@ -114,7 +114,7 @@ async function fetchTickerDividendsEODHD(ticker: string): Promise<DividendEvent[
           ...upcomingEvents.map(e => new Date(e.exDividendDate)),
           lastDate,
         ].sort((a, b) => b.getTime() - a.getTime());
-        let projectionBase = allKnownDates[0];
+        const projectionBase = allKnownDates[0];
 
         // Roll forward until we exceed the 2-year horizon, adding estimated events
         let nextEstDate = new Date(projectionBase.getTime() + intervalDays * 24 * 60 * 60 * 1000);

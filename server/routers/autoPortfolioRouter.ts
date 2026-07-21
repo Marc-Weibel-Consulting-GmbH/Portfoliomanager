@@ -394,7 +394,7 @@ export const autoPortfolioRouter = router({
       }
 
       // === UNIVERSE EXPANSION: Lücken-Analyse + EODHD-Screening (max. 20% externe Titel) ===
-      let universalCandidates: any[] = [];
+      const universalCandidates: any[] = [];
       try {
         const { analyzeGaps, findExternalCandidates, storeExternalCandidates } = await import("../lib/universeExpansion");
         const existingTickers = new Set(scored.map((x: any) => x.stock.ticker.toUpperCase()));
@@ -1442,7 +1442,7 @@ Antworte im JSON-Format.`,
           if (universe.length > 0 && cacheFallbackCount / universe.length > 0.3) notes.push(`Signal-Cache unvollständig — für ${cacheFallbackCount} von ${universe.length} Titeln wurde der Basis-Score verwendet.`);
 
           // Universe expansion (non-fatal)
-          let universalCandidates: any[] = [];
+          const universalCandidates: any[] = [];
           try {
             const { analyzeGaps, findExternalCandidates, storeExternalCandidates } = await import('../lib/universeExpansion');
             const existingTickers = new Set(scored.map((x: any) => x.stock.ticker.toUpperCase()));

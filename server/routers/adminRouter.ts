@@ -2198,7 +2198,7 @@ export const adminRouter = router({
       const [row] = await db.select({ ticker: stocks.ticker, currency: stocks.currency, currentPrice: stocks.currentPrice }).from(stocks).where(eq(stocks.id, input.stockId)).limit(1);
 
       // Preis via EODHD laden falls noch nicht vorhanden
-      let priceUpdate: Record<string, unknown> = { source: "manual", notes: null, listType: "watchlist" };
+      const priceUpdate: Record<string, unknown> = { source: "manual", notes: null, listType: "watchlist" };
       if (row && (!row.currentPrice || row.currentPrice === '0')) {
         try {
           const { ENV } = await import('../_core/env');
@@ -2261,7 +2261,7 @@ export const adminRouter = router({
     const candidates = rows.filter((r: any) => String(r.notes ?? "").startsWith("universe_expansion"));
     let pricesFetched = 0;
     for (const c of candidates) {
-      let updateSet: Record<string, unknown> = { source: "manual", notes: null, listType: "watchlist" };
+      const updateSet: Record<string, unknown> = { source: "manual", notes: null, listType: "watchlist" };
       // Preis laden falls fehlend
       if ((!c.currentPrice || c.currentPrice === '0') && ENV.eodhdApiKey) {
         try {
