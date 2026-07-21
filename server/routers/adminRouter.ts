@@ -1037,7 +1037,10 @@ export const adminRouter = router({
 
     setProposalModels: adminProcedure
       .input(z.object({
+        ensemble: z.boolean(),
         analysis: z.enum(["kimi", "gemini", "claude", "perplexity", "groq"]),
+        challengerB: z.enum(["kimi", "gemini", "claude", "perplexity", "groq"]),
+        synthesis: z.enum(["kimi", "gemini", "claude", "perplexity", "groq"]),
         text: z.enum(["kimi", "gemini", "claude", "perplexity", "groq"]),
       }))
       .mutation(async ({ ctx, input }) => {

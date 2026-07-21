@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -598,14 +599,18 @@ function ApprovePanel({
 
 /**
  * Modellwahl pro Rolle für die KI-Portfolio-Vorschläge.
- * - Analyse: kritische Prüfung + finale Empfehlung (Challenger + Synthese).
- * - Titel-Texte: die einfachen Begründungen je Position.
- * Gleiches Modell für beide Rollen ⇒ ein Aufruf (schneller). Bei Fehlern
- * (z.B. fehlendes Guthaben) fällt jede Rolle automatisch auf Kimi zurück.
+ * - Standard: Analyse (Challenger + Synthese) + Titel-Texte.
+ * - Qualitätsmodus: 2 Challenger parallel → Synthese → Titel-Texte.
+ * Bei Fehlern (z.B. fehlendes Guthaben) fällt jede Rolle automatisch auf Kimi
+ * zurück. Kimi ist stark als Challenger, aber schwach bei deutscher Prosa —
+ * für die Titel-Texte daher ein sprachlich starkes Modell wählen.
  */
 function ProposalModelSettings() {
   const { data, refetch } = trpc.admin.getProposalModels.useQuery();
+  const [ensemble, setEnsemble] = useState<boolean | null>(null);
   const [analysis, setAnalysis] = useState<string | null>(null);
+  const [challengerB, setChallengerB] = useState<string | null>(null);
+  const [synthesis, setSynthesis] = useState<string | null>(null);
   const [text, setText] = useState<string | null>(null);
   const save = trpc.admin.setProposalModels.useMutation({
     onSuccess: () => { toast.success("Modellwahl gespeichert"); refetch(); },
@@ -617,10 +622,24 @@ function ProposalModelSettings() {
   const providers = Object.keys(labels);
   if (!cfg) return null;
 
+  const ens = ensemble ?? cfg.ensemble;
   const a = analysis ?? cfg.analysis;
+  const b = challengerB ?? cfg.challengerB;
+  const s = synthesis ?? cfg.synthesis;
   const t = text ?? cfg.text;
-  const dirty = a !== cfg.analysis || t !== cfg.text;
-  const merged = a === t;
+  const dirty = ens !== cfg.ensemble || a !== cfg.analysis || b !== cfg.challengerB || s !== cfg.synthesis || t !== cfg.text;
+
+  const Dropdown = ({ label, hint, value, onChange }: { label: string; hint: string; value: string; onChange: (v: string) => void }) => (
+    <div className="space-y-1">
+      <label className="text-sm text-slate-300">{label} <span className="text-slate-500">{hint}</span></label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
+        <SelectContent className="bg-slate-800 border-slate-700">
+          {providers.map((p) => <SelectItem key={p} value={p}>{labels[p]}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 
   return (
     <Card className="bg-slate-800/50 border-slate-700">
@@ -634,36 +653,40 @@ function ProposalModelSettings() {
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <label className="text-sm text-slate-300">Analyse <span className="text-slate-500">(Challenger + Synthese)</span></label>
-            <Select value={a} onValueChange={setAnalysis}>
-              <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700">
-                {providers.map((p) => <SelectItem key={p} value={p}>{labels[p]}</SelectItem>)}
-              </SelectContent>
-            </Select>
+        <div className="flex items-center justify-between rounded-md bg-slate-900/60 px-3 py-2">
+          <div>
+            <div className="text-sm text-slate-200">Qualitätsmodus</div>
+            <div className="text-xs text-slate-500">2 Challenger parallel + Synthese — gründlicher, aber langsamer</div>
           </div>
-          <div className="space-y-1">
-            <label className="text-sm text-slate-300">Titel-Texte <span className="text-slate-500">(einfache Begründungen)</span></label>
-            <Select value={t} onValueChange={setText}>
-              <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700">
-                {providers.map((p) => <SelectItem key={p} value={p}>{labels[p]}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
+          <Switch checked={ens} onCheckedChange={(v) => setEnsemble(v)} />
         </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {ens ? (
+            <>
+              <Dropdown label="Challenger A" hint="(kritische Prüfung)" value={a} onChange={setAnalysis} />
+              <Dropdown label="Challenger B" hint="(2. Sicht, andere Familie)" value={b} onChange={setChallengerB} />
+              <Dropdown label="Synthese" hint="(wägt beide Kritiken ab)" value={s} onChange={setSynthesis} />
+              <Dropdown label="Titel-Texte" hint="(einfache Begründungen)" value={t} onChange={setText} />
+            </>
+          ) : (
+            <>
+              <Dropdown label="Analyse" hint="(Challenger + Synthese)" value={a} onChange={setAnalysis} />
+              <Dropdown label="Titel-Texte" hint="(einfache Begründungen)" value={t} onChange={setText} />
+            </>
+          )}
+        </div>
+
         <p className="text-xs text-slate-500">
-          {merged
-            ? "Beide Rollen nutzen dasselbe Modell → ein Aufruf, schnellste Variante."
-            : "Getrennte Modelle → ein zusätzlicher Aufruf für die Texte (etwas langsamer). Fällt ein Modell aus, greift automatisch Kimi."}
+          {ens
+            ? "Qualitätsmodus: zwei Challenger prüfen parallel, ein Synthesizer wägt ab, dann die Texte (~3 Aufrufe). Für Challenger B bewusst eine andere Modell-Familie wählen. Kimi eignet sich gut als Challenger, nicht für die Titel-Texte."
+            : "Standard: Analyse in einem Aufruf; Titel-Texte separat, falls ein anderes Modell gewählt ist. Für die Texte kein Kimi (schwaches Deutsch). Fällt ein Modell aus, greift automatisch Kimi."}
         </p>
         <div className="flex justify-end">
           <Button
             size="sm"
             disabled={!dirty || save.isPending}
-            onClick={() => save.mutate({ analysis: a as any, text: t as any })}
+            onClick={() => save.mutate({ ensemble: ens, analysis: a as any, challengerB: b as any, synthesis: s as any, text: t as any })}
             className="bg-teal-600 hover:bg-teal-500 text-white"
           >
             <Save className="w-4 h-4 mr-1" /> Speichern

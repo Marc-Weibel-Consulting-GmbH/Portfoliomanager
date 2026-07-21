@@ -1712,41 +1712,27 @@ Antworte im JSON-Format.`,
               }
             } catch (fbErr) { console.warn('[startProposal] Could not load admin feedback:', fbErr); }
 
-            // Modellwahl pro Rolle (Admin-konfigurierbar): Das Analyse-Modell
-            // prüft kritisch UND erstellt die finale Empfehlung (Challenger +
-            // Synthese in einem Aufruf, Option B). Das Text-Modell formuliert die
-            // einfachen Titel-Begründungen. Sind beide Rollen derselbe Anbieter,
-            // laufen sie in EINEM Aufruf (schneller); sonst folgt ein separater
-            // Text-Aufruf. Jeder Anbieter fällt bei Fehlern auf Kimi zurück.
+            // Modellwahl pro Rolle (Admin-konfigurierbar).
+            // Standard-Modus: ein Analyse-Modell prüft kritisch UND erstellt die
+            // finale Empfehlung (Challenger + Synthese in einem Aufruf, Option B).
+            // Qualitätsmodus (ensemble): zwei Challenger prüfen PARALLEL, ein
+            // Synthesizer wägt beide Kritiken ab, dann die Titel-Texte. Das
+            // Text-Modell formuliert die einfachen Begründungen. Jeder Anbieter
+            // fällt bei Fehlern automatisch auf Kimi zurück.
             const models = await getProposalModelConfig();
-            const mergeText = models.text === models.analysis;
-            job.progress.push(`KI-Analyse (${models.analysis}): Vorschlag prüfen & finalisieren...`);
             const agentStart = Date.now();
 
+            const tickerReasonItem = { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false };
+            const adjustmentItem = { type: 'object', properties: { ticker: { type: 'string' }, action: { type: 'string', enum: ['keep', 'replace', 'reduce', 'increase'] }, reason: { type: 'string' } }, required: ['ticker', 'action', 'reason'], additionalProperties: false };
             const posReasonsSchema = { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, text: { type: 'string' } }, required: ['ticker', 'text'], additionalProperties: false } };
             const posReasonsInstruction = 'für JEDE vorgeschlagene Position 2-3 Sätze in EINFACHEN Worten, WARUM genau dieser Titel für dieses Profil vorgeschlagen wird. Zielgruppe: Privatanleger 50+ ohne Fachjargon. WICHTIG: jeder Text INDIVIDUELL — konkretes Geschäft/Stärke des Unternehmens nennen, KEINE Schablone, KEINE Wiederholung derselben Formulierung über mehrere Titel. Keine Fachbegriffe (kein "Sharpe", "Volatilität", "Score"), keine Zahlen-Wiederholung des Gewichts.';
+            const confidenceRule = '"hoch" (FX-Limit eingehalten, kein Sektor > 30%, alle BUY, Sharpe > 0.5, ≤ 1 Einwand) / "niedrig" (FX überschritten, Sektor > 40%, SELL-Titel, Sharpe < 0.2, ≥ 3 Einwände) / "mittel" (sonst)';
+            const contextBlock = `Anlegerprofil: ${profileSummary}\n\nBerechnete Fakten:\n${factsSummary}\n\nVorgeschlagene Positionen (mit Gewichten):\n${JSON.stringify(positionSummary, null, 2)}\n\nVerfügbare Alternativen (NUR diese Ticker dürfen als Ersatz dienen):\n${JSON.stringify(candidatePool, null, 2)}${adminFeedbackContext}${marktHubContextBlock}`;
 
-            const analysisProps: Record<string, any> = {
-              critique: { type: 'string' },
-              rejected: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } },
-              alternatives: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false } },
-              verdict: { type: 'string' },
-              adjustments: { type: 'array', items: { type: 'object', properties: { ticker: { type: 'string' }, action: { type: 'string', enum: ['keep', 'replace', 'reduce', 'increase'] }, reason: { type: 'string' } }, required: ['ticker', 'action', 'reason'], additionalProperties: false } },
-              overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] },
-            };
-            const analysisRequired = ['critique', 'rejected', 'alternatives', 'verdict', 'adjustments', 'overallConfidence'];
-            if (mergeText) { analysisProps.positionReasons = posReasonsSchema; analysisRequired.push('positionReasons'); }
+            let agentResult: any = { critique: '', rejected: [], alternatives: [], verdict: '', adjustments: [], overallConfidence: 'mittel', positionReasons: [] };
 
-            const { result: agentResult } = await invokeProposalAgent(models.analysis, {
-              system: 'Du bist zugleich kritischer Portfolio-Analyst ("Challenger") und erfahrener Portfolio-Manager ("Synthesizer"). Prüfe den algorithmischen Vorschlag zuerst kritisch und erstelle im selben Schritt die finale Empfehlung mit konkreten Anpassungen. Antworte immer auf Deutsch, präzise und konstruktiv.',
-              user: `Prüfe diesen Portfolio-Vorschlag kritisch und erstelle die finale Empfehlung.\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten:\n${factsSummary}\n\nVorgeschlagene Positionen (mit Gewichten):\n${JSON.stringify(positionSummary, null, 2)}\n\nVerfügbare Alternativen (NUR diese Ticker dürfen als Ersatz dienen):\n${JSON.stringify(candidatePool, null, 2)}${adminFeedbackContext}${marktHubContextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n4. verdict: Dein Gesamturteil in 2-3 Sätzen.\n5. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n6. overallConfidence: "hoch" (FX-Limit eingehalten, kein Sektor > 30%, alle BUY, Sharpe > 0.5, ≤ 1 Einwand) / "niedrig" (FX überschritten, Sektor > 40%, SELL-Titel, Sharpe < 0.2, ≥ 3 Einwände) / "mittel" (sonst).${mergeText ? `\n7. positionReasons: ${posReasonsInstruction}` : ''}\n\nAntworte im JSON-Format.`,
-              schema: { name: 'portfolio_review', strict: true, schema: { type: 'object', properties: analysisProps, required: analysisRequired, additionalProperties: false } },
-              maxTokens: 4096,
-            });
-            if (!Array.isArray(agentResult.positionReasons)) agentResult.positionReasons = [];
-
-            // Split-Modus: eigenes Text-Modell für die Titel-Begründungen.
-            if (!mergeText) {
+            // Eigenes Text-Modell für die Titel-Begründungen (mutiert agentResult).
+            const fillTexts = async () => {
               try {
                 job.progress.push(`KI-Texte (${models.text}): Titel-Begründungen formulieren...`);
                 const { result: textResult } = await invokeProposalAgent(models.text, {
@@ -1757,6 +1743,64 @@ Antworte im JSON-Format.`,
                 });
                 if (Array.isArray(textResult?.positionReasons)) agentResult.positionReasons = textResult.positionReasons;
               } catch (textErr: any) { console.warn(`[startProposal] Text-Modell (${models.text}) fehlgeschlagen: ${textErr?.message}`); }
+            };
+
+            if (models.ensemble) {
+              // ── Qualitätsmodus: 2 Challenger parallel → Synthese → Text ──
+              job.progress.push(`Qualitätsmodus: 2 Challenger (${models.analysis} + ${models.challengerB}) prüfen parallel...`);
+              const challengerSystem = 'Du bist ein kritischer Portfolio-Analyst ("Challenger"). Du hinterfragst algorithmisch erstellte Portfolio-Vorschläge scharf und konstruktiv. Antworte immer auf Deutsch, präzise.';
+              const challengerUser = `Prüfe diesen Portfolio-Vorschlag kritisch.\n\n${contextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n\nAntworte im JSON-Format.`;
+              const challengerSchema = { name: 'challenger', strict: true, schema: { type: 'object', properties: { critique: { type: 'string' }, rejected: { type: 'array', items: tickerReasonItem }, alternatives: { type: 'array', items: tickerReasonItem } }, required: ['critique', 'rejected', 'alternatives'], additionalProperties: false } };
+              const empty = { critique: '', rejected: [], alternatives: [] };
+              const [rA, rB] = await Promise.all([
+                invokeProposalAgent(models.analysis, { system: challengerSystem, user: challengerUser, schema: challengerSchema, maxTokens: 3072 }).catch((e: any) => { console.warn(`[startProposal] Challenger A (${models.analysis}) fehlgeschlagen: ${e?.message}`); return { result: empty }; }),
+                invokeProposalAgent(models.challengerB, { system: challengerSystem, user: challengerUser, schema: challengerSchema, maxTokens: 3072 }).catch((e: any) => { console.warn(`[startProposal] Challenger B (${models.challengerB}) fehlgeschlagen: ${e?.message}`); return { result: empty }; }),
+              ]);
+              const cA = rA.result ?? empty; const cB = rB.result ?? empty;
+
+              job.progress.push(`Synthese (${models.synthesis}): beide Kritiken abwägen...`);
+              const synthUser = `${contextBlock}\n\nKritik von Analyst A:\nGesamt: ${cA.critique}\nAbgelehnt: ${JSON.stringify(cA.rejected ?? [])}\nAlternativen: ${JSON.stringify(cA.alternatives ?? [])}\n\nKritik von Analyst B:\nGesamt: ${cB.critique}\nAbgelehnt: ${JSON.stringify(cB.rejected ?? [])}\nAlternativen: ${JSON.stringify(cB.alternatives ?? [])}\n\nWäge BEIDE Kritiken gegeneinander ab (gemeinsame Punkte wiegen schwerer, Widersprüche kritisch prüfen) und erstelle:\n1. verdict: Dein Gesamturteil in 2-3 Sätzen.\n2. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n3. overallConfidence: ${confidenceRule}.\n\nAntworte im JSON-Format.`;
+              const synthSchema = { name: 'synthesis', strict: true, schema: { type: 'object', properties: { verdict: { type: 'string' }, adjustments: { type: 'array', items: adjustmentItem }, overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] } }, required: ['verdict', 'adjustments', 'overallConfidence'], additionalProperties: false } };
+              const { result: synth } = await invokeProposalAgent(models.synthesis, {
+                system: 'Du bist ein erfahrener Portfolio-Manager ("Synthesizer"). Du erhältst einen algorithmischen Vorschlag und ZWEI unabhängige kritische Analysen. Moderiere die Erkenntnisse zu einer finalen Empfehlung. Antworte immer auf Deutsch.',
+                user: synthUser, schema: synthSchema, maxTokens: 4096,
+              });
+
+              const dedupByTicker = (arr: any[]) => { const seen = new Set<string>(); const out: any[] = []; for (const x of arr) { const t = x?.ticker ? String(x.ticker).toUpperCase() : ''; if (!t || seen.has(t)) continue; seen.add(t); out.push(x); } return out; };
+              agentResult = {
+                critique: [cA.critique && `A: ${cA.critique}`, cB.critique && `B: ${cB.critique}`].filter(Boolean).join('\n\n'),
+                rejected: dedupByTicker([...(cA.rejected ?? []), ...(cB.rejected ?? [])]),
+                alternatives: dedupByTicker([...(cA.alternatives ?? []), ...(cB.alternatives ?? [])]),
+                verdict: synth?.verdict ?? '',
+                adjustments: synth?.adjustments ?? [],
+                overallConfidence: synth?.overallConfidence ?? 'mittel',
+                positionReasons: [],
+              };
+              await fillTexts();
+            } else {
+              // ── Standard: ein Analyse-Aufruf (Challenger + Synthese). ──
+              const mergeText = models.text === models.analysis;
+              job.progress.push(`KI-Analyse (${models.analysis}): Vorschlag prüfen & finalisieren...`);
+              const analysisProps: Record<string, any> = {
+                critique: { type: 'string' },
+                rejected: { type: 'array', items: tickerReasonItem },
+                alternatives: { type: 'array', items: tickerReasonItem },
+                verdict: { type: 'string' },
+                adjustments: { type: 'array', items: adjustmentItem },
+                overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] },
+              };
+              const analysisRequired = ['critique', 'rejected', 'alternatives', 'verdict', 'adjustments', 'overallConfidence'];
+              if (mergeText) { analysisProps.positionReasons = posReasonsSchema; analysisRequired.push('positionReasons'); }
+
+              const { result } = await invokeProposalAgent(models.analysis, {
+                system: 'Du bist zugleich kritischer Portfolio-Analyst ("Challenger") und erfahrener Portfolio-Manager ("Synthesizer"). Prüfe den algorithmischen Vorschlag zuerst kritisch und erstelle im selben Schritt die finale Empfehlung mit konkreten Anpassungen. Antworte immer auf Deutsch, präzise und konstruktiv.',
+                user: `Prüfe diesen Portfolio-Vorschlag kritisch und erstelle die finale Empfehlung.\n\n${contextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n4. verdict: Dein Gesamturteil in 2-3 Sätzen.\n5. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n6. overallConfidence: ${confidenceRule}.${mergeText ? `\n7. positionReasons: ${posReasonsInstruction}` : ''}\n\nAntworte im JSON-Format.`,
+                schema: { name: 'portfolio_review', strict: true, schema: { type: 'object', properties: analysisProps, required: analysisRequired, additionalProperties: false } },
+                maxTokens: 4096,
+              });
+              agentResult = result;
+              if (!Array.isArray(agentResult.positionReasons)) agentResult.positionReasons = [];
+              if (!mergeText) await fillTexts();
             }
 
             // Individuelle Titel-Begründung (2-3 einfache Sätze) an die Positionen
