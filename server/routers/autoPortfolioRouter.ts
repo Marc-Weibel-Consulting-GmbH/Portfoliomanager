@@ -1740,8 +1740,15 @@ Antworte im JSON-Format.`,
                   system: 'Du bist ein erfahrener Schweizer Anlageberater und Aktienanalyst. Du erklärst Privatanlegern 50+ verständlich, aber inhaltlich fundiert, warum ein konkreter Titel überzeugt. Du kennst die grossen Unternehmen und ihre Geschäftsmodelle. Antworte immer auf Deutsch.',
                   user: `Formuliere für JEDE dieser Positionen ${posReasonsInstruction}\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten (u.a. Fundamentaldaten):\n${factsSummary}\n\nPositionen (mit Signalen):\n${JSON.stringify(positionSummary, null, 2)}\n\nGesamturteil der Analyse: ${agentResult.verdict ?? ''}`,
                   schema: { name: 'position_reasons', strict: true, schema: { type: 'object', properties: { positionReasons: posReasonsSchema }, required: ['positionReasons'], additionalProperties: false } },
-                  maxTokens: 4096,
+                  maxTokens: 8192,
                 });
+                console.log(`[fillTexts] textResult keys: ${Object.keys(textResult ?? {}).join(', ')}`);
+                console.log(`[fillTexts] textResult.positionReasons type: ${typeof textResult?.positionReasons}, isArray: ${Array.isArray(textResult?.positionReasons)}, length: ${Array.isArray(textResult?.positionReasons) ? textResult.positionReasons.length : 'N/A'}`);
+                if (Array.isArray(textResult?.positionReasons) && textResult.positionReasons.length > 0) {
+                  console.log(`[fillTexts] first positionReason: ${JSON.stringify(textResult.positionReasons[0])}`);
+                } else {
+                  console.log(`[fillTexts] textResult raw (first 500 chars): ${JSON.stringify(textResult)?.substring(0, 500)}`);
+                }
                 if (Array.isArray(textResult?.positionReasons)) agentResult.positionReasons = textResult.positionReasons;
                 if (providerUsed !== models.text) job.progress.push(`KI-Texte: ${models.text} nicht verfügbar — Fallback auf ${providerUsed}.`);
               } catch (textErr: any) {
@@ -1833,6 +1840,14 @@ Antworte im JSON-Format.`,
               reasonMap.set(t, reasonMap.has(t) ? `${reasonMap.get(t)} ${text}` : text);
             }
             for (const p of positions) { const t = reasonMap.get(p.ticker.toUpperCase()); if (t) (p as any).aiReason = t; }
+            // Debug logging for aiReason
+            const aiReasonCount = positions.filter((p: any) => p.aiReason).length;
+            console.log(`[startProposal] aiReason: ${aiReasonCount}/${positions.length} gesetzt. reasonMap.size=${reasonMap.size}`);
+            console.log(`[startProposal] positionReasons raw count: ${(agentResult.positionReasons ?? []).length}`);
+            console.log(`[startProposal] positionTickers: ${[...positionTickers].join(', ')}`);
+            if ((agentResult.positionReasons ?? []).length > 0) {
+              console.log(`[startProposal] positionReasons tickers: ${(agentResult.positionReasons as any[]).map((pr: any) => pr?.ticker).join(', ')}`);
+            }
             // Sichtbar machen, ob die individuellen Texte wirklich angekommen
             // sind — bisher schlug das nur als console.warn auf und der Client
             // fiel kommentarlos aufs Template zurück.
