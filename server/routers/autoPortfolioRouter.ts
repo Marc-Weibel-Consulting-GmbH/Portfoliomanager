@@ -1810,7 +1810,12 @@ Antworte im JSON-Format.`,
             for (const pr of (agentResult.positionReasons ?? [])) {
               const t = pr?.ticker ? String(pr.ticker).toUpperCase() : '';
               const text = typeof pr?.text === 'string' ? pr.text.trim() : '';
-              if (t && text && positionTickers.has(t)) reasonMap.set(t, text);
+              // Manche Modelle liefern (ohne striktes Schema, z.B. Groq) mehrere
+              // Einträge je Ticker (ein Satz pro Eintrag). Zusammenführen statt
+              // überschreiben, sonst bliebe nur der letzte Satz übrig.
+              if (t && text && positionTickers.has(t)) {
+                reasonMap.set(t, reasonMap.has(t) ? `${reasonMap.get(t)} ${text}` : text);
+              }
             }
             for (const p of positions) { const t = reasonMap.get(p.ticker.toUpperCase()); if (t) (p as any).aiReason = t; }
 
