@@ -1038,10 +1038,10 @@ export const adminRouter = router({
     setProposalModels: adminProcedure
       .input(z.object({
         ensemble: z.boolean(),
-        analysis: z.enum(["kimi", "gemini", "claude", "perplexity", "groq"]),
-        challengerB: z.enum(["kimi", "gemini", "claude", "perplexity", "groq"]),
-        synthesis: z.enum(["kimi", "gemini", "claude", "perplexity", "groq"]),
-        text: z.enum(["kimi", "gemini", "claude", "perplexity", "groq"]),
+        analysis: z.enum(["kimi", "gemini", "claude", "perplexity", "groq", "omniroute"]),
+        challengerB: z.enum(["kimi", "gemini", "claude", "perplexity", "groq", "omniroute"]),
+        synthesis: z.enum(["kimi", "gemini", "claude", "perplexity", "groq", "omniroute"]),
+        text: z.enum(["kimi", "gemini", "claude", "perplexity", "groq", "omniroute"]),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');

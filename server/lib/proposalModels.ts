@@ -16,7 +16,7 @@
 import { invokeKimi, invokeLLM, type JsonSchema } from "../_core/llm";
 import { getSecret } from "../_core/secretsManager";
 
-export type ProposalProvider = "kimi" | "gemini" | "claude" | "perplexity" | "groq";
+export type ProposalProvider = "kimi" | "gemini" | "claude" | "perplexity" | "groq" | "omniroute";
 export type ProposalRole = "analysis" | "text";
 
 export interface ProposalModelConfig {
@@ -46,9 +46,10 @@ export const PROVIDER_LABELS: Record<ProposalProvider, string> = {
   claude: "Claude 3.5 Sonnet (Anthropic)",
   perplexity: "Perplexity Sonar",
   groq: "Groq Llama 3.3 70B (gratis)",
+  omniroute: "OmniRoute Gateway (271 Modelle)",
 };
 
-const VALID_PROVIDERS: ProposalProvider[] = ["kimi", "gemini", "claude", "perplexity", "groq"];
+const VALID_PROVIDERS: ProposalProvider[] = ["kimi", "gemini", "claude", "perplexity", "groq", "omniroute"];
 
 /** Lädt die Rollen-Modell-Konfiguration aus appSettings. Fallback: Defaults. */
 export async function getProposalModelConfig(): Promise<ProposalModelConfig> {
@@ -158,6 +159,34 @@ async function callGroqJson(system: string, user: string, schema: JsonSchema, ma
   return extractJson(data.choices?.[0]?.message?.content || "");
 }
 
+/**
+ * OmniRoute (selbst-gehosteter Gateway, OpenAI-kompatibel). Base-URL, Key und
+ * optionaler Modellname kommen aus Secrets (OMNIROUTE_URL / OMNIROUTE_API_KEY /
+ * OMNIROUTE_MODEL). So kann jede Rolle über einen Endpoint auf 271 Modelle
+ * zugreifen. Base-URL darf mit oder ohne /v1 hinterlegt sein.
+ */
+async function callOmniRouteJson(system: string, user: string, schema: JsonSchema, maxTokens: number): Promise<any> {
+  const base = (await getSecret("OMNIROUTE_URL"))?.replace(/\/+$/, "");
+  const apiKey = await getSecret("OMNIROUTE_API_KEY");
+  if (!base) throw new Error("OMNIROUTE_URL nicht konfiguriert");
+  if (!apiKey) throw new Error("OMNIROUTE_API_KEY nicht konfiguriert");
+  const model = (await getSecret("OMNIROUTE_MODEL")) || "auto";
+  const url = base.endsWith("/v1") ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      response_format: { type: "json_object" },
+      messages: [{ role: "system", content: system + jsonInstruction(schema) }, { role: "user", content: user }],
+    }),
+  });
+  if (!res.ok) throw new Error(`OmniRoute ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return extractJson(data.choices?.[0]?.message?.content || "");
+}
+
 async function callPerplexityJson(system: string, user: string, schema: JsonSchema, maxTokens: number): Promise<any> {
   const apiKey = await getSecret("PERPLEXITY_API_KEY");
   if (!apiKey) throw new Error("PERPLEXITY_API_KEY nicht konfiguriert");
@@ -203,6 +232,7 @@ export async function invokeProposalAgent(
       case "claude": return callClaudeJson(args.system, args.user, args.schema, maxTokens);
       case "perplexity": return callPerplexityJson(args.system, args.user, args.schema, maxTokens);
       case "groq": return callGroqJson(args.system, args.user, args.schema, maxTokens);
+      case "omniroute": return callOmniRouteJson(args.system, args.user, args.schema, maxTokens);
       case "kimi":
       default: return callKimiJson(args.system, args.user, args.schema, maxTokens);
     }
