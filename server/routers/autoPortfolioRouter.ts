@@ -1736,14 +1736,18 @@ Antworte im JSON-Format.`,
             const fillTexts = async () => {
               try {
                 job.progress.push(`KI-Texte (${models.text}): Titel-Begründungen formulieren...`);
-                const { result: textResult } = await invokeProposalAgent(models.text, {
+                const { result: textResult, providerUsed } = await invokeProposalAgent(models.text, {
                   system: 'Du bist ein erfahrener Schweizer Anlageberater und Aktienanalyst. Du erklärst Privatanlegern 50+ verständlich, aber inhaltlich fundiert, warum ein konkreter Titel überzeugt. Du kennst die grossen Unternehmen und ihre Geschäftsmodelle. Antworte immer auf Deutsch.',
                   user: `Formuliere für JEDE dieser Positionen ${posReasonsInstruction}\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten (u.a. Fundamentaldaten):\n${factsSummary}\n\nPositionen (mit Signalen):\n${JSON.stringify(positionSummary, null, 2)}\n\nGesamturteil der Analyse: ${agentResult.verdict ?? ''}`,
                   schema: { name: 'position_reasons', strict: true, schema: { type: 'object', properties: { positionReasons: posReasonsSchema }, required: ['positionReasons'], additionalProperties: false } },
                   maxTokens: 4096,
                 });
                 if (Array.isArray(textResult?.positionReasons)) agentResult.positionReasons = textResult.positionReasons;
-              } catch (textErr: any) { console.warn(`[startProposal] Text-Modell (${models.text}) fehlgeschlagen: ${textErr?.message}`); }
+                if (providerUsed !== models.text) job.progress.push(`KI-Texte: ${models.text} nicht verfügbar — Fallback auf ${providerUsed}.`);
+              } catch (textErr: any) {
+                console.warn(`[startProposal] Text-Modell (${models.text}) fehlgeschlagen: ${textErr?.message}`);
+                job.progress.push(`⚠️ KI-Texte fehlgeschlagen (${models.text}): ${textErr?.message ?? 'unbekannter Fehler'}`);
+              }
             };
 
             if (models.ensemble) {
@@ -1807,18 +1811,34 @@ Antworte im JSON-Format.`,
             // Individuelle Titel-Begründung (2-3 einfache Sätze) an die Positionen
             // hängen. Ersetzt das schablonenhafte Client-Template. Nur Ticker aus
             // den Positionen, leere Texte ignoriert — sonst greift der Fallback.
+            // LLMs lassen das Börsen-Suffix gern weg ("PSK" statt "PSK.TO");
+            // eindeutige Basis-Ticker werden deshalb auf den vollen Ticker
+            // zurückgeführt statt den Text stillschweigend zu verwerfen.
+            const baseTicker = (t: string) => t.split('.')[0];
+            const baseToFull = new Map<string, string | null>(); // null = mehrdeutig
+            for (const full of positionTickers) {
+              const b = baseTicker(full);
+              baseToFull.set(b, baseToFull.has(b) ? null : full);
+            }
             const reasonMap = new Map<string, string>();
             for (const pr of (agentResult.positionReasons ?? [])) {
-              const t = pr?.ticker ? String(pr.ticker).toUpperCase() : '';
+              const raw = pr?.ticker ? String(pr.ticker).toUpperCase() : '';
               const text = typeof pr?.text === 'string' ? pr.text.trim() : '';
+              if (!raw || !text) continue;
+              const t = positionTickers.has(raw) ? raw : (baseToFull.get(baseTicker(raw)) ?? '');
+              if (!t) continue;
               // Manche Modelle liefern (ohne striktes Schema, z.B. Groq) mehrere
               // Einträge je Ticker (ein Satz pro Eintrag). Zusammenführen statt
               // überschreiben, sonst bliebe nur der letzte Satz übrig.
-              if (t && text && positionTickers.has(t)) {
-                reasonMap.set(t, reasonMap.has(t) ? `${reasonMap.get(t)} ${text}` : text);
-              }
+              reasonMap.set(t, reasonMap.has(t) ? `${reasonMap.get(t)} ${text}` : text);
             }
             for (const p of positions) { const t = reasonMap.get(p.ticker.toUpperCase()); if (t) (p as any).aiReason = t; }
+            // Sichtbar machen, ob die individuellen Texte wirklich angekommen
+            // sind — bisher schlug das nur als console.warn auf und der Client
+            // fiel kommentarlos aufs Template zurück.
+            job.progress.push(reasonMap.size > 0
+              ? `KI-Texte: ${reasonMap.size}/${positions.length} Titel individuell begründet.`
+              : `⚠️ KI-Texte: keine individuellen Begründungen erhalten — die Titel zeigen die Standard-Begründung.`);
 
             const challengerResult = {
               critique: agentResult.critique ?? '',
