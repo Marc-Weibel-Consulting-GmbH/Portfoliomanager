@@ -16,7 +16,7 @@
 import { invokeKimi, invokeLLM, type JsonSchema } from "../_core/llm";
 import { getSecret } from "../_core/secretsManager";
 
-export type ProposalProvider = "kimi" | "gemini" | "claude" | "perplexity";
+export type ProposalProvider = "kimi" | "gemini" | "claude" | "perplexity" | "groq";
 export type ProposalRole = "analysis" | "text";
 
 export interface ProposalModelConfig {
@@ -34,9 +34,10 @@ export const PROVIDER_LABELS: Record<ProposalProvider, string> = {
   gemini: "Gemini 2.5 Flash (Manus)",
   claude: "Claude 3.5 Sonnet (Anthropic)",
   perplexity: "Perplexity Sonar",
+  groq: "Groq Llama 3.3 70B (gratis)",
 };
 
-const VALID_PROVIDERS: ProposalProvider[] = ["kimi", "gemini", "claude", "perplexity"];
+const VALID_PROVIDERS: ProposalProvider[] = ["kimi", "gemini", "claude", "perplexity", "groq"];
 
 /** Lädt die Rollen-Modell-Konfiguration aus appSettings. Fallback: Defaults. */
 export async function getProposalModelConfig(): Promise<ProposalModelConfig> {
@@ -123,6 +124,25 @@ async function callClaudeJson(system: string, user: string, schema: JsonSchema, 
   return extractJson(data.content?.[0]?.text || "");
 }
 
+async function callGroqJson(system: string, user: string, schema: JsonSchema, maxTokens: number): Promise<any> {
+  const apiKey = await getSecret("GROQ_API_KEY");
+  if (!apiKey) throw new Error("GROQ_API_KEY nicht konfiguriert");
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      max_tokens: maxTokens,
+      // Groq erzwingt gültiges JSON via json_object; das Schema kommt als Anweisung dazu.
+      response_format: { type: "json_object" },
+      messages: [{ role: "system", content: system + jsonInstruction(schema) }, { role: "user", content: user }],
+    }),
+  });
+  if (!res.ok) throw new Error(`Groq ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return extractJson(data.choices?.[0]?.message?.content || "");
+}
+
 async function callPerplexityJson(system: string, user: string, schema: JsonSchema, maxTokens: number): Promise<any> {
   const apiKey = await getSecret("PERPLEXITY_API_KEY");
   if (!apiKey) throw new Error("PERPLEXITY_API_KEY nicht konfiguriert");
@@ -167,6 +187,7 @@ export async function invokeProposalAgent(
       case "gemini": return callGeminiJson(args.system, args.user, args.schema, maxTokens);
       case "claude": return callClaudeJson(args.system, args.user, args.schema, maxTokens);
       case "perplexity": return callPerplexityJson(args.system, args.user, args.schema, maxTokens);
+      case "groq": return callGroqJson(args.system, args.user, args.schema, maxTokens);
       case "kimi":
       default: return callKimiJson(args.system, args.user, args.schema, maxTokens);
     }
