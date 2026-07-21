@@ -20,13 +20,24 @@ export type ProposalProvider = "kimi" | "gemini" | "claude" | "perplexity" | "gr
 export type ProposalRole = "analysis" | "text";
 
 export interface ProposalModelConfig {
+  /** Qualitätsmodus: zwei Challenger parallel → Synthese → Text (statt Ein-Aufruf). */
+  ensemble: boolean;
+  /** Analyse-Modell; im Ensemble-Modus zugleich Challenger A. */
   analysis: ProposalProvider;
+  /** Ensemble: der zweite Challenger (bewusst andere Modell-Familie). */
+  challengerB: ProposalProvider;
+  /** Ensemble: der Synthesizer, der beide Kritiken abwägt. */
+  synthesis: ProposalProvider;
+  /** Titel-Texte je Position. Default nicht Kimi (schwach bei deutscher Prosa). */
   text: ProposalProvider;
 }
 
 export const DEFAULT_PROPOSAL_MODELS: ProposalModelConfig = {
+  ensemble: false,
   analysis: "kimi",
-  text: "kimi",
+  challengerB: "gemini",
+  synthesis: "kimi",
+  text: "gemini",
 };
 
 export const PROVIDER_LABELS: Record<ProposalProvider, string> = {
@@ -50,9 +61,13 @@ export async function getProposalModelConfig(): Promise<ProposalModelConfig> {
     const rows = await db.select().from(appSettings).where(eq(appSettings.key, "proposal_agent_models"));
     const raw = rows[0]?.value as any;
     const cfg = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const pick = (v: any, def: ProposalProvider): ProposalProvider => (VALID_PROVIDERS.includes(v) ? v : def);
     return {
-      analysis: VALID_PROVIDERS.includes(cfg?.analysis) ? cfg.analysis : DEFAULT_PROPOSAL_MODELS.analysis,
-      text: VALID_PROVIDERS.includes(cfg?.text) ? cfg.text : DEFAULT_PROPOSAL_MODELS.text,
+      ensemble: cfg?.ensemble === true,
+      analysis: pick(cfg?.analysis, DEFAULT_PROPOSAL_MODELS.analysis),
+      challengerB: pick(cfg?.challengerB, DEFAULT_PROPOSAL_MODELS.challengerB),
+      synthesis: pick(cfg?.synthesis, DEFAULT_PROPOSAL_MODELS.synthesis),
+      text: pick(cfg?.text, DEFAULT_PROPOSAL_MODELS.text),
     };
   } catch {
     return { ...DEFAULT_PROPOSAL_MODELS };
