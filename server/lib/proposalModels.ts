@@ -34,9 +34,9 @@ export interface ProposalModelConfig {
 
 export const DEFAULT_PROPOSAL_MODELS: ProposalModelConfig = {
   ensemble: false,
-  analysis: "kimi",
+  analysis: "omniroute",
   challengerB: "gemini",
-  synthesis: "kimi",
+  synthesis: "omniroute",
   text: "gemini",
 };
 
@@ -170,13 +170,14 @@ async function callOmniRouteJson(system: string, user: string, schema: JsonSchem
   const apiKey = await getSecret("OMNIROUTE_API_KEY");
   if (!base) throw new Error("OMNIROUTE_URL nicht konfiguriert");
   if (!apiKey) throw new Error("OMNIROUTE_API_KEY nicht konfiguriert");
-  const model = (await getSecret("OMNIROUTE_MODEL")) || "auto";
+  const model = (await getSecret("OMNIROUTE_MODEL")) || "auto/smart";
   const url = base.endsWith("/v1") ? `${base}/chat/completions` : `${base}/v1/chat/completions`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
+      stream: false,
       max_tokens: maxTokens,
       response_format: { type: "json_object" },
       messages: [{ role: "system", content: system + jsonInstruction(schema) }, { role: "user", content: user }],
