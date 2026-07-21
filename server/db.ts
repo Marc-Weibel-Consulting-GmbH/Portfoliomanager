@@ -1637,7 +1637,7 @@ export async function activatePortfolio(
     // Fetch fresh current prices from the stocks table to avoid stale portfolioData prices
     const { stocks: stocksTable } = await import("../drizzle/schema");
     const tickers = holdings.map((h: any) => h.ticker).filter(Boolean);
-    let freshPriceMap = new Map<string, { price: number; currency: string; fxRate: number }>();
+    const freshPriceMap = new Map<string, { price: number; currency: string; fxRate: number }>();
     if (tickers.length > 0) {
       try {
         const stockRows = await db.select().from(stocksTable).where(inArray(stocksTable.ticker, tickers));

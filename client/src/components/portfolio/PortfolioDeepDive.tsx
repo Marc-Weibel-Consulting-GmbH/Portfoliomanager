@@ -85,8 +85,8 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
     if (!data?.holdings) return [];
     const rows = [...data.holdings];
     rows.sort((a: any, b: any) => {
-      let av = a[sortKey];
-      let bv = b[sortKey];
+      const av = a[sortKey];
+      const bv = b[sortKey];
 
       // Nulls always last regardless of direction
       if (av === null || av === undefined) return 1;

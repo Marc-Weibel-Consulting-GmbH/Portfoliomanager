@@ -126,7 +126,7 @@ export const investRouter = router({
         }
 
         // Build recommendation
-        let recommendation: { signal: string; strength: string; reasons: string[] } = {
+        const recommendation: { signal: string; strength: string; reasons: string[] } = {
           signal: "hold",
           strength: "neutral",
           reasons: [],

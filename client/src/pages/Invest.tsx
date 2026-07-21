@@ -74,7 +74,7 @@ export default function Invest() {
       setActiveDimension(filterParam as FilterDimension);
       setShowFilters(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [searchString]);
 
   // Write the active dimension to the URL (?filter=) so it is shareable and

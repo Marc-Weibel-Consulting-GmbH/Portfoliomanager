@@ -2249,7 +2249,7 @@ export const portfoliosRouter = router({
         
         // Generate daily portfolio values
         const chartData: { date: string; portfolio: number; portfolioInclCash: number; benchmark: number }[] = [];
-        let currentHoldings = { ...holdingsAtYtdStart };
+        const currentHoldings = { ...holdingsAtYtdStart };
         let txIndex = 0;
         
         // Fetch benchmark prices
@@ -2883,7 +2883,7 @@ export const portfoliosRouter = router({
       
       // Calculate portfolio value for each date
       const sparklineData: { date: string; value: number }[] = [];
-      let lastKnownPrices: Record<string, number> = {};
+      const lastKnownPrices: Record<string, number> = {};
       
       for (const date of sortedDates) {
         let portfolioValue = 0;

@@ -246,7 +246,7 @@ async function createBacktestPortfolio(
   // Gewichtung (score-proportional mit Cap)
   const maxCap = Math.max(params.maxPositionWeight, 1.2 / selected.length);
   const total = selected.reduce((s, c) => s + c.combinedScore, 0) || 1;
-  let weights: Record<string, number> = {};
+  const weights: Record<string, number> = {};
   selected.forEach((c) => { weights[c.stock.ticker] = c.combinedScore / total; });
 
   // Cap-Normierung
