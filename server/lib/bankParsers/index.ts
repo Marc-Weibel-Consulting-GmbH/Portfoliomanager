@@ -8,8 +8,8 @@
  *   2. Swissquote -> bewaehrter deterministischer Parser
  *      (server/lib/swissquoteParser.ts, unveraendert).
  *   3. Alle anderen Banken (LUKB, UBS, ZKB, PostFinance, Raiffeisen,
- *      Credit Suisse, Saxo, DEGIRO, finpension, IBKR, unbekannt) ->
- *      generische KI-Extraktion via invokeLLM + json_schema.
+ *      Credit Suisse, Privatbank Reichmuth & Co, Saxo, DEGIRO, finpension,
+ *      IBKR, unbekannt) -> generische KI-Extraktion via invokeLLM + json_schema.
  *      Ergebnis wird serverseitig validiert (ISIN-Format, Plausibilitaet,
  *      Duplikate) und mit parserUsed="llm" + Warnhinweis markiert, damit
  *      der Review-Dialog den Nutzer zur Kontrolle auffordern kann.
@@ -27,6 +27,7 @@ import {
 
 export type BankId =
   | "swissquote"
+  | "reichmuth"
   | "lukb"
   | "ubs"
   | "credit_suisse"
@@ -81,6 +82,18 @@ const BANK_SIGNATURES: Array<{
   patterns: RegExp[];
 }> = [
   { id: "swissquote", name: "Swissquote", patterns: [/swissquote/i] },
+  {
+    // Reichmuth & Co (Luzerner Privatbank) nutzt die LUKB als Depotbank —
+    // beide Namen stehen im Auszug. Reichmuth ist der Aussteller und wird
+    // deshalb VOR der LUKB geprueft; drei Muster geben zudem mehr Score.
+    id: "reichmuth",
+    name: "Privatbank Reichmuth & Co",
+    patterns: [
+      /reichmuth\s*&\s*co/i,
+      /privatbank\s+reichmuth/i,
+      /\breichmuth\b/i,
+    ],
+  },
   {
     id: "lukb",
     name: "Luzerner Kantonalbank",
