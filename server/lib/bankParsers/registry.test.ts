@@ -12,7 +12,7 @@ describe("detectBank", () => {
 
   it("erkennt die Luzerner Kantonalbank (LUKB)", () => {
     const r = detectBank(
-      "Luzerner Kantonalbank\nHeller Dora Erben\nDepotauszug Reichmuth per 23.04.2025"
+      "Luzerner Kantonalbank\nHeller Dora Erben\nDepotauszug per 23.04.2025"
     );
     expect(r.bankId).toBe("lukb");
     expect(r.bankName).toBe("Luzerner Kantonalbank");
@@ -21,6 +21,23 @@ describe("detectBank", () => {
   it("erkennt LUKB auch ueber das Kuerzel", () => {
     const r = detectBank("LUKB Depot 12.34567.89\nAuszug per 01.01.2026");
     expect(r.bankId).toBe("lukb");
+  });
+
+  it("erkennt Privatbank Reichmuth & Co trotz LUKB als Depotbank", () => {
+    // Reichmuth-Ausweise nennen die LUKB als depotfuehrende Bank — der
+    // Aussteller (Reichmuth) muss gegen die Depotbank gewinnen.
+    const r = detectBank(
+      "Privatbank Reichmuth & Co\nHeller Dora Erben\nDepotauszug per 23.04.2025\nDepotbank: Luzerner Kantonalbank"
+    );
+    expect(r.bankId).toBe("reichmuth");
+    expect(r.bankName).toBe("Privatbank Reichmuth & Co");
+  });
+
+  it("erkennt Reichmuth auch ueber den Dokumenttitel 'Depotauszug Reichmuth'", () => {
+    const r = detectBank(
+      "Reichmuth & Co\nDepotauszug Reichmuth per 23.04.2025\nLuzerner Kantonalbank als Depotbank"
+    );
+    expect(r.bankId).toBe("reichmuth");
   });
 
   it("erkennt UBS", () => {
