@@ -238,6 +238,7 @@ type EditablePosition = {
   exchangeRateToChf: number;
   weightPct: number;
   originalWeightPct?: number; // Original KI-Gewicht für Vergleich
+  aiReason?: string; // KI-generierte Positionsbegründung
 };
 
 function PositionEditor({
@@ -453,6 +454,7 @@ function ApprovePanel({
     exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
     weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
     originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0, // Snapshot des Original-Gewichts
+    aiReason: typeof p.aiReason === 'string' ? p.aiReason : undefined,
   }));
   const [portfolioName, setPortfolioName] = useState(`KI-Portfolio #${row.id}`);
   const [investmentAmount, setInvestmentAmount] = useState(String(row.investmentAmount ?? 10000));
@@ -963,6 +965,7 @@ export default function AdminProposalAnalysis() {
                           exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
                           weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
                           originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                          aiReason: typeof p.aiReason === 'string' ? p.aiReason : undefined,
                         }));
 
                         const effectivePositions: EditablePosition[] = approvePositions.length > 0 ? approvePositions : rawPos;
@@ -1229,17 +1232,18 @@ export default function AdminProposalAnalysis() {
                         {/* Save-and-return button — always visible, uses effective positions */}
                         {(() => {
                           const savePositions = approvePositions.length > 0
-                            ? approvePositions
-                            : (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
-                                ticker: p.ticker ?? "",
-                                companyName: p.companyName ?? p.ticker ?? "",
-                                sector: p.sector,
-                                currency: p.currency ?? "CHF",
-                                currentPrice: parseFloat(p.currentPrice ?? p.currentPriceCHF ?? "0") || 0,
-                                exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
-                                weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
-                                originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
-                              }));
+            ? approvePositions
+            : (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
+                ticker: p.ticker ?? "",
+                companyName: p.companyName ?? p.ticker ?? "",
+                sector: p.sector,
+                currency: p.currency ?? "CHF",
+                currentPrice: parseFloat(p.currentPrice ?? p.currentPriceCHF ?? "0") || 0,
+                exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
+                weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                aiReason: typeof p.aiReason === 'string' ? p.aiReason : undefined,
+              }));
                           return (
                             <Button
                               size="sm"

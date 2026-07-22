@@ -1797,6 +1797,7 @@ export const adminRouter = router({
         currency: z.string().optional(),
         weightPct: z.number(),
         originalWeightPct: z.number().optional(),
+        aiReason: z.string().optional(),
       })),
       adminComments: z.record(z.string(), z.string()).optional(),
     }))
