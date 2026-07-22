@@ -551,6 +551,16 @@ export default function PortfolioBuilderWizard() {
         currentPrice: (p.currentPrice != null && p.currentPrice !== 0) ? p.currentPrice : (orig?.currentPrice ?? 0),
         exchangeRateToChf: (p.exchangeRateToChf != null && p.exchangeRateToChf !== 0) ? p.exchangeRateToChf : (orig?.exchangeRateToChf ?? 1),
         companyName: p.companyName ?? orig?.companyName ?? p.ticker,
+        // Übertrage aiReason aus den Original-Positionen falls nicht vorhanden
+        aiReason: (typeof p.aiReason === 'string' && p.aiReason.trim()) ? p.aiReason : (orig?.aiReason ?? undefined),
+        // Übertrage weitere Felder aus Original-Positionen für die Anzeige
+        signal: p.signal ?? orig?.signal,
+        combinedScore: p.combinedScore ?? orig?.combinedScore,
+        sector: p.sector ?? orig?.sector,
+        currency: p.currency ?? orig?.currency,
+        dividendYield: p.dividendYield ?? orig?.dividendYield,
+        ytdPerf: p.ytdPerf ?? orig?.ytdPerf,
+        reason: p.reason ?? orig?.reason,
       };
     });
     const capital = parseFloat(initialCapital) || 100000;
@@ -563,7 +573,8 @@ export default function PortfolioBuilderWizard() {
       hrp: 'HRP',
     };
     setAutoProposal({
-      positions: proposal.positions,
+      // Verwende reviewedPositions als positions (mit aiReason + Admin-Gewichten)
+      positions: reviewedPositions,
       adjustedPositions: reviewedPositions,
       finalAdjustments: proposal.finalAdjustments,
       synthesizerVerdict: proposal.synthesizerVerdict,

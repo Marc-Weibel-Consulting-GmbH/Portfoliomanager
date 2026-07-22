@@ -154,8 +154,15 @@ async function callGroqJson(system: string, user: string, schema: JsonSchema, ma
       messages: [{ role: "system", content: system + jsonInstruction(schema) }, { role: "user", content: user }],
     }),
   });
-  if (!res.ok) throw new Error(`Groq ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error(`[callGroqJson] HTTP ${res.status}: ${errText.substring(0, 400)}`);
+    throw new Error(`Groq ${res.status}: ${errText}`);
+  }
   const data = await res.json();
+  const finishReason = data.choices?.[0]?.finish_reason;
+  const tokens = data.usage?.completion_tokens;
+  console.log(`[callGroqJson] OK — finish_reason=${finishReason}, completion_tokens=${tokens}`);
   return extractJson(data.choices?.[0]?.message?.content || "");
 }
 
