@@ -89,7 +89,7 @@ interface DepotauszugPosition {
   avgPurchasePrice: number | null;
   marketPrice: number | null;
   marketValueCHF: number | null;
-  assetType: 'stock' | 'crypto' | 'cash';
+  assetType: 'stock' | 'bond' | 'commodity' | 'crypto' | 'cash';
 }
 
 export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComplete }: Props) {
@@ -429,8 +429,17 @@ export function SwissquotePDFImport({ portfolioId, portfolioName, onImportComple
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className={pos.assetType === 'crypto' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs' : 'bg-green-500/20 text-green-400 border-green-500/30 text-xs'}>
-                        {pos.assetType === 'crypto' ? 'Krypto' : 'Aktie'}
+                      <Badge variant="outline" className={
+                        pos.assetType === 'crypto' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs' :
+                        pos.assetType === 'bond' ? 'bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs' :
+                        pos.assetType === 'commodity' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-xs' :
+                        pos.assetType === 'cash' ? 'bg-gray-500/20 text-gray-400 border-gray-500/30 text-xs' :
+                        'bg-green-500/20 text-green-400 border-green-500/30 text-xs'
+                      }>
+                        {pos.assetType === 'crypto' ? 'Krypto' :
+                         pos.assetType === 'bond' ? 'Obligation' :
+                         pos.assetType === 'commodity' ? 'Rohwaren/Gold' :
+                         pos.assetType === 'cash' ? 'Cash' : 'Aktie/ETF'}
                       </Badge>
                       <span className="text-white text-sm font-medium truncate max-w-[220px]">{pos.name}</span>
                       {pos.isin && <span className="text-gray-500 text-xs font-mono">{pos.isin}</span>}

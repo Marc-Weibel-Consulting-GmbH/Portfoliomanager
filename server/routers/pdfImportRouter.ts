@@ -112,7 +112,7 @@ export const pdfImportRouter = router({
             avgPurchasePrice: z.number().nullable(),
             marketPrice: z.number().nullable(),
             marketValueCHF: z.number().nullable(),
-            assetType: z.enum(["stock", "crypto", "cash"]),
+            assetType: z.enum(["stock", "bond", "commodity", "crypto", "cash"]),
           })
         ),
       })
@@ -177,7 +177,8 @@ export const pdfImportRouter = router({
           let totalAmountCHF = totalAmount;
           let fxRate: number | null = null;
 
-          if (pos.currency !== "CHF" && pos.assetType !== "crypto") {
+          const isCryptoAsset = pos.assetType === "crypto";
+          if (pos.currency !== "CHF" && !isCryptoAsset) {
             fxRate = await tryGetFxRate(txDate, `${pos.currency}CHF`);
             if (fxRate) {
               totalAmountCHF = totalAmount * fxRate;
@@ -185,7 +186,7 @@ export const pdfImportRouter = router({
               // Fallback: use market value CHF from the PDF
               totalAmountCHF = pos.marketValueCHF;
             }
-          } else if (pos.assetType === "crypto" && pos.marketValueCHF) {
+          } else if (isCryptoAsset && pos.marketValueCHF) {
             totalAmountCHF = pos.marketValueCHF;
           }
 
@@ -195,7 +196,7 @@ export const pdfImportRouter = router({
             ticker: resolvedTicker,
             shares: pos.quantity.toString(),
             pricePerShare: pricePerShare > 0 ? pricePerShare.toString() : null,
-            currency: pos.assetType === "crypto" ? "CHF" : pos.currency,
+            currency: isCryptoAsset ? "CHF" : pos.currency,
             totalAmount: totalAmount.toString(),
             fxRate: fxRate ? fxRate.toString() : null,
             totalAmountCHF: totalAmountCHF.toString(),
@@ -209,7 +210,7 @@ export const pdfImportRouter = router({
           importedStocks.push({
             ticker: resolvedTicker,
             name: pos.name,
-            currency: pos.assetType === "crypto" ? "CHF" : pos.currency,
+            currency: isCryptoAsset ? "CHF" : pos.currency,
             quantity: pos.quantity,
             avgPurchasePrice: pricePerShare,
             marketPrice: pos.marketPrice,

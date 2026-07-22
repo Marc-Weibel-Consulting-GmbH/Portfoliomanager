@@ -230,8 +230,8 @@ const EXTRACTION_SCHEMA = {
             },
             assetType: {
               type: "string",
-              enum: ["stock", "crypto", "cash"],
-              description: "'crypto' nur fuer Kryptowaehrungen, sonst 'stock'",
+              enum: ["stock", "bond", "commodity", "crypto", "cash"],
+              description: "'bond' fuer Obligationen/Anleihen, 'commodity' fuer Gold-/Rohwaren-ETFs und physische Rohstoffe, 'crypto' fuer Kryptowaehrungen und Krypto-Zertifikate/-ETPs, 'cash' fuer Geldmarkt/Konto, sonst 'stock'",
             },
           },
           required: [
@@ -273,7 +273,13 @@ function buildExtractionPrompt(rawText: string, detection: BankDetection) {
         "- Schweizer Zahlenformat: 1'234.56 bedeutet 1234.56. Apostrophe entfernen.\n" +
         "- Datumsformate DD.MM.YYYY nach YYYY-MM-DD umwandeln.\n" +
         "- Fehlende Werte als null angeben, NICHT schaetzen.\n" +
-        "- Jede Position nur einmal (keine Subtotal-/Gruppenzeilen als Positionen).",
+        "- Jede Position nur einmal (keine Subtotal-/Gruppenzeilen als Positionen).\n" +
+        "- assetType-Klassifikation (WICHTIG):\n" +
+        "  'bond': Obligationen, Anleihen, Bonds, Schuldverschreibungen (erkennbar an Kupon %, Faelligkeit, ISIN-Prefix CH/XS/US/DE mit Laufzeit).\n" +
+        "  'commodity': Gold-ETFs, Silber-ETFs, Rohwaren-ETFs, physisches Gold/Silber (Swisscanto Gold ETF, iShares Gold, ETFS Physical Gold etc.).\n" +
+        "  'crypto': Kryptowaehrungen (BTC, ETH etc.), Krypto-Zertifikate (Vontobel BTC, 21Shares etc.), Krypto-ETPs/ETNs.\n" +
+        "  'cash': Geldmarktfonds, Liquiditaet, Kontosalden.\n" +
+        "  'stock': Alles andere (Aktien, Aktien-ETFs, Aktienfonds, REITs).",
     },
     {
       role: "user",
@@ -372,8 +378,13 @@ export async function extractPositionsViaLlm(
       .toUpperCase()
       .slice(0, 3);
 
-    const assetType =
-      p?.assetType === "crypto" ? ("crypto" as const) : ("stock" as const);
+    const rawAssetType = String(p?.assetType ?? "stock");
+    const assetType: DepotauszugPosition["assetType"] =
+      rawAssetType === "bond" ? "bond" :
+      rawAssetType === "commodity" ? "commodity" :
+      rawAssetType === "crypto" ? "crypto" :
+      rawAssetType === "cash" ? "cash" :
+      "stock";
 
     const dedupeKey = `${isin ?? name.toLowerCase()}|${quantity}`;
     if (seen.has(dedupeKey)) continue;

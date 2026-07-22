@@ -445,3 +445,20 @@
 - [x] Feature: Fortschrittsbalken beim Portfolio-Erstellen (Schritt 5)
 - [x] Feature: Fortschrittsbalken beim KI-Vorschlag erstellen (mit Zeitschätzung + Step-Log)
 - [x] Feature: Fortschrittsbalken im Deep Dive (mit Zeitschätzung + EODHD-Hinweis)
+
+## Neue Anlageklassen: Gold-ETF, Krypto, Obligationen (Jul 2026)
+- [ ] Importlogik: Obligationen (Bonds) erkennen und als Anlageklasse "Bond" / "Fixed Income" klassifizieren (ISIN-Prefix CH/XS/US + Kupon/Fälligkeit als Erkennungsmerkmal)
+- [ ] Importlogik: Gold-ETF erkennen und als Anlageklasse "Commodity" / "Gold" klassifizieren (Swisscanto Gold ETF CH0139101601, iShares Gold etc.)
+- [ ] Importlogik: Krypto-Zertifikate/ETPs erkennen und als Anlageklasse "Crypto" klassifizieren (VONT BTC/USD CH0595154060, Bitcoin-ETPs etc.)
+- [ ] DB-Schema: assetClass-Feld in stocks/savedPortfolios erweitern um neue Werte: "Bond", "Commodity", "Crypto", "Real Estate", "Cash"
+- [ ] Preisabruf: Für Obligationen historische Preise via EODHD abrufen (ISIN.EUFUND oder .SWX Exchange)
+- [ ] Preisabruf: Für Gold-ETF historische Preise via EODHD abrufen (CHSPI.SW-ähnliche Ticker)
+- [ ] Preisabruf: Für Krypto-Zertifikate historische Preise abrufen (via EODHD oder Fallback auf BTC-Preis)
+- [ ] Dashboard Allokation: Neue Anlageklassen in Allokations-Donut-Chart anzeigen (Bond, Commodity, Crypto)
+- [ ] Portfolio-Anzeige: Anlageklasse-Badge pro Position anzeigen (analog zu Sektor-Badge)
+
+## Neue Anlageklassen: Gold-ETF, Krypto, Obligationen (Jul 2026)
+- [x] assetType enum erweitert: 'bond' | 'commodity' | 'crypto' | 'cash' | 'stock' in bankParsers/index.ts, swissquoteParser.ts, pdfImportRouter.ts, SwissquotePDFImport.tsx
+- [x] KI-Extraktions-Prompt: Klassifikationsregeln für Obligationen, Gold-ETFs, Krypto-Zertifikate
+- [x] isinResolver: Bond und Fund Typen von EODHD/Yahoo akzeptiert
+- [x] SwissquotePDFImport: Badge-Anzeige für alle Anlageklassen (Obligation=blau, Rohwaren/Gold=gelb, Krypto=lila, Cash=grau, Aktie/ETF=grün)
