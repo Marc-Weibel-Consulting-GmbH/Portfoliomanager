@@ -54,7 +54,7 @@ function RunRow({ run, onSelect, selected }: { run: any; onSelect: (id: number) 
         <TableCell className="font-medium">
           <div className="flex items-center gap-2">
             {selected ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-            {run.runMonth}
+            {run.runMonth instanceof Date ? run.runMonth.toISOString().split('T')[0] : String(run.runMonth)}
           </div>
         </TableCell>
         <TableCell>{statusBadge(run.status)}</TableCell>
