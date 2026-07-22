@@ -28,6 +28,7 @@ import { initLpplBubbleAlertCron } from "../cron/lpplBubbleAlertCron";
 import { initMlTrainingCron } from "../cron/mlTrainingCron";
 import { initSignalEvaluationCron } from "../cron/signalEvaluationCron";
 import { initSignalCacheCron } from "../cron/signalCacheCron";
+import { initWikifolioSyncCron } from "../cron/wikifolioSyncCron";
 import { initMarketAnalysisCron } from "../cron/marketAnalysisCron";
 import { initKiBoomHistoryCron } from "../cron/kiBoomHistoryCron";
 import { initKiBoomDynamicCron } from "../cron/kiBoomDynamicCron";
@@ -228,6 +229,8 @@ async function startServer() {
     initSignalEvaluationCron();
     // Start signal cache cron (pre-computes signals every 2h for fast portfolio signal loading)
     initSignalCacheCron();
+    // Start wikifolio trades sync cron (B5: daily sync of tracked wikifolio trades for consensus signal)
+    initWikifolioSyncCron();
     // Start market analysis cron (daily 08:00 CET = 07:00 UTC)
     initMarketAnalysisCron();
     // Start recommendation cron (Track D: daily due-check per portfolio cadence)

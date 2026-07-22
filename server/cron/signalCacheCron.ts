@@ -63,6 +63,59 @@ export async function refreshSignalCache(): Promise<void> {
     const optimizedWeights = await getActiveWeights();
     const blendConfig = await getRegimeBlendConfig();
 
+    // B5: Wikifolio-Konsens-Signal vorab laden (einmal für alle Tickers)
+    let wikifolioConsensusMap: Map<string, { score: number; signal: string; buyCount: number; sellCount: number }> = new Map();
+    try {
+      const { computeWikifolioConsensus } = await import("../lib/wikifolioConsensus");
+      const { wikifolioTrades: wikifolioTradesTable, wikifolios: wikifoliosTable } = await import("../../drizzle/schema");
+      const { isNotNull: isNotNullWiki } = await import("drizzle-orm");
+      // Alle Trades der letzten 60 Tage aus verfolgten Wikifolios laden
+      const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+      const { gte: gteWiki, and: andWiki } = await import("drizzle-orm");
+      const trackedWikis = await db
+        .select({ id: wikifoliosTable.id, sharpeRatio: wikifoliosTable.sharpeRatio })
+        .from(wikifoliosTable)
+        .where(eq(wikifoliosTable.isTracked, 1));
+      if (trackedWikis.length > 0) {
+        const trackedIds = trackedWikis.map(w => w.id);
+        const { inArray: inArrayWiki } = await import("drizzle-orm");
+        const recentTrades = await db
+          .select({
+            wikifolioId: wikifolioTradesTable.wikifolioId,
+            resolvedTicker: wikifolioTradesTable.resolvedTicker,
+            side: wikifolioTradesTable.side,
+            executedAt: wikifolioTradesTable.executedAt,
+          })
+          .from(wikifolioTradesTable)
+          .where(andWiki(
+            inArrayWiki(wikifolioTradesTable.wikifolioId, trackedIds),
+            isNotNullWiki(wikifolioTradesTable.resolvedTicker),
+            gteWiki(wikifolioTradesTable.executedAt, cutoff),
+          ));
+        const sharpeByWikiId = new Map(trackedWikis.map(w => [w.id, w.sharpeRatio ? parseFloat(String(w.sharpeRatio)) : null]));
+        const consensusInput = recentTrades.map(t => ({
+          wikifolioId: t.wikifolioId,
+          resolvedTicker: t.resolvedTicker,
+          side: t.side as 'buy' | 'sell' | 'other',
+          executedAt: t.executedAt ? t.executedAt.toISOString() : null,
+          sharpe: sharpeByWikiId.get(t.wikifolioId) ?? null,
+        }));
+        const results = computeWikifolioConsensus(consensusInput, { asOfMs: Date.now(), windowDays: 30, minWikifolios: 1 });
+        for (const r of results) {
+          if (r.netDirection === 'neutral') continue; // Nur echte Kauf/Verkauf-Signale speichern
+          wikifolioConsensusMap.set(r.ticker, {
+            score: r.score,
+            signal: r.netDirection === 'buy' ? 'buy_consensus' : 'sell_consensus',
+            buyCount: r.buyWikifolios,
+            sellCount: r.sellWikifolios,
+          });
+        }
+        console.log(`[signalCacheCron] Wikifolio-Konsens: ${results.length} Ticker mit Signal aus ${trackedWikis.length} Wikifolios`);
+      }
+    } catch (e) {
+      console.warn('[signalCacheCron] Wikifolio-Konsens-Fehler (nicht fatal):', (e as Error).message);
+    }
+
     let saved = 0;
     let failed = 0;
     const BATCH_SIZE = 5;
@@ -309,6 +362,11 @@ export async function refreshSignalCache(): Promise<void> {
               bubbleRegime: bubbleRegime ?? null,
               sentimentScore: null,
               sentimentLabel: null,
+              // B5: Wikifolio-Konsens-Signal
+              wikifolioScore: wikifolioConsensusMap.get(ticker)?.score ?? null,
+              wikifolioSignal: wikifolioConsensusMap.get(ticker)?.signal ?? null,
+              wikifolioBuyCount: wikifolioConsensusMap.get(ticker)?.buyCount ?? null,
+              wikifolioSellCount: wikifolioConsensusMap.get(ticker)?.sellCount ?? null,
               computedAt: new Date(),
             }).onDuplicateKeyUpdate({
               set: {
@@ -338,6 +396,11 @@ export async function refreshSignalCache(): Promise<void> {
                 overallGrade: overallGrade ?? null,
                 bubbleScore: bubbleScore !== undefined ? bubbleScore.toFixed(4) : null,
                 bubbleRegime: bubbleRegime ?? null,
+                // B5: Wikifolio-Konsens-Signal
+                wikifolioScore: wikifolioConsensusMap.get(ticker)?.score ?? null,
+                wikifolioSignal: wikifolioConsensusMap.get(ticker)?.signal ?? null,
+                wikifolioBuyCount: wikifolioConsensusMap.get(ticker)?.buyCount ?? null,
+                wikifolioSellCount: wikifolioConsensusMap.get(ticker)?.sellCount ?? null,
                 computedAt: new Date(),
               },
             });

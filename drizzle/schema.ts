@@ -1146,6 +1146,11 @@ export const stockSignalCache = mysqlTable("stock_signal_cache", {
   bubbleRegime: varchar("bubbleRegime", { length: 50 }),
   sentimentScore: int("sentimentScore"),
   sentimentLabel: varchar("sentimentLabel", { length: 50 }),
+  // Wikifolio-Konsens-Signal (B5): gewichteter Score aus verfolgten Wikifolios
+  wikifolioScore: int("wikifolioScore"), // -100..100, positiv = Kauf-Konsens
+  wikifolioSignal: varchar("wikifolioSignal", { length: 50 }), // z.B. "3 Wikifolios kauften (30d)"
+  wikifolioBuyCount: int("wikifolioBuyCount"),
+  wikifolioSellCount: int("wikifolioSellCount"),
   computedAt: timestamp("computedAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (t) => ({

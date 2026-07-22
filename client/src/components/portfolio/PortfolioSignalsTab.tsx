@@ -439,7 +439,13 @@ export function PortfolioSignalsTab({
                       const rfIsSell = signal.rfSignal === 'sell' || signal.rfSignal === 'strong_sell';
                       const rfAgrees = signal.rfSignal && ((finalIsBuy && rfIsBuy) || (finalIsSell && rfIsSell));
                       const showSentiment = signal.sentimentLabel && signal.sentimentLabel !== 'neutral';
-                      if (!rfAgrees && !showSentiment) return null;
+                      // B5: Wikifolio-Konsens-Signal
+                      const wikifolioIsBuy = (signal as any).wikifolioSignal === 'buy_consensus';
+                      const wikifolioIsSell = (signal as any).wikifolioSignal === 'sell_consensus';
+                      const wikifolioBuyCount = (signal as any).wikifolioBuyCount as number | undefined;
+                      const wikifolioSellCount = (signal as any).wikifolioSellCount as number | undefined;
+                      const showWikifolio = wikifolioIsBuy || wikifolioIsSell;
+                      if (!rfAgrees && !showSentiment && !showWikifolio) return null;
                       return (
                         <div className="text-[11px] text-muted-foreground border-t border-border pt-2 mt-1">
                           <span className="font-medium text-foreground/60">Bestätigende Indikatoren: </span>
@@ -451,9 +457,16 @@ export function PortfolioSignalsTab({
                             </span>
                           )}
                           {showSentiment && (
-                            <span>
+                            <span className="mr-3">
                               Sentiment: <span className={signal.sentimentLabel === 'bullish' ? 'text-emerald-500' : 'text-red-400'}>
                                 {signal.sentimentLabel === 'bullish' ? 'Positiv' : 'Negativ'}
+                              </span>
+                            </span>
+                          )}
+                          {showWikifolio && (
+                            <span>
+                              Wikifolio: <span className={wikifolioIsBuy ? 'text-emerald-500' : 'text-red-400'}>
+                                {wikifolioIsBuy ? `${wikifolioBuyCount ?? ''} kauften` : `${wikifolioSellCount ?? ''} verkauften`}
                               </span>
                             </span>
                           )}

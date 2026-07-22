@@ -47,6 +47,11 @@ interface Signal extends BaseSignal {
   overallGrade?: string;
   // Regime-based signal from the new signal framework
   regimeSignal?: PortfolioAction;
+  // B5: Wikifolio-Konsens-Signal
+  wikifolioScore?: number;
+  wikifolioSignal?: string;
+  wikifolioBuyCount?: number;
+  wikifolioSellCount?: number;
 }
 
 // Per-stock timeout: 12 seconds max per individual stock processing
@@ -654,6 +659,11 @@ export const signalsRouter = router({
             bubbleRegime: cached.bubbleRegime ?? undefined,
             sentimentScore: cached.sentimentScore ?? undefined,
             sentimentLabel: cached.sentimentLabel ?? undefined,
+            // B5: Wikifolio-Konsens-Signal
+            wikifolioScore: cached.wikifolioScore ?? undefined,
+            wikifolioSignal: cached.wikifolioSignal ?? undefined,
+            wikifolioBuyCount: cached.wikifolioBuyCount ?? undefined,
+            wikifolioSellCount: cached.wikifolioSellCount ?? undefined,
           });
         } else {
           missedStocks.push(stock);
