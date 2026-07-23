@@ -108,13 +108,15 @@ async function callKimiJson(system: string, user: string, schema: JsonSchema, ma
 }
 
 async function callGeminiJson(system: string, user: string, schema: JsonSchema, maxTokens: number): Promise<any> {
-  const res = await invokeLLM({
+  // invokeKimi wird bevorzugt: kein 'thinking'-Feld, das mit json_schema inkompatibel ist.
+  // Falls KIMI_API_KEY fehlt, fällt invokeKimi automatisch auf invokeLLM zurück.
+  const res = await invokeKimi({
     messages: [{ role: "system", content: system }, { role: "user", content: user }],
     max_tokens: maxTokens,
     response_format: { type: "json_schema", json_schema: schema },
   });
   const content = res.choices[0]?.message?.content as string | undefined;
-  return content ? extractJson(content) : {};
+  return content ? JSON.parse(content) : {};
 }
 
 /** Claude/Perplexity haben kein natives json_schema → Schema als Anweisung + Extraktion. */
