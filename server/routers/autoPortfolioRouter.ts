@@ -1733,27 +1733,44 @@ Antworte im JSON-Format.`,
             let agentResult: any = { critique: '', rejected: [], alternatives: [], verdict: '', adjustments: [], overallConfidence: 'mittel', positionReasons: [] };
 
             // Eigenes Text-Modell für die Titel-Begründungen (mutiert agentResult).
+            // Batching: bei > 10 Positionen in Gruppen aufteilen, um Token-Limits zu vermeiden.
+            const BATCH_SIZE = 10;
             const fillTexts = async () => {
-              try {
-                job.progress.push(`KI-Texte (${models.text}): Titel-Begründungen formulieren...`);
-                const { result: textResult, providerUsed } = await invokeProposalAgent(models.text, {
-                  system: 'Du bist ein erfahrener Schweizer Anlageberater und Aktienanalyst. Du erklärst Privatanlegern 50+ verständlich, aber inhaltlich fundiert, warum ein konkreter Titel überzeugt. Du kennst die grossen Unternehmen und ihre Geschäftsmodelle. Antworte immer auf Deutsch.',
-                  user: `Formuliere für JEDE dieser Positionen ${posReasonsInstruction}\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten (u.a. Fundamentaldaten):\n${factsSummary}\n\nPositionen (mit Signalen):\n${JSON.stringify(positionSummary, null, 2)}\n\nGesamturteil der Analyse: ${agentResult.verdict ?? ''}`,
-                  schema: { name: 'position_reasons', strict: true, schema: { type: 'object', properties: { positionReasons: posReasonsSchema }, required: ['positionReasons'], additionalProperties: false } },
-                  maxTokens: 8192,
-                });
-                console.log(`[fillTexts] textResult keys: ${Object.keys(textResult ?? {}).join(', ')}`);
-                console.log(`[fillTexts] textResult.positionReasons type: ${typeof textResult?.positionReasons}, isArray: ${Array.isArray(textResult?.positionReasons)}, length: ${Array.isArray(textResult?.positionReasons) ? textResult.positionReasons.length : 'N/A'}`);
-                if (Array.isArray(textResult?.positionReasons) && textResult.positionReasons.length > 0) {
-                  console.log(`[fillTexts] first positionReason: ${JSON.stringify(textResult.positionReasons[0])}`);
-                } else {
-                  console.log(`[fillTexts] textResult raw (first 500 chars): ${JSON.stringify(textResult)?.substring(0, 500)}`);
+              const allReasons: Array<{ ticker: string; text: string }> = [];
+              const batches: typeof positionSummary[] = [];
+              for (let i = 0; i < positionSummary.length; i += BATCH_SIZE) {
+                batches.push(positionSummary.slice(i, i + BATCH_SIZE));
+              }
+              job.progress.push(`KI-Texte (${models.text}): ${positionSummary.length} Titel in ${batches.length} Batch(es) begründen...`);
+              for (let bi = 0; bi < batches.length; bi++) {
+                const batch = batches[bi];
+                try {
+                  const batchLabel = batches.length > 1 ? ` (Batch ${bi + 1}/${batches.length})` : '';
+                  const { result: textResult, providerUsed } = await invokeProposalAgent(models.text, {
+                    system: 'Du bist ein erfahrener Schweizer Anlageberater und Aktienanalyst. Du erklärst Privatanlegern 50+ verständlich, aber inhaltlich fundiert, warum ein konkreter Titel überzeugt. Du kennst die grossen Unternehmen und ihre Geschäftsmodelle. Antworte immer auf Deutsch.',
+                    user: `Formuliere für JEDE dieser Positionen ${posReasonsInstruction}\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten (u.a. Fundamentaldaten):\n${factsSummary}\n\nPositionen (mit Signalen)${batchLabel}:\n${JSON.stringify(batch, null, 2)}\n\nGesamturteil der Analyse: ${agentResult.verdict ?? ''}`,
+                    schema: { name: 'position_reasons', strict: true, schema: { type: 'object', properties: { positionReasons: posReasonsSchema }, required: ['positionReasons'], additionalProperties: false } },
+                    maxTokens: 4096,
+                  });
+                  console.log(`[fillTexts] batch ${bi + 1}/${batches.length} — providerUsed=${providerUsed}, keys: ${Object.keys(textResult ?? {}).join(', ')}`);
+                  console.log(`[fillTexts] positionReasons isArray: ${Array.isArray(textResult?.positionReasons)}, length: ${Array.isArray(textResult?.positionReasons) ? textResult.positionReasons.length : 'N/A'}`);
+                  if (Array.isArray(textResult?.positionReasons) && textResult.positionReasons.length > 0) {
+                    console.log(`[fillTexts] first positionReason in batch: ${JSON.stringify(textResult.positionReasons[0])}`);
+                    allReasons.push(...textResult.positionReasons);
+                  } else {
+                    console.warn(`[fillTexts] batch ${bi + 1} returned no positionReasons. raw (first 500): ${JSON.stringify(textResult)?.substring(0, 500)}`);
+                  }
+                  if (providerUsed !== models.text) job.progress.push(`KI-Texte Batch ${bi + 1}: ${models.text} nicht verfügbar — Fallback auf ${providerUsed}.`);
+                } catch (batchErr: any) {
+                  console.warn(`[startProposal] Text-Modell Batch ${bi + 1} (${models.text}) fehlgeschlagen: ${batchErr?.message}`);
+                  job.progress.push(`⚠️ KI-Texte Batch ${bi + 1} fehlgeschlagen: ${batchErr?.message ?? 'unbekannter Fehler'}`);
                 }
-                if (Array.isArray(textResult?.positionReasons)) agentResult.positionReasons = textResult.positionReasons;
-                if (providerUsed !== models.text) job.progress.push(`KI-Texte: ${models.text} nicht verfügbar — Fallback auf ${providerUsed}.`);
-              } catch (textErr: any) {
-                console.warn(`[startProposal] Text-Modell (${models.text}) fehlgeschlagen: ${textErr?.message}`);
-                job.progress.push(`⚠️ KI-Texte fehlgeschlagen (${models.text}): ${textErr?.message ?? 'unbekannter Fehler'}`);
+              }
+              if (allReasons.length > 0) {
+                agentResult.positionReasons = allReasons;
+                job.progress.push(`KI-Texte: ${allReasons.length}/${positionSummary.length} Titel individuell begründet.`);
+              } else {
+                job.progress.push(`⚠️ KI-Texte: keine individuellen Begründungen erhalten.`);
               }
             };
 

@@ -462,3 +462,8 @@
 - [x] KI-Extraktions-Prompt: Klassifikationsregeln für Obligationen, Gold-ETFs, Krypto-Zertifikate
 - [x] isinResolver: Bond und Fund Typen von EODHD/Yahoo akzeptiert
 - [x] SwissquotePDFImport: Badge-Anzeige für alle Anlageklassen (Obligation=blau, Rohwaren/Gold=gelb, Krypto=lila, Cash=grau, Aktie/ETF=grün)
+
+## Portfolio-Vorschlag: individuelle KI-Texte (Jul 2026)
+- [x] fillTexts-Batching: Bei > 10 Positionen in Gruppen von 8 aufteilen, um Token-Limits zu vermeiden
+- [x] Bessere Fehlerprotokollierung: Batch-Nummer, Anzahl erhaltener Begründungen, Fallback-Warnung
+- [x] Fortschritts-Meldung: "KI-Texte: X/Y Titel individuell begründet" im Progress-Stream
