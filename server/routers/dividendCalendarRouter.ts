@@ -69,6 +69,10 @@ export const dividendCalendarRouter = router({
   calendar: protectedProcedure
     .input(z.object({ portfolioId: z.number() }))
     .query(async ({ input, ctx }) => {
+      // K-A1: Plan-Gate — Dividenden-Tracking ist Basic/Pro
+      const { requireFeature } = await import("../lib/entitlements");
+      await requireFeature(ctx.user, "dividend_tracking");
+
       const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
       const { getPortfolioDividends } = await import("../dividendCalendar");
 

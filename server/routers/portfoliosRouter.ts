@@ -643,9 +643,11 @@ export const portfoliosRouter = router({
         // Calculate total value and weighted avg dividend yield
         let totalValueCHF = 0;
         enrichedStocks.forEach((stock: any) => {
-          const shares = parseFloat(stock.shares) || 0;
-          const priceCHF = stock.priceCHF || 0;
-          totalValueCHF += shares * priceCHF;
+          // Bonds: use pre-computed valueCHF (nominal × kurs%/100); others: shares × priceCHF
+          const stockValue = stock.assetType === 'bond'
+            ? (parseFloat(stock.totalValue) || parseFloat(stock.valueCHF) || 0)
+            : (parseFloat(stock.shares) || 0) * (stock.priceCHF || 0);
+          totalValueCHF += stockValue;
         });
         // Weighted dividend yield: sum(weight_i × dividendYield_i) where weight_i = stockValue_i / totalStocksValue
         let weightedDividendYield = 0;
@@ -675,7 +677,9 @@ export const portfoliosRouter = router({
         
         // Calculate weight for each stock position
         enrichedStocks.forEach((stock: any) => {
-          const stockValue = parseFloat(stock.shares || 0) * (stock.priceCHF || 0);
+          const stockValue = stock.assetType === 'bond'
+            ? (parseFloat(stock.totalValue) || parseFloat(stock.valueCHF) || 0)
+            : parseFloat(stock.shares || '0') * (stock.priceCHF || 0);
           stock.weight = totalValueCHF > 0 ? (stockValue / totalValueCHF) * 100 : 0;
         });
         

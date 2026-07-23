@@ -121,6 +121,10 @@ export const analyticsRouter = router({
     )
     .query(async ({ input, ctx }) => {
       try {
+        // K-A1: Plan-Gate — Optimizer ist Basic/Pro
+        const { requireFeature } = await import("../lib/entitlements");
+        await requireFeature(ctx.user, "optimizer");
+
         // F2: Diversifikationsregeln (Admin) fliessen als Constraints in den Optimizer.
         const { getDiversificationRules } = await import("../lib/diversificationRules");
         const rules = await getDiversificationRules();
