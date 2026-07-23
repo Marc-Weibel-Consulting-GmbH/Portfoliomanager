@@ -43,7 +43,7 @@ export const DEFAULT_PROPOSAL_MODELS: ProposalModelConfig = {
 export const PROVIDER_LABELS: Record<ProposalProvider, string> = {
   kimi: "Kimi K3 (Moonshot)",
   gemini: "Gemini 2.5 Flash (Manus)",
-  claude: "Claude 3.5 Sonnet (Anthropic)",
+  claude: "Claude (Anthropic)",
   perplexity: "Perplexity Sonar",
   groq: "Groq Llama 3.3 70B (gratis)",
   omniroute: "OmniRoute Gateway (271 Modelle)",
@@ -125,11 +125,13 @@ function jsonInstruction(schema: JsonSchema): string {
 async function callClaudeJson(system: string, user: string, schema: JsonSchema, maxTokens: number): Promise<any> {
   const apiKey = await getSecret("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY nicht konfiguriert");
+  // Modell per Secret überschreibbar (z.B. auf ein neueres Claude), ohne Deploy.
+  const model = (await getSecret("ANTHROPIC_MODEL")) || "claude-3-5-sonnet-20241022";
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
-      model: "claude-3-5-sonnet-20241022",
+      model,
       max_tokens: maxTokens,
       system: system + jsonInstruction(schema),
       messages: [{ role: "user", content: user }],
