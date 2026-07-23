@@ -146,6 +146,46 @@ export const stocksRouter = router({
         return await fetchEODHDEarningsInsights(input.ticker);
       }),
 
+    // KI-Einzeltitel-Briefing (Earnings-Hub-Stil): fasst Kurs/Bewertung,
+    // Qualität, Earnings-Trackrecord, nächsten Katalysator und Analysten-
+    // Stimmung zu einer ausgewogenen, einfachen Einschätzung zusammen.
+    // On-demand (Mutation, LLM). Modell = konfigurierte "text"-Rolle.
+    stockBriefing: protectedProcedure
+      .input(z.object({ ticker: z.string() }))
+      .mutation(async ({ input }) => {
+        const { getStockByTicker } = await import("../db");
+        const { fetchEODHDEarningsInsights } = await import("../_core/eodhdEarnings");
+        const { getProposalModelConfig, invokeProposalAgent } = await import("../lib/proposalModels");
+        const stock: any = await getStockByTicker(input.ticker);
+        if (!stock) throw new Error("Aktie nicht gefunden");
+        const insights = await fetchEODHDEarningsInsights(input.ticker);
+
+        const num = (v: any): number | null => (v == null || v === "" ? null : (Number.isFinite(typeof v === "number" ? v : parseFloat(String(v))) ? (typeof v === "number" ? v : parseFloat(String(v))) : null));
+        const price = num(stock.currentPrice);
+        const hi = num(stock.week52High);
+        const lo = num(stock.week52Low);
+        const data = {
+          name: stock.companyName, ticker: stock.ticker, sector: stock.sector, currency: stock.currency,
+          price, week52High: hi, week52Low: lo,
+          nearHighPct: price != null && hi ? Math.round((price / hi) * 100) : null,
+          peRatio: num(stock.peRatio), pegRatio: num(stock.pegRatio), dividendYieldPct: num(stock.dividendYield),
+          beta: num(stock.beta), ytdPct: num(stock.ytdPerformance),
+          signalScore: stock.signalScore ?? null, signal: stock.signalType ?? null,
+          moat: [stock.moat1, stock.moat2, stock.moat3].filter(Boolean),
+          today: new Date().toISOString().slice(0, 10),
+          earnings: insights,
+        };
+
+        const models = await getProposalModelConfig();
+        const { result } = await invokeProposalAgent(models.text, {
+          system: "Du bist ein erfahrener Schweizer Aktienanalyst. Du gibst Privatanlegern 50+ eine EHRLICHE, ausgewogene Einschätzung zu einer Einzelaktie — verständlich, aber fundiert. Du entscheidest NICHT für den Anleger, sondern lieferst das Bild und die Abwägung. Antworte immer auf Deutsch.",
+          user: `Erstelle ein kompaktes Aktien-Briefing zu ${data.name} (${data.ticker}), ca. 160-230 Wörter, in klaren kurzen Absätzen mit diesen Punkten — nutze NUR die gelieferten Daten, erfinde keine Zahlen; fehlt ein Wert, lass ihn weg:\n1. Kurs & Bewertung: aktueller Kurs, Nähe zum 52-Wochen-Hoch/Tief, ob eher günstig oder teuer (KGV/PEG/Dividende).\n2. Qualität: Geschäftsmodell/Burggraben, Signal-Einschätzung.\n3. Earnings-Trackrecord: wie oft in den letzten Quartalen die Erwartungen geschlagen wurden (Beats/Misses, grösste Surprise).\n4. Nächster Katalysator: falls ein Earnings-Termin bekannt ist, nenne ihn samt Konsens (EPS/Umsatz) und weise auf das Event-Risk hin (Kurssprung möglich), besonders wenn der Termin nahe am heutigen Datum (${data.today}) liegt.\n5. Analysten-Stimmung: Kursziel vs. aktueller Kurs (Auf-/Abwärtspotenzial in %), Rating-Verteilung.\n6. Zum Schluss eine klare Abwägung: 2-3 Punkte dafür (✅) und 2-3 dagegen (⚠️).\nSchliesse mit einem Satz, dass die Entscheidung beim Anleger liegt.\n\nDaten:\n${JSON.stringify(data)}`,
+          schema: { name: "stock_briefing", strict: true, schema: { type: "object", properties: { briefing: { type: "string" } }, required: ["briefing"], additionalProperties: false } },
+          maxTokens: 1600,
+        });
+        return { briefing: String(result?.briefing ?? "").trim(), data };
+      }),
+
     getByTickers: publicProcedure
       .input(z.object({
         tickers: z.array(z.string())

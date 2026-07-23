@@ -15,6 +15,7 @@ import TradingViewSignalsTab from "@/components/stock/TradingViewSignalsTab";
 import StockScoringWidget from "@/components/stock/StockScoringWidget";
 import BubbleRiskCard from "@/components/stock/BubbleRiskCard";
 import AnalystConsensusCard from "@/components/stock/AnalystConsensusCard";
+import StockBriefingCard from "@/components/stock/StockBriefingCard";
 import { PegBadge } from "@/components/stock/PegContextCard";
 import {
   ComposedChart,
@@ -538,6 +539,9 @@ export default function StockDetail() {
             )}
           </div>
         </div>
+
+        {/* KI-Einzeltitel-Briefing (Earnings-Hub-Stil) — on-demand */}
+        <StockBriefingCard ticker={ticker} />
 
         {/* Tabs per IA-Optimierung (F-10): Übersicht | Chart & TA | Signale | Bewertung | News.
             F-09: KI-Prognose-Tab ausgeblendet (Vorgabe Auftraggeber: unzuverlässig).
