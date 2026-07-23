@@ -393,6 +393,61 @@ export const portfoliosRouter = router({
         const enrichedStocks = await Promise.all(
           stocksWithoutCash.map(async (stock: any) => {
             const ticker = stock.ticker;
+            const isBond = stock.assetType === 'bond';
+
+            // ── Bond special handling ─────────────────────────────────────────
+            // Bonds have: nominalValue (CHF face value) + pricePercent (market price in %)
+            // Value = nominalValue × pricePercent / 100
+            // We do NOT look up the bond in the stocks table (no Yahoo ticker exists)
+            if (isBond) {
+              const nominalValue = parseFloat(stock.nominalValue || stock.shares || '0');
+              const pricePercent = safeParseFloat(stock.currentPrice || stock.avgBuyPrice || '100');
+              const bondValueCHF = nominalValue * (pricePercent / 100);
+              const avgBuyPercent = safeParseFloat(stock.avgBuyPrice || '100');
+              const avgBuyValueCHF = nominalValue * (avgBuyPercent / 100);
+              const totalReturn = avgBuyValueCHF > 0
+                ? (((bondValueCHF - avgBuyValueCHF) / avgBuyValueCHF) * 100).toFixed(4)
+                : '0';
+              const rawWeight = stock.portfolioWeight || stock.weight || 0;
+              const weight = typeof rawWeight === 'number' ? rawWeight : parseFloat(String(rawWeight)) || 0;
+              return {
+                ...stock,
+                assetType: 'bond',
+                currency: stock.currency || 'CHF',
+                fxRate: 1,
+                currentPrice: pricePercent,
+                currentPriceLocal: pricePercent,
+                priceCHF: pricePercent, // displayed as % in UI
+                currentPriceCHF: pricePercent,
+                priceMissing: !(pricePercent > 0),
+                fxMissing: false,
+                weight: parseFloat(weight.toFixed ? weight.toFixed(2) : String(weight)),
+                shares: nominalValue.toFixed(0), // nominalValue as "shares" for value calc
+                nominalValue: nominalValue.toFixed(0),
+                avgBuyPrice: avgBuyPercent.toFixed(4),
+                totalValue: bondValueCHF.toFixed(2),
+                valueCHF: bondValueCHF,
+                sector: stock.sector || 'Obligationen',
+                ytdPerformance: '0',
+                totalReturn,
+                priceReturnPct: totalReturn,
+                fxReturnPct: '0',
+                avgBuyPriceLocal: avgBuyPercent.toFixed(4),
+                dividendYield: stock.dividendYield || '0',
+                companyName: stock.companyName || stock.name || ticker,
+                category: 'Obligationen',
+                peRatio: null,
+                pegRatio: null,
+                marketCap: null,
+                beta: null,
+                volatility: null,
+                sharpeRatio: null,
+                qualityScore: 0,
+                hasBuyPrice: avgBuyPercent > 0,
+              };
+            }
+            // ── End bond handling ─────────────────────────────────────────────
+
             const dbStock = dbStockMap.get(ticker) || await getStockByTicker(ticker); // fallback for alias resolution
             const currency = dbStock?.currency || await getStockCurrency(ticker);
             // Single source of truth: DB price + convertToCHF — identical to

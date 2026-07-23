@@ -2114,10 +2114,14 @@ export default function PortfolioDetailsPage() {
                         return sortDir === 'desc' ? bVal - aVal : aVal - bVal;
                       })
                       .map((h: any) => {
+                        const isBond = h.assetType === 'bond';
                         const ytd = parseFloat(h.ytdPerformance || '0');
                         const today = parseFloat(h.dailyChangePercent || h.changePercent || '0');
                         const weight = parseFloat(h.weight || '0');
-                        const value = (h.shares || 0) * (h.currentPriceCHF || 0);
+                        // Bonds: value = nominalValue × pricePercent / 100 (already computed server-side as valueCHF)
+                        const value = isBond
+                          ? (h.valueCHF || parseFloat(h.totalValue || '0'))
+                          : (parseFloat(h.shares || '0') * (h.currentPriceCHF || 0));
                         const isExpanded = expandedTicker === h.ticker;
                         const sig = signalMap.get(h.ticker);
                         const qualScore = h.qualityScore ?? null;
@@ -2140,11 +2144,20 @@ export default function PortfolioDetailsPage() {
                             }}
                           >
                             <td className="px-5 py-3.5">
-                              <span className="font-mono text-xs font-semibold text-gray-300 tracking-wide">{h.ticker}</span>
+                              {isBond ? (
+                                <span className="font-mono text-xs font-semibold text-blue-400 tracking-wide" title={h.isin || h.ticker}>
+                                  {(h.isin || h.ticker).slice(0, 12)}
+                                </span>
+                              ) : (
+                                <span className="font-mono text-xs font-semibold text-gray-300 tracking-wide">{h.ticker}</span>
+                              )}
                             </td>
                             <td className="px-3 py-3.5 text-sm text-white">
                               <div className="flex items-center gap-2">
                                 <span>{h.companyName}</span>
+                                {isBond && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 shrink-0">Obligation</span>
+                                )}
                                 {/* U-13: fehlender Kurs/Wechselkurs → Badge statt stiller CHF 0 */}
                                 {(h.priceMissing || h.fxMissing) && (
                                   <UiTooltip>
@@ -2174,6 +2187,23 @@ export default function PortfolioDetailsPage() {
                             </td>
                             <td className="px-3 py-3.5 text-right text-sm text-gray-300">{weight.toFixed(1)}%</td>
                             {showDetailCols && (() => {
+                              if (isBond) {
+                                // Bonds: show Nominal, Kurs%, —, —
+                                const nominalVal = parseFloat(h.nominalValue || h.shares || '0');
+                                const pricePercent = parseFloat(h.currentPrice || '0');
+                                return (
+                                  <>
+                                    <td className="px-3 py-3.5 text-right text-sm text-gray-300" title="Nominalwert">
+                                      {nominalVal > 0 ? `${h.currency || 'CHF'} ${new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(nominalVal)}` : '—'}
+                                    </td>
+                                    <td className="px-3 py-3.5 text-right text-sm text-gray-300" title="Kurs in %">
+                                      {pricePercent > 0 ? `${pricePercent.toFixed(2)}%` : '—'}
+                                    </td>
+                                    <td className="px-3 py-3.5 text-right text-sm text-gray-400">—</td>
+                                    <td className="px-3 py-3.5 text-right text-sm text-gray-400">—</td>
+                                  </>
+                                );
+                              }
                               const sharesVal = parseFloat(h.shares || '0');
                               const priceLocal = parseFloat(h.currentPriceLocal || h.currentPriceCHF || '0');
                               const priceCHF = parseFloat(h.currentPriceCHF || '0');
@@ -2186,13 +2216,13 @@ export default function PortfolioDetailsPage() {
                                     {sharesVal > 0 ? new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Math.round(sharesVal)) : '—'}
                                   </td>
                                   <td className="px-3 py-3.5 text-right text-sm text-gray-300">
-                                    {isFx && priceLocal > 0 ? `${cur} ${new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(priceLocal)}` : '—'}
+                                    {isFx && priceLocal > 0 ? `${cur} ${new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(priceLocal)}` : '—'}
                                   </td>
                                   <td className="px-3 py-3.5 text-right text-sm text-gray-300">
                                     {isFx && fxRateVal > 0 ? new Intl.NumberFormat('de-CH', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(fxRateVal) : '—'}
                                   </td>
                                   <td className="px-3 py-3.5 text-right text-sm text-gray-300">
-                                    {priceCHF > 0 ? `CHF ${new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(priceCHF)}` : '—'}
+                                    {priceCHF > 0 ? `CHF ${new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(priceCHF)}` : '—'}
                                   </td>
                                 </>
                               );

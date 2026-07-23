@@ -146,6 +146,8 @@ export const pdfImportRouter = router({
         avgPurchasePrice: number;
         marketPrice: number | null;
         totalAmountCHF: number;
+        assetType?: string;
+        isin?: string | null;
       }> = [];
 
       for (const pos of input.positions) {
@@ -153,9 +155,12 @@ export const pdfImportRouter = router({
           // Skip zero-quantity positions
           if (pos.quantity <= 0) continue;
 
+          const isBondAsset = pos.assetType === "bond";
+
           // Resolve ISIN to Yahoo ticker for proper portfolio tracking
+          // Bonds: skip Yahoo resolution (bonds have no Yahoo ticker) — use ISIN directly
           let resolvedTicker: string = pos.isin || pos.name.split(" ")[0].toUpperCase();
-          if (pos.isin) {
+          if (pos.isin && !isBondAsset) {
             try {
               const yahooTicker = await resolveIsinToTicker(yahooSearch, pos.isin);
               if (yahooTicker) {
@@ -169,16 +174,32 @@ export const pdfImportRouter = router({
             }
           }
 
-          // Use avgPurchasePrice as pricePerShare; fall back to marketPrice
-          const pricePerShare = pos.avgPurchasePrice ?? pos.marketPrice ?? 0;
-          const totalAmount = pricePerShare * pos.quantity;
+          // Bond value calculation:
+          // - quantity = Nominalwert (e.g. 200'000 CHF)
+          // - marketPrice = Kurs in % (e.g. 98.5 means 98.5%)
+          // - totalValue = Nominalwert × Kurs% / 100
+          // Stock value calculation: pricePerShare × quantity
+          let pricePerShare: number;
+          let totalAmount: number;
+          if (isBondAsset) {
+            const nominalValue = pos.quantity; // Nominalwert in Währung
+            const pricePercent = pos.avgPurchasePrice ?? pos.marketPrice ?? 100; // Kurs in %
+            // pricePerShare for bonds = Kurs% (stored as-is, value = nominal × price% / 100)
+            pricePerShare = pricePercent;
+            totalAmount = nominalValue * (pricePercent / 100);
+            console.log(`[pdfImport] Bond ${pos.isin}: Nominal=${nominalValue}, Kurs=${pricePercent}%, Wert=${totalAmount}`);
+          } else {
+            pricePerShare = pos.avgPurchasePrice ?? pos.marketPrice ?? 0;
+            totalAmount = pricePerShare * pos.quantity;
+          }
 
           // Convert to CHF
           let totalAmountCHF = totalAmount;
           let fxRate: number | null = null;
 
           const isCryptoAsset = pos.assetType === "crypto";
-          if (pos.currency !== "CHF" && !isCryptoAsset) {
+          // For bonds: totalAmount is already the market value (nominal × kurs%), no further multiplication needed
+          if (pos.currency !== "CHF" && !isCryptoAsset && !isBondAsset) {
             fxRate = await tryGetFxRate(txDate, `${pos.currency}CHF`);
             if (fxRate) {
               totalAmountCHF = totalAmount * fxRate;
@@ -215,6 +236,8 @@ export const pdfImportRouter = router({
             avgPurchasePrice: pricePerShare,
             marketPrice: pos.marketPrice,
             totalAmountCHF,
+            assetType: pos.assetType,
+            isin: pos.isin, // keep ISIN for bond display
           });
         } catch (err: any) {
           errors.push(`Failed to import ${pos.name}: ${err.message}`);
@@ -273,14 +296,23 @@ export const pdfImportRouter = router({
 
             // Add or update in existingStocks
             const existingIdx = existingStocks.findIndex((e: any) => e.ticker === s.ticker);
-            const stockEntry = {
+            const isBond = s.assetType === "bond";
+            const stockEntry: any = {
               ticker: s.ticker,
               companyName: stockInDb?.companyName || s.name,
               weight,
+              // Bonds: currentPrice is the % Kurs (e.g. 98.5), not a CHF price
               currentPrice: s.marketPrice?.toString() || stockInDb?.currentPrice || "0",
               currency: s.currency,
               avgBuyPrice: avgBuyPriceCHF.toFixed(4),
               shares: s.quantity.toString(),
+              ...(isBond && {
+                assetType: "bond",
+                isin: s.isin,
+                // For bonds: nominalValue = quantity, pricePercent = marketPrice
+                nominalValue: s.quantity.toString(),
+                sector: "Obligationen",
+              }),
             };
             if (existingIdx >= 0) {
               existingStocks[existingIdx] = stockEntry;
