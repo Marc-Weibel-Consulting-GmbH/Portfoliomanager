@@ -137,6 +137,15 @@ export const stocksRouter = router({
         return await getStockByTicker(input.ticker);
       }),
 
+    // Earnings- & Analysten-Insights (Surprise-Historie, nächster Konsens,
+    // Kursziel) aus der EODHD-Fundamentals-Antwort — Datenbasis fürs Briefing.
+    earningsInsights: protectedProcedure
+      .input(z.object({ ticker: z.string() }))
+      .query(async ({ input }) => {
+        const { fetchEODHDEarningsInsights } = await import("../_core/eodhdEarnings");
+        return await fetchEODHDEarningsInsights(input.ticker);
+      }),
+
     getByTickers: publicProcedure
       .input(z.object({
         tickers: z.array(z.string())
