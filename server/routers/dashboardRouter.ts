@@ -1625,6 +1625,190 @@ export const dashboardRouter = router({
     }),
 
   // ──────────────────────────────────────────────────────────────────────
+  // Asset Class allocation (Aktien, Obligationen, Rohwaren, Krypto, Cash)
+  // ──────────────────────────────────────────────────────────────────────
+  getAssetClassAllocation: protectedProcedure
+    .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).default("aggregate") }))
+    .query(async ({ ctx, input }) => {
+      const { getSavedPortfolios, getPortfolioTransactions } = await import("../db");
+      const { batchGetStocks } = await import("../db-optimized");
+      const { convertToCHF } = await import("../fxHelper");
+
+      const ASSET_CLASS_COLORS: Record<string, string> = {
+        "Aktien": "#22D3EE",
+        "ETF": "#3B82F6",
+        "Obligationen": "#A78BFA",
+        "Rohwaren/Gold": "#F59E0B",
+        "Krypto": "#C084FC",
+        "Cash": "#475569",
+        "Andere": "#94A3B8",
+      };
+
+      const portfolios = await getSavedPortfolios(ctx.user.id);
+      let targetPortfolios: any[];
+      if (input.scope === "aggregate") {
+        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+      } else {
+        targetPortfolios = portfolios.filter(p => p.id === input.scope);
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      // Map: ticker → { shares, assetType }
+      const holdingsAgg = new Map<string, { shares: number; assetType?: string; nominalValue?: number; bondValueCHF?: number }>();
+      let totalCash = 0;
+
+      for (const portfolio of targetPortfolios) {
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) {
+          const transactions = await getPortfolioTransactions(portfolio.id);
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            const existing = holdingsAgg.get(ticker);
+            holdingsAgg.set(ticker, { shares: (existing?.shares || 0) + pos.shares });
+          }
+        } else {
+          try {
+            const pd = JSON.parse(portfolio.portfolioData || '{}');
+            const stocks = pd.stocks || pd.positions || [];
+            const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+            for (const stock of stocks) {
+              if (!stock.ticker) continue;
+              const shares = parseFloat(stock.shares || '0');
+              const existing = holdingsAgg.get(stock.ticker);
+              if (stock.assetType === 'bond') {
+                // Bonds: value = nominalValue × pricePercent / 100
+                const nominalValue = parseFloat(stock.nominalValue || stock.shares || '0');
+                const pricePercent = parseFloat(stock.currentPrice || '100');
+                const bondValueCHF = nominalValue * (pricePercent / 100);
+                holdingsAgg.set(stock.ticker, {
+                  shares: (existing?.shares || 0) + nominalValue,
+                  assetType: 'bond',
+                  bondValueCHF: (existing?.bondValueCHF || 0) + bondValueCHF,
+                });
+              } else if (stock.assetType === 'commodity' || stock.assetType === 'crypto') {
+                if (shares === 0 && investmentAmount > 0) {
+                  holdingsAgg.set(stock.ticker, { shares: existing?.shares || -1, assetType: stock.assetType });
+                } else if (shares > 0) {
+                  holdingsAgg.set(stock.ticker, { shares: (existing?.shares || 0) + shares, assetType: stock.assetType });
+                }
+              } else {
+                if (shares === 0 && investmentAmount > 0) {
+                  holdingsAgg.set(stock.ticker, { shares: existing?.shares || -1 });
+                } else if (shares > 0) {
+                  holdingsAgg.set(stock.ticker, { shares: (existing?.shares || 0) + shares });
+                }
+              }
+            }
+          } catch (e) { console.warn('[dashboardRouter] AssetClass-Aggregation fehlgeschlagen:', e); }
+        }
+        totalCash += parseFloat(portfolio.cashBalance || '0');
+      }
+
+      // Remove zero entries
+      for (const [t, h] of Array.from(holdingsAgg.entries())) {
+        if (h.shares === 0) holdingsAgg.delete(t);
+      }
+
+      const allTickers = Array.from(holdingsAgg.keys()).filter(t => {
+        const h = holdingsAgg.get(t)!;
+        return h.assetType !== 'bond'; // bonds don't need stock lookup
+      });
+      const stocksMap = allTickers.length > 0 ? await batchGetStocks(allTickers) : new Map();
+
+      // Pre-warm FX
+      const uniqueCurrencies = new Set<string>();
+      for (const s of Array.from(stocksMap.values())) { if ((s as any).currency) uniqueCurrencies.add((s as any).currency); }
+      await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
+        convertToCHF(1, c, todayStr)
+      ));
+
+      // Calculate shares for demo portfolios with placeholder -1
+      for (const portfolio of targetPortfolios) {
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) continue;
+        try {
+          const pd = JSON.parse(portfolio.portfolioData || '{}');
+          const stocks = pd.stocks || pd.positions || [];
+          const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+          for (const stockDef of stocks) {
+            if (!stockDef.ticker) continue;
+            const holding = holdingsAgg.get(stockDef.ticker);
+            if (holding && holding.shares < 0) {
+              const stock = stocksMap.get(stockDef.ticker) as any;
+              if (!stock) continue;
+              const currentPrice = safeParseFloat(stock.currentPrice);
+              const currency = stock.currency || 'CHF';
+              const weight = parseFloat(stockDef.weight || '0') / 100;
+              const allocationCHF = investmentAmount * weight;
+              const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+              const calculatedShares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+              holdingsAgg.set(stockDef.ticker, { ...holding, shares: calculatedShares });
+            }
+          }
+        } catch (e) { console.warn('[dashboardRouter] Demo-Stückzahl-Berechnung fehlgeschlagen:', e); }
+      }
+
+      for (const [t, h] of Array.from(holdingsAgg.entries())) {
+        if (h.shares <= 0 && h.assetType !== 'bond') holdingsAgg.delete(t);
+      }
+
+      const assetClassData = new Map<string, number>();
+      let totalValue = 0;
+
+      for (const [ticker, holding] of Array.from(holdingsAgg.entries())) {
+        let value = 0;
+        let assetClass = 'Aktien';
+
+        if (holding.assetType === 'bond') {
+          value = holding.bondValueCHF || 0;
+          assetClass = 'Obligationen';
+        } else if (holding.assetType === 'commodity') {
+          const stock = stocksMap.get(ticker) as any;
+          if (stock) {
+            const currentPrice = safeParseFloat(stock.currentPrice);
+            const currency = stock.currency || 'CHF';
+            const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+            value = holding.shares * priceCHF;
+          }
+          assetClass = 'Rohwaren/Gold';
+        } else if (holding.assetType === 'crypto') {
+          const stock = stocksMap.get(ticker) as any;
+          if (stock) {
+            const currentPrice = safeParseFloat(stock.currentPrice);
+            const currency = stock.currency || 'CHF';
+            const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+            value = holding.shares * priceCHF;
+          }
+          assetClass = 'Krypto';
+        } else {
+          const stock = stocksMap.get(ticker) as any;
+          if (!stock) continue;
+          const currentPrice = safeParseFloat(stock.currentPrice);
+          const currency = stock.currency || 'CHF';
+          const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+          value = holding.shares * priceCHF;
+          // Classify ETF vs Aktie by quoteType or name patterns
+          const quoteType = (stock.quoteType || '').toUpperCase();
+          const name = (stock.companyName || stock.name || '').toUpperCase();
+          if (quoteType === 'ETF' || name.includes(' ETF') || name.includes(' ETC') || name.includes(' ETP') || name.includes('ISHARES') || name.includes('VANGUARD') || name.includes('XTRACKERS') || name.includes('AMUNDI')) {
+            assetClass = 'ETF';
+          }
+        }
+
+        totalValue += value;
+        assetClassData.set(assetClass, (assetClassData.get(assetClass) || 0) + value);
+      }
+
+      totalValue += totalCash;
+      if (totalCash > 0) assetClassData.set('Cash', totalCash);
+
+      const result = Array.from(assetClassData.entries()).map(([name, value]) => ({
+        name,
+        weight: totalValue > 0 ? Number(((value / totalValue) * 100).toFixed(1)) : 0,
+        color: ASSET_CLASS_COLORS[name] || '#94A3B8',
+      })).sort((a, b) => b.weight - a.weight);
+
+      return result;
+    }),
+
+  // ──────────────────────────────────────────────────────────────────────
   // Risk metrics — volatility, drawdown, VaR, Sharpe, Beta, Concentration
   // ──────────────────────────────────────────────────────────────────────
   getRiskMetrics: protectedProcedure

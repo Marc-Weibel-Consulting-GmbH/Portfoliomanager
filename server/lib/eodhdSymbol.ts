@@ -82,6 +82,24 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
   // LVMH-ADR direkt als OTC-ADR abrufen (NICHT auf MC.PA 1:1 mappen — der ADR steht in einem
   // anderen Verhältnis zur Pariser Stammaktie, das würde den Positionswert verfälschen).
   'LVMUY': 'LVMUY.US',
+  // ─── Commodity ETFs (Gold/Silver/Rohwaren) ───
+  // Swisscanto Gold ETF (SIX: CSGLDE.SW)
+  'CH0139101601': 'CSGLDE.SW',
+  // iShares Physical Gold ETC (SIX: SGLN.SW)
+  'IE00B4ND3602': 'SGLN.SW',
+  // WisdomTree Physical Gold (SIX: PHAU.SW)
+  'JE00B1VS3770': 'PHAU.SW',
+  // ZKB Gold ETF (SIX: ZGLD.SW)
+  'CH0139101619': 'ZGLD.SW',
+  // Invesco Physical Gold ETC (XETRA: SGLD.DE)
+  'IE00B579F325': 'SGLD.XETRA',
+  // ─── Crypto ETPs/Zertifikate ───
+  // Vontobel BTC Certificate (SIX: VBTC.SW)
+  'CH0595154060': 'VBTC.SW',
+  // 21Shares Bitcoin ETP (SIX: ABTC.SW)
+  'CH0454664001': 'ABTC.SW',
+  // 21Shares Ethereum ETP (SIX: AETH.SW)
+  'CH0454664027': 'AETH.SW',
 };
 
 /**

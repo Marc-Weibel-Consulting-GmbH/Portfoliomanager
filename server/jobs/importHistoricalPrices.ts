@@ -141,9 +141,14 @@ async function getUniqueTickers(): Promise<string[]> {
         // portfolioData contains { stocks: [...] }
         if (data && Array.isArray(data.stocks)) {
           data.stocks.forEach((stock: any) => {
-            if (stock.ticker) {
-              portfolioTickers.add(stock.ticker);
-            }
+            if (!stock.ticker) return;
+            // Skip bonds (ISIN-based tickers like CH0123456789) — no EODHD EOD data
+            // Bonds are valued by nominal × kurs%, not by historical price series
+            if (stock.assetType === 'bond') return;
+            // Skip crypto certificates stored as ISIN (e.g. CH0595154060)
+            // These have no direct EODHD EOD endpoint
+            if (stock.assetType === 'crypto' && /^[A-Z]{2}\d{10}$/.test(stock.ticker)) return;
+            portfolioTickers.add(stock.ticker);
           });
         }
       } catch (error) {

@@ -369,7 +369,7 @@ function PerformanceCard({ scope }: { scope: Scope }) {
 // Allokation: Donut mit Sektor/Region-Umschalter (Mockup, rechte Karte)
 // ----------------------------------------------------------------
 function AllocationCard({ scope }: { scope: Scope }) {
-  const [mode, setMode] = useState<"sektor" | "region">("sektor");
+  const [mode, setMode] = useState<"sektor" | "region" | "klasse">("sektor");
   const { data: sectors, isLoading: sectorsLoading } = trpc.dashboard.getSectorAllocation.useQuery(
     { scope },
     { staleTime: 5 * 60 * 1000 },
@@ -378,25 +378,29 @@ function AllocationCard({ scope }: { scope: Scope }) {
     { scope },
     { staleTime: 5 * 60 * 1000 },
   );
+  const { data: assetClasses, isLoading: assetClassesLoading } = trpc.dashboard.getAssetClassAllocation.useQuery(
+    { scope },
+    { staleTime: 5 * 60 * 1000 },
+  );
 
-  const isLoading = mode === "sektor" ? sectorsLoading : regionsLoading;
-  const buckets = ((mode === "sektor" ? sectors : regions) ?? []) as Array<{ name: string; weight: number; color: string }>;
+  const isLoading = mode === "sektor" ? sectorsLoading : mode === "region" ? regionsLoading : assetClassesLoading;
+  const buckets = ((mode === "sektor" ? sectors : mode === "region" ? regions : assetClasses) ?? []) as Array<{ name: string; weight: number; color: string }>;
 
   return (
     <Card className="bg-[#0f1420] border-white/10 rounded-xl">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2 mb-3">
           <h2 className="text-base font-semibold text-white">Allokation</h2>
-          <div className="flex bg-[#1a2332] rounded-md p-0.5" role="group" aria-label="Allokation nach Sektor oder Region anzeigen">
-            {(["sektor", "region"] as const).map((m) => (
+          <div className="flex bg-[#1a2332] rounded-md p-0.5" role="group" aria-label="Allokation nach Sektor, Region oder Anlageklasse anzeigen">
+            {(["sektor", "region", "klasse"] as const).map((m) => (
               <button
                 key={m}
                 type="button"
                 aria-pressed={mode === m}
-                className={`px-2.5 py-1 text-xs rounded ${mode === m ? "bg-[#00CFC1] text-black font-semibold" : "text-gray-400 hover:text-gray-200"}`}
+                className={`px-2 py-1 text-xs rounded ${mode === m ? "bg-[#00CFC1] text-black font-semibold" : "text-gray-400 hover:text-gray-200"}`}
                 onClick={() => setMode(m)}
               >
-                {m === "sektor" ? "Sektor" : "Region"}
+                {m === "sektor" ? "Sektor" : m === "region" ? "Region" : "Klasse"}
               </button>
             ))}
           </div>
@@ -410,7 +414,7 @@ function AllocationCard({ scope }: { scope: Scope }) {
           </div>
         ) : (
           <div className="flex flex-col items-center">
-            <div className="relative h-44 w-44" aria-label={`Allokation nach ${mode === "sektor" ? "Sektor" : "Region"}`}>
+            <div className="relative h-44 w-44" aria-label={`Allokation nach ${mode === "sektor" ? "Sektor" : mode === "region" ? "Region" : "Anlageklasse"}`}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie

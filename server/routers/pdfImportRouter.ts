@@ -297,6 +297,8 @@ export const pdfImportRouter = router({
             // Add or update in existingStocks
             const existingIdx = existingStocks.findIndex((e: any) => e.ticker === s.ticker);
             const isBond = s.assetType === "bond";
+            const isCommodity = s.assetType === "commodity";
+            const isCrypto = s.assetType === "crypto";
             const stockEntry: any = {
               ticker: s.ticker,
               companyName: stockInDb?.companyName || s.name,
@@ -312,6 +314,16 @@ export const pdfImportRouter = router({
                 // For bonds: nominalValue = quantity, pricePercent = marketPrice
                 nominalValue: s.quantity.toString(),
                 sector: "Obligationen",
+              }),
+              ...(isCommodity && {
+                assetType: "commodity",
+                isin: s.isin,
+                sector: "Rohwaren/Gold",
+              }),
+              ...(isCrypto && {
+                assetType: "crypto",
+                isin: s.isin,
+                sector: "Krypto",
               }),
             };
             if (existingIdx >= 0) {

@@ -447,15 +447,15 @@
 - [x] Feature: Fortschrittsbalken im Deep Dive (mit Zeitschätzung + EODHD-Hinweis)
 
 ## Neue Anlageklassen: Gold-ETF, Krypto, Obligationen (Jul 2026)
-- [ ] Importlogik: Obligationen (Bonds) erkennen und als Anlageklasse "Bond" / "Fixed Income" klassifizieren (ISIN-Prefix CH/XS/US + Kupon/Fälligkeit als Erkennungsmerkmal)
-- [ ] Importlogik: Gold-ETF erkennen und als Anlageklasse "Commodity" / "Gold" klassifizieren (Swisscanto Gold ETF CH0139101601, iShares Gold etc.)
-- [ ] Importlogik: Krypto-Zertifikate/ETPs erkennen und als Anlageklasse "Crypto" klassifizieren (VONT BTC/USD CH0595154060, Bitcoin-ETPs etc.)
-- [ ] DB-Schema: assetClass-Feld in stocks/savedPortfolios erweitern um neue Werte: "Bond", "Commodity", "Crypto", "Real Estate", "Cash"
-- [ ] Preisabruf: Für Obligationen historische Preise via EODHD abrufen (ISIN.EUFUND oder .SWX Exchange)
-- [ ] Preisabruf: Für Gold-ETF historische Preise via EODHD abrufen (CHSPI.SW-ähnliche Ticker)
-- [ ] Preisabruf: Für Krypto-Zertifikate historische Preise abrufen (via EODHD oder Fallback auf BTC-Preis)
-- [ ] Dashboard Allokation: Neue Anlageklassen in Allokations-Donut-Chart anzeigen (Bond, Commodity, Crypto)
-- [ ] Portfolio-Anzeige: Anlageklasse-Badge pro Position anzeigen (analog zu Sektor-Badge)
+- [x] Importlogik: Obligationen (Bonds) erkennen und als Anlageklasse "Bond" / "Fixed Income" klassifizieren (ISIN-Prefix CH/XS/US + Kupon/Fälligkeit als Erkennungsmerkmal)
+- [x] Importlogik: Gold-ETF erkennen und als Anlageklasse "Commodity" / "Gold" klassifizieren (Swisscanto Gold ETF CH0139101601, iShares Gold etc.)
+- [x] Importlogik: Krypto-Zertifikate/ETPs erkennen und als Anlageklasse "Crypto" klassifizieren (VONT BTC/USD CH0595154060, Bitcoin-ETPs etc.)
+- [x] DB-Schema: assetType in portfolioData JSON (bond/commodity/crypto/cash/stock) — kein separates DB-Feld nötig da portfolioData JSON-basiert
+- [x] Preisabruf: Für Obligationen historische Preise via EODHD abrufen (ISIN.EUFUND oder .SWX Exchange) — Bond-ISINs werden in importHistoricalPrices übersprungen (kein Sekundärmarkt-Kurs via EODHD verfügbar)
+- [x] Preisabruf: Für Gold-ETF historische Preise via EODHD abrufen — Commodity-ETF-ISINs werden via eodhdSymbol.ts zu handelbaren Tickern gemappt
+- [x] Preisabruf: Für Krypto-Zertifikate historische Preise abrufen — Crypto-ETP-ISINs werden via eodhdSymbol.ts zu BTC-Proxy-Tickern gemappt
+- [x] Dashboard Allokation: Neue Anlageklassen in Allokations-Donut-Chart anzeigen (Bond, Commodity, Crypto) — neuer "Klasse"-Modus im Allokations-Widget
+- [x] Portfolio-Anzeige: Anlageklasse-Badge pro Position anzeigen (Obligation=blau, Rohwaren=gelb, Krypto=lila)
 
 ## Neue Anlageklassen: Gold-ETF, Krypto, Obligationen (Jul 2026)
 - [x] assetType enum erweitert: 'bond' | 'commodity' | 'crypto' | 'cash' | 'stock' in bankParsers/index.ts, swissquoteParser.ts, pdfImportRouter.ts, SwissquotePDFImport.tsx

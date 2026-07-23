@@ -2115,6 +2115,8 @@ export default function PortfolioDetailsPage() {
                       })
                       .map((h: any) => {
                         const isBond = h.assetType === 'bond';
+                        const isCommodity = h.assetType === 'commodity';
+                        const isCrypto = h.assetType === 'crypto';
                         const ytd = parseFloat(h.ytdPerformance || '0');
                         const today = parseFloat(h.dailyChangePercent || h.changePercent || '0');
                         const weight = parseFloat(h.weight || '0');
@@ -2157,6 +2159,12 @@ export default function PortfolioDetailsPage() {
                                 <span>{h.companyName}</span>
                                 {isBond && (
                                   <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 shrink-0">Obligation</span>
+                                )}
+                                {isCommodity && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 shrink-0">Rohwaren</span>
+                                )}
+                                {isCrypto && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 shrink-0">Krypto</span>
                                 )}
                                 {/* U-13: fehlender Kurs/Wechselkurs → Badge statt stiller CHF 0 */}
                                 {(h.priceMissing || h.fxMissing) && (
