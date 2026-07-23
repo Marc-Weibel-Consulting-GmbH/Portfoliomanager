@@ -183,7 +183,9 @@ export const stocksRouter = router({
           schema: { name: "stock_briefing", strict: true, schema: { type: "object", properties: { briefing: { type: "string" } }, required: ["briefing"], additionalProperties: false } },
           maxTokens: 1600,
         });
-        return { briefing: String(result?.briefing ?? "").trim(), data };
+        const briefingText = String(result?.briefing ?? "").trim();
+        console.log(`[stockBriefing] ${input.ticker}: result keys=${Object.keys(result ?? {}).join(',')}, briefing length=${briefingText.length}, first 100 chars: ${briefingText.substring(0, 100)}`);
+        return { briefing: briefingText, data };
       }),
 
     getByTickers: publicProcedure
