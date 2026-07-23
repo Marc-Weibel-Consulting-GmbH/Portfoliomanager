@@ -2588,32 +2588,80 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
     );
 
     // Top-Movers aus Watchlist/Portfolio des Users
+    // Use DB historical prices for change1d (more reliable than EODHD real-time after market close)
     const { getSavedPortfolios, getDb } = await import('../db');
-    const { stocks } = await import('../../drizzle/schema');
+    const { stocks: stocksTable, historicalPrices } = await import('../../drizzle/schema');
     const { curated } = await import('../lib/stockUniverse');
+    const { inArray, desc } = await import('drizzle-orm');
     const portfolios = await getSavedPortfolios(ctx.user.id);
     const db2 = await getDb();
-    const watchlist = db2 ? await db2.select({ ticker: stocks.ticker }).from(stocks).where(curated()).limit(50) : [];
+    const watchlist = db2 ? await db2.select({ ticker: stocksTable.ticker, companyName: stocksTable.companyName }).from(stocksTable).where(curated()).limit(50) : [];
     const portfolioTickers = new Set<string>();
+    const tickerToName = new Map<string, string>();
+    watchlist.forEach((w: any) => { if (w.ticker) { portfolioTickers.add(w.ticker); tickerToName.set(w.ticker, w.companyName); } });
     portfolios.forEach(p => {
       try {
         const data = JSON.parse(p.portfolioData || '{}');
-        const stocks = data.stocks || data.positions || (Array.isArray(data) ? data : []);
-        stocks.forEach((s: any) => { if (s.ticker) portfolioTickers.add(s.ticker); });
+        const posArr = data.stocks || data.positions || (Array.isArray(data) ? data : []);
+        posArr.forEach((s: any) => { if (s.ticker) { portfolioTickers.add(s.ticker); if (s.name) tickerToName.set(s.ticker, s.name); } });
       } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Ticker-Sammlung) fehlgeschlagen:', e); }
     });
-    watchlist.forEach((w: any) => { if (w.ticker) portfolioTickers.add(w.ticker); });
-    const tickerList = Array.from(portfolioTickers).slice(0, 30);
-    const moverResults = await Promise.allSettled(
-      tickerList.map(async (ticker) => {
-        const rt = await fetchEODHDRealTime(ticker);
-        return { ticker, change: rt.changePercent, price: rt.close };
-      })
-    );
-    const movers = moverResults
-      .filter(r => r.status === 'fulfilled' && (r as PromiseFulfilledResult<any>).value.change !== null)
-      .map(r => (r as PromiseFulfilledResult<any>).value)
-      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+    const tickerList = Array.from(portfolioTickers).slice(0, 40);
+
+    // Calculate change1d from last 2 trading days in historicalPrices
+    let movers: Array<{ ticker: string; change: number; price: number; name: string }> = [];
+    if (db2 && tickerList.length > 0) {
+      try {
+        // Get last 2 prices per ticker
+        const today = new Date().toISOString().split('T')[0];
+        const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0];
+        const { and, gte, lte } = await import('drizzle-orm');
+        const recentPrices = await db2.select({
+          ticker: historicalPrices.ticker,
+          date: historicalPrices.date,
+          close: historicalPrices.close,
+        }).from(historicalPrices)
+          .where(and(
+            inArray(historicalPrices.ticker, tickerList),
+            gte(historicalPrices.date, twoWeeksAgo),
+            lte(historicalPrices.date, today)
+          ))
+          .orderBy(desc(historicalPrices.date));
+
+        // Group by ticker, take last 2 dates
+        const byTicker = new Map<string, Array<{ date: string; close: string }>>();
+        for (const row of recentPrices) {
+          if (!byTicker.has(row.ticker)) byTicker.set(row.ticker, []);
+          const arr = byTicker.get(row.ticker)!;
+          if (arr.length < 2) arr.push({ date: row.date, close: row.close });
+        }
+
+        for (const [ticker, prices] of Array.from(byTicker.entries())) {
+          if (prices.length < 2) continue;
+          const latest = parseFloat(prices[0].close);
+          const prev = parseFloat(prices[1].close);
+          if (!latest || !prev || prev === 0) continue;
+          const change = ((latest - prev) / prev) * 100;
+          movers.push({ ticker, change: Number(change.toFixed(2)), price: latest, name: tickerToName.get(ticker) || ticker });
+        }
+        movers.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+      } catch (e) {
+        console.warn('[getMarketSnapshot] DB-basierte Top-Movers fehlgeschlagen:', e);
+      }
+    }
+    // Fallback: EODHD real-time if DB has no data
+    if (movers.length === 0) {
+      const moverResults = await Promise.allSettled(
+        tickerList.slice(0, 20).map(async (ticker) => {
+          const rt = await fetchEODHDRealTime(ticker);
+          return { ticker, change: rt.changePercent, price: rt.close, name: tickerToName.get(ticker) || ticker };
+        })
+      );
+      movers = moverResults
+        .filter(r => r.status === 'fulfilled' && (r as PromiseFulfilledResult<any>).value.change !== null && (r as PromiseFulfilledResult<any>).value.change !== 0)
+        .map(r => (r as PromiseFulfilledResult<any>).value)
+        .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+    }
     const gainers = movers.filter(m => m.change > 0).slice(0, 3);
     const losers = movers.filter(m => m.change < 0).slice(0, 3);
 
