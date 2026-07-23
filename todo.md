@@ -467,3 +467,7 @@
 - [x] fillTexts-Batching: Bei > 10 Positionen in Gruppen von 8 aufteilen, um Token-Limits zu vermeiden
 - [x] Bessere Fehlerprotokollierung: Batch-Nummer, Anzahl erhaltener Begründungen, Fallback-Warnung
 - [x] Fortschritts-Meldung: "KI-Texte: X/Y Titel individuell begründet" im Progress-Stream
+
+## Aggregiertes Dashboard: Fixes (Jul 2026)
+- [x] Performance-Chart YTD: startDate nicht mehr auf earliestTransactionDate beschränken für YTD/1J/3J/5J-Ranges bei Live-Portfolios (Chart zeigt Benchmarks ab 1.1., Portfolio-Linie ab erstem Kauf)
+- [x] Sharpe "Keine Daten": getRiskMetrics schloss im Aggregat-Modus Demo-Portfolios aus → jetzt alle Portfolios eingeschlossen (analog getAggregatedMetrics)

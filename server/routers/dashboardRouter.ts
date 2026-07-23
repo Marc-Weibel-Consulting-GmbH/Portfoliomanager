@@ -909,10 +909,13 @@ export const dashboardRouter = router({
           startDateStr = latestLiveStartDate;
         }
       } else if (hasLivePortfolios && !hasDemoPortfolios) {
-        // Pure live portfolio(s): ensure startDate is not before the first transaction
-        if (startDateStr < earliestTransactionDate) {
+        // Pure live portfolio(s): for Max/All range, limit to first transaction.
+        // For YTD/1J/3J/5J: keep the requested startDate so benchmarks and the chart
+        // cover the full period. Points before the first buy will show portfolio=null.
+        if (input.range === 'Max' && startDateStr < earliestTransactionDate) {
           startDateStr = earliestTransactionDate;
         }
+        // For YTD/1J/3J/5J: do NOT restrict — the loop already skips dates before liveStartDate
       } else if (hasDemoPortfolios && !hasLivePortfolios) {
         // Pure demo portfolio(s): for Max, use the full available history (startDate from switch)
         // For other ranges, limit to createdAt (already handled above via earliestTransactionDate)
@@ -1828,7 +1831,8 @@ export const dashboardRouter = router({
       // Support both live and demo portfolios
       let targetPortfolios: any[];
       if (input.scope === "aggregate") {
-        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+        // Include ALL portfolios (live + demo) for risk metrics — same as getAggregatedMetrics
+        targetPortfolios = portfolios;
       } else {
         targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
