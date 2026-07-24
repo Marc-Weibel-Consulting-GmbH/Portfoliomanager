@@ -471,3 +471,10 @@
 ## Aggregiertes Dashboard: Fixes (Jul 2026)
 - [x] Performance-Chart YTD: startDate nicht mehr auf earliestTransactionDate beschränken für YTD/1J/3J/5J-Ranges bei Live-Portfolios (Chart zeigt Benchmarks ab 1.1., Portfolio-Linie ab erstem Kauf)
 - [x] Sharpe "Keine Daten": getRiskMetrics schloss im Aggregat-Modus Demo-Portfolios aus → jetzt alle Portfolios eingeschlossen (analog getAggregatedMetrics)
+
+## KI-Briefing: 24h-Cache (Jul 2026)
+- [x] DB-Tabelle `stock_briefing_cache` (ticker UNIQUE, briefing LONGTEXT, generatedAt, meta JSON) — direkt via SQL erstellt
+- [x] Backend: Cache-Lookup vor LLM-Aufruf (TTL 24h), Cache-Write nach erfolgreichem LLM-Aufruf (fire-and-forget)
+- [x] Backend: `forceRefresh`-Parameter um Cache zu umgehen (für "Aktualisieren"-Button)
+- [x] Frontend: Cache-Altersanzeige ("Aus Cache · vor 3h 12m") im Datenstreifen
+- [x] Frontend: "Aktualisieren"-Button löst `forceRefresh: true` aus (neues LLM-Briefing)

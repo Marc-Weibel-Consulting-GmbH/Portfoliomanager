@@ -151,15 +151,50 @@ export const stocksRouter = router({
     // Stimmung zu einer ausgewogenen, einfachen Einschätzung zusammen.
     // On-demand (Mutation, LLM). Modell = konfigurierte "text"-Rolle.
     stockBriefing: protectedProcedure
-      .input(z.object({ ticker: z.string() }))
+      .input(z.object({ ticker: z.string(), forceRefresh: z.boolean().optional() }))
       .mutation(async ({ input }) => {
-        const { getStockByTicker } = await import("../db");
+        const { getStockByTicker, getDb } = await import("../db");
         const { fetchEODHDEarningsInsights } = await import("../_core/eodhdEarnings");
         const { getProposalModelConfig, invokeProposalAgent } = await import("../lib/proposalModels");
+        const { stockBriefingCache } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+
         const stock: any = await getStockByTicker(input.ticker);
         if (!stock) throw new Error("Aktie nicht gefunden");
-        const insights = await fetchEODHDEarningsInsights(input.ticker);
 
+        const db = await getDb();
+        const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 Stunden
+
+        // --- Cache-Lookup (nur wenn kein Force-Refresh) ---
+        if (!input.forceRefresh && db) {
+          try {
+            const cached = await db
+              .select()
+              .from(stockBriefingCache)
+              .where(eq(stockBriefingCache.ticker, input.ticker))
+              .limit(1);
+            if (cached.length > 0) {
+              const age = Date.now() - new Date(cached[0].generatedAt).getTime();
+              if (age < CACHE_TTL_MS) {
+                const ageHours = Math.floor(age / 3_600_000);
+                const ageMinutes = Math.floor((age % 3_600_000) / 60_000);
+                console.log(`[stockBriefing] ${input.ticker}: Cache-Hit (${ageHours}h ${ageMinutes}m alt)`);
+                return {
+                  briefing: cached[0].briefing,
+                  data: null,
+                  fromCache: true,
+                  cacheAge: age,
+                  generatedAt: cached[0].generatedAt,
+                };
+              }
+            }
+          } catch (cacheErr: any) {
+            console.warn(`[stockBriefing] Cache-Lookup fehlgeschlagen: ${cacheErr?.message}`);
+          }
+        }
+
+        // --- LLM-Generierung ---
+        const insights = await fetchEODHDEarningsInsights(input.ticker);
         const num = (v: any): number | null => (v == null || v === "" ? null : (Number.isFinite(typeof v === "number" ? v : parseFloat(String(v))) ? (typeof v === "number" ? v : parseFloat(String(v))) : null));
         const price = num(stock.currentPrice);
         const hi = num(stock.week52High);
@@ -184,8 +219,23 @@ export const stocksRouter = router({
           maxTokens: 1600,
         });
         const briefingText = String(result?.briefing ?? "").trim();
-        console.log(`[stockBriefing] ${input.ticker}: result keys=${Object.keys(result ?? {}).join(',')}, briefing length=${briefingText.length}, first 100 chars: ${briefingText.substring(0, 100)}`);
-        return { briefing: briefingText, data };
+        console.log(`[stockBriefing] ${input.ticker}: LLM OK, length=${briefingText.length}`);
+
+        // --- Cache-Schreiben (fire-and-forget) ---
+        if (db && briefingText.length > 50) {
+          db.insert(stockBriefingCache)
+            .values({ ticker: input.ticker, briefing: briefingText, generatedAt: new Date() })
+            .onDuplicateKeyUpdate({ set: { briefing: briefingText, generatedAt: new Date() } })
+            .catch((e: any) => console.warn(`[stockBriefing] Cache-Write fehlgeschlagen: ${e?.message}`));
+        }
+
+        return {
+          briefing: briefingText,
+          data,
+          fromCache: false,
+          cacheAge: 0,
+          generatedAt: new Date(),
+        };
       }),
 
     getByTickers: publicProcedure

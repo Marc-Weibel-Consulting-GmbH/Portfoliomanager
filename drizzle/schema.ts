@@ -1665,3 +1665,20 @@ export const sectors = mysqlTable("sectors", {
 });
 export type Sector = typeof sectors.$inferSelect;
 export type InsertSector = typeof sectors.$inferInsert;
+
+/**
+ * 24-Stunden-Cache für KI-Briefings pro Ticker.
+ * Verhindert redundante LLM-Aufrufe für häufig aufgerufene Aktien.
+ * TTL: 24h ab `generatedAt`. Wird bei manuellem "Erneut generieren" gelöscht.
+ */
+export const stockBriefingCache = mysqlTable("stock_briefing_cache", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 32 }).notNull().unique(),
+  briefing: longtext("briefing").notNull(),
+  /** Zeitstempel der letzten LLM-Generierung */
+  generatedAt: timestamp("generatedAt").defaultNow().notNull(),
+  /** Optionale Metadaten (Modell, Token-Anzahl) für Debugging */
+  meta: json("meta"),
+});
+export type StockBriefingCache = typeof stockBriefingCache.$inferSelect;
+export type InsertStockBriefingCache = typeof stockBriefingCache.$inferInsert;
