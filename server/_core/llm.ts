@@ -386,9 +386,6 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   }
 
   payload.max_tokens = 32768
-  payload.thinking = {
-    "budget_tokens": 128
-  }
 
   const normalizedResponseFormat = normalizeResponseFormat({
     responseFormat,
@@ -398,7 +395,11 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   });
 
   if (normalizedResponseFormat) {
+    // Do NOT set thinking when using json_schema — they are incompatible with Gemini 2.5 Flash
     payload.response_format = normalizedResponseFormat;
+  } else {
+    // Only enable thinking for free-form text generation (no structured output)
+    payload.thinking = { budget_tokens: 128 };
   }
 
   const response = await fetch(resolveApiUrl(), {
