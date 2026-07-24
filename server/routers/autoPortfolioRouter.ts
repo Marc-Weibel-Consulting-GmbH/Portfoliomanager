@@ -1626,31 +1626,46 @@ Antworte im JSON-Format.`,
           // Multi-agent challenge layer
           let challengeReport: any = null;
           let proposalLogId: number | null = null;
+          // Auto-Übernahme (Admin-Schalter): gesetzt, wenn Challenger-/Synthese-
+          // Anpassungen direkt in den Vorschlag eingearbeitet wurden.
+          let autoAppliedPositions: typeof positions | undefined;
+          let originalPositionsSnapshot: typeof positions | undefined;
 
           // A (progressiv): Ergebnis-Objekt, das sowohl als deterministisches
           // Zwischenergebnis (report=null) als auch final (mit KI-Report) baubar
           // ist. So sieht der Nutzer sein Portfolio sofort; die KI-Gegenprüfung
           // läuft im Hintergrund weiter.
-          const buildResultObject = (report: any) => {
+          // Challenger-/Synthese-Anpassungen (reduce/increase/replace) auf eine
+          // Positions-Menge anwenden. Wird für die (Nutzer-wählbare) Vorschau UND
+          // für die automatische Übernahme (autoApply) genutzt.
+          const computeAdjustedPositions = (base: typeof positions, finalAdjustments: any[]) => {
+            if (!finalAdjustments.length) return null;
+            const adj = finalAdjustments;
+            let adjusted = base.map(p => ({ ...p }));
+            for (const a of adj) { const pos = adjusted.find(p => p.ticker.toUpperCase() === a.ticker.toUpperCase()); if (!pos) continue; if (a.action === 'reduce') pos.weightPct = Math.max(pos.weightPct * 0.65, 3); if (a.action === 'increase') pos.weightPct = Math.min(pos.weightPct * 1.35, 15); }
+            const replaceAdj = adj.filter((a: any) => a.action === 'replace');
+            if (replaceAdj.length > 0) {
+              const usedTickers = new Set(adjusted.map(p => p.ticker.toUpperCase()));
+              const candidates = scored.filter(x => !usedTickers.has(x.stock.ticker.toUpperCase()) && isBuyable(x) && x.combinedScore >= 45).sort((a, b) => b.combinedScore - a.combinedScore);
+              for (const ra of replaceAdj) { const idx = adjusted.findIndex(p => p.ticker.toUpperCase() === ra.ticker.toUpperCase()); if (idx < 0) continue; const replacement = candidates.shift(); if (!replacement) continue; usedTickers.add(replacement.stock.ticker.toUpperCase()); adjusted[idx] = { ...adjusted[idx], ticker: replacement.stock.ticker, companyName: replacement.stock.companyName, sector: replacement.stock.sector, currency: replacement.stock.currency, currentPrice: parseFloat(String(replacement.stock.currentPrice ?? '0')) || 0, combinedScore: replacement.combinedScore, signal: replacement.signal, reason: `Ersetzt ${ra.ticker} gemäss KI-Empfehlung` }; (adjusted[idx] as any).aiReason = undefined; }
+            }
+            const total = adjusted.reduce((s, p) => s + p.weightPct, 0);
+            if (total > 0) adjusted = adjusted.map(p => ({ ...p, weightPct: Math.round((p.weightPct / total) * 1000) / 10 }));
+            return adjusted;
+          };
+
+          // primaryPositions gesetzt = Anpassungen bereits übernommen (autoApply):
+          // dann bildet diese Menge den eigentlichen Vorschlag; die separate
+          // adjustedPositions-Vorschau entfällt. originalPositions = Menge vor der
+          // Übernahme (für das Admin-Protokoll).
+          const buildResultObject = (report: any, opts?: { primaryPositions?: typeof positions; originalPositions?: typeof positions }) => {
             const finalAdjustments = report?.finalAdjustments ?? [];
-            const adjustedPositions = (() => {
-              if (!finalAdjustments.length) return null;
-              const adj = finalAdjustments;
-              let adjusted = positions.map(p => ({ ...p }));
-              for (const a of adj) { const pos = adjusted.find(p => p.ticker.toUpperCase() === a.ticker.toUpperCase()); if (!pos) continue; if (a.action === 'reduce') pos.weightPct = Math.max(pos.weightPct * 0.65, 3); if (a.action === 'increase') pos.weightPct = Math.min(pos.weightPct * 1.35, 15); }
-              const replaceAdj = adj.filter((a: any) => a.action === 'replace');
-              if (replaceAdj.length > 0) {
-                const usedTickers = new Set(adjusted.map(p => p.ticker.toUpperCase()));
-                const candidates = scored.filter(x => !usedTickers.has(x.stock.ticker.toUpperCase()) && isBuyable(x) && x.combinedScore >= 45).sort((a, b) => b.combinedScore - a.combinedScore);
-                for (const ra of replaceAdj) { const idx = adjusted.findIndex(p => p.ticker.toUpperCase() === ra.ticker.toUpperCase()); if (idx < 0) continue; const replacement = candidates.shift(); if (!replacement) continue; usedTickers.add(replacement.stock.ticker.toUpperCase()); adjusted[idx] = { ...adjusted[idx], ticker: replacement.stock.ticker, companyName: replacement.stock.companyName, sector: replacement.stock.sector, currency: replacement.stock.currency, currentPrice: parseFloat(String(replacement.stock.currentPrice ?? '0')) || 0, combinedScore: replacement.combinedScore, signal: replacement.signal, reason: `Ersetzt ${ra.ticker} gemäss KI-Empfehlung` }; }
-              }
-              const total = adjusted.reduce((s, p) => s + p.weightPct, 0);
-              if (total > 0) adjusted = adjusted.map(p => ({ ...p, weightPct: Math.round((p.weightPct / total) * 1000) / 10 }));
-              return adjusted;
-            })();
+            const primary = opts?.primaryPositions ?? positions;
+            const autoApplied = !!opts?.primaryPositions;
+            const adjustedPositions = autoApplied ? null : computeAdjustedPositions(positions, finalAdjustments);
             const sectorTiltsForBadge = getSectorTilts(marktHubSignals);
             return {
-              positions,
+              positions: primary,
               method,
               methodLabel: weightingSource === 'optimizer' ? (method === 'min_variance' ? 'Min. Varianz' : method === 'max_dividend' ? 'Max. Dividende' : 'Max. Sharpe') : 'Score-gewichtet (Fallback)',
               weighting: { source: weightingSource, engine: weightingEngine, note: weightingNote, minPositionPct: Math.round(params.minPositionWeight * 1000) / 10, maxPositionPct: Math.round(params.maxPositionWeight * 1000) / 10 },
@@ -1658,12 +1673,14 @@ Antworte im JSON-Format.`,
               allocation: { sectors: sectorWeights, fxWeightPct, sectorCapPct: rules.maxSectorPercent, fxCapPct: maxFxExposurePct },
               notes,
               profile: { riskProfile, investmentGoal: goal, excludedSectors, esgOnly, liquidityNeedPct, targetReturnPct, referenceCurrency, maxFxExposurePct },
-              stats: { universeCount: universe.length, scoredCount: scored.length, buySignals: scored.filter((x) => x.combinedScore >= 55 && x.signal !== 'SELL').length, sellExcluded: scored.filter((x) => x.signal === 'SELL').length, selectedCount: positions.length, watchlistRecommendations: positions.filter((p) => watchlistRecTickers.has(p.ticker.toUpperCase())).length, maxPositionPct: Math.max(...positions.map((p) => p.weightPct)), sectorBenchmarkFiltered: allStocks.length - universe.length, qualityTier },
+              stats: { universeCount: universe.length, scoredCount: scored.length, buySignals: scored.filter((x) => x.combinedScore >= 55 && x.signal !== 'SELL').length, sellExcluded: scored.filter((x) => x.signal === 'SELL').length, selectedCount: primary.length, watchlistRecommendations: primary.filter((p) => watchlistRecTickers.has(p.ticker.toUpperCase())).length, maxPositionPct: Math.max(...primary.map((p) => p.weightPct)), sectorBenchmarkFiltered: allStocks.length - universe.length, qualityTier },
               proposalLogId: proposalLogId ?? null,
               finalAdjustments,
               synthesizerVerdict: report?.synthesizerVerdict ?? null,
               overallConfidence: report?.overallConfidence ?? null,
               adjustedPositions,
+              autoApplied,
+              originalPositions: opts?.originalPositions ?? null,
               enhancing: report == null, // true = deterministisches Zwischenergebnis, KI läuft noch
               marktHubBadge: { hasData: marktHubSignals.hasData, regime: marktHubSignals.regime.regime, leadingFactor: marktHubSignals.factors.leadingFactor, activeSectorTilts: Object.entries(sectorTiltsForBadge).filter(([, v]) => v !== 0).map(([sector, tilt]) => ({ sector, tilt })), dynamicRiskFreeRate: Math.round(dynamicRiskFreeRate * 10000) / 100, macroSignals: { yieldCurveInverted: (marktHubSignals.macro.yieldCurveSpread ?? 0) < 0, inflationHigh: (marktHubSignals.macro.coreCpi ?? 0) > 4, hySpreadElevated: (marktHubSignals.macro.hySpread ?? 0) > 350 } },
             };
@@ -1881,6 +1898,35 @@ Antworte im JSON-Format.`,
 
             challengeReport = { challengerCritique: challengerResult.critique, challengerRejected: challengerResult.rejected, challengerAlternatives: challengerResult.alternatives, synthesizerVerdict: synthResult.verdict, finalAdjustments: synthResult.adjustments, overallConfidence: synthResult.overallConfidence as 'hoch' | 'mittel' | 'niedrig', agentDuration };
 
+            // Auto-Übernahme: Anpassungen direkt einarbeiten (fertiges Portfolio
+            // in einem Schritt). Der Admin sieht die Änderungen weiter im
+            // Protokoll (finalAdjustments). Metriken bleiben die des Ausgangs-
+            // Portfolios — die Anpassungen sind Feinschliff (Gewichte/wenige Swaps).
+            if (models.autoApply && synthResult.adjustments.length > 0) {
+              const applied = computeAdjustedPositions(positions, synthResult.adjustments);
+              if (applied && applied.length) {
+                originalPositionsSnapshot = positions.map(p => ({ ...p }));
+                autoAppliedPositions = applied;
+                job.progress.push('Challenger-Verbesserungen automatisch übernommen.');
+                // Texte für neu eingetauschte Titel (ohne aiReason) nachziehen.
+                const missing = autoAppliedPositions.filter(p => !(p as any).aiReason);
+                if (missing.length > 0) {
+                  try {
+                    const missSummary = missing.map(p => ({ ticker: p.ticker, name: p.companyName, sector: p.sector, currency: p.currency, weight: p.weightPct, score: p.combinedScore, signal: p.signal }));
+                    const { result: tr } = await invokeProposalAgent(models.text, {
+                      system: 'Du bist ein erfahrener Schweizer Anlageberater und Aktienanalyst. Antworte immer auf Deutsch.',
+                      user: `Formuliere für JEDE dieser Positionen ${posReasonsInstruction}\n\nAnlegerprofil: ${profileSummary}\n\nPositionen:\n${JSON.stringify(missSummary, null, 2)}`,
+                      schema: { name: 'position_reasons', strict: true, schema: { type: 'object', properties: { positionReasons: posReasonsSchema }, required: ['positionReasons'], additionalProperties: false } },
+                      maxTokens: 4096,
+                    });
+                    const map = new Map<string, string>();
+                    for (const pr of (tr?.positionReasons ?? [])) { const t = pr?.ticker ? String(pr.ticker).toUpperCase() : ''; const txt = typeof pr?.text === 'string' ? pr.text.trim() : ''; if (t && txt) map.set(t, map.has(t) ? `${map.get(t)} ${txt}` : txt); }
+                    for (const p of autoAppliedPositions) { if (!(p as any).aiReason) { const t = map.get(p.ticker.toUpperCase()); if (t) (p as any).aiReason = t; } }
+                  } catch (e: any) { console.warn('[startProposal] Ersatz-Texte fehlgeschlagen:', e?.message); }
+                }
+              }
+            }
+
             // Kennzahlen-Filter
             let meetsKennzahlenFilter: 'ja' | 'nein' | 'n/a' = 'n/a';
             let kennzahlenFilterReason = '';
@@ -1899,7 +1945,8 @@ Antworte im JSON-Format.`,
             // DB logging
             try {
               const { portfolioProposalLog } = await import('../../drizzle/schema');
-              const insertResult = await db.insert(portfolioProposalLog).values({ userId: ctx.user.id, riskProfile, investmentGoal: goal, referenceCurrency, maxFxExposurePct, investmentAmount: input?.investmentAmount ?? null, positionCount: positions.length, method, qualityTier, sharpe: proposalMetrics?.sharpe != null ? String(proposalMetrics.sharpe) as any : null, expectedReturnPct: proposalMetrics?.expectedReturnPct != null ? String(proposalMetrics.expectedReturnPct) as any : null, volatilityPct: proposalMetrics?.volatilityPct != null ? String(proposalMetrics.volatilityPct) as any : null, fxWeightPct: String(fxWeightPct) as any, positions: positions as any, challengerCritique: challengerResult.critique, challengerRejectedCount: challengerResult.rejected.length, synthesizerVerdict: synthResult.verdict, overallConfidence: synthResult.overallConfidence as 'hoch' | 'mittel' | 'niedrig', finalAdjustments: synthResult.adjustments as any, agentDurationMs: agentDuration, meetsKennzahlenFilter, kennzahlenFilterReason });
+              const loggedPositions = autoAppliedPositions ?? positions;
+              const insertResult = await db.insert(portfolioProposalLog).values({ userId: ctx.user.id, riskProfile, investmentGoal: goal, referenceCurrency, maxFxExposurePct, investmentAmount: input?.investmentAmount ?? null, positionCount: loggedPositions.length, method, qualityTier, sharpe: proposalMetrics?.sharpe != null ? String(proposalMetrics.sharpe) as any : null, expectedReturnPct: proposalMetrics?.expectedReturnPct != null ? String(proposalMetrics.expectedReturnPct) as any : null, volatilityPct: proposalMetrics?.volatilityPct != null ? String(proposalMetrics.volatilityPct) as any : null, fxWeightPct: String(fxWeightPct) as any, positions: loggedPositions as any, challengerCritique: challengerResult.critique, challengerRejectedCount: challengerResult.rejected.length, synthesizerVerdict: synthResult.verdict, overallConfidence: synthResult.overallConfidence as 'hoch' | 'mittel' | 'niedrig', finalAdjustments: synthResult.adjustments as any, agentDurationMs: agentDuration, meetsKennzahlenFilter, kennzahlenFilterReason });
               proposalLogId = (insertResult as any)?.insertId ?? null;
               try { const { notifyOwner } = await import('../_core/notification'); const adminUrl = `/admin/proposal-analysis?proposalId=${proposalLogId}&returnTo=/portfolio-builder`; await notifyOwner({ title: `⚠️ Neuer KI-Vorschlag #${proposalLogId} wartet auf Review`, content: `Nutzer ${ctx.user.name ?? ctx.user.openId} hat einen neuen Portfolio-Vorschlag generiert.\n\nKonfidenz: ${synthResult.overallConfidence} | Positionen: ${positions.length}\n\nZum Review: ${adminUrl}` }); } catch (notifyErr: any) { console.warn(`[startProposal] Admin notification failed:`, notifyErr?.message); }
             } catch (logErr: any) { console.warn(`[startProposal] DB logging failed:`, logErr?.message); }
@@ -1908,7 +1955,8 @@ Antworte im JSON-Format.`,
           }
 
           // Finales Ergebnis (mit KI-Report) — ersetzt das Zwischenergebnis.
-          job.result = buildResultObject(challengeReport);
+          // Bei Auto-Übernahme ist die angepasste Menge der eigentliche Vorschlag.
+          job.result = buildResultObject(challengeReport, autoAppliedPositions ? { primaryPositions: autoAppliedPositions, originalPositions: originalPositionsSnapshot } : undefined);
           job.status = 'done';
           job.progress.push('✅ Vorschlag fertig!');
           console.log(`[startProposal] Job ${jobId} completed for user ${ctx.user.id}`);

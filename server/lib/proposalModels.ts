@@ -30,6 +30,8 @@ export interface ProposalModelConfig {
   synthesis: ProposalProvider;
   /** Titel-Texte je Position. Default nicht Kimi (schwach bei deutscher Prosa). */
   text: ProposalProvider;
+  /** Challenger-/Synthese-Verbesserungen automatisch in den Vorschlag übernehmen. */
+  autoApply: boolean;
 }
 
 export const DEFAULT_PROPOSAL_MODELS: ProposalModelConfig = {
@@ -38,6 +40,7 @@ export const DEFAULT_PROPOSAL_MODELS: ProposalModelConfig = {
   challengerB: "gemini",
   synthesis: "omniroute",
   text: "gemini",
+  autoApply: false,
 };
 
 export const PROVIDER_LABELS: Record<ProposalProvider, string> = {
@@ -69,6 +72,7 @@ export async function getProposalModelConfig(): Promise<ProposalModelConfig> {
       challengerB: pick(cfg?.challengerB, DEFAULT_PROPOSAL_MODELS.challengerB),
       synthesis: pick(cfg?.synthesis, DEFAULT_PROPOSAL_MODELS.synthesis),
       text: pick(cfg?.text, DEFAULT_PROPOSAL_MODELS.text),
+      autoApply: cfg?.autoApply === true,
     };
   } catch {
     return { ...DEFAULT_PROPOSAL_MODELS };

@@ -1042,6 +1042,7 @@ export const adminRouter = router({
         challengerB: z.enum(["kimi", "gemini", "claude", "perplexity", "groq", "omniroute"]),
         synthesis: z.enum(["kimi", "gemini", "claude", "perplexity", "groq", "omniroute"]),
         text: z.enum(["kimi", "gemini", "claude", "perplexity", "groq", "omniroute"]),
+        autoApply: z.boolean(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');

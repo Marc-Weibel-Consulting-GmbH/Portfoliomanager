@@ -614,6 +614,7 @@ function ProposalModelSettings() {
   const [challengerB, setChallengerB] = useState<string | null>(null);
   const [synthesis, setSynthesis] = useState<string | null>(null);
   const [text, setText] = useState<string | null>(null);
+  const [autoApply, setAutoApply] = useState<boolean | null>(null);
   const save = trpc.admin.setProposalModels.useMutation({
     onSuccess: () => { toast.success("Modellwahl gespeichert"); refetch(); },
     onError: (e) => toast.error("Fehler beim Speichern", { description: e.message }),
@@ -629,7 +630,8 @@ function ProposalModelSettings() {
   const b = challengerB ?? cfg.challengerB;
   const s = synthesis ?? cfg.synthesis;
   const t = text ?? cfg.text;
-  const dirty = ens !== cfg.ensemble || a !== cfg.analysis || b !== cfg.challengerB || s !== cfg.synthesis || t !== cfg.text;
+  const auto = autoApply ?? cfg.autoApply;
+  const dirty = ens !== cfg.ensemble || a !== cfg.analysis || b !== cfg.challengerB || s !== cfg.synthesis || t !== cfg.text || auto !== cfg.autoApply;
 
   const Dropdown = ({ label, hint, value, onChange }: { label: string; hint: string; value: string; onChange: (v: string) => void }) => (
     <div className="space-y-1">
@@ -663,6 +665,14 @@ function ProposalModelSettings() {
           <Switch checked={ens} onCheckedChange={(v) => setEnsemble(v)} />
         </div>
 
+        <div className="flex items-center justify-between rounded-md bg-slate-900/60 px-3 py-2">
+          <div>
+            <div className="text-sm text-slate-200">Verbesserungen automatisch übernehmen</div>
+            <div className="text-xs text-slate-500">Challenger-/Synthese-Anpassungen fliessen direkt in den Vorschlag — der Nutzer erhält das fertige, optimierte Portfolio in einem Schritt.</div>
+          </div>
+          <Switch checked={auto} onCheckedChange={(v) => setAutoApply(v)} />
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {ens ? (
             <>
@@ -688,7 +698,7 @@ function ProposalModelSettings() {
           <Button
             size="sm"
             disabled={!dirty || save.isPending}
-            onClick={() => save.mutate({ ensemble: ens, analysis: a as any, challengerB: b as any, synthesis: s as any, text: t as any })}
+            onClick={() => save.mutate({ ensemble: ens, analysis: a as any, challengerB: b as any, synthesis: s as any, text: t as any, autoApply: auto })}
             className="bg-teal-600 hover:bg-teal-500 text-white"
           >
             <Save className="w-4 h-4 mr-1" /> Speichern
