@@ -108,7 +108,8 @@ async function callKimiJson(system: string, user: string, schema: JsonSchema, ma
     response_format: { type: "json_schema", json_schema: schema },
   });
   const content = res.choices[0]?.message?.content as string | undefined;
-  return content ? JSON.parse(content) : {};
+  if (!content) throw new Error("Kimi: leere Antwort");
+  return extractJson(content);
 }
 
 async function callGeminiJson(system: string, user: string, schema: JsonSchema, maxTokens: number): Promise<any> {
@@ -120,7 +121,8 @@ async function callGeminiJson(system: string, user: string, schema: JsonSchema, 
     response_format: { type: "json_schema", json_schema: schema },
   });
   const content = res.choices[0]?.message?.content as string | undefined;
-  return content ? JSON.parse(content) : {};
+  if (!content) throw new Error("Gemini/Kimi: leere Antwort");
+  return extractJson(content);
 }
 
 /** Claude/Perplexity haben kein natives json_schema → Schema als Anweisung + Extraktion. */
@@ -253,11 +255,20 @@ export async function invokeProposalAgent(
       default: return callKimiJson(args.system, args.user, args.schema, maxTokens);
     }
   };
-  try {
-    return { result: await run(provider), providerUsed: provider };
-  } catch (err: any) {
-    if (provider === "kimi") throw err;
-    console.warn(`[proposalModels] ${provider} fehlgeschlagen (${err?.message}) — Fallback auf Kimi.`);
-    return { result: await run("kimi"), providerUsed: "kimi" };
+  // Fallback-Kaskade: gewählter Anbieter → Kimi → Groq. Groq (json_object) ist
+  // ein verlässlich funktionierender, verifizierter Pfad; so bleibt der Schritt
+  // auch dann robust, wenn der bevorzugte Anbieter leer antwortet oder ausfällt.
+  const chain = [...new Set<ProposalProvider>([provider, "kimi", "groq"])];
+  let lastErr: any;
+  for (const p of chain) {
+    try {
+      const result = await run(p);
+      if (result && typeof result === "object") return { result, providerUsed: p };
+      throw new Error(`${p}: leeres/ungültiges Ergebnis`);
+    } catch (err: any) {
+      lastErr = err;
+      console.warn(`[proposalModels] ${p} fehlgeschlagen (${err?.message})${p === chain[chain.length - 1] ? "" : " — versuche nächsten Anbieter"}.`);
+    }
   }
+  throw lastErr ?? new Error("Alle Anbieter fehlgeschlagen");
 }
