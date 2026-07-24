@@ -1757,6 +1757,7 @@ Antworte im JSON-Format.`,
             // Eigenes Text-Modell für die Titel-Begründungen (mutiert agentResult).
             // Batching: bei > 10 Positionen in Gruppen aufteilen, um Token-Limits zu vermeiden.
             const BATCH_SIZE = 10;
+            let textFailureReason = '';
             const fillTexts = async () => {
               const allReasons: Array<{ ticker: string; text: string }> = [];
               const batches: typeof positionSummary[] = [];
@@ -1785,6 +1786,7 @@ Antworte im JSON-Format.`,
                   if (providerUsed !== models.text) job.progress.push(`KI-Texte Batch ${bi + 1}: ${models.text} nicht verfügbar — Fallback auf ${providerUsed}.`);
                 } catch (batchErr: any) {
                   console.warn(`[startProposal] Text-Modell Batch ${bi + 1} (${models.text}) fehlgeschlagen: ${batchErr?.message}`);
+                  textFailureReason = batchErr?.message ?? textFailureReason;
                   job.progress.push(`⚠️ KI-Texte Batch ${bi + 1} fehlgeschlagen: ${batchErr?.message ?? 'unbekannter Fehler'}`);
                 }
               }
@@ -1826,6 +1828,11 @@ Antworte im JSON-Format.`,
             job.progress.push(reasonCount > 0
               ? `KI-Texte: ${reasonCount}/${positions.length} Titel individuell begründet.`
               : `⚠️ KI-Texte: keine individuellen Begründungen erhalten — Titel zeigen die Standard-Begründung.`);
+            // Diagnose sichtbar machen, falls die Texte komplett fehlschlagen —
+            // damit der Grund (Text-Modell/API) direkt im Vorschlag erkennbar ist.
+            if (reasonCount === 0) {
+              notes.push(`⚠️ KI-Titel-Begründungen konnten nicht erzeugt werden (Modell "${models.text}"${textFailureReason ? `: ${textFailureReason.slice(0, 160)}` : ''}). Es wird die Standard-Begründung angezeigt.`);
+            }
             // Zwischenergebnis MIT Texten sofort ausliefern — noch VOR der Analyse.
             job.result = buildResultObject(null);
 
