@@ -1680,8 +1680,13 @@ Antworte im JSON-Format.`,
             const profileSummary = `Risikoprofil: ${riskProfile}, Ziel: ${goal}, Referenzwährung: ${referenceCurrency}, FX-Limit: ${maxFxExposurePct}%` + (esgOnly ? ', ESG-Wunsch: ja (Filter noch NICHT verfügbar)' : '');
 
             job.progress.push('KI-Analyse: Fundamentaldaten laden...');
-            const { getFundamentalsFactsBatch } = await import('../lib/financialDatasets');
-            const usFundamentals = await getFundamentalsFactsBatch(positions.map((p) => p.ticker), 3, 5000);
+            let usFundamentals: Awaited<ReturnType<typeof import('../lib/financialDatasets')['getFundamentalsFactsBatch']>> = [];
+            try {
+              const { getFundamentalsFactsBatch } = await import('../lib/financialDatasets');
+              usFundamentals = await getFundamentalsFactsBatch(positions.map((p) => p.ticker), 3, 5000);
+            } catch (fErr: any) {
+              console.warn('[startProposal] Fundamentaldaten-Batch fehlgeschlagen (nicht-fatal):', fErr?.message);
+            }
 
             const factsSummary = [
               `Sektor-Gewichte: ${sectorWeights.map((s) => `${s.name} ${s.weightPct.toFixed(1)}%`).join(', ')} (Limit je Sektor: ${rules.maxSectorPercent}%)`,
@@ -1774,6 +1779,39 @@ Antworte im JSON-Format.`,
               }
             };
 
+            // Individuelle Titel-Begründung an die Positionen hängen. LLMs lassen
+            // das Börsen-Suffix gern weg ("PSK" statt "PSK.TO"); eindeutige
+            // Basis-Ticker werden deshalb auf den vollen Ticker zurückgeführt.
+            const attachPositionReasons = (reasons: any[]): number => {
+              const baseTicker = (t: string) => t.split('.')[0];
+              const baseToFull = new Map<string, string | null>(); // null = mehrdeutig
+              for (const full of positionTickers) { const b = baseTicker(full); baseToFull.set(b, baseToFull.has(b) ? null : full); }
+              const reasonMap = new Map<string, string>();
+              for (const pr of (reasons ?? [])) {
+                const raw = pr?.ticker ? String(pr.ticker).toUpperCase() : '';
+                const text = typeof pr?.text === 'string' ? pr.text.trim() : '';
+                if (!raw || !text) continue;
+                const t = positionTickers.has(raw) ? raw : (baseToFull.get(baseTicker(raw)) ?? '');
+                if (!t) continue;
+                // Manche Modelle liefern mehrere Einträge je Ticker → zusammenführen.
+                reasonMap.set(t, reasonMap.has(t) ? `${reasonMap.get(t)} ${text}` : text);
+              }
+              for (const p of positions) { const t = reasonMap.get(p.ticker.toUpperCase()); if (t) (p as any).aiReason = t; }
+              return reasonMap.size;
+            };
+
+            // Titel-Texte ZUERST und ISOLIERT: sie müssen im ERSTEN Vorschlag
+            // erscheinen (vor der Admin-Prüfung) und dürfen nicht an der
+            // langsameren/fragileren Challenger-Synthese-Analyse hängen.
+            await fillTexts();
+            const reasonCount = attachPositionReasons(agentResult.positionReasons);
+            console.log(`[startProposal] aiReason: ${reasonCount}/${positions.length} gesetzt.`);
+            job.progress.push(reasonCount > 0
+              ? `KI-Texte: ${reasonCount}/${positions.length} Titel individuell begründet.`
+              : `⚠️ KI-Texte: keine individuellen Begründungen erhalten — Titel zeigen die Standard-Begründung.`);
+            // Zwischenergebnis MIT Texten sofort ausliefern — noch VOR der Analyse.
+            job.result = buildResultObject(null);
+
             if (models.ensemble) {
               // ── Qualitätsmodus: 2 Challenger parallel → Synthese → Text ──
               job.progress.push(`Qualitätsmodus: 2 Challenger (${models.analysis} + ${models.challengerB}) prüfen parallel...`);
@@ -1805,10 +1843,9 @@ Antworte im JSON-Format.`,
                 overallConfidence: synth?.overallConfidence ?? 'mittel',
                 positionReasons: [],
               };
-              await fillTexts();
             } else {
               // ── Standard: ein Analyse-Aufruf (Challenger + Synthese). ──
-              const mergeText = models.text === models.analysis;
+              // Titel-Texte laufen bereits separat & vorab (oben), daher hier NICHT.
               job.progress.push(`KI-Analyse (${models.analysis}): Vorschlag prüfen & finalisieren...`);
               const analysisProps: Record<string, any> = {
                 critique: { type: 'string' },
@@ -1819,58 +1856,16 @@ Antworte im JSON-Format.`,
                 overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] },
               };
               const analysisRequired = ['critique', 'rejected', 'alternatives', 'verdict', 'adjustments', 'overallConfidence'];
-              if (mergeText) { analysisProps.positionReasons = posReasonsSchema; analysisRequired.push('positionReasons'); }
 
               const { result } = await invokeProposalAgent(models.analysis, {
                 system: 'Du bist zugleich kritischer Portfolio-Analyst ("Challenger") und erfahrener Portfolio-Manager ("Synthesizer"). Prüfe den algorithmischen Vorschlag zuerst kritisch und erstelle im selben Schritt die finale Empfehlung mit konkreten Anpassungen. Antworte immer auf Deutsch, präzise und konstruktiv.',
-                user: `Prüfe diesen Portfolio-Vorschlag kritisch und erstelle die finale Empfehlung.\n\n${contextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n4. verdict: ${verdictInstruction}\n5. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n6. overallConfidence: ${confidenceRule}.${mergeText ? `\n7. positionReasons: ${posReasonsInstruction}` : ''}\n\nAntworte im JSON-Format.`,
+                user: `Prüfe diesen Portfolio-Vorschlag kritisch und erstelle die finale Empfehlung.\n\n${contextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n4. verdict: ${verdictInstruction}\n5. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n6. overallConfidence: ${confidenceRule}.\n\nAntworte im JSON-Format.`,
                 schema: { name: 'portfolio_review', strict: true, schema: { type: 'object', properties: analysisProps, required: analysisRequired, additionalProperties: false } },
                 maxTokens: 4096,
               });
-              agentResult = result;
-              if (!Array.isArray(agentResult.positionReasons)) agentResult.positionReasons = [];
-              if (!mergeText) await fillTexts();
+              // positionReasons aus dem frühen Text-Schritt beibehalten.
+              agentResult = { ...result, positionReasons: agentResult.positionReasons };
             }
-
-            // Individuelle Titel-Begründung (2-3 einfache Sätze) an die Positionen
-            // hängen. Ersetzt das schablonenhafte Client-Template. Nur Ticker aus
-            // den Positionen, leere Texte ignoriert — sonst greift der Fallback.
-            // LLMs lassen das Börsen-Suffix gern weg ("PSK" statt "PSK.TO");
-            // eindeutige Basis-Ticker werden deshalb auf den vollen Ticker
-            // zurückgeführt statt den Text stillschweigend zu verwerfen.
-            const baseTicker = (t: string) => t.split('.')[0];
-            const baseToFull = new Map<string, string | null>(); // null = mehrdeutig
-            for (const full of positionTickers) {
-              const b = baseTicker(full);
-              baseToFull.set(b, baseToFull.has(b) ? null : full);
-            }
-            const reasonMap = new Map<string, string>();
-            for (const pr of (agentResult.positionReasons ?? [])) {
-              const raw = pr?.ticker ? String(pr.ticker).toUpperCase() : '';
-              const text = typeof pr?.text === 'string' ? pr.text.trim() : '';
-              if (!raw || !text) continue;
-              const t = positionTickers.has(raw) ? raw : (baseToFull.get(baseTicker(raw)) ?? '');
-              if (!t) continue;
-              // Manche Modelle liefern (ohne striktes Schema, z.B. Groq) mehrere
-              // Einträge je Ticker (ein Satz pro Eintrag). Zusammenführen statt
-              // überschreiben, sonst bliebe nur der letzte Satz übrig.
-              reasonMap.set(t, reasonMap.has(t) ? `${reasonMap.get(t)} ${text}` : text);
-            }
-            for (const p of positions) { const t = reasonMap.get(p.ticker.toUpperCase()); if (t) (p as any).aiReason = t; }
-            // Debug logging for aiReason
-            const aiReasonCount = positions.filter((p: any) => p.aiReason).length;
-            console.log(`[startProposal] aiReason: ${aiReasonCount}/${positions.length} gesetzt. reasonMap.size=${reasonMap.size}`);
-            console.log(`[startProposal] positionReasons raw count: ${(agentResult.positionReasons ?? []).length}`);
-            console.log(`[startProposal] positionTickers: ${[...positionTickers].join(', ')}`);
-            if ((agentResult.positionReasons ?? []).length > 0) {
-              console.log(`[startProposal] positionReasons tickers: ${(agentResult.positionReasons as any[]).map((pr: any) => pr?.ticker).join(', ')}`);
-            }
-            // Sichtbar machen, ob die individuellen Texte wirklich angekommen
-            // sind — bisher schlug das nur als console.warn auf und der Client
-            // fiel kommentarlos aufs Template zurück.
-            job.progress.push(reasonMap.size > 0
-              ? `KI-Texte: ${reasonMap.size}/${positions.length} Titel individuell begründet.`
-              : `⚠️ KI-Texte: keine individuellen Begründungen erhalten — die Titel zeigen die Standard-Begründung.`);
 
             const challengerResult = {
               critique: agentResult.critique ?? '',
