@@ -1094,8 +1094,10 @@ export default function PortfolioBuilderWizard() {
                         </div>
                       )}
                     </div>
-                    {/* KI-Empfehlungen des Synthesizers (finalAdjustments) — für Admins ausgeblendet */}
-                    {(autoProposal as any).finalAdjustments?.length > 0 && !isAdmin && (
+                    {/* KI-Empfehlungen des Synthesizers (finalAdjustments) — für Admins
+                        ausgeblendet; bei Auto-Übernahme ebenfalls (bereits eingearbeitet,
+                        der Nutzer sieht direkt das fertige Portfolio). */}
+                    {(autoProposal as any).finalAdjustments?.length > 0 && !isAdmin && !(autoProposal as any).autoApplied && (
                       <div className="border border-white/10 rounded-xl overflow-hidden">
                         <div className="px-4 py-2.5 bg-[#0f1420] border-b border-white/5 flex items-center gap-2">
                           <Sparkles className="h-3.5 w-3.5 text-[#00CFC1]" />
