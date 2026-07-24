@@ -115,7 +115,7 @@ export default function AdminDashboard() {
     {
       title: "Daten & Universum",
       sections: [
-        { icon: Eye, title: "Aktienliste & Watchlist", description: "Aktien-Universum kuratieren (max. 200 Titel) — inkl. Portfolio-Titel", path: "/admin/watchlist", color: "text-emerald-500" },
+        { icon: Eye, title: "Aktienliste & Watchlist", description: "Aktien-Universum kuratieren — inkl. Portfolio-Titel", path: "/admin/watchlist", color: "text-emerald-500" },
         { icon: Globe, title: "Universum-Kandidaten", description: "Vorgeschlagene Titel für die Aufnahme ins Universum prüfen", path: "/admin/watchlist-candidates", color: "text-sky-500" },
         { icon: Search, title: "Universum Gap-Filling", description: "Fehlende Titel/Daten im Universum systematisch nachladen", path: "/admin/gap-filling", color: "text-cyan-500" },
         { icon: Upload, title: "Historische Daten Import", description: "Kurshistorie und Fundamentaldaten importieren", path: "/admin/data-import", color: "text-blue-500" },

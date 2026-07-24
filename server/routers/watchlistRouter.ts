@@ -97,7 +97,7 @@ export const watchlistRouter = router({
       return {
         stocks: results,
         total: totalCount[0]?.count || 0,
-        maxAllowed: 200,
+        maxAllowed: null,
       };
     }),
 
@@ -251,11 +251,7 @@ export const watchlistRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      // Check max 200 limit (nur kuratierte Titel zählen)
-      const currentCount = await db.select({ count: count() }).from(watchlistStocks).where(curated());
-      if ((currentCount[0]?.count || 0) >= 200) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Maximale Anzahl von 200 Titeln erreicht" });
-      }
+      // No hard limit on watchlist size
 
       // Existiert der Ticker bereits in der stocks-Tabelle?
       const existing = await db.select().from(watchlistStocks).where(eq(watchlistStocks.ticker, input.ticker)).limit(1);

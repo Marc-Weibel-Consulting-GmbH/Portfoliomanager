@@ -458,7 +458,7 @@ export default function AdminWatchlist() {
             <Card>
               <CardContent className="pt-4 pb-4">
                 <div className="text-2xl font-bold">{stats.total}</div>
-                <div className="text-xs text-muted-foreground">/ {stats.maxAllowed} Titel</div>
+                <div className="text-xs text-muted-foreground">Titel im Universum</div>
               </CardContent>
             </Card>
             <Card>
