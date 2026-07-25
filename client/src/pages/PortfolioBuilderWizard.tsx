@@ -38,6 +38,8 @@ type StockSelection = {
   assetType: "stock" | "bond" | "etf";
   /** Weight as % of total capital (inkl. Cash-Reserve). Stored directly from proposal weightPct. */
   weightPct?: number;
+  /** Multi-Asset-Anlageklasse (bond/commodity/gold/realestate/crypto) — nur bei Sleeve-ETFs aus dem KI-Vorschlag gesetzt. */
+  assetClass?: string;
 };
 
 // ─── Static data ─────────────────────────────────────────────────────────────
@@ -92,6 +94,24 @@ const RISK_PROFILES = [
   { value: "aggressiv", label: "Aggressiv", description: "Maximale Rendite, hohe Schwankungen bewusst akzeptiert", icon: <Flame className="h-7 w-7" /> },
 ];
 
+/** Empfohlene Aktienquote je Anlegerprofil (%) — Spiegel von server/lib/multiAssetSleeve.ts (STRATEGIC_EQUITY_SHARE). */
+const PROFILE_EQUITY_SHARE: Record<string, number> = {
+  konservativ: 30,
+  ausgewogen: 55,
+  wachstum: 70,
+  aggressiv: 80,
+};
+
+/** Deutsche Labels der Multi-Asset-Anlageklassen (für Allokations-Badges im Vorschlag). */
+const ASSET_CLASS_LABELS: Record<string, string> = {
+  equity: "Aktien",
+  bond: "Obligationen",
+  commodity: "Rohstoffe",
+  gold: "Gold",
+  realestate: "Immobilien",
+  crypto: "Krypto",
+};
+
 const HORIZONS = [
   { value: 2, label: "1–3 Jahre", description: "Kurzfristig — Kapital bald benötigt", icon: <Clock className="h-7 w-7" /> },
   { value: 5, label: "3–7 Jahre", description: "Mittelfristig — moderater Zeithorizont", icon: <Clock className="h-7 w-7" /> },
@@ -125,6 +145,7 @@ export default function PortfolioBuilderWizard() {
   const [autoHorizon, setAutoHorizon] = useState<number>(10);
   const [autoExcluded, setAutoExcluded] = useState<string[]>([]);
   const [autoProposal, setAutoProposal] = useState<any | null>(null);
+  const [stocksOnly, setStocksOnly] = useState(false); // true = «Nur Aktien» (Abweichung vom Profil-Mix)
 
   // ── Manual / shared state ──
   const [portfolioType, setPortfolioType] = useState<PortfolioType | null>(null);
@@ -247,6 +268,7 @@ export default function PortfolioBuilderWizard() {
       setAutoHorizon(10);
       setAutoExcluded([]);
       setAutoProposal(null);
+      setStocksOnly(false);
       setPortfolioType(null);
       setPortfolioName("");
       setPortfolioDescription("");
@@ -471,7 +493,7 @@ export default function PortfolioBuilderWizard() {
       console.warn("[handleBuildProposal] Profile save failed (non-fatal):", e);
     }
     // Start async job (returns immediately with jobId, polling handles the rest)
-    startProposal.mutate({ investmentAmount: capital });
+    startProposal.mutate({ investmentAmount: capital, stocksOnly });
   };
 
   // Accepts the proposal — uses adjustedPositions (KI-Empfehlungen eingearbeitet) if available
@@ -505,7 +527,11 @@ export default function PortfolioBuilderWizard() {
       // For CHF stocks fxRate=1 so rawPrice*1=rawPrice ✓
       const priceCHF = fxRate > 0 ? rawPrice * fxRate : rawPrice;
       const qty = priceCHF > 0 ? value / priceCHF : 0;
-      return { ticker: p.ticker, companyName: p.companyName, quantity: Math.round(qty), purchasePrice: priceCHF, assetType: "stock" as const, weightPct: p.weightPct };
+      // Multi-Asset-Sleeve: ETF-Positionen (inkl. Anlageklasse) korrekt typisieren,
+      // Aktien bleiben "stock" (assetClass "equity"/undefined → stock).
+      const mappedAssetType: StockSelection["assetType"] =
+        p.assetClass === "bond" ? "bond" : (p.assetType === "etf" || (p.assetClass && p.assetClass !== "equity")) ? "etf" : "stock";
+      return { ticker: p.ticker, companyName: p.companyName, quantity: Math.round(qty), purchasePrice: priceCHF, assetType: mappedAssetType, weightPct: p.weightPct, assetClass: p.assetClass && p.assetClass !== "equity" ? p.assetClass : undefined };
     });
     setSelectedStocks(seeded);
     const goalToType: Record<string, PortfolioType> = { dividends: "dividends", growth: "growth", balanced: "balanced" };
@@ -561,6 +587,9 @@ export default function PortfolioBuilderWizard() {
         dividendYield: p.dividendYield ?? orig?.dividendYield,
         ytdPerf: p.ytdPerf ?? orig?.ytdPerf,
         reason: p.reason ?? orig?.reason,
+        // Multi-Asset-Sleeve-Felder durchreichen (ETF-Typisierung im Accept-Schritt)
+        assetType: p.assetType ?? orig?.assetType,
+        assetClass: p.assetClass ?? orig?.assetClass,
       };
     });
     const capital = parseFloat(initialCapital) || 100000;
@@ -878,6 +907,56 @@ export default function PortfolioBuilderWizard() {
                   </div>
                 </div>
 
+                {/* Anlageklassen: Multi-Asset-Mix (empfohlen) vs. «Nur Aktien».
+                    Die Wahl fliesst in startProposal ein — nach einem erstellten
+                    Vorschlag ist sie gesperrt (neue Analyse nötig). */}
+                <div className="rounded-lg border border-white/10 bg-[#0f1420] p-4 space-y-3">
+                  <Label className="text-gray-300">Anlageklassen</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      disabled={isProposalRunning || !!autoProposal}
+                      onClick={() => setStocksOnly(false)}
+                      className={`rounded-lg border p-3 text-left transition-colors ${
+                        !stocksOnly
+                          ? "border-[#00CFC1]/60 bg-[#00CFC1]/10"
+                          : "border-white/10 hover:border-white/25"
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      <div className={`text-sm font-semibold ${!stocksOnly ? "text-[#00CFC1]" : "text-white"}`}>
+                        Multi-Asset-Mix (empfohlen)
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        Aktien plus Obligationen, Rohstoffe, Gold, Immobilien und ggf. Krypto — passend zu Ihrem Anlegerprofil.
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isProposalRunning || !!autoProposal}
+                      onClick={() => setStocksOnly(true)}
+                      className={`rounded-lg border p-3 text-left transition-colors ${
+                        stocksOnly
+                          ? "border-amber-500/60 bg-amber-500/10"
+                          : "border-white/10 hover:border-white/25"
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      <div className={`text-sm font-semibold ${stocksOnly ? "text-amber-400" : "text-white"}`}>
+                        Nur Aktien
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        Wie bisher: 100% Aktienanteil, keine Beimischung anderer Anlageklassen.
+                      </div>
+                    </button>
+                  </div>
+                  {stocksOnly && (PROFILE_EQUITY_SHARE[autoRisk] ?? 100) < 100 && (
+                    <p className="text-xs text-amber-400">
+                      ⚠ «Nur Aktien» weicht von Ihrem Anlegerprofil ab — empfohlene Aktienquote für «
+                      {RISK_PROFILES.find((r) => r.value === autoRisk)?.label ?? autoRisk}» ca. {PROFILE_EQUITY_SHARE[autoRisk]}%.
+                      Das bedeutet ein höheres Risiko als Ihr Profil vorsieht.
+                    </p>
+                  )}
+                </div>
+
                 {/* Proposal result */}
                 {autoProposal ? (
                   <div className="space-y-4">
@@ -889,6 +968,13 @@ export default function PortfolioBuilderWizard() {
                           Ihr Portfolio steht schon — die KI prüft es gerade noch kritisch gegen und verfeinert es.
                           <span className="text-slate-400"> Einzelne Titel oder Gewichte können sich gleich noch ändern.</span>
                         </p>
+                      </div>
+                    )}
+                    {/* Abweichungs-Hinweis bei «Nur Aktien» (kommt vom Server, profilabhängig) */}
+                    {(autoProposal as any).deviationFromProfile && (
+                      <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+                        <span className="text-amber-400 mt-0.5">⚠</span>
+                        <p className="text-sm text-amber-200 leading-relaxed">{(autoProposal as any).deviationFromProfile}</p>
                       </div>
                     )}
                     {/* Ein kompakter KPI-Balken mit den wichtigsten Kennzahlen
@@ -922,6 +1008,19 @@ export default function PortfolioBuilderWizard() {
                       )}
                       <span className="text-xs text-gray-500 ml-auto self-center">historisch geschätzt</span>
                     </div>
+                    {/* Anlageklassen-Mischung des Vorschlags (Multi-Asset-Sleeve, vor Cash-Quote) */}
+                    {(autoProposal as any).assetAllocation && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-gray-400">Mischung:</span>
+                        {Object.entries((autoProposal as any).assetAllocation as Record<string, number>)
+                          .filter(([, v]) => v > 0)
+                          .map(([k, v]) => (
+                            <span key={k} className="px-2.5 py-0.5 rounded-full bg-white/8 text-gray-200 text-xs border border-white/10">
+                              {ASSET_CLASS_LABELS[k] ?? k} {v}%
+                            </span>
+                          ))}
+                      </div>
+                    )}
                     {(autoProposal as any).weighting?.note && (
                       <p className="text-xs text-amber-400">
                         Hinweis zur Gewichtung: {(autoProposal as any).weighting.note}
@@ -956,7 +1055,7 @@ export default function PortfolioBuilderWizard() {
                             (ret != null ? ` mit einer erwarteten Rendite von ~${ret.toFixed(1)}% p.a.` : '') +
                             (sharpe != null ? ` und einer Sharpe-Ratio von ${sharpe.toFixed(2)}` : '') +
                             (vol != null ? ` (Volatilität ~${vol.toFixed(1)}%)` : '') +
-                            '. Die Zusammensetzung basiert auf Score-Ranking, Sektor-Diversifikation und Markt-Regime-Analyse.'
+                            '. Die Zusammensetzung basiert auf Score-Ranking, Sektor-Diversifikation und Markt-Regime-Analyse.';
                       const portfolioFactors = [
                         ...(sharpe != null ? [{ label: 'Sharpe', value: sharpe.toFixed(2), sentiment: sharpe >= 0.5 ? 'positive' as const : sharpe >= 0.3 ? 'neutral' as const : 'negative' as const }] : []),
                         ...(ret != null ? [{ label: 'Erw. Rendite', value: `${ret.toFixed(1)}% p.a.`, sentiment: ret >= 8 ? 'positive' as const : ret >= 5 ? 'neutral' as const : 'negative' as const }] : []),

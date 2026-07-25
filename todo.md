@@ -478,3 +478,4 @@
 - [x] Backend: `forceRefresh`-Parameter um Cache zu umgehen (für "Aktualisieren"-Button)
 - [x] Frontend: Cache-Altersanzeige ("Aus Cache · vor 3h 12m") im Datenstreifen
 - [x] Frontend: "Aktualisieren"-Button löst `forceRefresh: true` aus (neues LLM-Briefing)
+- [x] feat/multi-asset-universe: 6 Feature-Dateien aus PR #174 via cherry-pick in main integriert (multiAssetSleeve.ts, multiAssetSleeve.test.ts, autoPortfolioShared.ts, autoPortfolioJobs.ts, autoPortfolioRouter.ts, PortfolioBuilderWizard.tsx) — tsc sauber, 11/11 Tests grün
