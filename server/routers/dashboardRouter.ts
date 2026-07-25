@@ -934,18 +934,41 @@ export const dashboardRouter = router({
 
       const stocksMap = await batchGetStocks(Array.from(allTickers));
 
-      // Get historical prices
+      // Get historical prices. Query BOTH ticker variants (with/without .US) —
+      // historicalPrices führt US-Titel teils als "AAPL", teils als "AAPL.US".
+      // Die rohe Ticker-Liste verfehlt sonst genau die vorhandenen Reihen, obwohl
+      // Daten da sind (der Tagesänderungs-Block macht dieselbe Normalisierung).
+      // Ohne das blieb die Portfolio-Linie leer ("fehlen historische Kursdaten").
+      const tickerVariants = new Set<string>();
+      for (const t of Array.from(allTickers)) {
+        tickerVariants.add(t);
+        if (t.endsWith('.US')) tickerVariants.add(t.slice(0, -3));
+        else tickerVariants.add(t + '.US');
+      }
       const pricesResult = await db.select().from(historicalPrices)
         .where(and(
-          inArray(historicalPrices.ticker, Array.from(allTickers)),
+          inArray(historicalPrices.ticker, Array.from(tickerVariants)),
           gte(historicalPrices.date, startDateStr),
           lte(historicalPrices.date, todayStr)
         ));
 
-      const priceMap = new Map<string, Map<string, number>>();
+      // Rows nach DB-Ticker sammeln, dann auf den Portfolio-Ticker zurückmappen —
+      // der Downstream-Lookup (getNearestPrice) schlägt über den Holding-Ticker nach.
+      const rowsByDbTicker = new Map<string, Array<{ date: string; close: number }>>();
       for (const p of pricesResult) {
-        if (!priceMap.has(p.ticker)) priceMap.set(p.ticker, new Map());
-        priceMap.get(p.ticker)!.set(p.date, parseFloat(p.close));
+        const close = parseFloat(p.close);
+        if (!(close > 0)) continue;
+        if (!rowsByDbTicker.has(p.ticker)) rowsByDbTicker.set(p.ticker, []);
+        rowsByDbTicker.get(p.ticker)!.push({ date: p.date, close });
+      }
+      const priceMap = new Map<string, Map<string, number>>();
+      for (const t of Array.from(allTickers)) {
+        const variant = t.endsWith('.US') ? t.slice(0, -3) : t + '.US';
+        const rows = rowsByDbTicker.get(t) ?? rowsByDbTicker.get(variant);
+        if (!rows) continue;
+        const tickerMap = new Map<string, number>();
+        for (const r of rows) tickerMap.set(r.date, r.close);
+        priceMap.set(t, tickerMap);
       }
 
       const allDates = new Set<string>();
