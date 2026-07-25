@@ -412,11 +412,29 @@ export default function PortfolioBuilderWizard() {
           // Prefer weightPct from proposal (= % of total capital incl. cash reserve).
           // Fall back to calculateAllocation weight (= % of equity only) for manually-built portfolios.
           const weight = s.weightPct != null ? s.weightPct : (a?.weight || 0);
+          const chfValue = s.quantity * s.purchasePrice;
+          // Bond-Sleeve (z. B. Staatsanleihen-ETF): Der Bewertungspfad rechnet für
+          // assetType "bond" Nominal-Logik (Wert = nominalValue × Kurs/100). Ein Bond-ETF
+          // ist aber pro Stück bepreist — ohne nominalValue deutete der Read-Pfad den
+          // ETF-Kurs (~120) als Prozent-vom-Nennwert und der Wert kollabierte auf ~1/100
+          // (23 % → 0.3 %). Deshalb als Nominal zu 100 % Par speichern:
+          // nominalValue = CHF-Wert, Kurs = 100 → Wert = CHF-Wert. So stimmt das Gewicht
+          // und die Obligationen-Einstufung (aus assetType "bond") bleibt erhalten.
+          if (s.assetType === 'bond') {
+            return {
+              ticker: s.ticker, companyName: s.companyName,
+              weight, shares: Math.round(s.quantity).toString(),
+              nominalValue: chfValue.toFixed(2),
+              currentPrice: "100", avgBuyPrice: "100",
+              totalValue: chfValue.toFixed(2),
+              currency: currency || "CHF", assetType: "bond",
+            };
+          }
           return {
             ticker: s.ticker, companyName: s.companyName,
             weight, shares: Math.round(s.quantity).toString(),
             currentPrice: s.purchasePrice.toFixed(2), avgBuyPrice: s.purchasePrice.toFixed(2),
-            totalValue: (s.quantity * s.purchasePrice).toFixed(2),
+            totalValue: chfValue.toFixed(2),
             currency: currency || "CHF", assetType: s.assetType,
           };
         }),
@@ -1313,15 +1331,19 @@ export default function PortfolioBuilderWizard() {
                         {(autoProposal as any).adjustedPositions && (
                           <Button
                             variant="outline"
-                            className="border-white/20 text-gray-300 hover:bg-white/5 text-sm"
+                            className="border-white/20 text-gray-300 hover:bg-white/5 text-sm disabled:opacity-50"
                             onClick={() => handleAcceptProposal(false)}
+                            disabled={isEnhancing}
                             title="Roher Algorithmus-Vorschlag ohne KI-Anpassungen"
                           >
                             Ohne KI-Anpassungen
                           </Button>
                         )}
-                        <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
-                          {(autoProposal as any).adjustedPositions ? 'KI-Optimiert übernehmen' : 'Vorschlag übernehmen'}
+                        {/* Während der KI-Verfeinerung (enhancing) sind Titel/Gewichte noch das
+                            Zwischenergebnis (Vor-Swap). Übernehmen erst zulassen, wenn der Vorschlag
+                            final ist — sonst wird die unfertige Version gespeichert (Austausch-Titel fehlen). */}
+                        <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold disabled:opacity-50" disabled={isEnhancing} onClick={() => handleAcceptProposal(true)}>
+                          {isEnhancing ? 'KI verfeinert noch…' : ((autoProposal as any).adjustedPositions ? 'KI-Optimiert übernehmen' : 'Vorschlag übernehmen')}
                           <ChevronRight className="h-4 w-4 ml-1" />
                         </Button>
                       </div>
