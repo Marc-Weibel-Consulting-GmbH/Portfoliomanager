@@ -279,7 +279,26 @@ function AppSettingsForm({ settings }: { settings: AppSettingsData | null }) {
                 />
                 <p className="text-xs text-gray-500 mt-1">Klumpenrisiko je Währung — 100 = Regel inaktiv</p>
               </div>
+              <div>
+                <Label className="text-gray-300">Toleranz Anlageklassen (±%-Punkte)</Label>
+                <Input
+                  type="number"
+                  value={divRules.assetClassTolerancePct}
+                  onChange={(e) => setDivRules({ ...divRules, assetClassTolerancePct: parseFloat(e.target.value) || 0 })}
+                  className="bg-[#1a2332] border-[#2a3a4e] text-white"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Bandbreite um die Soll-Quote aus der Allokations-Matrix. Bei «ausgewogen»
+                  und ±3 ergibt das Gold 4–10 %, Krypto 0–6 %, Obligationen 22–28 %.
+                </p>
+              </div>
             </div>
+            <p className="text-xs text-gray-500 pt-3">
+              Die Regeln zu Titelzahl, Positionsgrösse und Sektoren gelten nur für den
+              Aktienteil. Obligationen, Gold, Rohstoffe, Immobilien und Krypto werden über
+              ETF-Bausteine abgebildet; ihre Gewichtung steuert das Anlegerprofil und wird
+              gegen die obige Bandbreite geprüft.
+            </p>
             <div className="flex gap-2 pt-2">
               <Button onClick={saveDiversification} className="bg-[#00CFC1] hover:bg-[#00b3a6] text-black">
                 <Save className="h-4 w-4 mr-2" /> Speichern

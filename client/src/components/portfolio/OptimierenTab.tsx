@@ -10,6 +10,8 @@ import { PriceChart } from "@/components/charts";
 import { InsightExpandable } from "@/components/InsightPanel";
 import { toast } from "sonner";
 import { getUserErrorMessage } from "@/lib/errorMessages";
+import { SLEEVE_TICKER_LABEL } from "@shared/const";
+import { DEFAULT_DIVERSIFICATION_RULES } from "@shared/diversificationRules";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -22,7 +24,7 @@ interface DivRule {
   detail: string;
 }
 
-export interface DiversificationRules {
+export interface DiversificationRulesLocal {
   maxPositionPercent: number;
   minPositionPercent: number;
   minPositionAmountCHF: number;
@@ -34,69 +36,79 @@ export interface DiversificationRules {
   upgradeScoreThreshold: number;
 }
 
-// Fallback, falls die Konfig noch lädt oder nicht verfügbar ist.
-// Neu: maxPositionPercent = 25% (Bandbreite statt fix 10%), minTitles = 10.
-const DEFAULT_RULES: DiversificationRules = {
-  maxPositionPercent: 25,
-  minPositionPercent: 1,
-  minPositionAmountCHF: 3000,
-  minTitles: 10,
-  maxTitles: 30,
-  minSectorPercent: 0,
-  maxSectorPercent: 40,
-  maxCurrencyPercent: 100,
-  upgradeScoreThreshold: 55,
-};
+// Fallback, falls die Konfig noch lädt oder nicht verfügbar ist. Kommt aus
+// shared/ — vorher stand hier ein drittes, abweichendes Default-Objekt
+// (max. 25 % / Sektor 40 %), sodass diese Ansicht während des Ladens andere
+// Regeln anzeigte als Admin-Bereich und Engine.
+const DEFAULT_RULES = DEFAULT_DIVERSIFICATION_RULES;
 
 const fmtChf = (v: number) => `CHF ${Math.round(v).toLocaleString("de-CH")}`;
 
-function checkDiversificationRules(holdings: any[], totalValueCHF: number, rules: DiversificationRules): DivRule[] {
+/** Soll-Quoten je Anlageklasse aus dem Anlegerprofil (deutsche Labels). */
+export interface AssetClassTargets {
+  targets: Record<string, number>;
+  tolerancePct: number;
+  isDefaultProfile: boolean;
+}
+
+function checkDiversificationRules(
+  holdings: any[],
+  totalValueCHF: number,
+  rules: DiversificationRulesLocal,
+  assetClassTargets?: AssetClassTargets,
+): DivRule[] {
   const nonCash = holdings.filter((h: any) => h.ticker && h.ticker !== "CASH");
-  const titleCount = nonCash.length;
+  // Einzeltitel-Regeln gelten nur für Aktien. Die Multi-Asset-Bausteine sind
+  // ETFs/ETPs, deren Gewicht aus dem Anlegerprofil kommt — sie werden weiter
+  // unten gegen die Bandbreite ihrer Anlageklasse geprüft, nicht gegen
+  // Klumpenrisiko- und Kleinstpositions-Grenzen.
+  const isSleeve = (h: any) => SLEEVE_TICKER_LABEL[String(h.ticker ?? "").toUpperCase()] != null;
+  const equityOnly = nonCash.filter((h: any) => !isSleeve(h));
+  const titleCount = equityOnly.length;
   const out: DivRule[] = [];
 
   // Regel: Mindestanzahl Titel
   out.push({
     id: "min_titles",
-    label: `Mindestens ${rules.minTitles} Titel`,
-    description: `Portfolio soll mindestens ${rules.minTitles} verschiedene Positionen enthalten.`,
+    label: `Mindestens ${rules.minTitles} Aktien`,
+    description: `Der Aktienteil soll mindestens ${rules.minTitles} verschiedene Titel enthalten. Multi-Asset-Bausteine zählen nicht mit — ihre Quote steuert das Anlegerprofil.`,
     passed: titleCount >= rules.minTitles,
-    detail: `${titleCount} Titel vorhanden${titleCount < rules.minTitles ? ` (${rules.minTitles - titleCount} fehlen)` : ""}`,
+    detail: `${titleCount} Aktien vorhanden${titleCount < rules.minTitles ? ` (${rules.minTitles - titleCount} fehlen)` : ""}`,
   });
 
   // Regel: Höchstanzahl Titel
   if (rules.maxTitles > 0) {
     out.push({
       id: "max_titles",
-      label: `Höchstens ${rules.maxTitles} Titel`,
-      description: `Portfolio soll nicht mehr als ${rules.maxTitles} Positionen enthalten (Überdiversifikation vermeiden).`,
+      label: `Höchstens ${rules.maxTitles} Aktien`,
+      description: `Der Aktienteil soll nicht mehr als ${rules.maxTitles} Titel enthalten (Überdiversifikation vermeiden).`,
       passed: titleCount <= rules.maxTitles,
       detail: titleCount <= rules.maxTitles
-        ? `${titleCount} Titel vorhanden`
-        : `${titleCount} Titel — ${titleCount - rules.maxTitles} über dem Maximum`,
+        ? `${titleCount} Aktien vorhanden`
+        : `${titleCount} Aktien — ${titleCount - rules.maxTitles} über dem Maximum`,
     });
   }
 
   // Regel: Einzelposition-Bandbreite (min/max)
-  const overweighted = nonCash.filter((h: any) => parseFloat(h.weight || "0") > rules.maxPositionPercent);
+  const overweighted = equityOnly.filter((h: any) => parseFloat(h.weight || "0") > rules.maxPositionPercent);
   out.push({
     id: "max_weight",
-    label: `Max. ${rules.maxPositionPercent}% pro Position`,
-    description: `Keine einzelne Position soll mehr als ${rules.maxPositionPercent}% des Portfolios ausmachen (Klumpenrisiko).`,
+    label: `Max. ${rules.maxPositionPercent}% pro Aktie`,
+    description: `Keine einzelne Aktie soll mehr als ${rules.maxPositionPercent}% des Portfolios ausmachen (Klumpenrisiko).`,
     passed: overweighted.length === 0,
     detail: overweighted.length === 0
       ? `Alle Positionen ≤ ${rules.maxPositionPercent}%`
       : `${overweighted.length} Position(en) über ${rules.maxPositionPercent}%: ${overweighted.map((h: any) => `${h.ticker} (${parseFloat(h.weight || "0").toFixed(1)}%)`).join(", ")}`,
   });
 
-  const underweighted = nonCash.filter((h: any) => {
+  const underweighted = equityOnly.filter((h: any) => {
     const w = parseFloat(h.weight || "0");
     return w < rules.minPositionPercent && w > 0;
   });
   out.push({
     id: "min_weight",
-    label: `Min. ${rules.minPositionPercent}% pro Position`,
-    description: `Keine Position soll weniger als ${rules.minPositionPercent}% des Portfolios ausmachen (Kleinstpositionen vermeiden).`,
+    label: `Min. ${rules.minPositionPercent}% pro Aktie`,
+    description: `Keine Aktie soll weniger als ${rules.minPositionPercent}% des Portfolios ausmachen (Kleinstpositionen vermeiden).`,
     passed: underweighted.length === 0,
     detail: underweighted.length === 0
       ? `Alle Positionen ≥ ${rules.minPositionPercent}%`
@@ -104,14 +116,14 @@ function checkDiversificationRules(holdings: any[], totalValueCHF: number, rules
   });
 
   // Regel: Mindest-Positionsgrösse in CHF
-  const tooSmall = nonCash.filter((h: any) => {
+  const tooSmall = equityOnly.filter((h: any) => {
     const posValue = (parseFloat(h.weight || "0") / 100) * totalValueCHF;
     return posValue < rules.minPositionAmountCHF && posValue > 0;
   });
   out.push({
     id: "min_chf",
-    label: `Min. ${fmtChf(rules.minPositionAmountCHF)} pro Position`,
-    description: `Jede Position soll mindestens ${fmtChf(rules.minPositionAmountCHF)} wert sein (Transaktionskosten-Effizienz).`,
+    label: `Min. ${fmtChf(rules.minPositionAmountCHF)} pro Aktie`,
+    description: `Jede Aktienposition soll mindestens ${fmtChf(rules.minPositionAmountCHF)} wert sein (Transaktionskosten-Effizienz).`,
     passed: tooSmall.length === 0,
     detail: tooSmall.length === 0
       ? `Alle Positionen ≥ ${fmtChf(rules.minPositionAmountCHF)}`
@@ -124,7 +136,7 @@ function checkDiversificationRules(holdings: any[], totalValueCHF: number, rules
   // Regel: Sektor-Obergrenze (nur wenn aktiv, d.h. < 100%)
   if (rules.maxSectorPercent > 0 && rules.maxSectorPercent < 100) {
     const bySector: Record<string, number> = {};
-    nonCash.forEach((h: any) => {
+    equityOnly.forEach((h: any) => {
       const s = h.sector || "Andere";
       bySector[s] = (bySector[s] || 0) + parseFloat(h.weight || "0");
     });
@@ -138,6 +150,49 @@ function checkDiversificationRules(holdings: any[], totalValueCHF: number, rules
         ? `Alle Sektoren ≤ ${rules.maxSectorPercent}%`
         : `${over.length} Sektor(en) über ${rules.maxSectorPercent}%: ${over.map(([s, w]) => `${s} (${w.toFixed(1)}%)`).join(", ")}`,
     });
+  }
+
+  // Regeln: Bandbreite je Anlageklasse.
+  //
+  // Führungsgrösse ist das Anlegerprofil — die Soll-Quote kommt aus der
+  // Allokations-Matrix, das Band ist die admin-konfigurierte Toleranz in
+  // Prozentpunkten. Geprüft wird die SUMME je Anlageklasse, nicht die einzelne
+  // Position: ob die Gold-Quote über einen oder drei ETFs abgebildet ist,
+  // spielt für die Strategie keine Rolle.
+  if (assetClassTargets) {
+    const { targets, tolerancePct, isDefaultProfile } = assetClassTargets;
+    const istByClass: Record<string, number> = {};
+    for (const h of nonCash) {
+      const label = SLEEVE_TICKER_LABEL[String(h.ticker ?? "").toUpperCase()] ?? "Aktien";
+      istByClass[label] = (istByClass[label] || 0) + parseFloat(h.weight || "0");
+    }
+    // Klassen aus dem Profil-Ziel UND aus dem Bestand — sonst bliebe eine
+    // Klasse unbemerkt, die gehalten wird, aber laut Profil gar nicht vorkommt.
+    const classes = Array.from(new Set([...Object.keys(targets), ...Object.keys(istByClass)]));
+    const profilHinweis = isDefaultProfile
+      ? " (kein Anlegerprofil hinterlegt — Annahme «ausgewogen»)"
+      : "";
+
+    for (const cls of classes) {
+      const soll = targets[cls] ?? 0;
+      const ist = istByClass[cls] ?? 0;
+      // Klassen, die weder vorgesehen sind noch gehalten werden, nicht listen.
+      if (soll === 0 && ist === 0) continue;
+      const min = Math.max(0, soll - tolerancePct);
+      const max = soll + tolerancePct;
+      const passed = ist >= min && ist <= max;
+      out.push({
+        id: `asset_class_${cls}`,
+        label: `${cls} ${min.toFixed(0)}–${max.toFixed(0)}%`,
+        description: `Soll-Quote laut Anlegerprofil: ${soll.toFixed(0)}%, zulässige Abweichung ±${tolerancePct} Prozentpunkte${profilHinweis}.`,
+        passed,
+        detail: passed
+          ? `${ist.toFixed(1)}% — innerhalb der Bandbreite`
+          : ist < min
+            ? `${ist.toFixed(1)}% — ${(min - ist).toFixed(1)} Prozentpunkte unter der Bandbreite`
+            : `${ist.toFixed(1)}% — ${(ist - max).toFixed(1)} Prozentpunkte über der Bandbreite`,
+      });
+    }
   }
 
   // Regel: Währungs-Obergrenze (nur wenn aktiv, d.h. < 100%)
@@ -377,7 +432,12 @@ export default function OptimierenTab({
   const { data: rulesData } = trpc.analytics.getDiversificationRules.useQuery(undefined, {
     staleTime: 10 * 60 * 1000,
   });
-  const rules: DiversificationRules = { ...DEFAULT_RULES, ...(rulesData ?? {}) };
+  const rules: DiversificationRulesLocal = { ...DEFAULT_RULES, ...(rulesData ?? {}) };
+
+  // Soll-Quoten je Anlageklasse aus dem Anlegerprofil des Nutzers.
+  const { data: assetClassData } = trpc.analytics.getAssetClassTargets.useQuery(undefined, {
+    staleTime: 10 * 60 * 1000,
+  });
 
   const tickers = useMemo(
     () => holdings.filter((h: any) => h.ticker && h.ticker !== "CASH").map((h: any) => h.ticker),
@@ -542,8 +602,8 @@ export default function OptimierenTab({
 
   // Diversification rules
   const divRules = useMemo(
-    () => checkDiversificationRules(holdings, totalValueCHF || 0, rules),
-    [holdings, totalValueCHF, rules]
+    () => checkDiversificationRules(holdings, totalValueCHF || 0, rules, assetClassData),
+    [holdings, totalValueCHF, rules, assetClassData]
   );
   const passedCount = divRules.filter(r => r.passed).length;
   const allPassed = passedCount === divRules.length;

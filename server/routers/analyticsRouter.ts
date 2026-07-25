@@ -228,6 +228,56 @@ export const analyticsRouter = router({
   }),
 
   /**
+   * Soll-Quoten je Anlageklasse für den angemeldeten Nutzer.
+   *
+   * Führungsgrösse ist das Anlegerprofil: aus dem Risikoprofil wird die Zeile
+   * der Allokations-Matrix gelesen. Die Bandbreite ergibt sich aus der
+   * admin-konfigurierten Toleranz in Prozentpunkten. Ohne hinterlegtes Profil
+   * wird «ausgewogen» angenommen und das über `isDefaultProfile` gemeldet,
+   * damit die Ansicht das kennzeichnen kann statt eine Soll-Quote zu behaupten.
+   */
+  getAssetClassTargets: protectedProcedure.query(async ({ ctx }) => {
+    const { getDiversificationRules } = await import("../lib/diversificationRules");
+    const { getMultiAssetAllocation, ASSET_CLASS_LABELS } = await import("../lib/multiAssetSleeve");
+    const { getDb } = await import("../db");
+    const { userInvestmentProfile } = await import("../../drizzle/schema");
+    const { eq } = await import("drizzle-orm");
+
+    const rules = await getDiversificationRules();
+    const matrix = await getMultiAssetAllocation();
+
+    let riskProfile: keyof typeof matrix = "ausgewogen";
+    let isDefaultProfile = true;
+    const db = await getDb();
+    if (db) {
+      const [profile] = await db
+        .select({ riskProfile: userInvestmentProfile.riskProfile })
+        .from(userInvestmentProfile)
+        .where(eq(userInvestmentProfile.userId, ctx.user.id))
+        .limit(1);
+      if (profile?.riskProfile && matrix[profile.riskProfile as keyof typeof matrix]) {
+        riskProfile = profile.riskProfile as keyof typeof matrix;
+        isDefaultProfile = false;
+      }
+    }
+
+    const row = matrix[riskProfile];
+    // Auf die deutschen Anzeigenamen abbilden — dieselben Labels, die
+    // SLEEVE_TICKER_LABEL den Positionen zuordnet.
+    const targets: Record<string, number> = {};
+    for (const [key, pct] of Object.entries(row)) {
+      targets[ASSET_CLASS_LABELS[key as keyof typeof ASSET_CLASS_LABELS] ?? key] = pct;
+    }
+
+    return {
+      riskProfile,
+      isDefaultProfile,
+      targets,
+      tolerancePct: rules.assetClassTolerancePct,
+    };
+  }),
+
+  /**
    * Historical Risk Score Timeline: Weekly risk scores over the past year
    */
   riskScoreHistory: protectedProcedure
