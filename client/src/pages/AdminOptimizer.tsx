@@ -8,7 +8,7 @@
 
 import DashboardLayout from "@/components/DashboardLayout";
 import { trpc } from "@/lib/trpc";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,19 +18,18 @@ import { toast } from "sonner";
 import { Breadcrumb } from "@/components/Breadcrumb";
 
 export default function AdminOptimizer() {
-  const [pollingEnabled, setPollingEnabled] = useState(false);
-
   const { data: weights, isLoading: weightsLoading } = trpc.optimizer.getWeights.useQuery();
   const { data: history, isLoading: historyLoading } = trpc.optimizer.getHistory.useQuery();
   const { data: status, refetch: refetchStatus } = trpc.optimizer.getStatus.useQuery(undefined, {
-    refetchInterval: pollingEnabled ? 3000 : false,
+    // Polling is derived from the job status: poll while running, stop when finished
+    refetchInterval: (query) => (query.state.data?.isRunning ? 3000 : false),
   });
   const { data: defaultWeights } = trpc.optimizer.getDefaultWeights.useQuery();
   const { data: presets } = trpc.optimizer.getPresets.useQuery();
 
   const startMutation = trpc.optimizer.startOptimizer.useMutation({
     onSuccess: () => {
-      setPollingEnabled(true);
+      refetchStatus();
     },
   });
 
@@ -64,13 +63,6 @@ export default function AdminOptimizer() {
       });
     },
   });
-
-  // Stop polling when optimizer finishes
-  useEffect(() => {
-    if (status && !status.isRunning && pollingEnabled) {
-      setPollingEnabled(false);
-    }
-  }, [status, pollingEnabled]);
 
   const weightLabels: Record<string, string> = {
     pe: "P/E Ratio",

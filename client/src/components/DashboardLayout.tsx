@@ -213,15 +213,12 @@ function DashboardLayoutContent({
     location === '/dashboard' || location.startsWith('/portfolios')
   );
 
-  useEffect(() => {
-    if (isCollapsed) {
-      setIsResizing(false);
-    }
-  }, [isCollapsed]);
+  // Resizing is only meaningful while the sidebar is expanded
+  const isResizingActive = isResizing && !isCollapsed;
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing) return;
+      if (!isResizingActive) return;
       const sidebarLeft = sidebarRef.current?.getBoundingClientRect().left ?? 0;
       const newWidth = e.clientX - sidebarLeft;
       if (newWidth >= MIN_WIDTH && newWidth <= MAX_WIDTH) {
@@ -236,6 +233,8 @@ function DashboardLayoutContent({
     if (isResizing) {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
+    }
+    if (isResizingActive) {
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
     }
@@ -246,7 +245,7 @@ function DashboardLayoutContent({
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
     };
-  }, [isResizing, setSidebarWidth]);
+  }, [isResizing, isResizingActive, setSidebarWidth]);
 
   return (
     <>
@@ -254,7 +253,7 @@ function DashboardLayoutContent({
         <Sidebar
           collapsible="icon"
           className="border-r-0"
-          disableTransition={isResizing}
+          disableTransition={isResizingActive}
         >
           <SidebarHeader className="h-16 justify-center border-b border-border/30">
             <div className="flex items-center gap-3 pl-3 pr-2 group-data-[collapsible=icon]:px-0 transition-all w-full">

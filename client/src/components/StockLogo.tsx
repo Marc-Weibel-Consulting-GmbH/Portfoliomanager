@@ -37,10 +37,12 @@ function LetterAvatar({ letter, size, className }: { letter: string; size: 'sm' 
 export function StockLogo({ ticker, companyName, size = 'md', className = '', iconOnly = true }: StockLogoProps) {
   const [imageError, setImageError] = useState(false);
 
-  // Reset error state when ticker changes
-  useEffect(() => {
+  // Reset error state when ticker changes (adjust state during render)
+  const [prevTicker, setPrevTicker] = useState(ticker);
+  if (ticker !== prevTicker) {
+    setPrevTicker(ticker);
     setImageError(false);
-  }, [ticker]);
+  }
 
   // Handle undefined ticker or companyName
   if (!ticker || !companyName) {
