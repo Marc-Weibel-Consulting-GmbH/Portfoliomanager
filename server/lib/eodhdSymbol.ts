@@ -56,20 +56,24 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
   'SRG.MI': 'SNMRF.US',     // Snam → US OTC (SNMRF)
 
   // ─── Singapore Exchange (.SI → .SG) ───
-  'D05.SI': 'D05.SG',       // DBS Group (SGX) — EODHD uses .SG not .SI
+  // D05.SI (DBS Group) — EODHD hat kein .SG-Listing; US ADR DBSDY ist verfügbar
+  'D05.SI': 'DBSDY.US',     // DBS Group → US ADR (DBSDY)
 
-  // ─── Tokyo Stock Exchange (.T → .TSE) ───
-  // EODHD erwartet für japanische Aktien das Suffix .TSE statt .T
-  '6856.T': '6856.TSE',   // Horiba Seisakusho
-  '7203.T': '7203.TSE',   // Toyota
-  '6758.T': '6758.TSE',   // Sony
-  '9984.T': '9984.TSE',   // SoftBank
-  '6861.T': '6861.TSE',   // Keyence
-  '4519.T': '4519.TSE',   // Chugai Pharmaceutical
-  '8306.T': '8306.TSE',   // Mitsubishi UFJ
-  '6954.T': '6954.TSE',   // Fanuc
-  '7267.T': '7267.TSE',   // Honda
-  '6501.T': '6501.TSE',   // Hitachi
+  // ─── Tokyo Stock Exchange (.T) ───
+  // EODHD hat kein .TSE-Exchange — japanische Aktien müssen über Frankfurt (.F) oder US ADR abgerufen werden.
+  // Getestete Mappings (Stand Juli 2026):
+  '6856.T': '01H.F',      // Horiba Seisakusho → Frankfurt (01H.F) ✅
+  '7735.T': 'SCRNY.US',   // Screen Holdings → US ADR (SCRNY) ✅
+  '9962.T': 'MSSMY.US',   // Misumi Group → US ADR (MSSMY) ✅
+  '7203.T': 'TM',         // Toyota → US ADR (TM)
+  '6758.T': 'SONY',       // Sony → US ADR (SONY)
+  '9984.T': 'SFTBY.US',   // SoftBank → US ADR (SFTBY)
+  '6861.T': 'KYCCF.US',   // Keyence → US OTC (KYCCF)
+  '4519.T': 'CHGCY.US',   // Chugai Pharmaceutical → US ADR (CHGCY)
+  '8306.T': 'MUFG',       // Mitsubishi UFJ → US ADR (MUFG)
+  '6954.T': 'FANUY.US',   // Fanuc → US ADR (FANUY)
+  '7267.T': 'HMC',        // Honda → US ADR (HMC)
+  '6501.T': 'HTHIY.US',   // Hitachi → US ADR (HTHIY)
 
   // ─── US / OTC ───
   'MESA': 'RJET',
@@ -78,7 +82,77 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
   // LVMH-ADR direkt als OTC-ADR abrufen (NICHT auf MC.PA 1:1 mappen — der ADR steht in einem
   // anderen Verhältnis zur Pariser Stammaktie, das würde den Positionswert verfälschen).
   'LVMUY': 'LVMUY.US',
+  // ─── Commodity ETFs (Gold/Silver/Rohwaren) ───
+  // Swisscanto Gold ETF (SIX: CSGLDE.SW)
+  'CH0139101601': 'CSGLDE.SW',
+  // iShares Physical Gold ETC (SIX: SGLN.SW)
+  'IE00B4ND3602': 'SGLN.SW',
+  // WisdomTree Physical Gold (SIX: PHAU.SW)
+  'JE00B1VS3770': 'PHAU.SW',
+  // ZKB Gold ETF (SIX: ZGLD.SW)
+  'CH0139101619': 'ZGLD.SW',
+  // Invesco Physical Gold ETC (XETRA: SGLD.DE)
+  'IE00B579F325': 'SGLD.XETRA',
+  // ─── Crypto ETPs/Zertifikate ───
+  // Vontobel BTC Certificate (SIX: VBTC.SW)
+  'CH0595154060': 'VBTC.SW',
+  // 21Shares Bitcoin ETP (SIX: ABTC.SW)
+  'CH0454664001': 'ABTC.SW',
+  // 21Shares Ethereum ETP (SIX: AETH.SW)
+  'CH0454664027': 'AETH.SW',
 };
+
+/**
+ * Proxy-Symbol → Währung des historischen Preises.
+ *
+ * Wenn ein DB-Ticker über ein Proxy-Symbol abgerufen wird (z.B. 6856.T → 01H.F in EUR),
+ * werden die historischen Preise in der Proxy-Währung gespeichert, NICHT in der nativen
+ * Währung des Tickers. Diese Map gibt die korrekte Währung für die gespeicherten
+ * historicalPrices zurück, damit toChfPriceMap die richtige FX-Konvertierung anwendet.
+ *
+ * Regel: .F = EUR, .US/.OTC = USD, .LSE = GBp, .SW = CHF, .AU = AUD, .WAR = PLN
+ */
+const PROXY_CURRENCY: Record<string, string> = {
+  // Italian stocks → Frankfurt (EUR)
+  'ADB.MI': 'EUR',
+  'EQUI.MI': 'EUR',
+  'IG.MI': 'EUR',
+  'PST.MI': 'EUR',
+  'MONC.MI': 'USD',  // MONRY is a US ADR
+  'PRY.MI': 'USD',   // PRYMY.US
+  'SRG.MI': 'USD',   // SNMRF.US
+  // Singapore → US ADR (USD)
+  'D05.SI': 'USD',   // DBSDY.US
+  // Japanese stocks → Frankfurt (EUR) or US ADR (USD)
+  '6856.T': 'EUR',   // 01H.F Frankfurt
+  '7735.T': 'USD',   // SCRNY.US
+  '9962.T': 'USD',   // MSSMY.US
+  '7203.T': 'USD',   // TM (US ADR)
+  '6758.T': 'USD',   // SONY (US ADR)
+  '9984.T': 'USD',   // SFTBY.US
+  '6861.T': 'USD',   // KYCCF.US
+  '4519.T': 'USD',   // CHGCY.US
+  '8306.T': 'USD',   // MUFG (US ADR)
+  '6954.T': 'USD',   // FANUY.US
+  '7267.T': 'USD',   // HMC (US ADR)
+  '6501.T': 'USD',   // HTHIY.US
+};
+
+/**
+ * Gibt die Währung zurück, in der die historischen Preise für diesen DB-Ticker
+ * in der historicalPrices-Tabelle gespeichert sind.
+ *
+ * Für die meisten Ticker ist das die native Währung (aus stocks.currency).
+ * Für Proxy-Ticker (z.B. japanische Aktien über Frankfurt/US-ADR) ist es die
+ * Proxy-Währung (EUR/USD), weil EODHD die Preise in dieser Währung liefert.
+ *
+ * @param dbTicker  Der DB-Ticker (z.B. '6856.T')
+ * @param nativeCurrency  Die native Währung aus der stocks-Tabelle (z.B. 'JPY')
+ * @returns Die korrekte Währung für die historicalPrices-Einträge
+ */
+export function getHistoricalPriceCurrency(dbTicker: string, nativeCurrency: string): string {
+  return PROXY_CURRENCY[dbTicker] ?? nativeCurrency;
+}
 
 /**
  * Alias-Auflösung: liefert das EODHD-Symbol für einen DB-Ticker. Ist keine Sonderregel
@@ -89,10 +163,8 @@ export function toEodhdSymbol(ticker: string): string {
   if (!ticker) return ticker;
   // Explizite Mappings haben Vorrang
   if (EODHD_TICKER_MAPPING[ticker]) return EODHD_TICKER_MAPPING[ticker];
-  // Generische Regel: Japanische Aktien (.T) → .TSE
-  // EODHD verwendet .TSE als Suffix für die Tokyo Stock Exchange
-  if (ticker.endsWith('.T') && /^\d+\.T$/.test(ticker)) {
-    return ticker.replace(/\.T$/, '.TSE');
-  }
+  // Generische Regel: Japanische Aktien (.T) — EODHD hat kein .TSE-Exchange.
+  // Unbekannte .T-Ticker werden als nicht verfügbar behandelt (UNAVAILABLE_TICKERS).
+  // Bekannte Ticker sind explizit in EODHD_TICKER_MAPPING oben eingetragen.
   return ticker;
 }

@@ -8,7 +8,7 @@
  */
 import { Request, Response } from "express";
 import { sdk } from "../_core/sdk";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, invokeKimi } from "../_core/llm";
 import { getDb } from "../db";
 import { savedPortfolios, portfolioTransactions, stocks as stocksTable } from "../../drizzle/schema";
 import { curated } from "../lib/stockUniverse";
@@ -136,7 +136,7 @@ Erstelle einen Wochenrückblick mit folgender Struktur (auf Deutsch):
 
 Halte dich kurz und prägnant (max 500 Wörter). Verwende Schweizer Kontext (CHF, SIX, etc.).`;
 
-    const response = await invokeLLM({
+    const response = await invokeKimi({
       messages: [
         { role: "system", content: "Du bist ein erfahrener Schweizer Finanzanalyst und Portfolio-Berater." },
         { role: "user", content: prompt },

@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Key, Trash2, Copy, Check, Pencil } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AdminTopbar } from "@/components/AdminTopbar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 export default function AdminSecretsManagement() {
   const utils = trpc.useUtils();
@@ -84,8 +84,13 @@ export default function AdminSecretsManagement() {
 
   return (
     <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Secrets Verwaltung", icon: <Key className="h-4 w-4" /> },
+        ]}
+      />
       <div className="space-y-6">
-        <AdminTopbar />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">API & Secrets</h1>

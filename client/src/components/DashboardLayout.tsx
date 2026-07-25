@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
+import { needsOnboardingRedirect } from "@/lib/onboarding";
 import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wrench, Eye, Zap, FlaskConical, Camera, Search, Gauge } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -32,6 +33,7 @@ import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 // N-15: TrustpilotMini moved to Landing page footer
 import { FloatingChatButton } from "./FloatingChatButton";
+import { planLabel } from "@/lib/planLabel";
 
 // New flat sidebar structure from design handoff (6 top-level items)
 type NavItem = { icon: any; label: string; path: string };
@@ -80,6 +82,7 @@ const adminMenuItems = [
   { icon: Bell, label: "Alert-Kriterien", path: "/admin/alert-config" },
   { icon: Search, label: "Universum Gap-Filling", path: "/admin/gap-filling" },
   { icon: Gauge, label: "Score-Konfiguration", path: "/admin/score-config" },
+  { icon: Globe, label: "Universum-Kandidaten", path: "/admin/watchlist-candidates" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
@@ -106,12 +109,16 @@ export default function DashboardLayout({
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
 
-  // Redirect to onboarding only if user hasn't completed registration
+  // Neue Nutzer verlässlich in den Onboarding-Wizard leiten, bis sie ihn
+  // abgeschlossen haben (einzige, nicht-fragile Bedingung).
   useEffect(() => {
-    if (user && onboardingStatus !== undefined && !onboardingStatus.hasCompletedOnboarding && location !== "/onboarding") {
-      if (!user.hasCompletedRegistration) {
-        setLocation("/onboarding");
-      }
+    if (needsOnboardingRedirect({
+      hasUser: !!user,
+      onboardingLoaded: onboardingStatus !== undefined,
+      hasCompletedOnboarding: !!onboardingStatus?.hasCompletedOnboarding,
+      location,
+    })) {
+      setLocation("/onboarding");
     }
   }, [user, onboardingStatus, location, setLocation]);
 
@@ -193,7 +200,7 @@ function DashboardLayoutContent({
 
   // Fetch portfolios for sidebar submenu
   const { data: portfolios = [] } = trpc.portfolios.list.useQuery();
-  // K-A1: echter Plan aus dem Entitlements-Layer (Free/Plus/Pro).
+  // K-A1: echter Plan aus dem Entitlements-Layer (Free/Basic/Pro).
   const { data: planInfo } = trpc.billing.getPlan.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
 
   // State for tools group
@@ -471,7 +478,7 @@ function DashboardLayoutContent({
                     <div className="flex items-center gap-1.5 mt-1">
                       {/* K-A1: echter Plan aus dem Entitlements-Layer */}
                       <span className="text-[9px] font-semibold text-[#00CFC1] bg-[#00CFC1]/15 px-1.5 py-0.5 rounded-sm uppercase tracking-wider">
-                        {(planInfo?.plan ?? 'free').toUpperCase()}
+                        {planLabel(planInfo?.plan).toUpperCase()}
                       </span>
                     </div>
                   </div>

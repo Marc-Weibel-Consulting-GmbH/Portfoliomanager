@@ -78,7 +78,7 @@ export const weeklyOverviewRouter = router({
       const stocksData = await Promise.all(stockAnalysisPromises);
 
       // Use LLM to filter and summarize relevant news
-      const { invokeLLM } = await import("../_core/llm");
+      const { invokeKimi } = await import("../_core/llm");
       
       const prompt = `Du bist ein Finanzanalyst. Analysiere die folgenden Aktien und ihre News der letzten Woche.
 
@@ -116,7 +116,7 @@ Antworte im JSON-Format:
 Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
 
       try {
-        const llmResponse = await invokeLLM({
+        const llmResponse = await invokeKimi({
           messages: [
             { role: "system", content: "Du bist ein Finanzanalyst, der relevante Börsennews filtert und zusammenfasst." },
             { role: "user", content: prompt }

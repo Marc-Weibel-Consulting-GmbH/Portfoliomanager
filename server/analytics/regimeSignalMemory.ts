@@ -68,7 +68,9 @@ export async function recomputeRegimeEngineWeights(): Promise<RecomputeResult> {
         await db
           .update(regimeSignalConfig)
           .set({
-            engineWeights: JSON.stringify(engineWeights),
+            // Objekt direkt speichern — die json-Spalte serialisiert selbst;
+            // JSON.stringify hier führte zu doppelt kodierten Strings in der DB.
+            engineWeights,
             sampleSize: sampleByRegime[regime] || 0,
             lastLearnedAt: new Date(),
           })
@@ -80,7 +82,7 @@ export async function recomputeRegimeEngineWeights(): Promise<RecomputeResult> {
           regime,
           qualityWeight: blend.quality.toFixed(4),
           tradingWeight: blend.trading.toFixed(4),
-          engineWeights: JSON.stringify(engineWeights),
+          engineWeights,
           sampleSize: sampleByRegime[regime] || 0,
           lastLearnedAt: new Date(),
         });
@@ -215,11 +217,23 @@ export async function getRegimeConfig(): Promise<RegimeConfigView[]> {
   return [...regimes].map((regime) => {
     const row = byRegime.get(regime);
     const def = resolveWeights(regime, DEFAULT_REGIME_BLEND);
+    // Bestandszeilen sind doppelt kodiert (JSON.stringify in eine json-Spalte);
+    // tolerant parsen wie in getBlendConfig — sonst iteriert die Admin-UI den
+    // String zeichenweise ("0 NaN% · 1 NaN% · …").
+    let engineWeights: Record<string, number> | null = null;
+    if (row?.engineWeights != null) {
+      try {
+        const raw = typeof row.engineWeights === "string" ? JSON.parse(row.engineWeights) : row.engineWeights;
+        if (raw && typeof raw === "object" && !Array.isArray(raw)) engineWeights = raw as Record<string, number>;
+      } catch {
+        // kaputte Altdaten → null (UI zeigt dann schlicht nichts an)
+      }
+    }
     return {
       regime,
       qualityWeight: row?.qualityWeight != null ? parseFloat(String(row.qualityWeight)) : def.quality,
       tradingWeight: row?.tradingWeight != null ? parseFloat(String(row.tradingWeight)) : def.trading,
-      engineWeights: (row?.engineWeights as Record<string, number> | null) ?? null,
+      engineWeights,
       sampleSize: row?.sampleSize ?? 0,
       lastLearnedAt: row?.lastLearnedAt ? new Date(row.lastLearnedAt).toISOString() : null,
       isDefault: row?.qualityWeight == null,

@@ -67,12 +67,21 @@ async function fetchPricesFromDB(
     .orderBy(asc(hpTable.date));
   // Filter by date (date column is a string 'YYYY-MM-DD')
   const filtered = rows.filter((r: any) => String(r.date).slice(0, 10) >= startDate);
-  const byNorm: Record<string, Array<{ date: string; price: number }>> = {};
+  // Deduplizieren: pro Ticker+Datum nur den letzten Eintrag behalten.
+  // Duplikate in historicalPrices (z.B. durch mehrfache Backfill-Läufe) führen
+  // sonst zu return = (price - price) / price = 0 oder NaN in der Equity-Kurve.
+  const byNormMap: Record<string, Map<string, number>> = {};
   for (const r of filtered) {
     const v = parseFloat((r.adj ?? r.close) as any);
     if (!Number.isFinite(v) || v <= 0) continue;
-    if (!byNorm[r.ticker]) byNorm[r.ticker] = [];
-    byNorm[r.ticker].push({ date: String(r.date).slice(0, 10), price: v });
+    if (!byNormMap[r.ticker]) byNormMap[r.ticker] = new Map();
+    byNormMap[r.ticker].set(String(r.date).slice(0, 10), v); // letzter Wert gewinnt
+  }
+  const byNorm: Record<string, Array<{ date: string; price: number }>> = {};
+  for (const [ticker, dateMap] of Object.entries(byNormMap)) {
+    byNorm[ticker] = Array.from(dateMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, price]) => ({ date, price }));
   }
   const result: Record<string, Array<{ date: string; price: number }>> = {};
   for (const orig of tickers) {
@@ -111,7 +120,7 @@ export interface OptimizeInput {
   tickers: string[];
   lookbackDays?: number;
   riskFreeRate?: number;
-  method?: "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp";
+  method?: "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp" | "min_cvar";
   /**
    * R-34c: aktueller Portfoliowert in CHF. Wenn gesetzt, werden Zielpositionen
    * unter der Mindest-Positionsgrösse auf 0 gesetzt und umverteilt.
@@ -221,12 +230,22 @@ async function fetchReturnsWithDates(
         prices.map(async (p, i) => p * (await getFxRate(dates[i], pair))),
       );
     }
+    // Titel überspringen wenn FX-Konversion ungültige Preise erzeugt hat
+    // (z.B. getFxRate liefert 0 für fehlende NOKCHF/CADCHF-Kurse).
+    const validPrices = prices.filter((p) => Number.isFinite(p) && p > 0);
+    if (validPrices.length < prices.length * 0.9) {
+      // Mehr als 10% ungültige Preise → Titel ausschliessen
+      continue;
+    }
     const retDates: string[] = [];
     const returns: number[] = [];
     for (let i = 1; i < prices.length; i++) {
-      returns.push((prices[i] - prices[i - 1]) / prices[i - 1]);
+      const ret = prices[i - 1] > 0 ? (prices[i] - prices[i - 1]) / prices[i - 1] : NaN;
+      if (!Number.isFinite(ret)) continue; // Einzelne NaN-Renditen überspringen
+      returns.push(ret);
       retDates.push(dates[i]);
     }
+    if (returns.length < 2) continue;
     out[orig] = { dates: retDates, returns };
   }
   return out;
@@ -355,6 +374,32 @@ interface UserConstraints {
   minSharpe?: number;
 }
 
+// Tägliche Portfolio-Renditereihe aus Gewichten und den (datums-alignierten)
+// Asset-Renditereihen. `assetReturns[i]` = Tagesrenditen von Titel i.
+function weightedDailySeries(weights: number[], assetReturns: number[][]): number[] {
+  if (assetReturns.length === 0) return [];
+  const T = Math.min(...assetReturns.map((a) => a.length));
+  const out = new Array<number>(T);
+  for (let t = 0; t < T; t++) {
+    let r = 0;
+    for (let i = 0; i < assetReturns.length; i++) r += weights[i] * assetReturns[i][t];
+    out[t] = r;
+  }
+  return out;
+}
+
+// Historischer CVaR (Expected Shortfall) einer Tagesrenditereihe zum Niveau
+// `alpha` (Default 5 %). Rückgabe = POSITIVE Zahl = mittlerer Verlust im
+// schlechtesten alpha-Tail (Tageswert). Höher = mehr Tail-Risiko.
+function historicalCVaR(dailyReturns: number[], alpha = 0.05): number {
+  if (dailyReturns.length === 0) return 0;
+  const sorted = [...dailyReturns].sort((a, b) => a - b); // aufsteigend: schlechteste zuerst
+  const k = Math.max(1, Math.floor(sorted.length * alpha));
+  let s = 0;
+  for (let i = 0; i < k; i++) s += sorted[i];
+  return -(s / k);
+}
+
 function optimizeWeights(
   mu: number[],
   cov: number[][],
@@ -362,7 +407,8 @@ function optimizeWeights(
   riskFreeRate: number,
   dividendYields?: number[],
   constraints?: { minWeight: number; maxWeight: number },
-  userConstraints?: UserConstraints
+  userConstraints?: UserConstraints,
+  cvarReturns?: number[][]
 ): number[] {
   const n = mu.length;
   const x0 = new Array(n).fill(1 / n);
@@ -385,6 +431,7 @@ function optimizeWeights(
   const isDividend = method === "max_dividend";
   const isMinVar = method === "min_variance";
   const isMaxSharpe = method === "max_sharpe";
+  const isMinCvar = method === "min_cvar" && !!cvarReturns;
 
   function score(w: number[]): number {
     const { ret, vol } = portfolioStats(w, mu, cov);
@@ -397,6 +444,10 @@ function optimizeWeights(
       base = vol > 0 ? (ret - riskFreeRate) / vol : -Infinity;
     } else if (isMinVar) {
       base = -vol;
+    } else if (isMinCvar && cvarReturns) {
+      // Tail-Risk-Minimierung: minimiere den historischen CVaR (95 %) der
+      // gewichteten Tages-Portfoliorenditen → maximiere (−CVaR).
+      base = -historicalCVaR(weightedDailySeries(w, cvarReturns), 0.05);
     } else {
       base = 0;
     }
@@ -1270,6 +1321,11 @@ export async function optimizePortfolio(input: OptimizeInput) {
   let optimizerEngine: "exact" | "random_search" | "analytic" =
     method === "equal_weight" ? "analytic" : "random_search";
   let optimalWeights: number[] | null = null;
+
+  // Datums-alignierte Asset-Renditematrix (EODHD, CHF) — Basis für die
+  // CVaR-Zielfunktion und für die CVaR-Kennzahl (aktuell vs. optimiert).
+  const assetReturnsMatrix: number[][] = available.map((t) => returnsMap[t]);
+  const cvarReturns = method === "min_cvar" ? assetReturnsMatrix : undefined;
   if ((method === "max_sharpe" || method === "min_variance") && !input.userConstraints) {
     const { solveExactWeights } = await import("./exactOptimizer");
     const { minW, maxW } = effectiveBounds(n, minPositionWeight, maxPositionWeight);
@@ -1294,7 +1350,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
     optimalWeights = optimizeWeights(mu, cov, method, riskFreeRate, dividendYields, {
       minWeight: minPositionWeight,
       maxWeight: maxPositionWeight,
-    }, input.userConstraints);
+    }, input.userConstraints, cvarReturns);
   }
 
   // R-34c: Mindest-Positionsgrösse CHF 3'000 — Zielpositionen, deren Wert
@@ -1342,6 +1398,11 @@ export async function optimizePortfolio(input: OptimizeInput) {
     ? actualWeights.map(w => w / actualWeightSum) // normalise to sum=1
     : new Array(n).fill(1 / n); // fallback: equal weight
   const { ret: currRet, vol: currVol, sharpe: currSharpe } = portfolioStats(currentWeightsArr, mu, cov, riskFreeRate);
+
+  // CVaR (95 %, historisch) der gewichteten Tagesrenditen als Tail-Risiko-Kennzahl
+  // (positiver Wert = mittlerer Verlust an den schlechtesten 5 % der Handelstage).
+  const optCvar95 = historicalCVaR(weightedDailySeries(finalWeights, assetReturnsMatrix), 0.05);
+  const currCvar95 = historicalCVaR(weightedDailySeries(currentWeightsArr, assetReturnsMatrix), 0.05);
 
   // Efficient frontier
   // OPT-3: Frontier mit DENSELBEN Bounds wie das Optimum (vorher Default 1-10 %).
@@ -1407,11 +1468,14 @@ export async function optimizePortfolio(input: OptimizeInput) {
       sharpe: Math.round(optSharpe * 1000) / 1000,
       annualReturn: Math.round(optRet * 10000) / 100,
       sharpeRatio: Math.round(optSharpe * 1000) / 1000,
+      // CVaR 95 % (Tages-Tail-Verlust) in Prozent — additiv.
+      cvar95: Math.round(optCvar95 * 10000) / 100,
     },
     currentPortfolio: {
       expectedReturn: Math.round(currRet * 10000) / 10000,
       volatility: Math.round(currVol * 10000) / 10000,
       sharpe: Math.round(currSharpe * 1000) / 1000,
+      cvar95: Math.round(currCvar95 * 10000) / 100,
     },
     weights: weightsMap,
     assets: assetStats,
@@ -1429,6 +1493,133 @@ export async function optimizePortfolio(input: OptimizeInput) {
     minPositionChf: MIN_POSITION_CHF,
     // Constraint-Zielerreichung (nur wenn userConstraints gesetzt)
     constraintAchievement,
+  };
+}
+
+// ─────────────────────────────────────────────
+// Public API: Portfolio-Backtest
+// ─────────────────────────────────────────────
+
+export interface BacktestInput {
+  tickers: string[];
+  weights: number[]; // Reihenfolge = tickers; wird normalisiert
+  lookbackDays?: number;
+  rebalance?: "monthly" | "none";
+}
+
+/**
+ * Historischer Portfolio-Backtest auf Basis der EODHD-Historie (CHF, datums-
+ * aligniert — identische Datenbasis wie Optimizer/Risk). Simuliert die
+ * Ziel-Allokation über den Zeitraum mit monatlichem Rebalancing oder als
+ * Buy-and-Hold und liefert Kennzahlen (Gesamtrendite, CAGR, Volatilität,
+ * Sharpe, Max Drawdown) plus eine monatlich verdichtete Equity-Kurve.
+ *
+ * Kein eigener Kursabruf über Drittquellen — konsistent mit dem Rest der App.
+ */
+export async function runPortfolioBacktest(input: BacktestInput) {
+  const { tickers, weights, lookbackDays = 756, rebalance = "monthly" } = input;
+  if (tickers.length < 1) throw new Error("Mindestens 1 Titel erforderlich.");
+  if (weights.length !== tickers.length) {
+    throw new Error("weights und tickers müssen gleich lang sein.");
+  }
+
+  const currencyByTicker: { [ticker: string]: string } = {};
+  for (const t of tickers) currencyByTicker[t] = await getStockCurrency(t);
+  const datedMap = await fetchReturnsWithDates(tickers, lookbackDays, currencyByTicker);
+
+  // Nur Titel mit ausreichender Historie; Gewichte darauf renormieren.
+  const MIN_RETURNS = 30;
+  const available: string[] = [];
+  const excluded: string[] = [];
+  for (const t of tickers) {
+    if ((datedMap[t]?.returns.length ?? 0) >= MIN_RETURNS) available.push(t);
+    else excluded.push(t);
+  }
+  if (available.length < 1) {
+    throw new Error("Zu wenig Kurshistorie für einen Backtest (keine Titel mit ≥ 30 Handelstagen).");
+  }
+
+  const { returnsByTicker: returnsMap, dates: alignedDates } = alignReturnsByDate(datedMap, available);
+  const T = alignedDates.length;
+  if (T < MIN_RETURNS) {
+    throw new Error(`Zu wenig gemeinsame Handelstage für einen Backtest (${T} < ${MIN_RETURNS}).`);
+  }
+
+  const rawW = available.map((t) => Math.max(0, weights[tickers.indexOf(t)] ?? 0));
+  const wSum = rawW.reduce((s, w) => s + w, 0);
+  if (wSum <= 0) throw new Error("Summe der Gewichte muss grösser als 0 sein.");
+  const w = rawW.map((x) => x / wSum);
+
+  // Equity-Kurve simulieren (Start = 1.0). Jeder Sleeve driftet mit der
+  // Einzeltitel-Rendite; bei "monthly" zu Monatsbeginn auf Zielgewichte zurück.
+  let sleeves = w.slice();
+  const equity: number[] = [];
+  const equityDates: string[] = [];
+  for (let k = 0; k < T; k++) {
+    for (let i = 0; i < available.length; i++) {
+      sleeves[i] *= 1 + (returnsMap[available[i]][k] ?? 0);
+    }
+    const total = sleeves.reduce((s, v) => s + v, 0);
+    equity.push(total);
+    equityDates.push(alignedDates[k]);
+    if (
+      rebalance === "monthly" &&
+      k > 0 &&
+      alignedDates[k].slice(0, 7) !== alignedDates[k - 1].slice(0, 7)
+    ) {
+      sleeves = w.map((wi) => total * wi);
+    }
+  }
+
+  // Tägliche Portfoliorenditen aus der Equity-Kurve → Vol/Sharpe/Drawdown.
+  const portReturns: number[] = [];
+  for (let k = 1; k < equity.length; k++) {
+    portReturns.push(equity[k] / equity[k - 1] - 1);
+  }
+  const finalValue = equity[equity.length - 1];
+  const totalReturn = finalValue - 1;
+  const years = T / TRADING_DAYS_YEAR;
+  const cagr = years > 0 && finalValue > 0 ? Math.pow(finalValue, 1 / years) - 1 : 0;
+  const annVol = std(portReturns) * SQRT_TRADING_DAYS;
+  const annRet = mean(portReturns) * TRADING_DAYS_YEAR;
+  const { getRiskFreeRate } = await import("../lib/riskFreeRate");
+  const rf = await getRiskFreeRate();
+  const sharpe = annVol > 0 ? (annRet - rf) / annVol : 0;
+
+  // Maximaler Drawdown auf der Equity-Kurve.
+  let peak = equity[0];
+  let maxDrawdown = 0;
+  for (const v of equity) {
+    if (v > peak) peak = v;
+    const dd = peak > 0 ? (v - peak) / peak : 0;
+    if (dd < maxDrawdown) maxDrawdown = dd;
+  }
+
+  // Equity-Kurve auf Monatswerte verdichten (Antwortgrösse begrenzen).
+  const curve: Array<{ date: string; value: number }> = [];
+  for (let k = 0; k < equity.length; k++) {
+    const isMonthEnd = k === equity.length - 1 || equityDates[k].slice(0, 7) !== equityDates[k + 1].slice(0, 7);
+    if (k === 0 || isMonthEnd) {
+      curve.push({ date: equityDates[k], value: Math.round(equity[k] * 10000) / 10000 });
+    }
+  }
+
+  return {
+    rebalance,
+    tickers: available,
+    excludedTickers: excluded,
+    weights: Object.fromEntries(available.map((t, i) => [t, Math.round(w[i] * 10000) / 10000])),
+    stats: {
+      totalReturnPct: Math.round(totalReturn * 10000) / 100,
+      cagrPct: Math.round(cagr * 10000) / 100,
+      annualVolPct: Math.round(annVol * 10000) / 100,
+      sharpe: Math.round(sharpe * 1000) / 1000,
+      maxDrawdownPct: Math.round(maxDrawdown * 10000) / 100,
+    },
+    equityCurve: curve,
+    tradingDays: T,
+    fromDate: alignedDates[0],
+    toDate: alignedDates[T - 1],
   };
 }
 

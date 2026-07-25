@@ -57,7 +57,7 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
     allTransactions.forEach((tx: any) => {
       if (tx.ticker === ticker) {
         const txShares = parseFloat(tx.shares || "0");
-        if (tx.transactionType === "buy") {
+        if (tx.transactionType === "buy" || tx.transactionType === "entry") {
           totalShares += txShares;
         } else if (tx.transactionType === "sell") {
           totalShares -= txShares;

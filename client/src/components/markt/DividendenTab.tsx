@@ -42,6 +42,7 @@ export default function DividendenTab() {
             <thead>
               <tr className="border-b border-white/10">
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Ex-Datum</th>
+                <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden md:table-cell">Zahlungsdatum</th>
                 <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Titel</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider hidden sm:table-cell">Typ</th>
                 <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Betrag/Aktie</th>
@@ -54,6 +55,12 @@ export default function DividendenTab() {
                 <tr key={`${d.ticker}-${i}`} className="border-b border-white/5 hover:bg-white/[0.03]">
                   <td className="px-5 py-3 text-sm text-gray-400">
                     {d.exDividendDate ? formatDate(d.exDividendDate) : "—"}
+                    {d.type === "estimated" && (
+                      <span className="ml-1 text-xs text-yellow-500/70" title="geschätzter Termin">~</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-3 text-sm text-gray-400 hidden md:table-cell">
+                    {d.paymentDate ? formatDate(d.paymentDate) : "—"}
                     {d.type === "estimated" && (
                       <span className="ml-1 text-xs text-yellow-500/70" title="geschätzter Termin">~</span>
                     )}

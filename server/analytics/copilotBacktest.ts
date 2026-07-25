@@ -137,7 +137,7 @@ export async function runCopilotBacktest(
   // Initialize strategies
   const n = validTickers.length;
   let copilotWeights = new Map<string, number>();
-  let buyHoldWeights = new Map<string, number>();
+  const buyHoldWeights = new Map<string, number>();
   
   // Start with equal weights
   for (const t of validTickers) {

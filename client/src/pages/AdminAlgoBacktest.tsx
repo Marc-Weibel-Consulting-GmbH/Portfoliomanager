@@ -8,10 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import {
-  Brain, Play, ChevronDown, ChevronRight, TrendingUp, TrendingDown,
-  Minus, AlertTriangle, CheckCircle2, Clock, BarChart3, Zap, BookOpen
-} from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
+import {AlertTriangle, BarChart3, BookOpen, Brain, CheckCircle2, ChevronDown, ChevronRight, Clock, Database, FlaskConical, Minus, Play, TrendingDown, TrendingUp, Zap} from "lucide-react";
 
 function statusBadge(status: string) {
   const map: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -56,7 +54,7 @@ function RunRow({ run, onSelect, selected }: { run: any; onSelect: (id: number) 
         <TableCell className="font-medium">
           <div className="flex items-center gap-2">
             {selected ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-            {run.runMonth}
+            {run.runMonth instanceof Date ? run.runMonth.toISOString().split('T')[0] : String(run.runMonth)}
           </div>
         </TableCell>
         <TableCell>{statusBadge(run.status)}</TableCell>
@@ -229,11 +227,32 @@ export default function AdminAlgoBacktest() {
     onError: (e) => toast.error(e.message),
   });
 
+  // Falls die Algo-Tabellen in Prod fehlen (Migration 0033 nicht angewendet),
+  // kann der Admin sie hier idempotent nachziehen.
+  const applyMigrationMut = trpc.admin.applyMigration0033.useMutation({
+    onSuccess: (d) => {
+      toast.success(
+        d.createdTables.length
+          ? `Tabellen erstellt: ${d.createdTables.join(", ")}`
+          : "Datenbank ist bereits eingerichtet."
+      );
+      utils.backtest.algoRuns.invalidate();
+      utils.backtest.algoTuningLog.invalidate();
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const toggleRun = (id: number) => setSelectedRunId((prev) => (prev === id ? null : id));
 
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Algo Self-Learning Backtest", icon: <FlaskConical className="h-4 w-4" /> },
+        ]}
+      />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -246,14 +265,27 @@ export default function AdminAlgoBacktest() {
               Der Algorithmus lernt kontinuierlich — mit Overfitting-Schutz.
             </p>
           </div>
-          <Button
-            onClick={() => runNowMutation.mutate()}
-            disabled={runNowMutation.isPending}
-            className="flex items-center gap-2"
-          >
-            <Play className="h-4 w-4" />
-            {runNowMutation.isPending ? "Erstellt..." : "Run Now"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => applyMigrationMut.mutate()}
+              disabled={applyMigrationMut.isPending}
+              title="Erstellt die Algo-Backtest-Tabellen, falls sie in dieser Umgebung fehlen (idempotent)"
+              className="flex items-center gap-2"
+            >
+              <Database className="h-4 w-4" />
+              {applyMigrationMut.isPending ? "Richte ein..." : "DB einrichten"}
+            </Button>
+            <Button
+              onClick={() => runNowMutation.mutate()}
+              disabled={runNowMutation.isPending}
+              className="flex items-center gap-2"
+            >
+              <Play className="h-4 w-4" />
+              {runNowMutation.isPending ? "Erstellt..." : "Run Now"}
+            </Button>
+          </div>
         </div>
 
         {/* Info-Kacheln */}
@@ -334,17 +366,18 @@ export default function AdminAlgoBacktest() {
               </div>
             </div>
             {/* Letzte Feedback-Loop-Anpassung */}
-            {tuningLog && tuningLog.filter((t: any) => t.parameterChanged === "signalWeights.ytd+momentum").length > 0 && (
-              <div className="mt-3 pt-3 border-t border-primary/10 text-xs">
-                <span className="text-muted-foreground">Letzte Gewichtsanpassung via Feedback-Loop: </span>
-                <span className="text-purple-400 font-mono">
-                  {(() => {
-                    const last = tuningLog.filter((t: any) => t.parameterChanged === "signalWeights.ytd+momentum")[0];
-                    return `${last.oldValue} → ${last.newValue} (${new Date(last.createdAt).toLocaleDateString("de-CH")})`;
-                  })()}
-                </span>
-              </div>
-            )}
+            {(() => {
+              const last = tuningLog?.find((t: any) => t.parameterChanged === "signalWeights.ytd+momentum");
+              if (!last) return null;
+              return (
+                <div className="mt-3 pt-3 border-t border-primary/10 text-xs">
+                  <span className="text-muted-foreground">Letzte Gewichtsanpassung via Feedback-Loop: </span>
+                  <span className="text-purple-400 font-mono">
+                    {last.oldValue} → {last.newValue} ({new Date(last.createdAt).toLocaleDateString("de-CH")})
+                  </span>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
 

@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { getUserErrorMessage } from '@/lib/errorMessages';
 import {
   Send,
   Plus,
@@ -103,6 +104,7 @@ function ChatTab() {
       setSelectedConversationId(data.id);
       toast.success('Neue Konversation erstellt');
     },
+    onError: (e) => toast.error('Konversation konnte nicht erstellt werden', { description: getUserErrorMessage(e) }),
   });
 
   const sendMessage = trpc.chat.sendMessage.useMutation({
@@ -110,6 +112,7 @@ function ChatTab() {
       utils.chat.getMessages.invalidate();
       setMessage('');
     },
+    onError: (e) => toast.error('Nachricht konnte nicht gesendet werden', { description: getUserErrorMessage(e) }),
   });
 
   const deleteConversation = trpc.chat.deleteConversation.useMutation({
@@ -118,6 +121,7 @@ function ChatTab() {
       setSelectedConversationId(null);
       toast.success('Konversation gelöscht');
     },
+    onError: (e) => toast.error('Konversation konnte nicht gelöscht werden', { description: getUserErrorMessage(e) }),
   });
 
   useEffect(() => {

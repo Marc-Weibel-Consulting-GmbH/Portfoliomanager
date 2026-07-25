@@ -358,3 +358,141 @@
 - [x] In-App-Banner für neue Nutzer ohne Portfolio: "Starten Sie mit dem KI-Builder" (WelcomeBanner)
 - [x] Copilot Beispielfragen als Chips in der Eingabe (N-20 kombiniert)
 - [x] Tour-Trigger: WelcomeBanner als erster Einstiegspunkt (localStorage-persistent)
+
+## Aktienuniversum-Erweiterung im KI-Builder (2026-07-18)
+- [x] DB-Schema: Externe Kandidaten in stocks-Tabelle mit source='ai_recommended' + notes='universe_expansion|...'
+- [x] Server: Lücken-Analyse pro Sektor/Dividende/Sharpe/Momentum in universeExpansion.ts
+- [x] Server: EODHD-Screening für externe Kandidaten wenn Lücken erkannt (max. 20% der Positionen)
+- [x] Server: Externe Kandidaten mit Score-Berechnung und Quellenmarkierung versehen
+- [x] Frontend: Externe Kandidaten im KI-Builder mit "✨ Universum"-Badge kennzeichnen
+- [x] Admin: Kandidaten-Review-Seite /admin/watchlist-candidates für Watchlist-Übernahme
+- [x] Admin: Bulk-Approve/Reject-Workflow für Kandidaten
+
+## Bug: Aufstocken-Empfehlung fügt Titel nicht zur Positionsliste hinzu (2026-07-18)
+- [x] Fix: applyRecommendation 'increase' — wenn Ticker nicht in positions, Titel hinzufügen statt nur Gewicht erhöhen
+
+## KI-Erklärungsfenster (Insight-Panels) (2026-07-18)
+- [x] Gemeinsame InsightPanel-Komponente (visuell attraktiv, animiert, KI-Icon, Glassmorphism)
+- [x] KI-Builder Schritt 4: Erklärungspanel pro Titel (Warum dieser Titel? Score-Begründung)
+- [x] KI-Builder Schritt 4: Gesamt-Portfolio-Qualitätserklärung (Warum diese Zusammensetzung?)
+- [x] Portfolio-Details Deep Dive: Qualitäts-Erklärungspanel (Stärken/Schwächen-Analyse)
+- [x] Synthesizer Empfehlungen: Erklärungs-Tooltip pro Empfehlung (Warum Tausch/Aufstocken/Reduzieren?)
+- [x] Portfolio-Qualitätsscore: Erklärungspanel mit Detailbegründung pro Faktor
+
+## InsightPanel Erweiterungen (2026-07-18)
+- [x] Optimierungsempfehlungen: InsightExpandable pro Ersatz-Vorschlag (Warum ersetzen? Score-Gap, Cash-Bedarf)
+- [x] Optimierungsempfehlungen: InsightExpandable pro Ergänzungs-Vorschlag (Warum hinzufügen? Score, Signal, Quelle)
+- [x] InsightFactor: description-Feld hinzugefügt (optionale Erklärung pro Faktor)
+- [x] Signale-Tab: InsightTooltip auf Score (M+Q+LPPL) — Hover zeigt Berechnungslogik
+- [x] Signale-Tab: InsightTooltip auf Kriterien-Badges — Hover erklärt Kriterium
+
+## HTTP 524 Timeout Fix — Async-Job-Muster (Jul 2026)
+- [x] Backend: startProposal-Prozedur — gibt sofort jobId zurück, KI-Analyse läuft im Hintergrund (in-memory ProposalJob Registry)
+- [x] Backend: getProposalStatus-Prozedur — Polling-Endpoint mit Status, Progress-Array und Ergebnis
+- [x] Backend: Job-Cleanup-Intervall (alle 30 Min, Jobs älter als 2h werden gelöscht)
+- [x] Frontend: PortfolioBuilderWizard — startProposal + getProposalStatus Polling (alle 3s) statt blockierendem buildProposal
+- [x] Frontend: Progress-Anzeige mit Schritt-für-Schritt-Fortschritt (Berechtigungen → Profil → Diversifikation → Markt-Hub → Scoring → Positionen → Fundamentaldaten → Challenger → Synthesizer)
+- [x] End-to-End Test: Job startet sofort, läuft ~5 Min im Hintergrund, Ergebnis erscheint ohne 524-Fehler
+
+## Auto-Backfill bei KI-Portfolio-Vorschlag (Jul 2026)
+- [x] Backend: autoBackfillNewSymbols vor optimizePortfolio in startProposal eingebaut (Progress-Schritt "Kurshistorie prüfen und nachladen...")
+- [x] Backend: autoBackfillNewSymbols vor optimizePortfolio in buildProposal (Legacy) eingebaut
+- [x] Fehlermeldung "unvollständige Kurshistorie" wird durch automatisches Nachladen verhindert
+
+## Challenger + Wizard Fixes (Jul 2026)
+- [x] Challenger-Prompt: muss immer konkrete Optimierungsvorschläge liefern (spezifische Ticker-Tausche + Gewichtsänderungen), nicht nur Kritik
+- [x] Wizard-Ergebnis: Kurse (currentPrice) werden nicht angezeigt — Bug finden und beheben
+
+## Algorithmus + Challenger Verbesserungen (Jul 2026)
+- [x] Sektor-Cap Default: maxSectorPercent 40% → 30% (balanced-Profil)
+- [x] Heimatmarkt-Korrelations-Cap: max. 3 Titel aus demselben Land+Sektor (z.B. CH-Finanz)
+- [x] Markt-Hub-Faktor-Tilt stärker ins Scoring: Value-Signal → Momentum-Titel abwerten, Momentum-Signal → Value-Titel abwerten
+- [x] Challenger-Prompt: JSON-Schema um swaps-Feld erweitern (remove/add/weightAdjustment), konkrete Tausch-Paare erzwingen
+- [x] Wizard-Ergebnis: currentPrice wird nicht angezeigt — Bug finden und beheben
+
+## Portfolio Aktivieren Bug (Jul 2026)
+- [x] Fix: "Fehler beim Aktivieren" — Deposit-Transaktion wird jetzt vor den Kauftransaktionen erstellt (Cash-Balance-Validierung erforderte positiven Saldo)
+
+## Backfill-Verbesserungen (Jul 2026)
+- [x] Backfill-Timeout: 60s pro Ticker in fetchHistoricalPricesFromAPI (AbortController, verhindert hängende Jobs bei TSE-404-Titeln)
+- [x] Fehlermeldung verbessern: konkrete Ticker nennen die ausgeschlossen wurden (backfillFailed-Ticker in weightingNote)
+- [x] Admin-Dashboard Backfill-Status-Panel: ausstehende Ticker (amber), zuletzt nachgeladen (grün), dauerhaft keine EODHD-Daten (rot, löschbar per Klick) — aktualisiert alle 10s
+- [x] Backend: permanentlyFailedBackfills-Registry in autoBackfill.ts + clearPermanentlyFailedBackfills-Prozedur in adminRouter
+
+## YTD-Inkonsistenz Bug (Jul 2026)
+- [x] Fix: YTD-Inkonsistenz (Dashboard +54.24% vs Portfolio-Details +22.9%) — calculatePortfolioValueAtDate nutzte currentPrice statt historicalPrice für shares-Berechnung
+
+## Wizard Toggle: Mit/Ohne Admin-Review (Jul 2026)
+- [x] Frontend: Toggle/Checkbox im Wizard Step 5 — "Mit Admin-Review" (Standard) vs. "Direkt erstellen"
+- [x] Frontend: Bei "Direkt erstellen" → Proposal direkt als Portfolio speichern (ohne Admin-Genehmigung)
+- [x] Frontend: Beide Aktionsbuttons entsprechend anpassen (Label + Aktion)
+
+## Bug Fixes & UX Improvements (Jul 19, 2026)
+- [x] Fix: Kaufwerte nach Portfolio-Übernahme — 0×CHF 0.00 / NaN% (adminReviewedPositions haben kein currentPrice)
+- [x] Fix: KPI-Lücken im KI-Analyse-Protokoll (Sharpe/Erwartete Rendite/Volatilität = "—") — nur wenn Optimizer NaN liefert (fehlende Kurshistorie)
+- [x] Fix: Div.-Rendite-Diskrepanz Übersicht (3.82%) vs. Deep Dive (3.2%) — unterschiedliche Datenquellen
+- [x] Feature: Neuoptimierung neue Kandidaten default NICHT angekreuzt + Bulk-Toggle (Alle an/aus)
+- [x] Feature: Fortschrittsbalken beim Portfolio-Erstellen (Spinner + Schritt-Anzeige)
+- [x] Feature: Fortschrittsbalken beim Deep Dive laden (Skeleton/Progress statt leere Seite)
+
+## Fixes 2026-07-19 (Batch 2)
+- [x] Fix: Kaufwerte 0×CHF 0.00 nach Portfolio-Übernahme — adminReviewedPositions mit currentPrice aus Original-Positionen anreichern
+- [x] Fix: handleAcceptProposal fallback zu allStocks-Preis wenn currentPrice fehlt
+- [x] Fix: KPI-Lücken (Sharpe/Rendite/Volatilität) — Tooltip-Hinweis auf fehlende Kurshistorie
+- [x] Fix: Div.-Rendite-Diskrepanz — Deep Dive nutzt DB-dividendYield als Fallback wenn EODHD null/0 liefert
+- [x] Fix: Neuoptimierung neue Kandidaten default ALLE deaktiviert (useEffect initialisiert deselectedAdditions)
+- [x] Feature: Bulk-Toggle "Alle ✔ / Alle ✕" für neue Kandidaten in Neuoptimierung
+- [x] Feature: Fortschrittsbalken beim Portfolio-Erstellen (Schritt 5)
+- [x] Feature: Fortschrittsbalken beim KI-Vorschlag erstellen (mit Zeitschätzung + Step-Log)
+- [x] Feature: Fortschrittsbalken im Deep Dive (mit Zeitschätzung + EODHD-Hinweis)
+
+## Neue Anlageklassen: Gold-ETF, Krypto, Obligationen (Jul 2026)
+- [x] Importlogik: Obligationen (Bonds) erkennen und als Anlageklasse "Bond" / "Fixed Income" klassifizieren (ISIN-Prefix CH/XS/US + Kupon/Fälligkeit als Erkennungsmerkmal)
+- [x] Importlogik: Gold-ETF erkennen und als Anlageklasse "Commodity" / "Gold" klassifizieren (Swisscanto Gold ETF CH0139101601, iShares Gold etc.)
+- [x] Importlogik: Krypto-Zertifikate/ETPs erkennen und als Anlageklasse "Crypto" klassifizieren (VONT BTC/USD CH0595154060, Bitcoin-ETPs etc.)
+- [x] DB-Schema: assetType in portfolioData JSON (bond/commodity/crypto/cash/stock) — kein separates DB-Feld nötig da portfolioData JSON-basiert
+- [x] Preisabruf: Für Obligationen historische Preise via EODHD abrufen (ISIN.EUFUND oder .SWX Exchange) — Bond-ISINs werden in importHistoricalPrices übersprungen (kein Sekundärmarkt-Kurs via EODHD verfügbar)
+- [x] Preisabruf: Für Gold-ETF historische Preise via EODHD abrufen — Commodity-ETF-ISINs werden via eodhdSymbol.ts zu handelbaren Tickern gemappt
+- [x] Preisabruf: Für Krypto-Zertifikate historische Preise abrufen — Crypto-ETP-ISINs werden via eodhdSymbol.ts zu BTC-Proxy-Tickern gemappt
+- [x] Dashboard Allokation: Neue Anlageklassen in Allokations-Donut-Chart anzeigen (Bond, Commodity, Crypto) — neuer "Klasse"-Modus im Allokations-Widget
+- [x] Portfolio-Anzeige: Anlageklasse-Badge pro Position anzeigen (Obligation=blau, Rohwaren=gelb, Krypto=lila)
+
+## Neue Anlageklassen: Gold-ETF, Krypto, Obligationen (Jul 2026)
+- [x] assetType enum erweitert: 'bond' | 'commodity' | 'crypto' | 'cash' | 'stock' in bankParsers/index.ts, swissquoteParser.ts, pdfImportRouter.ts, SwissquotePDFImport.tsx
+- [x] KI-Extraktions-Prompt: Klassifikationsregeln für Obligationen, Gold-ETFs, Krypto-Zertifikate
+- [x] isinResolver: Bond und Fund Typen von EODHD/Yahoo akzeptiert
+- [x] SwissquotePDFImport: Badge-Anzeige für alle Anlageklassen (Obligation=blau, Rohwaren/Gold=gelb, Krypto=lila, Cash=grau, Aktie/ETF=grün)
+
+## Portfolio-Vorschlag: individuelle KI-Texte (Jul 2026)
+- [x] fillTexts-Batching: Bei > 10 Positionen in Gruppen von 8 aufteilen, um Token-Limits zu vermeiden
+- [x] Bessere Fehlerprotokollierung: Batch-Nummer, Anzahl erhaltener Begründungen, Fallback-Warnung
+- [x] Fortschritts-Meldung: "KI-Texte: X/Y Titel individuell begründet" im Progress-Stream
+
+## Aggregiertes Dashboard: Fixes (Jul 2026)
+- [x] Performance-Chart YTD: startDate nicht mehr auf earliestTransactionDate beschränken für YTD/1J/3J/5J-Ranges bei Live-Portfolios (Chart zeigt Benchmarks ab 1.1., Portfolio-Linie ab erstem Kauf)
+- [x] Sharpe "Keine Daten": getRiskMetrics schloss im Aggregat-Modus Demo-Portfolios aus → jetzt alle Portfolios eingeschlossen (analog getAggregatedMetrics)
+
+## KI-Briefing: 24h-Cache (Jul 2026)
+- [x] DB-Tabelle `stock_briefing_cache` (ticker UNIQUE, briefing LONGTEXT, generatedAt, meta JSON) — direkt via SQL erstellt
+- [x] Backend: Cache-Lookup vor LLM-Aufruf (TTL 24h), Cache-Write nach erfolgreichem LLM-Aufruf (fire-and-forget)
+- [x] Backend: `forceRefresh`-Parameter um Cache zu umgehen (für "Aktualisieren"-Button)
+- [x] Frontend: Cache-Altersanzeige ("Aus Cache · vor 3h 12m") im Datenstreifen
+- [x] Frontend: "Aktualisieren"-Button löst `forceRefresh: true` aus (neues LLM-Briefing)
+- [x] feat/multi-asset-universe: 6 Feature-Dateien aus PR #174 via cherry-pick in main integriert (multiAssetSleeve.ts, multiAssetSleeve.test.ts, autoPortfolioShared.ts, autoPortfolioJobs.ts, autoPortfolioRouter.ts, PortfolioBuilderWizard.tsx) — tsc sauber, 11/11 Tests grün
+
+## Multi-Asset Follow-ups (Jul 2026)
+- [x] Allokations-Matrix admin-konfigurierbar: appSettings-Key "multi_asset_allocation", Admin-UI in AdminSettings, getMultiAssetAllocation() liest aus DB mit Fallback auf Konstanten
+- [x] FX-Enforcement für Sleeve-ETFs: Nach applyMultiAssetSleeve USD/GBP-ETFs auf CHF-Alternativen umschalten wenn FX-Limit überschritten
+- [x] Täglicher Cron für Sleeve-ETF-Preise: MULTI_ASSET_ETFS-Tickers immer in getUniqueTickers() inkludieren
+- [x] bug: Tag-1-Rendite -14% bei Multi-Asset-Portfolios — avgBuyPrice/avgBuyPriceCHF beim Portfolio-Erstellen aus Vorschlag explizit setzen (adminRouter.ts)
+- [x] bug: BCOM.SW kein EODHD-Endpunkt — durch CMOD.SW (iShares Diversified Commodity Swap, SIX) ersetzt
+- [x] fix: KI-Briefing array-content von Gemini/invokeLLM-Fallback (contentToString)
+- [x] fix: KI-Briefing vollständige Fallback-Kaskade (kimi→gemini→claude→omniroute→groq→perplexity)
+- [x] fix: Deep-Dive erkennt Multi-Asset-Sleeve-ETFs korrekt (Sektor-Label + LLM-Prompt)
+- [x] Deep-Dive Cache-Clear Button im Admin-Dashboard
+- [x] Sleeve-ETF-Icons in Positionen-Tabelle (Deep-Dive)
+- [x] Asset-Allokations-Donut-Chart im Deep-Dive
+- [x] Sleeve-ETF-Icons in Positionen-Tabelle (PortfolioDetailsPage)
+- [x] Asset-Allokations-Zeile unter KPI-Karten (PortfolioDetailsPage)
+- [x] Positionen-Tabelle nach Anlageklassen sortiert (Aktien → Immobilien → Obligationen → Gold → Krypto → Cash)
+- [x] Sleeve-ETF-Backfill-Button im Admin-Dashboard (backfillSleeveEtfs)

@@ -108,7 +108,7 @@ export default function AdminSecrets() {
     <div className="container max-w-5xl py-8">
       <Breadcrumb
         items={[
-          { label: "Admin", href: "/" },
+          { label: "Admin", href: "/admin" },
           { label: "API Secrets", icon: <Key className="h-4 w-4" /> },
         ]}
       />

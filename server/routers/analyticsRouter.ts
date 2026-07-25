@@ -8,9 +8,9 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { calcRiskMetrics, calcDCF, optimizePortfolio, calcTechnicalAnalysis, calcRiskScoreHistory } from "../analytics/engine";
+import { calcRiskMetrics, calcDCF, optimizePortfolio, calcTechnicalAnalysis, calcRiskScoreHistory, runPortfolioBacktest } from "../analytics/engine";
 import { getQualityMetrics } from "../lib/qualityMetricsService";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, invokeKimi } from "../_core/llm";
 import { getDiversificationRules as _getDiversificationRules } from "../lib/diversificationRules";
 import { getDb } from "../db";
 import { stocks as stocksTable, portfolioTransactions, savedPortfolios } from "../../drizzle/schema";
@@ -106,7 +106,7 @@ export const analyticsRouter = router({
         tickers: z.array(z.string()).min(2),
         lookbackDays: z.number().default(252),
         riskFreeRate: z.number().default(0.02),
-        method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend", "hrp"]).default("max_sharpe"),
+        method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend", "hrp", "min_cvar"]).default("max_sharpe"),
         // R-34c (additiv): Portfoliowert in CHF für die Mindest-Positionsgrösse CHF 3'000
         portfolioValue: z.number().positive().optional(),
         // Current portfolio weights {ticker: weight 0..1} to plot actual portfolio on frontier
@@ -121,6 +121,10 @@ export const analyticsRouter = router({
     )
     .query(async ({ input, ctx }) => {
       try {
+        // K-A1: Plan-Gate — Optimizer ist Basic/Pro
+        const { requireFeature } = await import("../lib/entitlements");
+        await requireFeature(ctx.user, "optimizer");
+
         // F2: Diversifikationsregeln (Admin) fliessen als Constraints in den Optimizer.
         const { getDiversificationRules } = await import("../lib/diversificationRules");
         const rules = await getDiversificationRules();
@@ -154,8 +158,8 @@ export const analyticsRouter = router({
                 { riskProfile: profile.riskProfile, maxDrawdownTolerancePct: profile.maxDrawdownTolerancePct, investmentHorizonYears: profile.investmentHorizonYears },
                 rules,
               );
-              // equal_weight / max_dividend / hrp bleiben respektiert; sonst profilbasierte Methode.
-              method = (input.method === "equal_weight" || input.method === "max_dividend" || input.method === "hrp") ? input.method : params.method;
+              // equal_weight / max_dividend / hrp / min_cvar bleiben respektiert; sonst profilbasierte Methode.
+              method = (input.method === "equal_weight" || input.method === "max_dividend" || input.method === "hrp" || input.method === "min_cvar") ? input.method : params.method;
               minPositionWeight = params.minPositionWeight;
               maxPositionWeight = params.maxPositionWeight;
             }
@@ -181,6 +185,36 @@ export const analyticsRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message: err.message ?? "Portfolio optimization failed",
         });
+      }
+    }),
+
+  /**
+   * Historischer Portfolio-Backtest einer Ziel-Allokation (EODHD-Historie, CHF,
+   * monatliches Rebalancing oder Buy-and-Hold). Liefert Kennzahlen + Equity-Kurve.
+   */
+  backtestPortfolio: protectedProcedure
+    .input(
+      z.object({
+        tickers: z.array(z.string()).min(1),
+        weights: z.array(z.number()).min(1),
+        lookbackDays: z.number().int().min(60).max(3780).default(756),
+        rebalance: z.enum(["monthly", "none"]).default("monthly"),
+      })
+    )
+    .query(async ({ input }) => {
+      if (input.tickers.length !== input.weights.length) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "tickers und weights müssen gleich lang sein." });
+      }
+      try {
+        return await runPortfolioBacktest({
+          tickers: input.tickers,
+          weights: input.weights,
+          lookbackDays: input.lookbackDays,
+          rebalance: input.rebalance,
+        });
+      } catch (err: any) {
+        // Fachliche Fehler (zu wenig Historie etc.) als BAD_REQUEST durchreichen.
+        throw new TRPCError({ code: "BAD_REQUEST", message: err.message ?? "Backtest fehlgeschlagen." });
       }
     }),
 
@@ -312,7 +346,7 @@ RISIKO:
 
 Gib eine strukturierte Analyse zurück.`;
 
-        const response = await invokeLLM({
+        const response = await invokeKimi({
           messages: [
             {
               role: "system",
@@ -378,7 +412,7 @@ Gib eine strukturierte Analyse zurück.`;
         ),
         portfolioValue: z.number().optional().default(0),
         cashBalance: z.number().optional().default(0),
-        method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend", "hrp"]).optional().default("max_sharpe"),
+        method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend", "hrp", "min_cvar"]).optional().default("max_sharpe"),
       })
     )
     .query(async ({ input, ctx }) => {

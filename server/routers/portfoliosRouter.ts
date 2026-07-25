@@ -1,5 +1,6 @@
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
+import { perfCache, PERF_CACHE_TTL } from "../_core/perfCache";
 import { z } from "zod";
 import { computeWeightedReturnSeries } from "../lib/weightedReturnSeries";
 import { applyCashDrag } from "../lib/cashAdjust";
@@ -96,18 +97,12 @@ export const portfoliosRouter = router({
             const priceCHF = priceCHFOrNull;
 
             // Calculate shares:
-            // - For demo portfolios: ALWAYS use weight-based calculation to ensure
-            //   totalValueCHF = investmentAmount (stored shares may be wrong due to FX issues at creation)
-            // - For live portfolios: use stored shares from real transactions
-            let shares: number;
-            const isDemo = portfolio.portfolioType === 'demo' || !portfolio.portfolioType;
-            if (isDemo && investmentAmount > 0 && weight > 0) {
+            // - Use stored shares if available (set correctly by handleAcceptProposal after FX fix)
+            // - Fall back to weight-based calculation only when shares are missing/zero
+            //   (legacy portfolios created before the FX fix, or manually-built portfolios)
+            let shares: number = parseFloat(stock.shares || '0');
+            if (!(shares > 0) && investmentAmount > 0 && weight > 0) {
               shares = priceCHF > 0 ? (investmentAmount * weight) / priceCHF : 0;
-            } else {
-              shares = parseFloat(stock.shares || '0');
-              if (shares === 0 && investmentAmount > 0 && weight > 0) {
-                shares = priceCHF > 0 ? (investmentAmount * weight) / priceCHF : 0;
-              }
             }
 
             totalValueCHF += shares * priceCHF;
@@ -115,6 +110,7 @@ export const portfoliosRouter = router({
 
           // Add cash balance if exists
           const cashBalance = parseFloat(portfolio.cashBalance || '0');
+          const stocksValueBeforeCash = totalValueCHF;
           totalValueCHF += cashBalance;
 
           // Calculate performance
@@ -231,16 +227,17 @@ export const portfoliosRouter = router({
               for (const [ticker, shares] of Object.entries(holdings)) {
                 if (shares <= 0) continue;
                 const stock = stocksMap.get(ticker);
-                if (!stock) continue;
-                
-                const currency = stock.currency || 'CHF';
+                                if (!stock) continue;
+                const nativeCurrency = stock.currency || 'CHF';
+                // FX-Bug-Fix (UX2-5): use proxy currency for historicalPrices
+                const { getHistoricalPriceCurrency } = await import('../lib/eodhdSymbol');
+                const historicalCurrency = getHistoricalPriceCurrency(ticker, nativeCurrency);
                 const currentPrice = safeParseFloat(stock.currentPrice);
                 const ytdStartPrice = ytdPricesMap.get(ticker);
-                
                 if (ytdStartPrice) {
                   hasHistoricalData = true;
-                  const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
-                  const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+                  const currentPriceCHF = await convertToCHF(currentPrice, nativeCurrency, todayStr);
+                  const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, historicalCurrency, ytdStartDate);
                   currentValueForPerf += shares * currentPriceCHF;
                   ytdStartValueCHF += shares * ytdStartPriceCHF;
                 }
@@ -263,32 +260,33 @@ export const portfoliosRouter = router({
             let currentValueForPerf = 0;
             let hasHistoricalData = false;
             
+                        const { getHistoricalPriceCurrency: getHistCurr } = await import('../lib/eodhdSymbol');
             for (const stock of stocks) {
               const ticker = stock.ticker;
               if (!ticker) continue;
               const stockData = stocksMap.get(ticker) as any;
               if (!stockData) continue;
               const currentPrice = safeParseFloat(stockData.currentPrice);
-              const currency = stockData.currency || 'CHF';
+              const nativeCurrency = stockData.currency || 'CHF';
+              // FX-Bug-Fix (UX2-5): proxy tickers store historicalPrices in proxy currency
+              const historicalCurrency = getHistCurr(ticker, nativeCurrency);
               const weight = parseFloat(stock.weight || '0') / 100;
               const ytdStartPrice = ytdPricesMap.get(ticker);
-              
               let shares = parseFloat(stock.shares || '0');
               if (shares === 0 && weight > 0) {
                 if (ytdStartPrice) {
-                  const ytdPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+                  const ytdPriceCHF = await convertToCHF(ytdStartPrice, historicalCurrency, ytdStartDate);
                   const allocationCHF = investmentAmount > 0 ? investmentAmount * weight : 100000 * weight;
                   shares = ytdPriceCHF > 0 ? allocationCHF / ytdPriceCHF : 0;
                 } else if (investmentAmount > 0) {
-                  const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+                  const priceCHF = await convertToCHF(currentPrice, nativeCurrency, todayStr);
                   shares = priceCHF > 0 ? (investmentAmount * weight) / priceCHF : 0;
                 }
               }
-              
               if (ytdStartPrice && shares > 0) {
                 hasHistoricalData = true;
-                const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
-                const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+                const currentPriceCHF = await convertToCHF(currentPrice, nativeCurrency, todayStr);
+                const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, historicalCurrency, ytdStartDate);
                 currentValueForPerf += shares * currentPriceCHF;
                 ytdStartValueCHF += shares * ytdStartPriceCHF;
               }
@@ -397,6 +395,61 @@ export const portfoliosRouter = router({
         const enrichedStocks = await Promise.all(
           stocksWithoutCash.map(async (stock: any) => {
             const ticker = stock.ticker;
+            const isBond = stock.assetType === 'bond';
+
+            // ── Bond special handling ─────────────────────────────────────────
+            // Bonds have: nominalValue (CHF face value) + pricePercent (market price in %)
+            // Value = nominalValue × pricePercent / 100
+            // We do NOT look up the bond in the stocks table (no Yahoo ticker exists)
+            if (isBond) {
+              const nominalValue = parseFloat(stock.nominalValue || stock.shares || '0');
+              const pricePercent = safeParseFloat(stock.currentPrice || stock.avgBuyPrice || '100');
+              const bondValueCHF = nominalValue * (pricePercent / 100);
+              const avgBuyPercent = safeParseFloat(stock.avgBuyPrice || '100');
+              const avgBuyValueCHF = nominalValue * (avgBuyPercent / 100);
+              const totalReturn = avgBuyValueCHF > 0
+                ? (((bondValueCHF - avgBuyValueCHF) / avgBuyValueCHF) * 100).toFixed(4)
+                : '0';
+              const rawWeight = stock.portfolioWeight || stock.weight || 0;
+              const weight = typeof rawWeight === 'number' ? rawWeight : parseFloat(String(rawWeight)) || 0;
+              return {
+                ...stock,
+                assetType: 'bond',
+                currency: stock.currency || 'CHF',
+                fxRate: 1,
+                currentPrice: pricePercent,
+                currentPriceLocal: pricePercent,
+                priceCHF: pricePercent, // displayed as % in UI
+                currentPriceCHF: pricePercent,
+                priceMissing: !(pricePercent > 0),
+                fxMissing: false,
+                weight: parseFloat(weight.toFixed ? weight.toFixed(2) : String(weight)),
+                shares: nominalValue.toFixed(0), // nominalValue as "shares" for value calc
+                nominalValue: nominalValue.toFixed(0),
+                avgBuyPrice: avgBuyPercent.toFixed(4),
+                totalValue: bondValueCHF.toFixed(2),
+                valueCHF: bondValueCHF,
+                sector: stock.sector || 'Obligationen',
+                ytdPerformance: '0',
+                totalReturn,
+                priceReturnPct: totalReturn,
+                fxReturnPct: '0',
+                avgBuyPriceLocal: avgBuyPercent.toFixed(4),
+                dividendYield: stock.dividendYield || '0',
+                companyName: stock.companyName || stock.name || ticker,
+                category: 'Obligationen',
+                peRatio: null,
+                pegRatio: null,
+                marketCap: null,
+                beta: null,
+                volatility: null,
+                sharpeRatio: null,
+                qualityScore: 0,
+                hasBuyPrice: avgBuyPercent > 0,
+              };
+            }
+            // ── End bond handling ─────────────────────────────────────────────
+
             const dbStock = dbStockMap.get(ticker) || await getStockByTicker(ticker); // fallback for alias resolution
             const currency = dbStock?.currency || await getStockCurrency(ticker);
             // Single source of truth: DB price + convertToCHF — identical to
@@ -592,9 +645,11 @@ export const portfoliosRouter = router({
         // Calculate total value and weighted avg dividend yield
         let totalValueCHF = 0;
         enrichedStocks.forEach((stock: any) => {
-          const shares = parseFloat(stock.shares) || 0;
-          const priceCHF = stock.priceCHF || 0;
-          totalValueCHF += shares * priceCHF;
+          // Bonds: use pre-computed valueCHF (nominal × kurs%/100); others: shares × priceCHF
+          const stockValue = stock.assetType === 'bond'
+            ? (parseFloat(stock.totalValue) || parseFloat(stock.valueCHF) || 0)
+            : (parseFloat(stock.shares) || 0) * (stock.priceCHF || 0);
+          totalValueCHF += stockValue;
         });
         // Weighted dividend yield: sum(weight_i × dividendYield_i) where weight_i = stockValue_i / totalStocksValue
         let weightedDividendYield = 0;
@@ -624,7 +679,9 @@ export const portfoliosRouter = router({
         
         // Calculate weight for each stock position
         enrichedStocks.forEach((stock: any) => {
-          const stockValue = parseFloat(stock.shares || 0) * (stock.priceCHF || 0);
+          const stockValue = stock.assetType === 'bond'
+            ? (parseFloat(stock.totalValue) || parseFloat(stock.valueCHF) || 0)
+            : parseFloat(stock.shares || '0') * (stock.priceCHF || 0);
           stock.weight = totalValueCHF > 0 ? (stockValue / totalValueCHF) * 100 : 0;
         });
         
@@ -1360,10 +1417,14 @@ export const portfoliosRouter = router({
           const stock = await getStockByTicker(ticker);
           if (!stock) continue;
           
-          const currency = stock.currency || 'CHF';
+          const nativeCurrency = stock.currency || 'CHF';
+          // FX-Bug-Fix (UX2-5): proxy tickers store historicalPrices in proxy currency
+          const { getHistoricalPriceCurrency: getHistCurrHoldings } = await import('../lib/eodhdSymbol');
+          const historicalCurrency = getHistCurrHoldings(ticker, nativeCurrency);
+          const currency = nativeCurrency; // native currency for currentPrice
           const currentPrice = safeParseFloat(stock.currentPrice);
           // FIN-4 (Audit 2026-07): fehlender Jahresanfangskurs wird NICHT mehr
-          // still durch currentPrice ersetzt (das zeigte YTD = 0 % statt «n/a»
+          // still durch currentPrice ersetzt (das zeigte YTD = 0 % statt «na»
           // und verzerrte Aggregate) — stattdessen geflaggt und YTD auf 0 mit Flag.
           const ytdStartPriceRaw = await getHistoricalPrice(ticker, ytdStartDate);
           const ytdStartMissing = !(ytdStartPriceRaw && ytdStartPriceRaw > 0);
@@ -1372,7 +1433,8 @@ export const portfoliosRouter = router({
           // U-13: fehlender Kurs/FX-Kurs → Wert 0 (wie bisher), aber geflaggt.
           const priceMissing = !(currentPrice > 0);
           const currentPriceCHFOrNull = await tryConvertToCHF(currentPrice, currency, todayStr);
-          const ytdStartPriceCHFOrNull = ytdStartMissing ? null : await tryConvertToCHF(ytdStartPrice, currency, ytdStartDate);
+          // Use historicalCurrency for ytdStartPrice (proxy currency for proxy tickers)
+          const ytdStartPriceCHFOrNull = ytdStartMissing ? null : await tryConvertToCHF(ytdStartPrice, historicalCurrency, ytdStartDate);
           const fxMissing = currentPriceCHFOrNull === null || (!ytdStartMissing && ytdStartPriceCHFOrNull === null);
           const currentPriceCHF = currentPriceCHFOrNull ?? 0;
           const ytdStartPriceCHF = ytdStartPriceCHFOrNull ?? 0;
@@ -1416,6 +1478,19 @@ export const portfoliosRouter = router({
       .query(async ({ input, ctx }) => {
         const { portfolioId, period, benchmark, debug: debugEnabled } = input;
         
+        // --- perfCache: return cached result if available (skip for debug requests) ---
+        const histCacheDateStr = new Date().toISOString().split('T')[0];
+        const histCacheKey = `perf:hist:${portfolioId}:${period}:${benchmark}:${histCacheDateStr}`;
+        if (!debugEnabled) {
+          const histCached = await perfCache.get(histCacheKey);
+          if (histCached !== null) {
+            console.log(`[getHistoricalPerformance] Cache HIT for portfolio ${portfolioId} period ${period}`);
+            return histCached as any;
+          }
+          console.log(`[getHistoricalPerformance] Cache MISS for portfolio ${portfolioId} period ${period}, computing...`);
+        }
+        // --- end cache check ---
+
         // === LOCAL HELPERS FOR DEBUG ===
         const mkRangeInfo = (points: any[]) => ({
           count: points?.length || 0,
@@ -2240,7 +2315,7 @@ export const portfoliosRouter = router({
         
         // Generate daily portfolio values
         const chartData: { date: string; portfolio: number; portfolioInclCash: number; benchmark: number }[] = [];
-        let currentHoldings = { ...holdingsAtYtdStart };
+        const currentHoldings = { ...holdingsAtYtdStart };
         let txIndex = 0;
         
         // Fetch benchmark prices
@@ -2600,6 +2675,12 @@ export const portfoliosRouter = router({
           }
         }
         
+        // --- perfCache: store result ---
+        if (!debugEnabled) {
+          await perfCache.set(histCacheKey, { chartData }, PERF_CACHE_TTL.HISTORICAL);
+          console.log(`[getHistoricalPerformance] Cached result for portfolio ${portfolioId} period ${period}`);
+        }
+        // --- end cache store ---
         return { chartData };
       }),
 
@@ -2868,7 +2949,7 @@ export const portfoliosRouter = router({
       
       // Calculate portfolio value for each date
       const sparklineData: { date: string; value: number }[] = [];
-      let lastKnownPrices: Record<string, number> = {};
+      const lastKnownPrices: Record<string, number> = {};
       
       for (const date of sortedDates) {
         let portfolioValue = 0;
@@ -3218,6 +3299,17 @@ export const portfoliosRouter = router({
      * Replaces the old weight-based getMultiPeriodPerformanceV2
      */
     getMultiPeriodPerformanceV2: protectedProcedure.query(async ({ ctx }) => {
+      // --- perfCache: return cached result if available ---
+      const todayCacheStr = new Date().toISOString().split('T')[0];
+      const cacheKey = `perf:v2:${ctx.user.id}:${todayCacheStr}`;
+      const cached = await perfCache.get(cacheKey);
+      if (cached !== null) {
+        console.log(`[getMultiPeriodPerformanceV2] Cache HIT for user ${ctx.user.id}`);
+        return cached as any[];
+      }
+      console.log(`[getMultiPeriodPerformanceV2] Cache MISS for user ${ctx.user.id}, computing...`);
+      // --- end cache check ---
+
       const { getSavedPortfolios, getSavedPortfolioById, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
       const { convertToCHF, getFxRate } = await import("../fxHelper");
       const { historicalPrices } = await import("../../drizzle/schema");
@@ -3362,8 +3454,15 @@ export const portfoliosRouter = router({
               const weight = totalWeight > 0 ? parseFloat(stock.weight || '0') / totalWeight : 0;
               
               const stockInfo = await getStockByTicker(ticker);
+              const nativeCurrency = stockInfo?.currency || 'CHF';
+              // FX-Bug-Fix (UX2-5): Proxy-Ticker (z.B. 6856.T → 01H.F Frankfurt in EUR)
+              // speichern historicalPrices in der Proxy-Währung (EUR/USD), nicht in der
+              // nativen Währung (JPY/SGD). getHistoricalPriceCurrency gibt die korrekte
+              // Währung für die gespeicherten Preise zurück.
+              const { getHistoricalPriceCurrency } = await import('../lib/eodhdSymbol');
+              const historicalCurrency = getHistoricalPriceCurrency(ticker, nativeCurrency);
               stockData[ticker] = {
-                currency: stockInfo?.currency || 'CHF',
+                currency: historicalCurrency,
                 weight: weight
               };
               
@@ -3385,7 +3484,9 @@ export const portfoliosRouter = router({
                 localPrices[p.date] = parseFloat(p.close || '0');
               }
               // Convert to CHF so the weighted return is a true CHF return (incl. FX).
-              stockPrices[ticker] = await toChfPriceMap(localPrices, stockData[ticker].currency);
+              // historicalCurrency is the currency of the stored prices (may differ from
+              // nativeCurrency for proxy tickers like Japanese stocks via Frankfurt).
+              stockPrices[ticker] = await toChfPriceMap(localPrices, historicalCurrency);
             }
 
             // Current CHF stock value (for the optional cash-drag figure).
@@ -3485,7 +3586,64 @@ export const portfoliosRouter = router({
         })
       );
       
-      return results;
+            // --- perfCache: store results before returning ---
+            await perfCache.set(cacheKey, results, PERF_CACHE_TTL.MULTI_PERIOD);
+            console.log(`[getMultiPeriodPerformanceV2] Cached result for user ${ctx.user.id}`);
+            // --- end cache store ---
+            return results;
     }),
 
+  /**
+   * Einzahlung: erhöht investmentAmount und cashBalance für Demo-Portfolios,
+   * oder erstellt eine 'deposit'-Transaktion für Live-Portfolios.
+   */
+  deposit: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number().int().positive(),
+      amount: z.number().positive().max(10_000_000),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (!ctx.user?.id || ctx.user.id === 1) {
+        throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
+      }
+      const { getSavedPortfolioById, updateSavedPortfolio, createPortfolioTransaction } = await import('../db');
+      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+      if (!portfolio) throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio nicht gefunden' });
+
+      if (portfolio.isLive === 1) {
+        // Live-Portfolio: Einzahlung als 'deposit'-Transaktion erfassen
+        const todayStr = new Date().toISOString().split('T')[0];
+        await createPortfolioTransaction({
+          portfolioId: input.portfolioId,
+          userId: ctx.user.id,
+          transactionType: 'deposit',
+          ticker: null,
+          shares: '0',
+          pricePerShare: '0',
+          totalAmount: String(input.amount),
+          currency: 'CHF',
+          transactionDate: todayStr,
+          notes: `Einzahlung CHF ${input.amount.toLocaleString('de-CH')}`,
+        });
+        // Also update investmentAmount to reflect the new total invested
+        const currentInvestment = parseFloat(portfolio.investmentAmount || '0') || 0;
+        await updateSavedPortfolio(input.portfolioId, ctx.user.id, {
+          investmentAmount: String(currentInvestment + input.amount),
+        });
+        // Invalidate performance cache for this user
+        await perfCache.invalidate(`perf:v2:${ctx.user.id}`);
+        return { success: true, type: 'live', newInvestmentAmount: currentInvestment + input.amount };
+      } else {
+        // Demo-Portfolio: investmentAmount und cashBalance direkt erhöhen
+        const currentInvestment = parseFloat(portfolio.investmentAmount || '0') || 0;
+        const currentCash = parseFloat(String(portfolio.cashBalance ?? '0')) || 0;
+        const newInvestment = currentInvestment + input.amount;
+        const newCash = currentCash + input.amount;
+        await updateSavedPortfolio(input.portfolioId, ctx.user.id, {
+          investmentAmount: String(newInvestment),
+          cashBalance: String(newCash),
+        });
+        return { success: true, type: 'demo', newInvestmentAmount: newInvestment, newCashBalance: newCash };
+      }
+    }),
 });

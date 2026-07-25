@@ -9,11 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { toast } from "sonner";
-import {
-  RefreshCw, Download, ExternalLink, TrendingUp, TrendingDown,
-  Minus, BarChart3, AlertCircle, CheckCircle2, Info, Search,
-  PieChart, ArrowUpDown, Trophy, Eye
-} from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
+import {AlertCircle, ArrowUpDown, BarChart3, CheckCircle2, Download, ExternalLink, Eye, Info, Minus, PieChart, RefreshCw, Search, TrendingDown, TrendingUp, Trophy, Wallet} from "lucide-react";
 
 type SortKey = "name" | "percentage" | "close" | "quantity" | "avgPrice";
 type TraderSortBy = "perf12m" | "sharperatio" | "aum";
@@ -172,6 +169,12 @@ export default function AdminWikifolio() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Wikifolio Portfolio", icon: <Wallet className="h-4 w-4" /> },
+        ]}
+      />
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>

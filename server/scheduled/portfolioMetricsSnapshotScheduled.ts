@@ -40,6 +40,7 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
       savedPortfolios,
       portfolioMetricsSnapshot,
       stocks,
+      users,
     } = await import("../../drizzle/schema");
     const { eq, sql, and, inArray } = await import("drizzle-orm");
     const { calculatePortfolioPerformance } = await import("../lib/performanceService");
@@ -61,7 +62,7 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
 
     // 1. Get all non-snapshot portfolios (or a specific one if portfolioId is provided)
     const portfoliosQuery = db
-      .select({ id: savedPortfolios.id, portfolioData: savedPortfolios.portfolioData })
+      .select({ id: savedPortfolios.id, userId: savedPortfolios.userId, portfolioData: savedPortfolios.portfolioData })
       .from(savedPortfolios);
     const portfolios = specificPortfolioId
       ? await portfoliosQuery.where(and(eq(savedPortfolios.isSnapshot, 0), eq(savedPortfolios.id, specificPortfolioId)))
@@ -70,6 +71,14 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
     if (portfolios.length === 0) {
       return res.json({ ok: true, message: "No portfolios found", saved: 0 });
     }
+
+    // Anlageziel je Nutzer (steuert die Ertrags-Gewichtung im Quality Score).
+    // Fehlt es, bleibt es null → «balanced» (Basisgewichte).
+    const ownerIds = [...new Set(portfolios.map((p) => p.userId))];
+    const ownerGoals = ownerIds.length
+      ? await db.select({ id: users.id, investmentGoal: users.investmentGoal }).from(users).where(inArray(users.id, ownerIds))
+      : [];
+    const goalByUser = new Map(ownerGoals.map((u) => [u.id, u.investmentGoal]));
 
     // 2. Today's date
     const today = new Date();
@@ -364,7 +373,7 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
               sectorHHI,
               foreignCurrencyPct: fxForeignWeight,
               positionCount: currentPositions.length,
-            }, scoreConfig);
+            }, scoreConfig, goalByUser.get(portfolio.userId) ?? null);
 
             qualityScore = qResult.totalScore;
             qualityComponents = JSON.stringify(qResult.components);

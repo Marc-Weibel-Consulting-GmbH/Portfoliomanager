@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { protectedProcedure, router } from '../_core/trpc';
-import { invokeLLM } from '../_core/llm';
+import { invokeLLM, invokeKimi } from '../_core/llm';
 import { getResearchContextForLLM } from '../helpers/researchContext';
 import { getSavedPortfolioById, getPortfolioTransactions, createPortfolioTransaction, getDb } from '../db';
 import { tryConvertToCHF } from '../fxHelper';
@@ -24,6 +24,14 @@ import { saveCopilotRecommendations, getCopilotHistoryForPortfolio, getCopilotHi
 import { runLPPLFullBacktest, runLPPLCustomBacktest, KNOWN_BUBBLES, fitLPPLMultiScale, calculateBubbleConfidence } from '../analytics/lpplBacktest';
 import { calcRiskMetrics } from '../analytics/engine';
 import { fetchEODHDFundamentals, type EODHDFundamentals } from '../_core/eodhdApi';
+import { MULTI_ASSET_ETFS, ASSET_CLASS_LABELS } from '../lib/multiAssetSleeve';
+
+/** Flat lookup: ticker (uppercase) → Anlageklassen-Label (z.B. "AGGH.SW" → "Obligationen") */
+const SLEEVE_TICKER_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(MULTI_ASSET_ETFS).flatMap(([cls, etfs]) =>
+    etfs.map(e => [e.ticker.toUpperCase(), ASSET_CLASS_LABELS[cls as keyof typeof ASSET_CLASS_LABELS]])
+  )
+);
 import { userSettings, lpplResults } from '../../drizzle/schema';
 import { eq, desc, gte } from 'drizzle-orm';
 import YahooFinance from 'yahoo-finance2';
@@ -1006,12 +1014,19 @@ export const copilotRouter = router({
           name: f.companyName || s.companyName || s.name || s.ticker,
           weight,
           value: Math.round(value * 100) / 100,
-          sector: f.sector || s.sector || 'Unbekannt',
+          // Sleeve-ETFs bekommen ihr Anlageklassen-Label statt EODHD-Sektor
+          sector: SLEEVE_TICKER_LABEL[s.ticker?.toUpperCase()] ?? f.sector ?? s.sector ?? 'Unbekannt',
           industry: f.industry || null,
           peRatio: f.peRatio !== null ? Math.round((f.peRatio ?? 0) * 10) / 10 : null,
           pegRatio: f.pegRatio !== null ? Math.round((f.pegRatio ?? 0) * 100) / 100 : null,
           // Treat 0% dividend yield as null so it sorts to the end (non-payers)
-          dividendYield: (f.dividendYield !== null && (f.dividendYield ?? 0) > 0) ? Math.round((f.dividendYield ?? 0) * 10) / 10 : null,
+          // Fallback to DB dividendYield when EODHD returns null/0 (avoids discrepancy with Übersicht tab)
+          dividendYield: (() => {
+            const eodhd = (f.dividendYield !== null && (f.dividendYield ?? 0) > 0) ? Math.round((f.dividendYield ?? 0) * 10) / 10 : null;
+            if (eodhd !== null) return eodhd;
+            const dbDiv = parseFloat(String(s.dividendYield ?? '0'));
+            return dbDiv > 0 ? Math.round(dbDiv * 10) / 10 : null;
+          })(),
           beta: f.beta !== null ? Math.round((f.beta ?? 0) * 100) / 100 : null,
           eps: f.eps,
           marketCap: f.marketCap,
@@ -1070,12 +1085,23 @@ export const copilotRouter = router({
         aiSummary = cachedSummary.summary;
       } else {
         try {
-          const topSectors = sectorBreakdown.slice(0, 3).map(s => `${s.sector} (${s.weight.toFixed(1)}%)`).join(', ');
-          const prompt = `Erstelle eine präzise Portfolio-Zusammenfassung auf Deutsch (max. 180 Wörter):\n\nPortfolio: ${(portfolio as any).name}\nPositionen: ${portfolioMetrics.positionCount}\nTop-Sektoren: ${topSectors}\nDurchschn. KGV: ${portfolioMetrics.avgPE ?? 'n/a'}\nDurchschn. PEG: ${portfolioMetrics.avgPEG ?? 'n/a'}\nDurchschn. Beta: ${portfolioMetrics.avgBeta ?? 'n/a'}\nDurchschn. Dividendenrendite: ${portfolioMetrics.avgDividendYield ?? 'n/a'}%\nDurchschn. Gewinnwachstum: ${portfolioMetrics.avgEarningsGrowth ?? 'n/a'}%\n\nBewerte: Ist das Portfolio günstig oder teuer bewertet? Defensiv oder aggressiv? Dividendenstärke? Gib 2 konkrete Handlungsempfehlungen.`;
+          // Sleeve-ETFs von Aktien/Aktien-ETFs trennen für den LLM-Prompt
+          const sleeveHoldings = holdings.filter(h => SLEEVE_TICKER_LABEL[h.ticker?.toUpperCase()]);
+          const equityHoldings = holdings.filter(h => !SLEEVE_TICKER_LABEL[h.ticker?.toUpperCase()]);
+          const equityWeight = Math.round(equityHoldings.reduce((s, h) => s + h.weight, 0));
+          const sleeveWeight = Math.round(sleeveHoldings.reduce((s, h) => s + h.weight, 0));
+          const topSectors = sectorBreakdown
+            .filter(s => !Object.values(ASSET_CLASS_LABELS).includes(s.sector as any))
+            .slice(0, 4)
+            .map(s => `${s.sector} (${s.weight.toFixed(1)}%)`).join(', ') || 'n/a';
+          const sleeveBreakdown = sleeveHoldings.length > 0
+            ? `\nAlternative Anlageklassen (Diversifikations-Sleeves): ${sleeveHoldings.map(h => `${SLEEVE_TICKER_LABEL[h.ticker.toUpperCase()]} ${h.ticker} (${h.weight.toFixed(1)}%)`).join(', ')}`
+            : '';
+          const prompt = `Erstelle eine präzise Portfolio-Zusammenfassung auf Deutsch (max. 220 Wörter):\n\nPortfolio: ${(portfolio as any).name}\nPositionen gesamt: ${portfolioMetrics.positionCount} (${equityHoldings.length} Aktien/Aktien-ETFs [${equityWeight}%], ${sleeveHoldings.length} alternative Anlageklassen [${sleeveWeight}%])\nTop-Sektoren (Aktien): ${topSectors}${sleeveBreakdown}\nDurchschn. KGV (Aktien): ${portfolioMetrics.avgPE ?? 'n/a'}\nDurchschn. PEG (Aktien): ${portfolioMetrics.avgPEG ?? 'n/a'}\nDurchschn. Beta (Aktien): ${portfolioMetrics.avgBeta ?? 'n/a'}\nDurchschn. Dividendenrendite: ${portfolioMetrics.avgDividendYield ?? 'n/a'}%\nDurchschn. Gewinnwachstum (Aktien): ${portfolioMetrics.avgEarningsGrowth ?? 'n/a'}%\n\nHINWEIS: Die Positionen in Obligationen, Gold, Rohstoffen, Immobilien und Krypto sind bewusst gewählte Diversifikations-Sleeves — behandle sie NICHT als undekl. Sektoren, sondern als strategische Asset-Allokation.\n\nBewerte: Aktien-Bewertung (günstig/teuer)? Diversifikationsqualität der Sleeves? Dividendenstärke? Gib 2 konkrete Handlungsempfehlungen.`;
           // Inject research context into AI recommendations
           const researchCtx = await getResearchContextForLLM();
           const systemContent = 'Du bist ein erfahrener Schweizer Portfoliomanager. Antworte präzise auf Deutsch.' + researchCtx.contextString;
-          const response = await invokeLLM({
+          const response = await invokeKimi({
             messages: [
               { role: 'system', content: systemContent },
               { role: 'user', content: prompt },
@@ -1092,6 +1118,15 @@ export const copilotRouter = router({
       }
 
       return { error: null, portfolioName: (portfolio as any).name, holdings, sectorBreakdown, portfolioMetrics, topDividend, highBeta, aiSummary };
+    }),
+
+  /** Admin: Deep-Dive-Summary-Cache leeren (erzwingt Neugenerierung beim nächsten Aufruf) */
+  clearDeepDiveCache: protectedProcedure
+    .mutation(({ ctx }) => {
+      const count = deepDiveSummaryCache.size;
+      deepDiveSummaryCache.clear();
+      console.log(`[portfolioDeepDive] Cache geleert von User ${ctx.user.id} (${count} Einträge entfernt)`);
+      return { success: true, cleared: count };
     }),
 });
 
@@ -1130,7 +1165,7 @@ Schreibe die Zusammenfassung auf Deutsch. Strukturiere sie in: 1) Gesamteinschä
   // Inject research context
   const researchCtx2 = await getResearchContextForLLM();
   const sysContent2 = 'Du bist ein Schweizer Portfolio-Analyst der prägnante, faktenbasierte Zusammenfassungen schreibt. Antworte immer auf Deutsch.' + researchCtx2.contextString;
-  const result = await invokeLLM({
+  const result = await invokeKimi({
     messages: [
       { role: 'system', content: sysContent2 },
       { role: 'user', content: prompt },

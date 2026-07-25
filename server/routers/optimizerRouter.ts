@@ -93,18 +93,24 @@ export const optimizerRouter = router({
     // Run async without awaiting - yields to event loop regularly
     (async () => {
       try {
+        const { getActiveWeights } = await import("../analytics/optimizerWorker");
+        const incumbent = await getActiveWeights();
         const result = await runOptimizerNonBlocking((msg) => {
           optimizerProgress.push(msg);
           if (optimizerProgress.length > 50) {
             optimizerProgress = optimizerProgress.slice(-50);
           }
-        });
+        }, incumbent);
 
         lastOptimizerResult = result;
-        
-        // Save to DB
-        await saveOptimizerResult(result);
-        optimizerProgress.push(`✅ Optimierung abgeschlossen! Trefferquote: ${result.hitRate.toFixed(1)}%`);
+
+        // Save to DB (mit Promotion-Gate)
+        const outcome = await saveOptimizerResult(result, { triggeredBy: "admin" });
+        if (outcome.activated) {
+          optimizerProgress.push(`✅ Aktiviert (Gate bestanden). OOS ${outcome.candidateOos?.toFixed(1) ?? "?"}% vs Incumbent ${outcome.incumbentOos?.toFixed(1) ?? "—"}%`);
+        } else {
+          optimizerProgress.push(`⚠️ Kandidat verworfen (OOS ${outcome.candidateOos?.toFixed(1) ?? "?"}% < Incumbent ${outcome.incumbentOos?.toFixed(1) ?? "—"}%). Aktive Gewichte unverändert.`);
+        }
       } catch (err) {
         optimizerProgress.push(`❌ Fehler: ${(err as Error).message}`);
         console.error("[Optimizer] Error:", err);

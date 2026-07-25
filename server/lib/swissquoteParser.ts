@@ -411,7 +411,7 @@ export interface DepotauszugPosition {
   avgPurchasePrice: number | null;  // Durchschnittspreis
   marketPrice: number | null;       // Marktpreis
   marketValueCHF: number | null;    // Bewertung in CHF
-  assetType: 'stock' | 'crypto' | 'cash';
+  assetType: 'stock' | 'bond' | 'commodity' | 'crypto' | 'cash';
 }
 
 export interface DepotauszugParseResult {

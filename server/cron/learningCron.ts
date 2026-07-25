@@ -51,7 +51,7 @@ export function initLearningCron() {
     try {
       const { runOptimizerNonBlocking, saveOptimizerResult, getActiveWeights } = await import("../analytics/optimizerWorker");
       const activeBefore = await getActiveWeights();
-      const result = await runOptimizerNonBlocking((msg) => console.log(`[learningCron][optimizer] ${msg}`));
+      const result = await runOptimizerNonBlocking((msg) => console.log(`[learningCron][optimizer] ${msg}`), activeBefore);
       // Nicht grid-getunte Gewichte aus der aktiven Konfiguration übernehmen —
       // sie stammen ggf. aus dem Algo-Backtest-Feedback-Loop (manus, Stufe 2)
       // und dürfen vom Grid-Lauf nicht auf Defaults zurückgesetzt werden.
@@ -63,8 +63,12 @@ export function initLearningCron() {
         quality: activeBefore.quality,
         momentum: activeBefore.momentum,
       };
-      await saveOptimizerResult(result);
-      console.log(`[learningCron] Signal-Gewichte neu getunt: Trefferquote ${result.hitRate.toFixed(1)}%`);
+      const outcome = await saveOptimizerResult(result, { triggeredBy: "cron" });
+      if (outcome.activated) {
+        console.log(`[learningCron] Signal-Gewichte aktiviert (Gate bestanden). OOS Kandidat ${outcome.candidateOos?.toFixed(1) ?? "?"}% vs Incumbent ${outcome.incumbentOos?.toFixed(1) ?? "—"}%`);
+      } else {
+        console.log(`[learningCron] Kandidat verworfen (Gate: ${outcome.reason}). Incumbent bleibt aktiv. OOS Kandidat ${outcome.candidateOos?.toFixed(1) ?? "?"}% vs Incumbent ${outcome.incumbentOos?.toFixed(1) ?? "—"}%`);
+      }
     } catch (e: any) {
       console.error("[learningCron] Optimizer fehlgeschlagen (non-fatal):", e?.message);
     } finally {

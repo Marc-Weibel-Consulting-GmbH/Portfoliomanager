@@ -5,7 +5,11 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ResponsiveContainer,
 } from "recharts";
-import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap, Play, CheckSquare, Square, Search, X } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Target, AlertTriangle, CheckCircle, Info, TrendingUp, Plus, RefreshCw, SlidersHorizontal, Zap, Play, CheckSquare, Square, Search, X, LineChart as LineChartIcon } from "lucide-react";
+import { PriceChart } from "@/components/charts";
+import { InsightExpandable } from "@/components/InsightPanel";
+import { toast } from "sonner";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -159,7 +163,7 @@ function checkDiversificationRules(holdings: any[], totalValueCHF: number, rules
 }
 
 // ─── Optimieren-Tab ────────────────────────────────────────────────────────────
-type OptimizeMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp";
+type OptimizeMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp" | "min_cvar";
 
 const METHOD_LABEL: Record<OptimizeMethod, string> = {
   max_sharpe: "Max. Sharpe",
@@ -167,6 +171,7 @@ const METHOD_LABEL: Record<OptimizeMethod, string> = {
   equal_weight: "Gleichgewichtet",
   max_dividend: "Max. Dividende",
   hrp: "HRP (Risk Parity)",
+  min_cvar: "Min. Tail-Risiko (CVaR)",
 };
 
 const METHOD_DESCRIPTION: Record<OptimizeMethod, string> = {
@@ -175,6 +180,7 @@ const METHOD_DESCRIPTION: Record<OptimizeMethod, string> = {
   equal_weight: "Gleichmässige Verteilung auf alle Positionen",
   max_dividend: "Maximiert die Dividendenrendite",
   hrp: "Hierarchical Risk Parity: Verteilt Risiko gleichmässig über Korrelations-Cluster (kein Rendite-Schätzer benötigt)",
+  min_cvar: "Minimiert das Tail-Risiko (CVaR 95 %): dämpft die grössten Verlusttage — für sicherheitsorientierte Anleger",
 };
 
 // ─── Score-Badge ───────────────────────────────────────────────────────────────
@@ -250,7 +256,9 @@ export default function OptimierenTab({
   // deselectedReplacements: Set of weakTicker strings that are unchecked
   const [deselectedReplacements, setDeselectedReplacements] = useState<Set<string>>(new Set());
   // deselectedAdditions: Set of candidate tickers that are unchecked
+  // Default: ALL candidates are deselected (user must explicitly opt-in)
   const [deselectedAdditions, setDeselectedAdditions] = useState<Set<string>>(new Set());
+  const [additionsInitialized, setAdditionsInitialized] = useState<string | null>(null); // tracks which upgradeData was used to init
   // overrideReplacementTicker: map weakTicker → chosen replacement ticker (overrides suggestions[0])
   const [overrideReplacementTicker, setOverrideReplacementTicker] = useState<Record<string, string>>({});
   // openReplacementPicker: weakTicker of the row whose picker is open
@@ -272,6 +280,7 @@ export default function OptimierenTab({
         setTimeout(() => onNavigateToPositions(), 1500);
       }
     },
+    onError: (e) => toast.error("Empfehlungen konnten nicht übernommen werden", { description: getUserErrorMessage(e) }),
   });
   const undoRecMut = trpc.analytics.undoRecommendations.useMutation({
     onSuccess: () => {
@@ -279,6 +288,7 @@ export default function OptimierenTab({
       utils.portfolios.getWithCurrency.invalidate();
       utils.portfolios.list.invalidate();
     },
+    onError: (e) => toast.error("Rückgängig fehlgeschlagen", { description: getUserErrorMessage(e) }),
   });
 
   // Transaktions-Umsetzung: Checkboxen + Bestätigungs-Dialog
@@ -296,6 +306,7 @@ export default function OptimierenTab({
         setTimeout(() => onNavigateToTransactions(), 1500);
       }
     },
+    onError: (e) => toast.error("Umsetzung fehlgeschlagen", { description: getUserErrorMessage(e) }),
   });
 
   // Portfolio-Kopie vor Umsetzung
@@ -307,12 +318,14 @@ export default function OptimierenTab({
     onSuccess: (data) => {
       setCloneCreated({ id: data.cloneId, name: data.cloneName });
     },
+    onError: (e) => toast.error("Kopie konnte nicht erstellt werden", { description: getUserErrorMessage(e) }),
   });
   // Automatischer Snapshot vor der Umsetzung (ohne Dialog)
   const autoSnapshotMut = trpc.analytics.clonePortfolio.useMutation({
     onSuccess: (data) => {
       setAutoSnapshotInfo({ id: data.cloneId, name: data.cloneName });
     },
+    onError: (e) => toast.error("Snapshot konnte nicht erstellt werden", { description: getUserErrorMessage(e) }),
   });
 
   // Wöchentliches Optimierungs-Abo
@@ -322,9 +335,11 @@ export default function OptimierenTab({
   );
   const subscribeMut = trpc.analytics.subscribeOptimizationAlert.useMutation({
     onSuccess: () => refetchSub(),
+    onError: (e) => toast.error("Abo konnte nicht aktiviert werden", { description: getUserErrorMessage(e) }),
   });
   const unsubscribeMut = trpc.analytics.unsubscribeOptimizationAlert.useMutation({
     onSuccess: () => refetchSub(),
+    onError: (e) => toast.error("Abo konnte nicht deaktiviert werden", { description: getUserErrorMessage(e) }),
   });
   const isSubscribed = !!(subData && subData.isActive);
   const [driftThreshold, setDriftThreshold] = useState<number>(
@@ -416,6 +431,28 @@ export default function OptimierenTab({
     { enabled: portfolioId > 0 && tickers.length >= 2, staleTime: 0 }
   );
 
+  // ─── Backtest der optimierten Ziel-Allokation ───────────────────────────────
+  const [showBacktest, setShowBacktest] = useState(false);
+  const [btRebalance, setBtRebalance] = useState<"monthly" | "none">("monthly");
+  const [btLookback, setBtLookback] = useState<252 | 756 | 1260>(756); // 1J / 3J / 5J
+  const optimizedWeights = useMemo(() => {
+    const w = (result as any)?.weights as Record<string, number> | undefined;
+    if (!w) return null;
+    const entries = Object.entries(w).filter(([, val]) => (val ?? 0) > 0);
+    if (entries.length < 1) return null;
+    return { tickers: entries.map(([t]) => t), weights: entries.map(([, v]) => v) };
+  }, [result]);
+  const { data: backtest, isFetching: isBacktesting, error: backtestError } =
+    trpc.analytics.backtestPortfolio.useQuery(
+      {
+        tickers: optimizedWeights?.tickers ?? [],
+        weights: optimizedWeights?.weights ?? [],
+        lookbackDays: btLookback,
+        rebalance: btRebalance,
+      },
+      { enabled: showBacktest && !!optimizedWeights, staleTime: 5 * 60 * 1000, retry: false },
+    );
+
   // Alle Aktien aus der DB (für Ersatz-Picker)
   const { data: allStocksData } = trpc.stocks.list.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const allStocks = useMemo(() => (allStocksData ?? []) as any[], [allStocksData]);
@@ -430,10 +467,21 @@ export default function OptimierenTab({
       method,
     },
     {
-      enabled: portfolioId > 0 && holdingsWithScores.length > 0,
+            enabled: portfolioId > 0 && holdingsWithScores.length > 0,
       staleTime: 0, // Kein Cache: Ranking ändert sich mit method
     }
   );
+
+  // When upgradeData loads (or reloads), initialize ALL candidates as deselected
+  // so the user must explicitly opt-in to each new candidate
+  useEffect(() => {
+    if (!upgradeData?.additionSuggestions?.length) return;
+    const key = upgradeData.additionSuggestions.map((c: any) => c.ticker).join(',');
+    if (additionsInitialized === key) return; // already initialized for this exact set
+    const allTickers = new Set<string>(upgradeData.additionSuggestions.map((c: any) => c.ticker));
+    setDeselectedAdditions(allTickers);
+    setAdditionsInitialized(key);
+  }, [upgradeData?.additionSuggestions]);
 
   const frontierData = useMemo(() => {
     if (!result?.efficientFrontier) return [];
@@ -930,6 +978,22 @@ export default function OptimierenTab({
                                 </span>
                               )}
                             </div>
+                            {/* KI-Erklärung warum dieser Titel ersetzt werden soll */}
+                            <InsightExpandable
+                              title={`Warum ${rep.weakTicker} ersetzen?`}
+                              summary={`${rep.weakTicker} hat einen Score von ${rep.weakScore}/100 und liegt damit unter der Qualitätsschwelle von ${upgradeData.upgradeScoreThreshold}. ${chosenSuggestion ? `${chosenSuggestion.ticker} wäre ein stärkerer Ersatz mit Score ${chosenSuggestion.signalScore}/100 (+${chosenSuggestion.scoreDelta} Punkte).` : ''}`}
+                              factors={[
+                                { label: 'Aktueller Score', value: `${rep.weakScore}/100`, sentiment: rep.weakScore >= 55 ? 'positive' : rep.weakScore >= 40 ? 'neutral' : 'negative', description: 'Kombinierter Score aus Momentum, Qualität und LPPL-Risikomodell' },
+                                { label: 'Score-Schwelle', value: `${upgradeData.upgradeScoreThreshold}/100`, sentiment: 'neutral', description: 'Mindest-Score für eine Halteempfehlung im Portfolio' },
+                                ...(chosenSuggestion ? [{ label: `Ersatz ${chosenSuggestion.ticker}`, value: `${chosenSuggestion.signalScore}/100`, sentiment: 'positive' as const, description: `Signal: ${chosenSuggestion.signalType?.toUpperCase() ?? '—'} · Score-Gewinn: +${chosenSuggestion.scoreDelta} Punkte` }] : []),
+                                { label: 'Gewicht im Portfolio', value: `${(rep.weakWeight * 100).toFixed(1)}%`, sentiment: 'neutral', description: 'Aktueller Anteil dieser Position am Gesamtportfolio' },
+                                ...((rep as any).cashRequired > 0 ? [{ label: 'Benötigtes Cash', value: `CHF ${Math.round((rep as any).cashRequired).toLocaleString('de-CH')}`, sentiment: (rep as any).hasSufficientCash === false ? 'negative' as const : 'positive' as const, description: (rep as any).hasSufficientCash === false ? 'Nicht genügend Cash verfügbar für diesen Tausch' : 'Genügend Cash für den Tausch vorhanden' }] : []),
+                              ]}
+                              riskNote={(rep as any).hasSufficientCash === false ? 'Kein ausreichendes Cash für diesen Tausch. Verkäufe oder Einlagen nötig.' : undefined}
+                              variant="warning"
+                              triggerLabel="KI-Begründung"
+                              className="mb-2"
+                            />
                             {/* Ersatz-Kandidaten */}
                             {rep.suggestions.length === 0 ? (
                               <p className="text-xs text-gray-600 pl-6">Kein besserer Kandidat im gleichen Sektor gefunden.</p>
@@ -1062,35 +1126,70 @@ export default function OptimierenTab({
                     <h4 className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                       <Plus className="w-3.5 h-3.5" />
                       Neue Kandidaten — Ergänzungs-Vorschläge (Score ≥ 65)
-                      <span className="ml-auto text-[10px] font-normal text-gray-500 normal-case">
-                        {upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker)).length} ausgewählt
+                      <span className="ml-auto flex items-center gap-2">
+                        <span className="text-[10px] font-normal text-gray-500 normal-case">
+                          {upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker)).length} / {upgradeData.additionSuggestions.length} ausgewählt
+                        </span>
+                        {/* Bulk-Toggle: Alle an */}
+                        <button
+                          onClick={() => setDeselectedAdditions(new Set())}
+                          className="text-[10px] font-normal text-indigo-400 hover:text-indigo-300 normal-case px-1.5 py-0.5 rounded border border-indigo-500/30 hover:border-indigo-400/50 transition-colors"
+                          title="Alle Kandidaten auswählen"
+                        >
+                          Alle ✔
+                        </button>
+                        {/* Bulk-Toggle: Alle aus */}
+                        <button
+                          onClick={() => setDeselectedAdditions(new Set(upgradeData.additionSuggestions.map((c: any) => c.ticker)))}
+                          className="text-[10px] font-normal text-gray-500 hover:text-gray-300 normal-case px-1.5 py-0.5 rounded border border-gray-600/30 hover:border-gray-500/50 transition-colors"
+                          title="Alle Kandidaten abwählen"
+                        >
+                          Alle ✕
+                        </button>
                       </span>
                     </h4>
                     <div className="space-y-1.5">
                       {(showAllAdditions ? upgradeData.additionSuggestions : upgradeData.additionSuggestions.slice(0, 8)).map((c: any) => {
                         const isAddChecked = !deselectedAdditions.has(c.ticker);
                         return (
-                          <div key={c.ticker} className={`flex items-center gap-2 text-xs bg-white/[0.02] rounded px-3 py-2 transition-opacity ${!isAddChecked ? 'opacity-40' : ''}`}>
-                            <button
-                              onClick={() => setDeselectedAdditions(prev => {
-                                const next = new Set(prev);
-                                if (next.has(c.ticker)) next.delete(c.ticker); else next.add(c.ticker);
-                                return next;
-                              })}
-                              className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
-                              title={isAddChecked ? 'Abwählen' : 'Auswählen'}
-                            >
-                              {isAddChecked ? <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> : <Square className="w-3.5 h-3.5" />}
-                            </button>
-                            <span className="font-mono font-semibold text-indigo-300 w-16">{c.ticker}</span>
-                            <span className="text-gray-400 truncate flex-1">{c.companyName}</span>
-                            {c.sector && <span className="text-gray-600 text-[10px] hidden sm:block">{c.sector}</span>}
-                            <ScoreBadge score={c.signalScore} />
-                            <SignalBadge type={c.signalType} />
-                            <span className={`text-[10px] px-1 py-0.5 rounded ${c.listType === 'empfehlung' ? 'bg-[#00CFC1]/10 text-[#00CFC1]' : 'bg-white/5 text-gray-500'}`}>
-                              {c.listType === 'empfehlung' ? 'Empfehlung' : 'Watchlist'}
-                            </span>
-                            {c.dividendYield && <span className="text-gray-500 w-12 text-right">{c.dividendYield}%</span>}
+                          <div key={c.ticker} className={`bg-white/[0.02] rounded px-3 py-2 transition-opacity ${!isAddChecked ? 'opacity-40' : ''}`}>
+                            <div className="flex items-center gap-2 text-xs">
+                              <button
+                                onClick={() => setDeselectedAdditions(prev => {
+                                  const next = new Set(prev);
+                                  if (next.has(c.ticker)) next.delete(c.ticker); else next.add(c.ticker);
+                                  return next;
+                                })}
+                                className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
+                                title={isAddChecked ? 'Abwählen' : 'Auswählen'}
+                              >
+                                {isAddChecked ? <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> : <Square className="w-3.5 h-3.5" />}
+                              </button>
+                              <span className="font-mono font-semibold text-indigo-300 w-16">{c.ticker}</span>
+                              <span className="text-gray-400 truncate flex-1">{c.companyName}</span>
+                              {c.sector && <span className="text-gray-600 text-[10px] hidden sm:block">{c.sector}</span>}
+                              <ScoreBadge score={c.signalScore} />
+                              <SignalBadge type={c.signalType} />
+                              <span className={`text-[10px] px-1 py-0.5 rounded ${c.listType === 'empfehlung' ? 'bg-[#00CFC1]/10 text-[#00CFC1]' : 'bg-white/5 text-gray-500'}`}>
+                                {c.listType === 'empfehlung' ? 'Empfehlung' : 'Watchlist'}
+                              </span>
+                              {c.dividendYield && <span className="text-gray-500 w-12 text-right">{c.dividendYield}%</span>}
+                            </div>
+                            {/* KI-Begründung für Ergänzungs-Vorschlag */}
+                            <InsightExpandable
+                              title={`Warum ${c.ticker} hinzufügen?`}
+                              summary={`${c.ticker} (${c.companyName}) hat einen Score von ${c.signalScore}/100 und ein ${c.signalType?.toUpperCase() ?? 'HOLD'}-Signal. ${c.listType === 'empfehlung' ? 'Dieser Titel ist eine aktive KI-Empfehlung.' : 'Dieser Titel steht auf Ihrer Watchlist.'} ${c.dividendYield ? `Dividendenrendite: ${c.dividendYield}%.` : ''}`}
+                              factors={[
+                                { label: 'Score', value: `${c.signalScore}/100`, sentiment: c.signalScore >= 65 ? 'positive' : c.signalScore >= 50 ? 'neutral' : 'negative', description: 'Kombinierter Score aus Momentum, Qualität und LPPL-Risikomodell' },
+                                { label: 'Signal', value: c.signalType?.toUpperCase() ?? '—', sentiment: c.signalType === 'buy' ? 'positive' : c.signalType === 'sell' ? 'negative' : 'neutral', description: 'Aktuelles Handelssignal basierend auf technischer und fundamentaler Analyse' },
+                                { label: 'Sektor', value: c.sector ?? '—', sentiment: 'neutral', description: 'Sektorzugehörigkeit des Titels' },
+                                { label: 'Quelle', value: c.listType === 'empfehlung' ? 'KI-Empfehlung' : 'Watchlist', sentiment: c.listType === 'empfehlung' ? 'positive' : 'neutral', description: c.listType === 'empfehlung' ? 'Aktiv von der KI als Kaufkandidat eingestuft' : 'Von Ihnen manuell auf die Watchlist gesetzt' },
+                                ...(c.dividendYield ? [{ label: 'Dividendenrendite', value: `${c.dividendYield}%`, sentiment: parseFloat(c.dividendYield) >= 3 ? 'positive' as const : 'neutral' as const, description: 'Jährliche Dividendenrendite basierend auf aktuellem Kurs' }] : []),
+                              ]}
+                              variant="info"
+                              triggerLabel="KI-Begründung"
+                              className="mt-1.5"
+                            />
                           </div>
                         );
                       })}
@@ -1263,18 +1362,133 @@ export default function OptimierenTab({
           )}
 
           {/* KPIs des optimalen Portfolios */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-0 border border-white/10 rounded-lg overflow-hidden">
-            {[
+          {(() => {
+            const optCvar = (result.optimalPortfolio as any).cvar95 as number | undefined;
+            const currCvar = (result.currentPortfolio as any).cvar95 as number | undefined;
+            const kpis: { label: string; value: string; tone: string; sub?: string }[] = [
               { label: "Erw. Rendite (p.a.)", value: `${(result.optimalPortfolio.expectedReturn * 100).toFixed(1)}%`, tone: "text-[#00CFC1]" },
               { label: "Volatilität (p.a.)", value: `${(result.optimalPortfolio.volatility * 100).toFixed(1)}%`, tone: "text-white" },
               { label: "Sharpe Ratio", value: result.optimalPortfolio.sharpe.toFixed(2), tone: result.optimalPortfolio.sharpe >= 1 ? "text-[#00CFC1]" : "text-amber-400" },
-              { label: "Methode", value: METHOD_LABEL[method], tone: "text-white" },
-            ].map((k, i) => (
-              <div key={k.label} className={`bg-[#0f1420] p-4 ${i < 3 ? "border-r border-white/10" : ""}`}>
-                <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">{k.label}</p>
-                <p className={`text-xl font-bold font-mono ${k.tone}`}>{k.value}</p>
+            ];
+            if (typeof optCvar === "number") {
+              // CVaR 95 %: mittlerer Verlust an den schlechtesten 5 % der Handelstage.
+              // Niedriger = weniger Tail-Risiko; bei «Min. Tail-Risiko» hervorgehoben.
+              kpis.push({
+                label: "CVaR 95 % (Tag)",
+                value: `−${Math.abs(optCvar).toFixed(2)}%`,
+                tone: method === "min_cvar" ? "text-[#00CFC1]" : "text-white",
+                sub: typeof currCvar === "number" ? `aktuell −${Math.abs(currCvar).toFixed(2)}%` : undefined,
+              });
+            }
+            kpis.push({ label: "Methode", value: METHOD_LABEL[method], tone: "text-white" });
+            return (
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-0 border border-white/10 rounded-lg overflow-hidden">
+                {kpis.map((k, i) => (
+                  <div key={k.label} className={`bg-[#0f1420] p-4 ${i < kpis.length - 1 ? "border-r border-white/10" : ""}`}>
+                    <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1.5">{k.label}</p>
+                    <p className={`text-xl font-bold font-mono ${k.tone}`}>{k.value}</p>
+                    {k.sub && <p className="text-[10px] text-gray-600 mt-0.5">{k.sub}</p>}
+                  </div>
+                ))}
               </div>
-            ))}
+            );
+          })()}
+
+          {/* Backtest der optimierten Ziel-Allokation (EODHD-Historie, CHF) */}
+          <div className="border border-white/10 rounded-lg bg-[#0f1420] overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <LineChartIcon className="w-4 h-4 text-[#00CFC1]" />
+                <span className="text-sm font-semibold text-white">Backtest der Ziel-Allokation</span>
+                <span className="text-[11px] text-gray-500">— historische Entwicklung ({btLookback === 252 ? '1 J.' : btLookback === 756 ? '3 J.' : '5 J.'}) in CHF</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {showBacktest && (
+                  <div className="inline-flex rounded-md border border-white/10 bg-[#1a2332] p-0.5" role="group" aria-label="Zeitraum wählen">
+                    {([252, 756, 1260] as const).map((days) => (
+                      <button
+                        key={days}
+                        onClick={() => setBtLookback(days)}
+                        className={`px-2.5 py-1 text-xs rounded ${btLookback === days ? 'bg-[#00CFC1] text-black font-semibold' : 'text-gray-400 hover:text-gray-200'}`}
+                      >
+                        {days === 252 ? '1J' : days === 756 ? '3J' : '5J'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {showBacktest && (
+                  <div className="inline-flex rounded-md border border-white/10 bg-[#1a2332] p-0.5" role="group" aria-label="Rebalancing wählen">
+                    {([["monthly", "Monatl. Rebalancing"], ["none", "Buy & Hold"]] as const).map(([val, lbl]) => (
+                      <button
+                        key={val}
+                        onClick={() => setBtRebalance(val)}
+                        className={`px-2.5 py-1 text-xs rounded ${btRebalance === val ? "bg-[#00CFC1] text-black font-semibold" : "text-gray-400 hover:text-gray-200"}`}
+                      >
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {!showBacktest ? (
+                  <button
+                    onClick={() => setShowBacktest(true)}
+                    disabled={!optimizedWeights}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-[#00CFC1] text-black hover:bg-[#00b3a6] disabled:opacity-40"
+                  >
+                    <Play className="w-3.5 h-3.5" /> Backtest anzeigen
+                  </button>
+                ) : (
+                  <button onClick={() => setShowBacktest(false)} className="text-xs text-gray-400 hover:text-gray-200">Ausblenden</button>
+                )}
+              </div>
+            </div>
+
+            {showBacktest && (
+              <div className="p-4">
+                {isBacktesting ? (
+                  <div className="h-64 flex items-center justify-center text-sm text-gray-400">
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Backtest wird berechnet …
+                  </div>
+                ) : backtestError ? (
+                  <div className="flex items-start gap-2 text-sm text-amber-300">
+                    <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>{backtestError.message}</span>
+                  </div>
+                ) : backtest && backtest.equityCurve.length >= 2 ? (
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-0 border border-white/10 rounded-lg overflow-hidden mb-4">
+                      {[
+                        { label: "Gesamtrendite", value: `${backtest.stats.totalReturnPct >= 0 ? "+" : ""}${backtest.stats.totalReturnPct.toFixed(1)}%`, tone: backtest.stats.totalReturnPct >= 0 ? "text-[#00CFC1]" : "text-negative" },
+                        { label: "CAGR (p.a.)", value: `${backtest.stats.cagrPct >= 0 ? "+" : ""}${backtest.stats.cagrPct.toFixed(1)}%`, tone: "text-white" },
+                        { label: "Volatilität", value: `${backtest.stats.annualVolPct.toFixed(1)}%`, tone: "text-white" },
+                        { label: "Sharpe", value: backtest.stats.sharpe.toFixed(2), tone: backtest.stats.sharpe >= 1 ? "text-[#00CFC1]" : "text-amber-400" },
+                        { label: "Max Drawdown", value: `${backtest.stats.maxDrawdownPct.toFixed(1)}%`, tone: "text-negative" },
+                      ].map((k, i) => (
+                        <div key={k.label} className={`bg-[#111827] p-3 ${i < 4 ? "border-r border-white/10" : ""}`}>
+                          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">{k.label}</p>
+                          <p className={`text-base font-bold font-mono ${k.tone}`}>{k.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <PriceChart
+                      seriesType="area"
+                      height={260}
+                      values={backtest.equityCurve.map((p) => ({ time: p.date, value: +(p.value * 100).toFixed(2) }))}
+                    />
+                    <p className="text-[11px] text-gray-500 mt-2">
+                      Indexiert auf 100 zum Start ({backtest.fromDate}). Simulation der Ziel-Gewichte auf
+                      historischen EODHD-Kursen{backtest.excludedTickers.length > 0
+                        ? ` — ohne ${backtest.excludedTickers.join(", ")} (keine Historie)`
+                        : ""}. Vergangene Wertentwicklung ist keine Garantie für die Zukunft.
+                    </p>
+                  </>
+                ) : (
+                  <div className="h-32 flex items-center justify-center text-sm text-gray-400">
+                    Kein Backtest-Ergebnis verfügbar (zu wenig Kurshistorie).
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* R-34c: Mindest-Positionsgrösse CHF 3'000 — vom Server auf 0 gesetzte Positionen */}

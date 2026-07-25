@@ -194,13 +194,14 @@ export const dashboardRouter = router({
           const historicalPrice = usePricesMap.get(ticker);
           if (!historicalPrice) continue;
           
-          // Calculate shares using CURRENT price (same as calculatePortfolioValueFromData)
-          // This ensures dayChange reflects actual price movement, not share count differences
+          // Calculate shares using the HISTORICAL price at the target date (YTD start price).
+          // Using current price here would inflate YTD because shares × ytdStartPrice would be too low.
+          // Correct formula: shares = allocation / ytdStartPrice, then ytdStartValue = shares × ytdStartPrice = allocation.
           let shares = parseFloat(stock.shares || '0') || 0;
           if (shares === 0 && investmentAmount > 0 && weight > 0) {
-            const currentPrice = parseFloat(stockData.currentPrice || '0');
-            const currentPriceCHF = await convertToCHF(currentPrice, currency, todayForFx);
-            shares = (currentPriceCHF > 0 ? (investmentAmount * weight) / currentPriceCHF : 0) || 0;
+            // Use historical price at the target date for shares calculation (same as portfoliosRouter)
+            const historicalPriceCHF = await convertToCHF(historicalPrice, currency, dateStr);
+            shares = (historicalPriceCHF > 0 ? (investmentAmount * weight) / historicalPriceCHF : 0) || 0;
           }
           
           const priceCHF = await convertToCHF(historicalPrice, currency, dateStr);
@@ -908,10 +909,13 @@ export const dashboardRouter = router({
           startDateStr = latestLiveStartDate;
         }
       } else if (hasLivePortfolios && !hasDemoPortfolios) {
-        // Pure live portfolio(s): ensure startDate is not before the first transaction
-        if (startDateStr < earliestTransactionDate) {
+        // Pure live portfolio(s): for Max/All range, limit to first transaction.
+        // For YTD/1J/3J/5J: keep the requested startDate so benchmarks and the chart
+        // cover the full period. Points before the first buy will show portfolio=null.
+        if (input.range === 'Max' && startDateStr < earliestTransactionDate) {
           startDateStr = earliestTransactionDate;
         }
+        // For YTD/1J/3J/5J: do NOT restrict — the loop already skips dates before liveStartDate
       } else if (hasDemoPortfolios && !hasLivePortfolios) {
         // Pure demo portfolio(s): for Max, use the full available history (startDate from switch)
         // For other ranges, limit to createdAt (already handled above via earliestTransactionDate)
@@ -1401,7 +1405,7 @@ export const dashboardRouter = router({
             const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
             for (const stock of stocks) {
               if (!stock.ticker) continue;
-              let shares = parseFloat(stock.shares || '0');
+              const shares = parseFloat(stock.shares || '0');
               if (shares === 0 && investmentAmount > 0) {
                 holdingsAgg.set(stock.ticker, holdingsAgg.get(stock.ticker) || -1);
               } else if (shares > 0) {
@@ -1536,7 +1540,7 @@ export const dashboardRouter = router({
             const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
             for (const stock of stocks) {
               if (!stock.ticker) continue;
-              let shares = parseFloat(stock.shares || '0');
+              const shares = parseFloat(stock.shares || '0');
               if (shares === 0 && investmentAmount > 0) {
                 holdingsAgg.set(stock.ticker, holdingsAgg.get(stock.ticker) || -1);
               } else if (shares > 0) {
@@ -1624,6 +1628,190 @@ export const dashboardRouter = router({
     }),
 
   // ──────────────────────────────────────────────────────────────────────
+  // Asset Class allocation (Aktien, Obligationen, Rohwaren, Krypto, Cash)
+  // ──────────────────────────────────────────────────────────────────────
+  getAssetClassAllocation: protectedProcedure
+    .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).default("aggregate") }))
+    .query(async ({ ctx, input }) => {
+      const { getSavedPortfolios, getPortfolioTransactions } = await import("../db");
+      const { batchGetStocks } = await import("../db-optimized");
+      const { convertToCHF } = await import("../fxHelper");
+
+      const ASSET_CLASS_COLORS: Record<string, string> = {
+        "Aktien": "#22D3EE",
+        "ETF": "#3B82F6",
+        "Obligationen": "#A78BFA",
+        "Rohwaren/Gold": "#F59E0B",
+        "Krypto": "#C084FC",
+        "Cash": "#475569",
+        "Andere": "#94A3B8",
+      };
+
+      const portfolios = await getSavedPortfolios(ctx.user.id);
+      let targetPortfolios: any[];
+      if (input.scope === "aggregate") {
+        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+      } else {
+        targetPortfolios = portfolios.filter(p => p.id === input.scope);
+      }
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      // Map: ticker → { shares, assetType }
+      const holdingsAgg = new Map<string, { shares: number; assetType?: string; nominalValue?: number; bondValueCHF?: number }>();
+      let totalCash = 0;
+
+      for (const portfolio of targetPortfolios) {
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) {
+          const transactions = await getPortfolioTransactions(portfolio.id);
+          for (const [ticker, pos] of Array.from(buildHoldings(transactions).entries())) {
+            const existing = holdingsAgg.get(ticker);
+            holdingsAgg.set(ticker, { shares: (existing?.shares || 0) + pos.shares });
+          }
+        } else {
+          try {
+            const pd = JSON.parse(portfolio.portfolioData || '{}');
+            const stocks = pd.stocks || pd.positions || [];
+            const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+            for (const stock of stocks) {
+              if (!stock.ticker) continue;
+              const shares = parseFloat(stock.shares || '0');
+              const existing = holdingsAgg.get(stock.ticker);
+              if (stock.assetType === 'bond') {
+                // Bonds: value = nominalValue × pricePercent / 100
+                const nominalValue = parseFloat(stock.nominalValue || stock.shares || '0');
+                const pricePercent = parseFloat(stock.currentPrice || '100');
+                const bondValueCHF = nominalValue * (pricePercent / 100);
+                holdingsAgg.set(stock.ticker, {
+                  shares: (existing?.shares || 0) + nominalValue,
+                  assetType: 'bond',
+                  bondValueCHF: (existing?.bondValueCHF || 0) + bondValueCHF,
+                });
+              } else if (stock.assetType === 'commodity' || stock.assetType === 'crypto') {
+                if (shares === 0 && investmentAmount > 0) {
+                  holdingsAgg.set(stock.ticker, { shares: existing?.shares || -1, assetType: stock.assetType });
+                } else if (shares > 0) {
+                  holdingsAgg.set(stock.ticker, { shares: (existing?.shares || 0) + shares, assetType: stock.assetType });
+                }
+              } else {
+                if (shares === 0 && investmentAmount > 0) {
+                  holdingsAgg.set(stock.ticker, { shares: existing?.shares || -1 });
+                } else if (shares > 0) {
+                  holdingsAgg.set(stock.ticker, { shares: (existing?.shares || 0) + shares });
+                }
+              }
+            }
+          } catch (e) { console.warn('[dashboardRouter] AssetClass-Aggregation fehlgeschlagen:', e); }
+        }
+        totalCash += parseFloat(portfolio.cashBalance || '0');
+      }
+
+      // Remove zero entries
+      for (const [t, h] of Array.from(holdingsAgg.entries())) {
+        if (h.shares === 0) holdingsAgg.delete(t);
+      }
+
+      const allTickers = Array.from(holdingsAgg.keys()).filter(t => {
+        const h = holdingsAgg.get(t)!;
+        return h.assetType !== 'bond'; // bonds don't need stock lookup
+      });
+      const stocksMap = allTickers.length > 0 ? await batchGetStocks(allTickers) : new Map();
+
+      // Pre-warm FX
+      const uniqueCurrencies = new Set<string>();
+      for (const s of Array.from(stocksMap.values())) { if ((s as any).currency) uniqueCurrencies.add((s as any).currency); }
+      await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
+        convertToCHF(1, c, todayStr)
+      ));
+
+      // Calculate shares for demo portfolios with placeholder -1
+      for (const portfolio of targetPortfolios) {
+        if (portfolio.isLive === 1 && portfolio.liveStartDate) continue;
+        try {
+          const pd = JSON.parse(portfolio.portfolioData || '{}');
+          const stocks = pd.stocks || pd.positions || [];
+          const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
+          for (const stockDef of stocks) {
+            if (!stockDef.ticker) continue;
+            const holding = holdingsAgg.get(stockDef.ticker);
+            if (holding && holding.shares < 0) {
+              const stock = stocksMap.get(stockDef.ticker) as any;
+              if (!stock) continue;
+              const currentPrice = safeParseFloat(stock.currentPrice);
+              const currency = stock.currency || 'CHF';
+              const weight = parseFloat(stockDef.weight || '0') / 100;
+              const allocationCHF = investmentAmount * weight;
+              const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+              const calculatedShares = priceCHF > 0 ? allocationCHF / priceCHF : 0;
+              holdingsAgg.set(stockDef.ticker, { ...holding, shares: calculatedShares });
+            }
+          }
+        } catch (e) { console.warn('[dashboardRouter] Demo-Stückzahl-Berechnung fehlgeschlagen:', e); }
+      }
+
+      for (const [t, h] of Array.from(holdingsAgg.entries())) {
+        if (h.shares <= 0 && h.assetType !== 'bond') holdingsAgg.delete(t);
+      }
+
+      const assetClassData = new Map<string, number>();
+      let totalValue = 0;
+
+      for (const [ticker, holding] of Array.from(holdingsAgg.entries())) {
+        let value = 0;
+        let assetClass = 'Aktien';
+
+        if (holding.assetType === 'bond') {
+          value = holding.bondValueCHF || 0;
+          assetClass = 'Obligationen';
+        } else if (holding.assetType === 'commodity') {
+          const stock = stocksMap.get(ticker) as any;
+          if (stock) {
+            const currentPrice = safeParseFloat(stock.currentPrice);
+            const currency = stock.currency || 'CHF';
+            const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+            value = holding.shares * priceCHF;
+          }
+          assetClass = 'Rohwaren/Gold';
+        } else if (holding.assetType === 'crypto') {
+          const stock = stocksMap.get(ticker) as any;
+          if (stock) {
+            const currentPrice = safeParseFloat(stock.currentPrice);
+            const currency = stock.currency || 'CHF';
+            const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+            value = holding.shares * priceCHF;
+          }
+          assetClass = 'Krypto';
+        } else {
+          const stock = stocksMap.get(ticker) as any;
+          if (!stock) continue;
+          const currentPrice = safeParseFloat(stock.currentPrice);
+          const currency = stock.currency || 'CHF';
+          const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+          value = holding.shares * priceCHF;
+          // Classify ETF vs Aktie by quoteType or name patterns
+          const quoteType = (stock.quoteType || '').toUpperCase();
+          const name = (stock.companyName || stock.name || '').toUpperCase();
+          if (quoteType === 'ETF' || name.includes(' ETF') || name.includes(' ETC') || name.includes(' ETP') || name.includes('ISHARES') || name.includes('VANGUARD') || name.includes('XTRACKERS') || name.includes('AMUNDI')) {
+            assetClass = 'ETF';
+          }
+        }
+
+        totalValue += value;
+        assetClassData.set(assetClass, (assetClassData.get(assetClass) || 0) + value);
+      }
+
+      totalValue += totalCash;
+      if (totalCash > 0) assetClassData.set('Cash', totalCash);
+
+      const result = Array.from(assetClassData.entries()).map(([name, value]) => ({
+        name,
+        weight: totalValue > 0 ? Number(((value / totalValue) * 100).toFixed(1)) : 0,
+        color: ASSET_CLASS_COLORS[name] || '#94A3B8',
+      })).sort((a, b) => b.weight - a.weight);
+
+      return result;
+    }),
+
+  // ──────────────────────────────────────────────────────────────────────
   // Risk metrics — volatility, drawdown, VaR, Sharpe, Beta, Concentration
   // ──────────────────────────────────────────────────────────────────────
   getRiskMetrics: protectedProcedure
@@ -1643,7 +1831,8 @@ export const dashboardRouter = router({
       // Support both live and demo portfolios
       let targetPortfolios: any[];
       if (input.scope === "aggregate") {
-        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+        // Include ALL portfolios (live + demo) for risk metrics — same as getAggregatedMetrics
+        targetPortfolios = portfolios;
       } else {
         targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
@@ -2030,7 +2219,7 @@ export const dashboardRouter = router({
             const investmentAmount = parseFloat(portfolio.investmentAmount || '0');
             for (const stock of stocks) {
               if (!stock.ticker) continue;
-              let shares = parseFloat(stock.shares || '0');
+              const shares = parseFloat(stock.shares || '0');
               if (shares === 0 && investmentAmount > 0) {
                 holdingsAgg.set(stock.ticker, holdingsAgg.get(stock.ticker) || -1);
               } else if (shares > 0) {
@@ -2105,7 +2294,7 @@ export const dashboardRouter = router({
       holdingData.sort((a, b) => b.weight - a.weight);
 
       // Generate insights using LLM for personalized recommendations
-      const { invokeLLM } = await import("../_core/llm");
+      const { invokeKimi } = await import("../_core/llm");
 
       // Prepare portfolio context for LLM
       const cashWeight = totalValue > 0 ? (totalCash / totalValue) * 100 : 0;
@@ -2128,7 +2317,7 @@ export const dashboardRouter = router({
       ].join('\n');
 
       try {
-        const llmResponse = await invokeLLM({
+        const llmResponse = await invokeKimi({
           messages: [
             {
               role: 'system',
@@ -2399,32 +2588,80 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
     );
 
     // Top-Movers aus Watchlist/Portfolio des Users
+    // Use DB historical prices for change1d (more reliable than EODHD real-time after market close)
     const { getSavedPortfolios, getDb } = await import('../db');
-    const { stocks } = await import('../../drizzle/schema');
+    const { stocks: stocksTable, historicalPrices } = await import('../../drizzle/schema');
     const { curated } = await import('../lib/stockUniverse');
+    const { inArray, desc } = await import('drizzle-orm');
     const portfolios = await getSavedPortfolios(ctx.user.id);
     const db2 = await getDb();
-    const watchlist = db2 ? await db2.select({ ticker: stocks.ticker }).from(stocks).where(curated()).limit(50) : [];
+    const watchlist = db2 ? await db2.select({ ticker: stocksTable.ticker, companyName: stocksTable.companyName }).from(stocksTable).where(curated()).limit(50) : [];
     const portfolioTickers = new Set<string>();
+    const tickerToName = new Map<string, string>();
+    watchlist.forEach((w: any) => { if (w.ticker) { portfolioTickers.add(w.ticker); tickerToName.set(w.ticker, w.companyName); } });
     portfolios.forEach(p => {
       try {
         const data = JSON.parse(p.portfolioData || '{}');
-        const stocks = data.stocks || data.positions || (Array.isArray(data) ? data : []);
-        stocks.forEach((s: any) => { if (s.ticker) portfolioTickers.add(s.ticker); });
+        const posArr = data.stocks || data.positions || (Array.isArray(data) ? data : []);
+        posArr.forEach((s: any) => { if (s.ticker) { portfolioTickers.add(s.ticker); if (s.name) tickerToName.set(s.ticker, s.name); } });
       } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (Ticker-Sammlung) fehlgeschlagen:', e); }
     });
-    watchlist.forEach((w: any) => { if (w.ticker) portfolioTickers.add(w.ticker); });
-    const tickerList = Array.from(portfolioTickers).slice(0, 30);
-    const moverResults = await Promise.allSettled(
-      tickerList.map(async (ticker) => {
-        const rt = await fetchEODHDRealTime(ticker);
-        return { ticker, change: rt.changePercent, price: rt.close };
-      })
-    );
-    const movers = moverResults
-      .filter(r => r.status === 'fulfilled' && (r as PromiseFulfilledResult<any>).value.change !== null)
-      .map(r => (r as PromiseFulfilledResult<any>).value)
-      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+    const tickerList = Array.from(portfolioTickers).slice(0, 40);
+
+    // Calculate change1d from last 2 trading days in historicalPrices
+    let movers: Array<{ ticker: string; change: number; price: number; name: string }> = [];
+    if (db2 && tickerList.length > 0) {
+      try {
+        // Get last 2 prices per ticker
+        const today = new Date().toISOString().split('T')[0];
+        const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString().split('T')[0];
+        const { and, gte, lte } = await import('drizzle-orm');
+        const recentPrices = await db2.select({
+          ticker: historicalPrices.ticker,
+          date: historicalPrices.date,
+          close: historicalPrices.close,
+        }).from(historicalPrices)
+          .where(and(
+            inArray(historicalPrices.ticker, tickerList),
+            gte(historicalPrices.date, twoWeeksAgo),
+            lte(historicalPrices.date, today)
+          ))
+          .orderBy(desc(historicalPrices.date));
+
+        // Group by ticker, take last 2 dates
+        const byTicker = new Map<string, Array<{ date: string; close: string }>>();
+        for (const row of recentPrices) {
+          if (!byTicker.has(row.ticker)) byTicker.set(row.ticker, []);
+          const arr = byTicker.get(row.ticker)!;
+          if (arr.length < 2) arr.push({ date: row.date, close: row.close });
+        }
+
+        for (const [ticker, prices] of Array.from(byTicker.entries())) {
+          if (prices.length < 2) continue;
+          const latest = parseFloat(prices[0].close);
+          const prev = parseFloat(prices[1].close);
+          if (!latest || !prev || prev === 0) continue;
+          const change = ((latest - prev) / prev) * 100;
+          movers.push({ ticker, change: Number(change.toFixed(2)), price: latest, name: tickerToName.get(ticker) || ticker });
+        }
+        movers.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+      } catch (e) {
+        console.warn('[getMarketSnapshot] DB-basierte Top-Movers fehlgeschlagen:', e);
+      }
+    }
+    // Fallback: EODHD real-time if DB has no data
+    if (movers.length === 0) {
+      const moverResults = await Promise.allSettled(
+        tickerList.slice(0, 20).map(async (ticker) => {
+          const rt = await fetchEODHDRealTime(ticker);
+          return { ticker, change: rt.changePercent, price: rt.close, name: tickerToName.get(ticker) || ticker };
+        })
+      );
+      movers = moverResults
+        .filter(r => r.status === 'fulfilled' && (r as PromiseFulfilledResult<any>).value.change !== null && (r as PromiseFulfilledResult<any>).value.change !== 0)
+        .map(r => (r as PromiseFulfilledResult<any>).value)
+        .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+    }
     const gainers = movers.filter(m => m.change > 0).slice(0, 3);
     const losers = movers.filter(m => m.change < 0).slice(0, 3);
 
@@ -2677,7 +2914,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
     .mutation(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioTransactions } = await import('../db');
       const { batchGetStocks } = await import('../db-optimized');
-      const { invokeLLM } = await import('../_core/llm');
+      const { invokeKimi } = await import('../_core/llm');
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
       const targetPortfolios = input.portfolioId
@@ -2739,7 +2976,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         userPrompt = `Portfolio-Analyse:\n\nPositionen:\n${holdingsSummary}\n\nKontext: ${input.context || 'Allgemeine Analyse'}\n\nGib 3-5 konkrete Handlungsempfehlungen.`;
       }
 
-      const response = await invokeLLM({
+      const response = await invokeKimi({
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -2773,7 +3010,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
       const { runCopilotAnalysis, calculateRebalancingSuggestions, calculateRankings } = await import('../analytics/portfolioCopilot');
       const { getDb } = await import('../db');
       const { appSettings } = await import('../../drizzle/schema');
-      const { invokeLLM } = await import('../_core/llm');
+      const { invokeKimi } = await import('../_core/llm');
 
       // Load diversification rules from admin settings
       let maxWeight = 0.10, minWeight = 0.01, minTitles = 15;
@@ -2873,7 +3110,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
       }
 
       // Signal-Cache für Score-Daten laden (für LLM-Kontext)
-      let signalCacheMap = new Map<string, { combinedScore: number | null; signalType: string | null }>();
+      const signalCacheMap = new Map<string, { combinedScore: number | null; signalType: string | null }>();
       try {
         const { stockSignalCache } = await import('../../drizzle/schema');
         const { inArray } = await import('drizzle-orm');
@@ -2924,7 +3161,7 @@ Positionen:\n${portfolioContext}\n\nRegeln: Max ${(maxWeight*100).toFixed(0)}% p
       }
 
       try {
-        const response = await invokeLLM({
+        const response = await invokeKimi({
           messages: [
             {
               role: 'system',

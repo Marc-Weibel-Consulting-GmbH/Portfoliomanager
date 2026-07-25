@@ -3,7 +3,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { chatConversations, chatMessages } from "../../drizzle/schema";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, invokeKimi } from "../_core/llm";
 import { TRPCError } from "@trpc/server";
 
 /**
@@ -256,7 +256,7 @@ ${portfolioContext}${fundamentalsContext}`;
         const MAX_TOOL_ROUNDS = 3;
         let assistantMessage = "";
         for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-          const response = await invokeLLM({
+          const response = await invokeKimi({
             messages: llmMessages,
             ...(round < MAX_TOOL_ROUNDS ? { tools: COPILOT_TOOLS } : {}),
           });
@@ -297,7 +297,7 @@ ${portfolioContext}${fundamentalsContext}`;
           const titlePrompt = `Generiere einen kurzen, prägnanten Titel (max. 50 Zeichen) für diese Konversation basierend auf der ersten Frage: "${input.message}". Antworte nur mit dem Titel, ohne Anführungszeichen.`;
           
           try {
-            const titleResponse = await invokeLLM({
+            const titleResponse = await invokeKimi({
               messages: [
                 { role: "system", content: "Du bist ein Assistent, der prägnante Titel generiert." },
                 { role: "user", content: titlePrompt },

@@ -9,10 +9,223 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TrendingUp, TrendingDown, AlertTriangle, Info } from "lucide-react";
+import { InsightTooltip } from "@/components/InsightPanel";
 import { Link } from "wouter";
 
 type SignalType = "all" | "buy" | "sell" | "hold";
-type SignalStrength = "all" | "strong" | "moderate" | "weak";
+
+/**
+ * Generates a specific, context-aware explanation for a signal criterion badge.
+ * Parses the criterion text (e.g. "Gute Dividende (3.5%)") and returns
+ * a title, detailed summary, factors, and variant for InsightTooltip.
+ */
+function getCriterionExplanation(criterion: string, signal: any): {
+  title: string;
+  summary: string;
+  factors: { label: string; value: string; sentiment: "positive" | "neutral" | "negative" }[];
+  variant: "default" | "warning" | "success" | "info";
+  riskNote?: string;
+} {
+  const c = criterion.toLowerCase();
+  // Extract numeric value from parentheses e.g. "(3.5%)" → 3.5
+  const numMatch = criterion.match(/\(([\d.]+)%?\)/);
+  const numVal = numMatch ? parseFloat(numMatch[1]) : null;
+
+  // ── Dividende ────────────────────────────────────────────────────────────────
+  if (c.includes("dividende") || c.includes("dividend")) {
+    const div = numVal ?? signal.dividendYield;
+    const isBullish = c.includes("gut") || c.includes("stark") || c.includes("hoch");
+    const isBearish = c.includes("niedrig") || c.includes("kein") || c.includes("schwach");
+    return {
+      title: criterion,
+      summary: isBullish
+        ? `Die Dividendenrendite von ${div != null ? div.toFixed(2) + '%' : '—'} liegt deutlich über dem Marktdurchschnitt (~2%). Das signalisiert ein stabiles, profitables Unternehmen das Kapital an Aktionäre zurückgibt — ein klassisches Qualitätsmerkmal für Value-Investoren.`
+        : isBearish
+        ? `Die Dividendenrendite von ${div != null ? div.toFixed(2) + '%' : '—'} ist niedrig. Das kann bedeuten, dass das Unternehmen Kapital lieber reinvestiert (Wachstumsstrategie) oder finanzielle Schwäche vorliegt.`
+        : `Dividendenrendite ${div != null ? div.toFixed(2) + '%' : '—'} — im normalen Bereich.`,
+      factors: [
+        { label: "Rendite", value: div != null ? `${div.toFixed(2)}%` : "—", sentiment: div != null && div >= 3 ? "positive" : div != null && div >= 1.5 ? "neutral" : "negative" },
+        { label: "Marktdurchschnitt", value: "~2.0%", sentiment: "neutral" },
+        { label: "Bewertung", value: div != null && div >= 3 ? "Attraktiv" : div != null && div >= 1.5 ? "Durchschnittlich" : "Niedrig", sentiment: div != null && div >= 3 ? "positive" : div != null && div >= 1.5 ? "neutral" : "negative" },
+      ],
+      variant: isBullish ? "success" : isBearish ? "warning" : "info",
+      riskNote: isBullish ? "Hohe Dividenden können auf Substanzverzehr hindeuten — Ausschüttungsquote prüfen." : undefined,
+    };
+  }
+
+  // ── PEG Ratio ────────────────────────────────────────────────────────────────
+  if (c.includes("peg")) {
+    const peg = numVal ?? signal.pegRatio;
+    const isCheap = c.includes("günstig") || c.includes("gut") || (peg != null && peg < 1.5);
+    const isExpensive = c.includes("teuer") || (peg != null && peg > 2.5);
+    return {
+      title: criterion,
+      summary: isCheap
+        ? `Das PEG-Ratio von ${peg != null ? peg.toFixed(2) : '—'} liegt unter 1.5 — das bedeutet, die Aktie ist gemessen an ihrem Gewinnwachstum günstig bewertet. Anleger zahlen wenig für das erwartete Wachstum. PEG < 1 gilt als klassisches Kaufsignal (Peter Lynch).`
+        : isExpensive
+        ? `Das PEG-Ratio von ${peg != null ? peg.toFixed(2) : '—'} liegt über 2.5 — die Aktie ist teuer im Verhältnis zu ihrem Wachstum. Anleger zahlen eine hohe Prämie, die nur bei starkem Wachstum gerechtfertigt ist.`
+        : `PEG-Ratio ${peg != null ? peg.toFixed(2) : '—'} — im fairen Bereich (1.5–2.5).`,
+      factors: [
+        { label: "PEG", value: peg != null ? peg.toFixed(2) : "—", sentiment: peg != null && peg < 1.5 ? "positive" : peg != null && peg > 2.5 ? "negative" : "neutral" },
+        { label: "Günstig", value: "< 1.5", sentiment: "positive" },
+        { label: "Fair", value: "1.5–2.5", sentiment: "neutral" },
+        { label: "Teuer", value: "> 2.5", sentiment: "negative" },
+      ],
+      variant: isCheap ? "success" : isExpensive ? "warning" : "info",
+    };
+  }
+
+  // ── KGV / P/E ────────────────────────────────────────────────────────────────
+  if (c.includes("kgv") || c.includes("p/e") || c.includes("kurs-gewinn")) {
+    const pe = numVal ?? signal.peRatio;
+    const isCheap = c.includes("günstig") || c.includes("niedrig") || (pe != null && pe < 18);
+    const isExpensive = c.includes("teuer") || c.includes("hoch") || (pe != null && pe > 30);
+    return {
+      title: criterion,
+      summary: isCheap
+        ? `Das KGV von ${pe != null ? pe.toFixed(1) : '—'} ist niedrig — Anleger zahlen weniger als 18× den Jahresgewinn. Das deutet auf eine günstige Bewertung hin, oft ein Zeichen für Value-Potential oder temporäre Marktschwäche.`
+        : isExpensive
+        ? `Das KGV von ${pe != null ? pe.toFixed(1) : '—'} ist hoch — Anleger zahlen mehr als 30× den Jahresgewinn. Das ist nur gerechtfertigt bei sehr starkem Wachstum oder Monopolstellung.`
+        : `KGV von ${pe != null ? pe.toFixed(1) : '—'} — im normalen Bereich für den Markt.`,
+      factors: [
+        { label: "KGV", value: pe != null ? pe.toFixed(1) : "—", sentiment: pe != null && pe < 18 ? "positive" : pe != null && pe > 30 ? "negative" : "neutral" },
+        { label: "Günstig", value: "< 15", sentiment: "positive" },
+        { label: "Marktdurchschnitt", value: "~18–22", sentiment: "neutral" },
+        { label: "Teuer", value: "> 30", sentiment: "negative" },
+      ],
+      variant: isCheap ? "success" : isExpensive ? "warning" : "info",
+    };
+  }
+
+  // ── RSI ──────────────────────────────────────────────────────────────────────
+  if (c.includes("rsi")) {
+    const rsi = numVal ?? signal.rsi14;
+    const isOversold = c.includes("überverkauft") || c.includes("tief") || (rsi != null && rsi < 35);
+    const isOverbought = c.includes("überkauft") || c.includes("hoch") || (rsi != null && rsi > 65);
+    return {
+      title: criterion,
+      summary: isOversold
+        ? `Der RSI von ${rsi != null ? rsi.toFixed(0) : '—'} signalisiert eine überverkaufte Aktie — der Kurs ist kurzfristig stark gefallen und könnte sich erholen. Contrarian-Investoren sehen RSI < 30 als Einstiegschance.`
+        : isOverbought
+        ? `Der RSI von ${rsi != null ? rsi.toFixed(0) : '—'} signalisiert eine überkaufte Aktie — der Kurs ist kurzfristig stark gestiegen. Das kann auf eine bevorstehende Konsolidierung oder Korrektur hindeuten.`
+        : `RSI von ${rsi != null ? rsi.toFixed(0) : '—'} — im neutralen Bereich (30–70), kein Extremsignal.`,
+      factors: [
+        { label: "RSI (14T)", value: rsi != null ? rsi.toFixed(0) : "—", sentiment: isOversold ? "positive" : isOverbought ? "negative" : "neutral" },
+        { label: "Überverkauft", value: "< 30", sentiment: "positive" },
+        { label: "Neutral", value: "30–70", sentiment: "neutral" },
+        { label: "Überkauft", value: "> 70", sentiment: "negative" },
+      ],
+      variant: isOversold ? "success" : isOverbought ? "warning" : "info",
+      riskNote: isOversold ? "RSI allein ist kein Kaufsignal — Trendrichtung und Fundamentaldaten bestätigen." : undefined,
+    };
+  }
+
+  // ── Momentum ─────────────────────────────────────────────────────────────────
+  if (c.includes("momentum") || c.includes("trend")) {
+    const isBullish = c.includes("positiv") || c.includes("stark") || c.includes("aufwärts") || c.includes("steigend");
+    const isBearish = c.includes("negativ") || c.includes("schwach") || c.includes("abwärts") || c.includes("fallend");
+    const ytd = signal.ytdPerformance;
+    return {
+      title: criterion,
+      summary: isBullish
+        ? `Das Kursmomentum ist positiv — die Aktie zeigt einen anhaltenden Aufwärtstrend${ytd != null ? ` (YTD: ${ytd >= 0 ? '+' : ''}${ytd.toFixed(1)}%)` : ''}. Momentum-Strategien zeigen, dass starke Aktien oft weiter steigen ("Trend ist dein Freund").`
+        : isBearish
+        ? `Das Kursmomentum ist negativ — die Aktie zeigt einen anhaltenden Abwärtstrend${ytd != null ? ` (YTD: ${ytd.toFixed(1)}%)` : ''}. Das kann auf fundamentale Probleme oder Marktstimmung hindeuten.`
+        : `Momentum ${ytd != null ? `YTD ${ytd >= 0 ? '+' : ''}${ytd.toFixed(1)}%` : '—'} — neutral.`,
+      factors: [
+        { label: "YTD Performance", value: ytd != null ? `${ytd >= 0 ? '+' : ''}${ytd.toFixed(1)}%` : "—", sentiment: ytd != null && ytd > 5 ? "positive" : ytd != null && ytd < -10 ? "negative" : "neutral" },
+        { label: "Algorithmus", value: signal.rfSignal ?? "—", sentiment: signal.rfSignal?.includes("buy") ? "positive" : signal.rfSignal?.includes("sell") ? "negative" : "neutral" },
+      ],
+      variant: isBullish ? "success" : isBearish ? "warning" : "info",
+    };
+  }
+
+  // ── Zielkurs / Upside ────────────────────────────────────────────────────────
+  if (c.includes("zielkurs") || c.includes("upside") || c.includes("kurspotenzial")) {
+    const target = signal.targetPrice;
+    const current = signal.currentPrice;
+    const upside = target && current ? ((target - current) / current * 100) : null;
+    return {
+      title: criterion,
+      summary: upside != null
+        ? `Der Analystenkonsens-Zielkurs von ${target?.toFixed(2)} impliziert ein Kurspotenzial von ${upside >= 0 ? '+' : ''}${upside.toFixed(1)}% gegenüber dem aktuellen Kurs von ${current?.toFixed(2)}. Zielkurse basieren auf DCF-Modellen und Peer-Vergleichen.`
+        : `Zielkurs ${target?.toFixed(2) ?? '—'} — zeigt die Analystenschätzung des fairen Wertes.`,
+      factors: [
+        { label: "Aktuell", value: current?.toFixed(2) ?? "—", sentiment: "neutral" },
+        { label: "Zielkurs", value: target?.toFixed(2) ?? "—", sentiment: upside != null && upside > 10 ? "positive" : upside != null && upside < -5 ? "negative" : "neutral" },
+        { label: "Potenzial", value: upside != null ? `${upside >= 0 ? '+' : ''}${upside.toFixed(1)}%` : "—", sentiment: upside != null && upside > 10 ? "positive" : upside != null && upside < 0 ? "negative" : "neutral" },
+      ],
+      variant: upside != null && upside > 15 ? "success" : upside != null && upside < 0 ? "warning" : "info",
+    };
+  }
+
+  // ── Score / Qualität ─────────────────────────────────────────────────────────
+  if (c.includes("score") || c.includes("qualität") || c.includes("qualitaet")) {
+    const score = numVal ?? signal.combinedScore;
+    return {
+      title: criterion,
+      summary: `Der kombinierte Score von ${score != null ? score : '—'}/100 bewertet die Aktie nach Momentum (technische Analyse), Qualität (Fundamentaldaten) und LPPL-Risikomodell (Blasenerkennung). ${score != null && score >= 70 ? 'Ein Score ≥ 70 ist ein starkes Kaufsignal.' : score != null && score >= 55 ? 'Ein Score von 55–70 deutet auf ein moderates Kaufsignal hin.' : 'Ein Score unter 55 ist neutral bis bärisch.'}`,
+      factors: [
+        { label: "Score", value: score != null ? `${score}/100` : "—", sentiment: score != null && score >= 65 ? "positive" : score != null && score >= 45 ? "neutral" : "negative" },
+        { label: "Stark", value: "≥ 70", sentiment: "positive" },
+        { label: "Moderat", value: "55–70", sentiment: "neutral" },
+        { label: "Schwach", value: "< 45", sentiment: "negative" },
+      ],
+      variant: score != null && score >= 65 ? "success" : score != null && score >= 45 ? "info" : "warning",
+    };
+  }
+
+  // ── Beta ─────────────────────────────────────────────────────────────────────
+  if (c.includes("beta") || c.includes("defensiv") || c.includes("volatil")) {
+    const isBullish = c.includes("defensiv") || c.includes("niedrig") || c.includes("stabil");
+    return {
+      title: criterion,
+      summary: isBullish
+        ? `Niedriges Beta — die Aktie schwankt weniger als der Gesamtmarkt. Das macht sie defensiv und eignet sich für risikobewusste Anleger oder als Stabilisator im Portfolio.`
+        : `Hohes Beta — die Aktie schwankt stärker als der Gesamtmarkt. Das bietet höheres Gewinnpotenzial in Aufwärtsphasen, aber auch grössere Verluste in Korrekturen.`,
+      factors: [
+        { label: "Beta", value: "—", sentiment: isBullish ? "positive" : "negative" },
+        { label: "Defensiv", value: "< 0.8", sentiment: "positive" },
+        { label: "Markt", value: "= 1.0", sentiment: "neutral" },
+        { label: "Aggressiv", value: "> 1.3", sentiment: "negative" },
+      ],
+      variant: isBullish ? "success" : "warning",
+    };
+  }
+
+  // ── YTD / Performance ────────────────────────────────────────────────────────
+  if (c.includes("ytd") || c.includes("performance") || c.includes("rendite")) {
+    const ytd = numVal ?? signal.ytdPerformance;
+    const isBullish = c.includes("stark") || c.includes("positiv") || (ytd != null && ytd > 10);
+    const isBearish = c.includes("schwach") || c.includes("negativ") || (ytd != null && ytd < -10);
+    return {
+      title: criterion,
+      summary: isBullish
+        ? `Die YTD-Performance von ${ytd != null ? `+${ytd.toFixed(1)}%` : '—'} übertrifft den Markt deutlich. Starke relative Stärke ist ein Momentum-Signal und deutet auf institutionelles Kaufinteresse hin.`
+        : isBearish
+        ? `Die YTD-Performance von ${ytd != null ? `${ytd.toFixed(1)}%` : '—'} liegt deutlich unter dem Markt. Das kann auf fundamentale Probleme oder Sektorschwäche hindeuten.`
+        : `YTD-Performance ${ytd != null ? `${ytd >= 0 ? '+' : ''}${ytd.toFixed(1)}%` : '—'} — im normalen Bereich.`,
+      factors: [
+        { label: "YTD", value: ytd != null ? `${ytd >= 0 ? '+' : ''}${ytd.toFixed(1)}%` : "—", sentiment: ytd != null && ytd > 5 ? "positive" : ytd != null && ytd < -10 ? "negative" : "neutral" },
+      ],
+      variant: isBullish ? "success" : isBearish ? "warning" : "info",
+    };
+  }
+
+  // ── Fallback ─────────────────────────────────────────────────────────────────
+  const isBullish = c.includes("gut") || c.includes("stark") || c.includes("positiv") || c.includes("hoch") || c.includes("steigend") || c.includes("aufwärts");
+  const isBearish = c.includes("schlecht") || c.includes("schwach") || c.includes("negativ") || c.includes("niedrig") || c.includes("fallend") || c.includes("teuer");
+  return {
+    title: criterion,
+    summary: isBullish
+      ? `Dieses Kriterium ist bullish für ${signal.ticker}: Es wurde als positiver Faktor bei der Signalgenerierung identifiziert und verstärkt das ${signal.type === 'buy' ? 'Kauf' : signal.type === 'sell' ? 'Verkauf' : 'Halte'}-Signal.`
+      : isBearish
+      ? `Dieses Kriterium ist bärisch für ${signal.ticker}: Es wurde als negativer Faktor identifiziert und beeinflusst das Signal entsprechend.`
+      : `Dieses Kriterium wurde bei der Signalgenerierung für ${signal.ticker} als relevanter Faktor identifiziert.`,
+    factors: [],
+    variant: isBullish ? "success" : isBearish ? "warning" : "info",
+  };
+}
 
 const ACTION_LABELS: Record<string, { label: string; className: string }> = {
   buy: { label: "Kaufen", className: "bg-green-500 hover:bg-green-600 text-white" },
@@ -36,20 +249,7 @@ function getSignalIcon(type: string) {
     default: return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
   }
 }
-function getSignalBadge(type: string) {
-  switch (type) {
-    case "buy": return <Badge className="bg-green-500 hover:bg-green-600">KAUFEN</Badge>;
-    case "sell": return <Badge className="bg-red-500 hover:bg-red-600">VERKAUFEN</Badge>;
-    default: return <Badge variant="secondary">HALTEN</Badge>;
-  }
-}
-function getStrengthBadge(strength: string) {
-  switch (strength) {
-    case "strong": return <Badge variant="default">Stark</Badge>;
-    case "moderate": return <Badge variant="secondary">Mittel</Badge>;
-    default: return <Badge variant="outline">Schwach</Badge>;
-  }
-}
+// getSignalBadge und getStrengthBadge entfernt — ersetzt durch kombinierten Badge in der Card
 
 export function PortfolioSignalsTab({
   portfolioId,
@@ -59,7 +259,7 @@ export function PortfolioSignalsTab({
   portfolioValueCHF?: number | null;
 }) {
   const [signalTypeFilter, setSignalTypeFilter] = useState<SignalType>("all");
-  const [strengthFilter, setStrengthFilter] = useState<SignalStrength>("all");
+  const [minScore, setMinScore] = useState<number>(0);
 
   const { data: signals, isLoading } = trpc.signals.generate.useQuery(
     { portfolioId },
@@ -68,8 +268,8 @@ export function PortfolioSignalsTab({
 
   const filteredSignals = (signals ?? []).filter((signal: any) => {
     const typeMatch = signalTypeFilter === "all" || signal.type === signalTypeFilter;
-    const strengthMatch = strengthFilter === "all" || signal.strength === strengthFilter;
-    return typeMatch && strengthMatch;
+    const scoreMatch = signal.combinedScore === undefined || signal.combinedScore >= minScore;
+    return typeMatch && scoreMatch;
   });
 
   return (
@@ -88,14 +288,14 @@ export function PortfolioSignalsTab({
           </Select>
         </div>
         <div>
-          <label className="text-xs text-muted-foreground mb-1 block">Signalstärke</label>
-          <Select value={strengthFilter} onValueChange={(v) => setStrengthFilter(v as SignalStrength)}>
+          <label className="text-xs text-muted-foreground mb-1 block">Min. Score</label>
+          <Select value={String(minScore)} onValueChange={(v) => setMinScore(Number(v))}>
             <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Alle</SelectItem>
-              <SelectItem value="strong">Stark</SelectItem>
-              <SelectItem value="moderate">Mittel</SelectItem>
-              <SelectItem value="weak">Schwach</SelectItem>
+              <SelectItem value="0">Alle Scores</SelectItem>
+              <SelectItem value="45">≥ 45 (moderat)</SelectItem>
+              <SelectItem value="65">≥ 65 (stark)</SelectItem>
+              <SelectItem value="75">≥ 75 (sehr stark)</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -120,17 +320,27 @@ export function PortfolioSignalsTab({
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-semibold text-lg">{signal.ticker}</span>
-                          {getSignalBadge(signal.type)}
-                          {getStrengthBadge(signal.strength)}
-                          {/* overallGrade nur anzeigen wenn combinedScore vorhanden und erklärt */}
-                          {signal.overallGrade && signal.combinedScore !== undefined && (
-                            <span
-                              className="text-xs font-mono text-muted-foreground border border-border rounded px-1.5 py-0.5"
-                              title={`Score-Grade: A (≥75), B (≥60), C (≥45), D (≥30), F (<30). Basiert auf Momentum + Qualität + LPPL-Risiko.`}
-                            >
-                              {signal.overallGrade}
-                            </span>
-                          )}
+                          {/* Variante A: Ein kombinierter Badge [▲ KAUFEN · 79/100] */}
+                          {(() => {
+                            const score = signal.combinedScore;
+                            const type = signal.type;
+                            const icon = type === 'buy' ? '▲' : type === 'sell' ? '▼' : '●';
+                            const label = type === 'buy' ? 'KAUFEN' : type === 'sell' ? 'VERKAUFEN' : 'HALTEN';
+                            const colorClass = type === 'buy'
+                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                              : type === 'sell'
+                              ? 'bg-red-500/15 text-red-400 border-red-500/30'
+                              : 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30';
+                            return (
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold tracking-wide ${colorClass}`}>
+                                <span>{icon}</span>
+                                <span>{label}</span>
+                                {score !== undefined && (
+                                  <span className="opacity-70">· {score}/100</span>
+                                )}
+                              </span>
+                            );
+                          })()}
                           <Link href={`/aktien/${signal.ticker}`}>
                             <button
                               title={`Detailseite von ${signal.ticker} öffnen`}
@@ -144,25 +354,23 @@ export function PortfolioSignalsTab({
                       </div>
                     </div>
                     <div className="text-right">
-                      {signal.combinedScore !== undefined && (
-                        <div className="mb-1">
-                          <p className="text-xs text-muted-foreground">Score (M+Q+LPPL)</p>
-                          <p className={`text-lg font-bold font-mono ${
-                            signal.combinedScore >= 70 ? "text-emerald-500" :
-                            signal.combinedScore >= 55 ? "text-[#00CFC1]" :
-                            signal.combinedScore >= 45 ? "text-yellow-500" : "text-red-500"
-                          }`}>{signal.combinedScore}<span className="text-sm text-muted-foreground">/100</span></p>
-                        </div>
-                      )}
                       <p className="text-xs text-muted-foreground">Aktueller Kurs</p>
                       <p className="text-base font-bold">{signal.currentPrice?.toFixed(2)}</p>
+                      {signal.targetPrice && signal.currentPrice && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Ziel: <span className={signal.targetPrice > signal.currentPrice ? 'text-emerald-400' : 'text-red-400'}>
+                            {signal.targetPrice.toFixed(2)}
+                            {' '}({((signal.targetPrice - signal.currentPrice) / signal.currentPrice * 100) >= 0 ? '+' : ''}{((signal.targetPrice - signal.currentPrice) / signal.currentPrice * 100).toFixed(1)}%)
+                          </span>
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-3 text-sm">
                     <div><p className="text-muted-foreground">P/E Ratio</p><p className="font-semibold">{signal.peRatio?.toFixed(1) || "N/A"}</p></div>
                     <div><p className="text-muted-foreground">PEG Ratio</p><p className="font-semibold">{signal.pegRatio?.toFixed(2) || "N/A"}</p></div>
-                    <div><p className="text-muted-foreground">Div. Rendite</p><p className="font-semibold">{signal.dividendYield?.toFixed(2)}%</p></div>
+                    <div><p className="text-muted-foreground">Div. Rendite</p><p className="font-semibold">{signal.dividendYield?.toFixed(1)}%</p></div>
                     <div>
                       <p className="text-muted-foreground">YTD Performance</p>
                       <p className={`font-semibold ${signal.ytdPerformance >= 0 ? "text-green-500" : "text-red-500"}`}>
@@ -206,9 +414,21 @@ export function PortfolioSignalsTab({
                     {/* Kriterien aus P/E-Score */}
                     {signal.criteria && signal.criteria.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-2">
-                        {signal.criteria.map((criterion: string, i: number) => (
-                          <Badge key={i} variant="outline" className="text-xs text-muted-foreground">{criterion}</Badge>
-                        ))}
+                        {signal.criteria.map((criterion: string, i: number) => {
+                          const exp = getCriterionExplanation(criterion, signal);
+                          return (
+                            <InsightTooltip
+                              key={i}
+                              title={exp.title}
+                              summary={exp.summary}
+                              factors={exp.factors.length > 0 ? exp.factors : undefined}
+                              riskNote={exp.riskNote}
+                              variant={exp.variant}
+                            >
+                              <Badge variant="outline" className="text-xs text-muted-foreground cursor-help">{criterion}</Badge>
+                            </InsightTooltip>
+                          );
+                        })}
                       </div>
                     )}
                     {/* Modell-Inputs: nur anzeigen wenn RF mit finalem Signal übereinstimmt */}
@@ -219,7 +439,13 @@ export function PortfolioSignalsTab({
                       const rfIsSell = signal.rfSignal === 'sell' || signal.rfSignal === 'strong_sell';
                       const rfAgrees = signal.rfSignal && ((finalIsBuy && rfIsBuy) || (finalIsSell && rfIsSell));
                       const showSentiment = signal.sentimentLabel && signal.sentimentLabel !== 'neutral';
-                      if (!rfAgrees && !showSentiment) return null;
+                      // B5: Wikifolio-Konsens-Signal
+                      const wikifolioIsBuy = (signal as any).wikifolioSignal === 'buy_consensus';
+                      const wikifolioIsSell = (signal as any).wikifolioSignal === 'sell_consensus';
+                      const wikifolioBuyCount = (signal as any).wikifolioBuyCount as number | undefined;
+                      const wikifolioSellCount = (signal as any).wikifolioSellCount as number | undefined;
+                      const showWikifolio = wikifolioIsBuy || wikifolioIsSell;
+                      if (!rfAgrees && !showSentiment && !showWikifolio) return null;
                       return (
                         <div className="text-[11px] text-muted-foreground border-t border-border pt-2 mt-1">
                           <span className="font-medium text-foreground/60">Bestätigende Indikatoren: </span>
@@ -231,9 +457,16 @@ export function PortfolioSignalsTab({
                             </span>
                           )}
                           {showSentiment && (
-                            <span>
+                            <span className="mr-3">
                               Sentiment: <span className={signal.sentimentLabel === 'bullish' ? 'text-emerald-500' : 'text-red-400'}>
                                 {signal.sentimentLabel === 'bullish' ? 'Positiv' : 'Negativ'}
+                              </span>
+                            </span>
+                          )}
+                          {showWikifolio && (
+                            <span>
+                              Wikifolio: <span className={wikifolioIsBuy ? 'text-emerald-500' : 'text-red-400'}>
+                                {wikifolioIsBuy ? `${wikifolioBuyCount ?? ''} kauften` : `${wikifolioSellCount ?? ''} verkauften`}
                               </span>
                             </span>
                           )}

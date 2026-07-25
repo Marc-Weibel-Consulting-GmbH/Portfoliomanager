@@ -1,6 +1,8 @@
 import { router, protectedProcedure } from "../_core/trpc";
+import { randomUUID } from "crypto";
 import { z } from "zod";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, invokeKimi } from "../_core/llm";
+import { getProposalModelConfig, invokeProposalAgent } from "../lib/proposalModels";
 import {
   getMarktHubSignals,
   getSectorTilts,
@@ -10,6 +12,9 @@ import {
   describeSectorTilts,
   type MarktHubSignals,
 } from "../lib/marktHubSignals";
+import { applyMultiAssetSleeve, createDbPriceResolver } from "../lib/multiAssetSleeve";
+import { SLEEVE_CLASS_LABELS, formatSleeveAllocation } from "./autoPortfolioShared";
+import { startProposalProcedure, getProposalStatusProcedure } from "./autoPortfolioJobs";
 
 export const autoPortfolioRouter = router({
   /**
@@ -23,7 +28,7 @@ export const autoPortfolioRouter = router({
    * Nutzer bestätigt den Vorschlag im Builder.
    */
   buildProposal: protectedProcedure
-    .input(z.object({ investmentAmount: z.number().positive().optional() }).optional())
+    .input(z.object({ investmentAmount: z.number().positive().optional(), stocksOnly: z.boolean().optional() }).optional())
     .mutation(async ({ ctx, input }) => {
       // K-A1: KI-Auto-Portfolio ist ein Plus/Pro-Feature (No-op im Soft-Launch).
       const { requireFeature } = await import("../lib/entitlements");
@@ -190,6 +195,8 @@ export const autoPortfolioRouter = router({
           console.log(`[buildProposal] Blacklist excluded ${s.ticker}: Börsenbetreiber/nicht-investierbar`);
           return false;
         }
+        // Multi-Asset-Sleeve-ETFs gehören nicht ins Aktien-Universum (werden separat zugemischt)
+        if (typeof s.notes === "string" && s.notes.startsWith("multi_asset_sleeve|")) return false;
         const price = parseFloat(s.currentPrice ?? "0");
         if (!(price > 0)) return false;
         if (s.sector && excludedSectors.includes(s.sector)) return false;
@@ -367,7 +374,77 @@ export const autoPortfolioRouter = router({
         );
       }
 
-      console.log(`[buildProposal] Step 5: ranking ${scored.length} scored items`);
+      // === UNIVERSE EXPANSION: Lücken-Analyse + EODHD-Screening (max. 20% externe Titel) ===
+      const universalCandidates: any[] = [];
+      try {
+        const { analyzeGaps, findExternalCandidates, storeExternalCandidates } = await import("../lib/universeExpansion");
+        const existingTickers = new Set(scored.map((x: any) => x.stock.ticker.toUpperCase()));
+        const gaps = analyzeGaps(
+          scored.map((x: any) => ({
+            ticker: x.stock.ticker,
+            sector: x.stock.sector,
+            dividendYield: x.dividendYield,
+            sharpeRatio: null,
+            ytdPerformance: x.stock.ytdPerformance?.toString() ?? null,
+            peRatio: x.stock.peRatio,
+          })),
+          rules.maxTitles,
+          excludedSectors,
+          goal ?? "balanced"
+        );
+        if (gaps.totalGaps > 0) {
+          console.log(`[buildProposal] Universe expansion: ${gaps.sectorGaps.length} Sektor-Lücken, ${gaps.factorGaps.length} Faktor-Lücken, max ${gaps.maxExternalCount} externe Titel`);
+          const externalCandidates = await findExternalCandidates(gaps, existingTickers, referenceCurrency);
+          if (externalCandidates.length > 0) {
+            // Externe Kandidaten in DB speichern (Staging für Admin-Review) — non-fatal
+            storeExternalCandidates(externalCandidates).catch((e: any) =>
+              console.warn("[buildProposal] storeExternalCandidates non-fatal:", e)
+            );
+            // Externe Kandidaten als scored-kompatible Objekte in den Pool aufnehmen
+            for (const ec of externalCandidates) {
+              universalCandidates.push({
+                stock: {
+                  ticker: ec.ticker,
+                  companyName: ec.companyName,
+                  sector: ec.sector,
+                  currency: ec.currency,
+                  currentPrice: 0,
+                  ytdPerformance: null,
+                  peRatio: null,
+                  dividendYield: ec.dividendYield ?? 0,
+                  marketCap: null,
+                  signalType: "HOLD",
+                  listType: "watchlist",
+                },
+                combinedScore: 60,
+                signal: "HOLD",
+                scoreGrade: "B",
+                dividendYield: ec.dividendYield ?? 0,
+                regime: "normal",
+                isUniverseExpansion: true,
+                gapReason: ec.gapReason,
+                closesGap: ec.closesGap,
+              });
+            }
+            const gapDesc = [
+              ...gaps.sectorGaps.map((g) => g.sector),
+              ...gaps.factorGaps.map((g) => g.description),
+            ].join(", ");
+            notes.push(
+              `Universum-Erweiterung: ${externalCandidates.length} neue Titel ergänzt (max. 20% des Vorschlags) um Lücken zu schließen: ${gapDesc}. Diese Titel sind als „Universum-Erweiterung“ gekennzeichnet und können vom Admin in die Watchlist übernommen werden.`
+            );
+            console.log(`[buildProposal] Universe expansion: ${externalCandidates.length} external candidates added`);
+          }
+        } else {
+          console.log(`[buildProposal] Universe expansion: Keine Lücken gefunden`);
+        }
+      } catch (expansionErr: any) {
+        console.warn("[buildProposal] Universe expansion non-fatal error:", expansionErr?.message);
+      }
+      // Externe Kandidaten in den scored-Pool aufnehmen (nach den Watchlist-Titeln)
+      const allCandidates = [...scored, ...universalCandidates];
+
+      console.log(`[buildProposal] Step 5: ranking ${allCandidates.length} scored items (${universalCandidates.length} universe expansions)`);
       // 5) Ranking (Ziel «dividends» bevorzugt Dividendenrendite) + Kaufsignal-Filter
       // Watchlist-Empfehlungen erhalten +10 Punkte Bonus im Ranking
       // IMPROVEMENT: YTD momentum factor in ranking (growth/balanced goals)
@@ -392,22 +469,30 @@ export const autoPortfolioRouter = router({
       // Die verwendete Qualitäts-Stufe wird ausgewiesen (stats.qualityTier) —
       // vorher wurde die Schwelle STILL gesenkt, ohne dass der Kunde es erfuhr.
       let qualityTier: "kaufkandidaten" | "erweitert" | "basis" = "kaufkandidaten";
-      let ranked = scored
-        .filter((x) => isBuyable(x) && x.combinedScore >= 55)
-        .sort((a, b) => rankKey(b) - rankKey(a));
+      // Stable sort: primary = rankKey desc, secondary = ticker asc (tie-breaker for determinism)
+      const stableSort = (arr: any[]) =>
+        arr.sort((a, b) => {
+          const diff = rankKey(b) - rankKey(a);
+          if (diff !== 0) return diff;
+          return (a.stock.ticker as string).localeCompare(b.stock.ticker as string);
+        });
+
+      let ranked = stableSort(
+        allCandidates.filter((x) => isBuyable(x) && x.combinedScore >= 55)
+      );
       if (ranked.length < rules.minTitles) {
         // Zu wenige Kaufsignale — HOLD-Titel mit Score >= 45 einbeziehen, aber SELL bleibt draussen
         qualityTier = "erweitert";
-        ranked = scored
-          .filter((x) => x.signal !== "SELL" && x.scoreGrade !== "F" && x.combinedScore >= 45)
-          .sort((a, b) => rankKey(b) - rankKey(a));
+        ranked = stableSort(
+          allCandidates.filter((x) => x.signal !== "SELL" && x.scoreGrade !== "F" && x.combinedScore >= 45)
+        );
       }
       if (ranked.length < rules.minTitles) {
         // Letzter Fallback: alle Nicht-SELL, nach Score sortiert
         qualityTier = "basis";
-        ranked = scored
-          .filter((x) => x.signal !== "SELL")
-          .sort((a, b) => rankKey(b) - rankKey(a));
+        ranked = stableSort(
+          allCandidates.filter((x) => x.signal !== "SELL")
+        );
       }
       if (qualityTier !== "kaufkandidaten") {
         notes.push(
@@ -444,6 +529,17 @@ export const autoPortfolioRouter = router({
       }
 
       console.log(`[buildProposal] Step 7: weighting ${selected.length} selected positions`);
+      // AUTO-BACKFILL: Kurshistorie für alle ausgewählten Titel sicherstellen
+      // (verhindert NaN-Kennzahlen und "unvollständige Kurshistorie"-Warnung)
+      try {
+        const { autoBackfillNewSymbols } = await import('../autoBackfill');
+        const backfillResult = await autoBackfillNewSymbols(selected.map((c) => c.stock.ticker));
+        if (backfillResult.newSymbolsDetected > 0) {
+          console.log(`[buildProposal] Auto-backfill: ${backfillResult.newSymbolsDetected} Titel nachgeladen`);
+        }
+      } catch (backfillErr: any) {
+        console.warn(`[buildProposal] Auto-backfill non-fatal: ${backfillErr?.message}`);
+      }
       // 7) Gewichtung (OPT-2, Audit 2026-07): ECHTE Optimierung über die
       // Analytics-Engine mit der Methode aus dem Risikoprofil und den
       // Profil-Caps aus optimizerParamsForProfile — vorher war die Gewichtung
@@ -552,7 +648,7 @@ export const autoPortfolioRouter = router({
         .map((c) => ({ c, w: weights[c.stock.ticker] ?? 0 }))
         .filter((x) => x.w > 0);
       const wSum = kept.reduce((s, x) => s + x.w, 0) || 1;
-      const positions = kept
+      let positions = kept
         .map(({ c, w }) => {
           const s = c.stock;
           return {
@@ -615,10 +711,109 @@ export const autoPortfolioRouter = router({
         notes.push(`Fremdwährungsanteil wurde von ${currentFxTotal.toFixed(1)}% auf ${fxWeightPct.toFixed(1)}% reduziert (Limit: ${maxFxExposurePct}%) — FX-Positionen wurden proportional gekürzt.`);
       }
 
+      // === MULTI-ASSET-SLEEVE: je nach Anlegerprofil ETF-Bausteine zumischen ===
+      // Läuft NACH dem FX-Enforcement (Aktien-Sleeve ist final) und VOR der
+      // Cash-Quote (die Cash-Reserve skaliert danach alle Positionen proportional).
+      const stocksOnly = input?.stocksOnly ?? false;
+      let assetAllocation: Record<string, number> | null = null;
+      let deviationFromProfile: string | null = null;
+      try {
+        const sleeveResult = await applyMultiAssetSleeve({
+          equityPositions: positions.map((sp) => ({ ...sp, weight: sp.weightPct })),
+          riskProfile,
+          stocksOnly,
+          resolvePrice: createDbPriceResolver(),
+          maxFxPct: maxFxExposurePct,
+          referenceCurrency,
+        });
+        assetAllocation = sleeveResult.allocation;
+        deviationFromProfile = sleeveResult.deviationNote;
+        if (sleeveResult.deviationNote) notes.push(sleeveResult.deviationNote);
+        notes.push(...sleeveResult.notes);
+        positions = sleeveResult.positions.map((sp) => {
+          if (sp.assetClass === "equity") {
+            return {
+              ticker: sp.ticker,
+              companyName: String(sp.companyName ?? sp.ticker),
+              sector: String(sp.sector ?? "Andere"),
+              currency: String(sp.currency ?? "CHF"),
+              currentPrice: Number(sp.currentPrice ?? 0),
+              exchangeRateToChf: Number(sp.exchangeRateToChf ?? 1),
+              weightPct: sp.weight,
+              combinedScore: (sp.combinedScore ?? null) as number | null,
+              signal: String(sp.signal ?? ""),
+              reason: String(sp.reason ?? ""),
+            };
+          }
+          return {
+            ticker: sp.ticker,
+            companyName: String(sp.name ?? sp.ticker),
+            sector: SLEEVE_CLASS_LABELS[sp.assetClass] ?? String(sp.assetClass),
+            currency: String(sp.currency ?? "CHF"),
+            currentPrice: Number(sp.price ?? 0),
+            exchangeRateToChf: 1,
+            weightPct: sp.weight,
+            combinedScore: null as number | null,
+            signal: "ETF",
+            reason: `Multi-Asset-Sleeve: ${SLEEVE_CLASS_LABELS[sp.assetClass] ?? sp.assetClass}-Baustein gemäss Anlegerprofil '${riskProfile}'`,
+            assetType: "etf",
+            assetClass: sp.assetClass,
+          };
+        }) as unknown as typeof positions;
+      } catch (e: any) {
+        console.warn(`[buildProposal] Multi-Asset-Sleeve fehlgeschlagen (non-fatal): ${e?.message}`);
+        notes.push("Multi-Asset-Bausteine konnten nicht aufgelöst werden — Vorschlag bleibt rein aktienbasiert.");
+      }
+
       // Cash-Quote berücksichtigen: Positionen auf (100 - liquidityNeedPct)% skalieren
       if (liquidityNeedPct > 0 && liquidityNeedPct < 100) {
         const equityPct = 1 - liquidityNeedPct / 100;
         positions.forEach((p) => { p.weightPct = parseFloat((p.weightPct * equityPct).toFixed(2)); });
+      }
+
+      // === PREIS-ANREICHERUNG: Externe Kandidaten haben currentPrice=0 — aus DB oder EODHD laden ===
+      const missingPriceTickers = positions.filter(p => !p.currentPrice || p.currentPrice === 0).map(p => p.ticker);
+      if (missingPriceTickers.length > 0) {
+        console.log(`[buildProposal] Enriching prices for ${missingPriceTickers.length} external candidates: ${missingPriceTickers.join(', ')}`);
+        try {
+          // 1) Aus DB laden (falls Ticker bereits bekannt)
+          const { stocks: stocksTbl } = await import('../../drizzle/schema');
+          const dbPriceRows = await db.select({ ticker: stocksTbl.ticker, currentPrice: stocksTbl.currentPrice, exchangeRateToChf: stocksTbl.exchangeRateToChf })
+            .from(stocksTbl);
+          const dbPrices = new Map(dbPriceRows.map((r: any) => [String(r.ticker).toUpperCase(), r]));
+          for (const p of positions) {
+            if (!p.currentPrice || p.currentPrice === 0) {
+              const dbRow = dbPrices.get(p.ticker.toUpperCase());
+              if (dbRow?.currentPrice) {
+                p.currentPrice = parseFloat(String(dbRow.currentPrice));
+                if (dbRow.exchangeRateToChf) p.exchangeRateToChf = parseFloat(String(dbRow.exchangeRateToChf));
+              }
+            }
+          }
+          // 2) Noch fehlende Preise via EODHD-Quote-API laden
+          const { ENV: envCfg } = await import('../_core/env');
+          const stillMissing = positions.filter(p => !p.currentPrice || p.currentPrice === 0);
+          if (stillMissing.length > 0 && envCfg.eodhdApiKey) {
+            for (const p of stillMissing) {
+              try {
+                const eoTicker = p.ticker.includes('.') ? p.ticker : `${p.ticker}.US`;
+                const url = `https://eodhd.com/api/real-time/${eoTicker}?api_token=${envCfg.eodhdApiKey}&fmt=json`;
+                const resp = await fetch(url);
+                if (resp.ok) {
+                  const data: any = await resp.json();
+                  if (data?.close && parseFloat(data.close) > 0) {
+                    p.currentPrice = parseFloat(data.close);
+                    console.log(`[buildProposal] EODHD price for ${p.ticker}: ${p.currentPrice}`);
+                  }
+                }
+              } catch (e) {
+                console.warn(`[buildProposal] Could not fetch price for ${p.ticker}:`, e);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('[buildProposal] Price enrichment failed (non-fatal):', e);
+        }
       }
 
       console.log(`[buildProposal] Done: ${positions.length} positions built, returning result`);
@@ -676,7 +871,8 @@ export const autoPortfolioRouter = router({
         // Positionsliste raten müssen.
         const profileSummary =
           `Risikoprofil: ${riskProfile}, Ziel: ${goal}, Referenzwährung: ${referenceCurrency}, FX-Limit: ${maxFxExposurePct}%` +
-          (esgOnly ? ", ESG-Wunsch: ja (Filter noch NICHT verfügbar — Vorschlag ist nicht ESG-gefiltert)" : "");
+          (esgOnly ? ", ESG-Wunsch: ja (Filter noch NICHT verfügbar — Vorschlag ist nicht ESG-gefiltert)" : "") +
+          `\nZiel-Allokation (Anlegerprofil): ${formatSleeveAllocation(assetAllocation)}`;
         // Echte Bilanz-Fakten für die grössten US-Positionen (Financial
         // Datasets) — der Challenger prüft damit gegen Zahlen statt
         // Modellwissen. Non-fatal; ohne Konfiguration bleibt die Liste leer.
@@ -704,7 +900,7 @@ export const autoPortfolioRouter = router({
 
         // ---- AGENT 2: CHALLENGER ----
         console.log('[buildProposal] Agent 2 (Challenger) starting...');
-        const challengerResponse = await invokeLLM({
+        const challengerResponse = await invokeKimi({
           messages: [
             {
               role: 'system',
@@ -835,7 +1031,7 @@ Antworte im JSON-Format.`,
         }
 
         console.log('[buildProposal] Agent 3 (Synthesizer) starting...');
-        const synthesizerResponse = await invokeLLM({
+        const synthesizerResponse = await invokeKimi({
           messages: [
             {
               role: 'system',
@@ -1017,6 +1213,11 @@ Antworte im JSON-Format.`,
           sectorCapPct: rules.maxSectorPercent,
           fxCapPct: maxFxExposurePct,
         },
+        // Multi-Asset-Sleeve: effektive Anlageklassen-Allokation (in %, vor
+        // Cash-Quote), gewählter Modus und Abweichungs-Hinweis bei "Nur Aktien".
+        assetAllocation,
+        stocksOnly,
+        deviationFromProfile,
         // Ehrliche Hinweise (ESG nicht verfügbar, Qualitätsstufe gesenkt,
         // Cap-Überschreitungen nach Optimierung, ...).
         notes,
@@ -1079,7 +1280,8 @@ Antworte im JSON-Format.`,
                 companyName: replacement.stock.companyName,
                 sector: replacement.stock.sector,
                 currency: replacement.stock.currency,
-                currentPrice: replacement.stock.currentPrice,
+                // Always coerce to number so the client doesn't get a raw DB string
+                currentPrice: parseFloat(String(replacement.stock.currentPrice ?? '0')) || 0,
                 combinedScore: replacement.combinedScore,
                 signal: replacement.signal,
                 reason: `Ersetzt ${ra.ticker} gemäss KI-Empfehlung`,
@@ -1111,6 +1313,9 @@ Antworte im JSON-Format.`,
         },
       };
     }),
+
+  startProposal: startProposalProcedure,
+  getProposalStatus: getProposalStatusProcedure,
 
   // Der frühere LLM-Endpoint `generatePortfolio` (gesamte Aktientabelle an ein
   // LLM, Gewichte vom Modell geraten) wurde von keiner Client-Seite aufgerufen

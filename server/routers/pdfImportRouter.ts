@@ -6,7 +6,8 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { parseSwissquotePDF, toPortfolioTransaction, parseSwissquoteDepotauszug } from "../lib/swissquoteParser";
+import { parseSwissquotePDF, toPortfolioTransaction } from "../lib/swissquoteParser";
+import { parseDepotauszugAuto } from "../lib/bankParsers";
 
 export const pdfImportRouter = router({
   /**
@@ -67,7 +68,9 @@ export const pdfImportRouter = router({
         if (pdfBuffer.length > 20 * 1024 * 1024) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "PDF file is too large (max 20MB)" });
         }
-        const result = await parseSwissquoteDepotauszug(pdfBuffer);
+        // Multi-bank: detect bank, use deterministic Swissquote parser or
+        // generic LLM extraction for all other banks.
+        const result = await parseDepotauszugAuto(pdfBuffer);
         return {
           positions: result.positions,
           parseErrors: result.parseErrors,
@@ -76,6 +79,9 @@ export const pdfImportRouter = router({
           reportDate: result.reportDate,
           accountHolder: result.accountHolder,
           totalValueCHF: result.totalValueCHF,
+          bankId: result.bankId,
+          bankName: result.bankName,
+          parserUsed: result.parserUsed,
           fileName: input.fileName || "unknown.pdf",
         };
       } catch (err: any) {
@@ -96,6 +102,7 @@ export const pdfImportRouter = router({
       z.object({
         portfolioId: z.number().int().positive(),
         reportDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+        bankName: z.string().optional(),
         positions: z.array(
           z.object({
             name: z.string(),
@@ -105,7 +112,7 @@ export const pdfImportRouter = router({
             avgPurchasePrice: z.number().nullable(),
             marketPrice: z.number().nullable(),
             marketValueCHF: z.number().nullable(),
-            assetType: z.enum(["stock", "crypto", "cash"]),
+            assetType: z.enum(["stock", "bond", "commodity", "crypto", "cash"]),
           })
         ),
       })
@@ -139,6 +146,8 @@ export const pdfImportRouter = router({
         avgPurchasePrice: number;
         marketPrice: number | null;
         totalAmountCHF: number;
+        assetType?: string;
+        isin?: string | null;
       }> = [];
 
       for (const pos of input.positions) {
@@ -146,9 +155,12 @@ export const pdfImportRouter = router({
           // Skip zero-quantity positions
           if (pos.quantity <= 0) continue;
 
+          const isBondAsset = pos.assetType === "bond";
+
           // Resolve ISIN to Yahoo ticker for proper portfolio tracking
+          // Bonds: skip Yahoo resolution (bonds have no Yahoo ticker) — use ISIN directly
           let resolvedTicker: string = pos.isin || pos.name.split(" ")[0].toUpperCase();
-          if (pos.isin) {
+          if (pos.isin && !isBondAsset) {
             try {
               const yahooTicker = await resolveIsinToTicker(yahooSearch, pos.isin);
               if (yahooTicker) {
@@ -162,15 +174,32 @@ export const pdfImportRouter = router({
             }
           }
 
-          // Use avgPurchasePrice as pricePerShare; fall back to marketPrice
-          const pricePerShare = pos.avgPurchasePrice ?? pos.marketPrice ?? 0;
-          const totalAmount = pricePerShare * pos.quantity;
+          // Bond value calculation:
+          // - quantity = Nominalwert (e.g. 200'000 CHF)
+          // - marketPrice = Kurs in % (e.g. 98.5 means 98.5%)
+          // - totalValue = Nominalwert × Kurs% / 100
+          // Stock value calculation: pricePerShare × quantity
+          let pricePerShare: number;
+          let totalAmount: number;
+          if (isBondAsset) {
+            const nominalValue = pos.quantity; // Nominalwert in Währung
+            const pricePercent = pos.avgPurchasePrice ?? pos.marketPrice ?? 100; // Kurs in %
+            // pricePerShare for bonds = Kurs% (stored as-is, value = nominal × price% / 100)
+            pricePerShare = pricePercent;
+            totalAmount = nominalValue * (pricePercent / 100);
+            console.log(`[pdfImport] Bond ${pos.isin}: Nominal=${nominalValue}, Kurs=${pricePercent}%, Wert=${totalAmount}`);
+          } else {
+            pricePerShare = pos.avgPurchasePrice ?? pos.marketPrice ?? 0;
+            totalAmount = pricePerShare * pos.quantity;
+          }
 
           // Convert to CHF
           let totalAmountCHF = totalAmount;
           let fxRate: number | null = null;
 
-          if (pos.currency !== "CHF" && pos.assetType !== "crypto") {
+          const isCryptoAsset = pos.assetType === "crypto";
+          // For bonds: totalAmount is already the market value (nominal × kurs%), no further multiplication needed
+          if (pos.currency !== "CHF" && !isCryptoAsset && !isBondAsset) {
             fxRate = await tryGetFxRate(txDate, `${pos.currency}CHF`);
             if (fxRate) {
               totalAmountCHF = totalAmount * fxRate;
@@ -178,7 +207,7 @@ export const pdfImportRouter = router({
               // Fallback: use market value CHF from the PDF
               totalAmountCHF = pos.marketValueCHF;
             }
-          } else if (pos.assetType === "crypto" && pos.marketValueCHF) {
+          } else if (isCryptoAsset && pos.marketValueCHF) {
             totalAmountCHF = pos.marketValueCHF;
           }
 
@@ -188,13 +217,13 @@ export const pdfImportRouter = router({
             ticker: resolvedTicker,
             shares: pos.quantity.toString(),
             pricePerShare: pricePerShare > 0 ? pricePerShare.toString() : null,
-            currency: pos.assetType === "crypto" ? "CHF" : pos.currency,
+            currency: isCryptoAsset ? "CHF" : pos.currency,
             totalAmount: totalAmount.toString(),
             fxRate: fxRate ? fxRate.toString() : null,
             totalAmountCHF: totalAmountCHF.toString(),
             fees: "0",
             transactionDate: new Date(txDate),
-            notes: `Swissquote Depotauszug Import - ${pos.name}${pos.isin ? ` (${pos.isin})` : ""}`,
+            notes: `${input.bankName || "PDF"} Depotauszug Import - ${pos.name}${pos.isin ? ` (${pos.isin})` : ""}`,
           });
 
           // Track resolved ticker for portfolioData update
@@ -202,11 +231,13 @@ export const pdfImportRouter = router({
           importedStocks.push({
             ticker: resolvedTicker,
             name: pos.name,
-            currency: pos.assetType === "crypto" ? "CHF" : pos.currency,
+            currency: isCryptoAsset ? "CHF" : pos.currency,
             quantity: pos.quantity,
             avgPurchasePrice: pricePerShare,
             marketPrice: pos.marketPrice,
             totalAmountCHF,
+            assetType: pos.assetType,
+            isin: pos.isin, // keep ISIN for bond display
           });
         } catch (err: any) {
           errors.push(`Failed to import ${pos.name}: ${err.message}`);
@@ -242,7 +273,7 @@ export const pdfImportRouter = router({
                   pegRatio: completeData.peg?.toString() || "0",
                   portfolioWeight: "0",
                   logoUrl: completeData.logoUrl || null,
-                  moat1: "Imported from Swissquote",
+                  moat1: `Imported from ${input.bankName || "PDF"}`,
                   moat2: "",
                   moat3: "",
                 });
@@ -265,14 +296,35 @@ export const pdfImportRouter = router({
 
             // Add or update in existingStocks
             const existingIdx = existingStocks.findIndex((e: any) => e.ticker === s.ticker);
-            const stockEntry = {
+            const isBond = s.assetType === "bond";
+            const isCommodity = s.assetType === "commodity";
+            const isCrypto = s.assetType === "crypto";
+            const stockEntry: any = {
               ticker: s.ticker,
               companyName: stockInDb?.companyName || s.name,
               weight,
+              // Bonds: currentPrice is the % Kurs (e.g. 98.5), not a CHF price
               currentPrice: s.marketPrice?.toString() || stockInDb?.currentPrice || "0",
               currency: s.currency,
               avgBuyPrice: avgBuyPriceCHF.toFixed(4),
               shares: s.quantity.toString(),
+              ...(isBond && {
+                assetType: "bond",
+                isin: s.isin,
+                // For bonds: nominalValue = quantity, pricePercent = marketPrice
+                nominalValue: s.quantity.toString(),
+                sector: "Obligationen",
+              }),
+              ...(isCommodity && {
+                assetType: "commodity",
+                isin: s.isin,
+                sector: "Rohwaren/Gold",
+              }),
+              ...(isCrypto && {
+                assetType: "crypto",
+                isin: s.isin,
+                sector: "Krypto",
+              }),
             };
             if (existingIdx >= 0) {
               existingStocks[existingIdx] = stockEntry;

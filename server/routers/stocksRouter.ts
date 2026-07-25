@@ -137,6 +137,107 @@ export const stocksRouter = router({
         return await getStockByTicker(input.ticker);
       }),
 
+    // Earnings- & Analysten-Insights (Surprise-Historie, nächster Konsens,
+    // Kursziel) aus der EODHD-Fundamentals-Antwort — Datenbasis fürs Briefing.
+    earningsInsights: protectedProcedure
+      .input(z.object({ ticker: z.string() }))
+      .query(async ({ input }) => {
+        const { fetchEODHDEarningsInsights } = await import("../_core/eodhdEarnings");
+        return await fetchEODHDEarningsInsights(input.ticker);
+      }),
+
+    // KI-Einzeltitel-Briefing (Earnings-Hub-Stil): fasst Kurs/Bewertung,
+    // Qualität, Earnings-Trackrecord, nächsten Katalysator und Analysten-
+    // Stimmung zu einer ausgewogenen, einfachen Einschätzung zusammen.
+    // On-demand (Mutation, LLM). Modell = konfigurierte "text"-Rolle.
+    stockBriefing: protectedProcedure
+      .input(z.object({ ticker: z.string(), forceRefresh: z.boolean().optional() }))
+      .mutation(async ({ input }) => {
+        const { getStockByTicker, getDb } = await import("../db");
+        const { fetchEODHDEarningsInsights } = await import("../_core/eodhdEarnings");
+        const { getProposalModelConfig, invokeProposalAgent } = await import("../lib/proposalModels");
+        const { stockBriefingCache } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+
+        const stock: any = await getStockByTicker(input.ticker);
+        if (!stock) throw new Error("Aktie nicht gefunden");
+
+        const db = await getDb();
+        const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 Stunden
+
+        // --- Cache-Lookup (nur wenn kein Force-Refresh) ---
+        if (!input.forceRefresh && db) {
+          try {
+            const cached = await db
+              .select()
+              .from(stockBriefingCache)
+              .where(eq(stockBriefingCache.ticker, input.ticker))
+              .limit(1);
+            if (cached.length > 0) {
+              const age = Date.now() - new Date(cached[0].generatedAt).getTime();
+              if (age < CACHE_TTL_MS) {
+                const ageHours = Math.floor(age / 3_600_000);
+                const ageMinutes = Math.floor((age % 3_600_000) / 60_000);
+                console.log(`[stockBriefing] ${input.ticker}: Cache-Hit (${ageHours}h ${ageMinutes}m alt)`);
+                return {
+                  briefing: cached[0].briefing,
+                  data: null,
+                  fromCache: true,
+                  cacheAge: age,
+                  generatedAt: cached[0].generatedAt,
+                };
+              }
+            }
+          } catch (cacheErr: any) {
+            console.warn(`[stockBriefing] Cache-Lookup fehlgeschlagen: ${cacheErr?.message}`);
+          }
+        }
+
+        // --- LLM-Generierung ---
+        const insights = await fetchEODHDEarningsInsights(input.ticker);
+        const num = (v: any): number | null => (v == null || v === "" ? null : (Number.isFinite(typeof v === "number" ? v : parseFloat(String(v))) ? (typeof v === "number" ? v : parseFloat(String(v))) : null));
+        const price = num(stock.currentPrice);
+        const hi = num(stock.week52High);
+        const lo = num(stock.week52Low);
+        const data = {
+          name: stock.companyName, ticker: stock.ticker, sector: stock.sector, currency: stock.currency,
+          price, week52High: hi, week52Low: lo,
+          nearHighPct: price != null && hi ? Math.round((price / hi) * 100) : null,
+          peRatio: num(stock.peRatio), pegRatio: num(stock.pegRatio), dividendYieldPct: num(stock.dividendYield),
+          beta: num(stock.beta), ytdPct: num(stock.ytdPerformance),
+          signalScore: stock.signalScore ?? null, signal: stock.signalType ?? null,
+          moat: [stock.moat1, stock.moat2, stock.moat3].filter(Boolean),
+          today: new Date().toISOString().slice(0, 10),
+          earnings: insights,
+        };
+
+        const models = await getProposalModelConfig();
+        const { result } = await invokeProposalAgent(models.text, {
+          system: "Du bist ein erfahrener Schweizer Aktienanalyst. Du gibst Privatanlegern 50+ eine EHRLICHE, ausgewogene Einschätzung zu einer Einzelaktie — verständlich, aber fundiert. Du entscheidest NICHT für den Anleger, sondern lieferst das Bild und die Abwägung. Antworte immer auf Deutsch.",
+          user: `Erstelle ein kompaktes Aktien-Briefing zu ${data.name} (${data.ticker}), ca. 160-230 Wörter, in klaren kurzen Absätzen mit diesen Punkten — nutze NUR die gelieferten Daten, erfinde keine Zahlen; fehlt ein Wert, lass ihn weg:\n1. Kurs & Bewertung: aktueller Kurs, Nähe zum 52-Wochen-Hoch/Tief, ob eher günstig oder teuer (KGV/PEG/Dividende).\n2. Qualität: Geschäftsmodell/Burggraben, Signal-Einschätzung.\n3. Earnings-Trackrecord: wie oft in den letzten Quartalen die Erwartungen geschlagen wurden (Beats/Misses, grösste Surprise).\n4. Nächster Katalysator: falls ein Earnings-Termin bekannt ist, nenne ihn samt Konsens (EPS/Umsatz) und weise auf das Event-Risk hin (Kurssprung möglich), besonders wenn der Termin nahe am heutigen Datum (${data.today}) liegt.\n5. Analysten-Stimmung: Kursziel vs. aktueller Kurs (Auf-/Abwärtspotenzial in %), Rating-Verteilung.\n6. Zum Schluss eine klare Abwägung: 2-3 Punkte dafür (✅) und 2-3 dagegen (⚠️).\nSchliesse mit einem Satz, dass die Entscheidung beim Anleger liegt.\n\nDaten:\n${JSON.stringify(data)}`,
+          schema: { name: "stock_briefing", strict: true, schema: { type: "object", properties: { briefing: { type: "string" } }, required: ["briefing"], additionalProperties: false } },
+          maxTokens: 1600,
+        });
+        const briefingText = String(result?.briefing ?? "").trim();
+        console.log(`[stockBriefing] ${input.ticker}: LLM OK, length=${briefingText.length}`);
+
+        // --- Cache-Schreiben (fire-and-forget) ---
+        if (db && briefingText.length > 50) {
+          db.insert(stockBriefingCache)
+            .values({ ticker: input.ticker, briefing: briefingText, generatedAt: new Date() })
+            .onDuplicateKeyUpdate({ set: { briefing: briefingText, generatedAt: new Date() } })
+            .catch((e: any) => console.warn(`[stockBriefing] Cache-Write fehlgeschlagen: ${e?.message}`));
+        }
+
+        return {
+          briefing: briefingText,
+          data,
+          fromCache: false,
+          cacheAge: 0,
+          generatedAt: new Date(),
+        };
+      }),
+
     getByTickers: publicProcedure
       .input(z.object({
         tickers: z.array(z.string())

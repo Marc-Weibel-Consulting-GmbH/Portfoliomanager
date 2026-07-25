@@ -52,7 +52,7 @@ export const DEFAULT_DIVERSIFICATION_RULES: DiversificationRules = {
   minTitles: 10,            // Gelockert von 15 → 10
   maxTitles: 30,            // Erhöht von 20 → 30
   minSectorPercent: 0,      // Neu: keine Mindestquote je Sektor
-  maxSectorPercent: 40,     // Leicht erhöht von 30% → 40%
+  maxSectorPercent: 30,     // Reduziert von 40% → 30%: bessere Diversifikation für balanced-Profile
   maxCurrencyPercent: 100,
   upgradeScoreThreshold: 55, // Positionen mit Score < 55 werden als Upgrade-Kandidaten vorgeschlagen
 };

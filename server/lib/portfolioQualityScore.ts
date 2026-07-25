@@ -4,12 +4,21 @@
  * Deterministic, documented scoring of portfolio quality.
  * Pure function: same inputs → same score. No LLM, no randomness.
  *
- * 5 Components (v1):
+ * 5 Components (v2):
  *   1. Risikoadjustierte Rendite (30%): Sharpe, Sortino, Max Drawdown
- *   2. Bewertung (25%): Ø PEG, Ø PE, Anteil PEG < 1.5, Anteil PEG > 3
- *   3. Risiko (20%): Volatilität p.a., Ø Beta, Konzentration (HHI)
- *   4. Ertrag (15%): Ø Dividendenrendite brutto (gewichtet)
- *   5. Diversifikation (10%): Sektor-HHI, Fremdwährungsanteil, Positionsanzahl
+ *   2. Bewertung (25%): Ø PEG, Ø PE, PEG-Verteilung (Anteil PEG<1.5 minus PEG>3)
+ *   3. Risiko (15%): Volatilität p.a., Ø Beta
+ *   4. Ertrag (15%, profilabhängig): Ø Dividendenrendite brutto (gewichtet)
+ *   5. Diversifikation (15%): Titel-HHI, Sektor-HHI, Fremdwährungsanteil, Positionsanzahl
+ *
+ * v2-Kalibrierung (KIMI-Feedback):
+ *   - Konzentration gebündelt: Titel-HHI von «Risiko» nach «Diversifikation»
+ *     verschoben (Doppelzählung aufgelöst); DIV 10→15%, RISK 20→15%.
+ *   - Ertrag profilabhängig (applyGoalWeights): «growth» gewichtet Dividende
+ *     schwach (Growth-Portfolios werden nicht mehr strukturell bestraft),
+ *     «dividends» stärker; «balanced»/null = Basisgewichte.
+ *   - Bewertung: negatives/nullwertiges PEG bzw. negatives PE werden explizit
+ *     niedrig bewertet statt wegrenormalisiert (Verlust-/Nullwachstum-Titel).
  *
  * Missing data → renormalize remaining components + report dataCoveragePct.
  *
@@ -57,6 +66,9 @@ export interface QualityScoreResult {
   components: ComponentResult[];
   dataCoveragePct: number; // 0–100
 }
+
+// Anlageziel des Portfolios/Nutzers — steuert die Ertrags-Gewichtung.
+export type ScoreGoal = "dividends" | "growth" | "balanced";
 
 // ─── Configurable Thresholds ────────────────────────────────────────────────
 
@@ -107,9 +119,9 @@ export const DEFAULT_SCORE_CONFIG: ScoreThresholdsConfig = {
   componentWeights: {
     riskAdjustedReturn: 0.30,
     valuation: 0.25,
-    risk: 0.20,
+    risk: 0.15,
     income: 0.15,
-    diversification: 0.10,
+    diversification: 0.15,
   },
   subWeights: {
     sharpe: 0.45,
@@ -118,17 +130,23 @@ export const DEFAULT_SCORE_CONFIG: ScoreThresholdsConfig = {
     peg: 0.40,
     pe: 0.30,
     pegDistribution: 0.30,
-    volatility: 0.40,
-    beta: 0.30,
+    // Risiko (v2): nur noch Volatilität + Beta — Titel-HHI ist nach
+    // «Diversifikation» gewandert, um Konzentration nicht doppelt zu zählen.
+    volatility: 0.55,
+    beta: 0.45,
+    // Diversifikation (v2): Titel-HHI (hhi) + Sektor-HHI bündeln die
+    // Konzentration; Positionsanzahl + Fremdwährung ergänzen die Streuung.
     hhi: 0.30,
-    sectorHHI: 0.40,
-    foreignCurrency: 0.30,
-    positionCount: 0.30,
+    sectorHHI: 0.30,
+    positionCount: 0.20,
+    foreignCurrency: 0.20,
   },
   thresholds: {
     sharpe: [[-0.5, 0], [0, 15], [0.5, 40], [1.0, 70], [1.5, 100]],
     sortino: [[-0.5, 0], [0, 15], [0.5, 35], [1.0, 60], [2.0, 100]],
-    maxDrawdown: [[-0.40, 0], [-0.20, 30], [-0.10, 60], [-0.05, 80], [0, 100]],
+    // MaxDD «0 → 100» ist praxisfern (jedes reale Portfolio hat etwas
+    // Drawdown); realistischer Deckel bei ~95 ab ≤ −2 %.
+    maxDrawdown: [[-0.40, 0], [-0.20, 30], [-0.10, 60], [-0.05, 80], [-0.02, 95], [0, 95]],
     peg: [[0, 50], [0.5, 90], [1.0, 80], [1.5, 70], [2.5, 50], [3.0, 30], [5.0, 10]],
     pe: [[5, 85], [10, 80], [15, 70], [20, 55], [25, 40], [30, 30], [40, 20]],
     volatility: [[0.05, 100], [0.08, 85], [0.12, 70], [0.18, 50], [0.25, 30], [0.35, 10]],
@@ -252,14 +270,17 @@ function scoreValuation(input: QualityScoreInput, config: ScoreThresholdsConfig)
   const scores: number[] = [];
   const weights: number[] = [];
 
-  if (input.avgPEG != null && isFinite(input.avgPEG) && input.avgPEG > 0) {
-    const s = interpolate(input.avgPEG, config.thresholds.peg);
+  if (input.avgPEG != null && isFinite(input.avgPEG)) {
+    // PEG ≤ 0 bedeutet nicht-positives Gewinnwachstum (oder negatives PE) —
+    // methodisch schlecht. Explizit niedrig bewerten statt wegrenormalisieren.
+    const s = input.avgPEG > 0 ? interpolate(input.avgPEG, config.thresholds.peg) : 20;
     scores.push(s);
     weights.push(config.subWeights.peg);
     inputs.avgPEG = input.avgPEG;
   }
-  if (input.avgPE != null && isFinite(input.avgPE) && input.avgPE > 0) {
-    const s = interpolate(input.avgPE, config.thresholds.pe);
+  if (input.avgPE != null && isFinite(input.avgPE)) {
+    // Negatives PE = Verlustsituation. Explizit sehr niedrig statt ignorieren.
+    const s = input.avgPE > 0 ? interpolate(input.avgPE, config.thresholds.pe) : 5;
     scores.push(s);
     weights.push(config.subWeights.pe);
     inputs.avgPE = input.avgPE;
@@ -302,12 +323,6 @@ function scoreRisk(input: QualityScoreInput, config: ScoreThresholdsConfig): Com
     weights.push(config.subWeights.beta);
     inputs.avgBeta = input.avgBeta;
   }
-  if (input.hhi != null && isFinite(input.hhi)) {
-    const s = interpolate(input.hhi, config.thresholds.hhi);
-    scores.push(s);
-    weights.push(config.subWeights.hhi);
-    inputs.hhi = input.hhi;
-  }
 
   if (scores.length === 0) {
     return { name: "Risiko", weight: config.componentWeights.risk, score: 0, available: false, inputs };
@@ -337,6 +352,13 @@ function scoreDiversification(input: QualityScoreInput, config: ScoreThresholdsC
   const scores: number[] = [];
   const weights: number[] = [];
 
+  // Titel-HHI (Einzeltitel-Konzentration) — v2 hier gebündelt statt in «Risiko».
+  if (input.hhi != null && isFinite(input.hhi)) {
+    const s = interpolate(input.hhi, config.thresholds.hhi);
+    scores.push(s);
+    weights.push(config.subWeights.hhi);
+    inputs.hhi = input.hhi;
+  }
   if (input.sectorHHI != null && isFinite(input.sectorHHI)) {
     const s = interpolate(input.sectorHHI, config.thresholds.sectorHHI);
     scores.push(s);
@@ -369,6 +391,39 @@ function scoreDiversification(input: QualityScoreInput, config: ScoreThresholdsC
 // ─── Main Function ───────────────────────────────────────────────────────────
 
 /**
+ * Ertrags-Gewichtung nach Anlageziel anpassen (v2).
+ *
+ * Die Dividendenrendite ist für Wachstums-Anleger zweitrangig — ohne Anpassung
+ * würde ein Growth-Portfolio (≈0 % Dividende → 20/100) strukturell abgewertet.
+ * «growth» senkt das Ertrags-Gewicht und verteilt es auf risikoadjustierte
+ * Rendite + Bewertung; «dividends» erhöht es (zulasten der Bewertung).
+ * Die Summe bleibt 1.0.
+ */
+export function applyGoalWeights(
+  w: ScoreThresholdsConfig["componentWeights"],
+  goal?: ScoreGoal | null
+): ScoreThresholdsConfig["componentWeights"] {
+  if (goal === "growth") {
+    const freed = Math.max(0, w.income - 0.05);
+    return {
+      ...w,
+      income: w.income - freed,
+      riskAdjustedReturn: w.riskAdjustedReturn + freed * 0.6,
+      valuation: w.valuation + freed * 0.4,
+    };
+  }
+  if (goal === "dividends") {
+    const add = Math.min(0.05, w.valuation);
+    return {
+      ...w,
+      income: w.income + add,
+      valuation: w.valuation - add,
+    };
+  }
+  return w;
+}
+
+/**
  * Calculate the Portfolio Quality Score (0–100).
  *
  * Missing components are renormalized (their weight is redistributed).
@@ -376,17 +431,25 @@ function scoreDiversification(input: QualityScoreInput, config: ScoreThresholdsC
  *
  * @param input - Portfolio metrics
  * @param config - Optional threshold config (defaults to DEFAULT_SCORE_CONFIG)
+ * @param goal - Optional Anlageziel; passt die Ertrags-Gewichtung an (v2)
  */
 export function calculatePortfolioQualityScore(
   input: QualityScoreInput,
-  config: ScoreThresholdsConfig = DEFAULT_SCORE_CONFIG
+  config: ScoreThresholdsConfig = DEFAULT_SCORE_CONFIG,
+  goal?: ScoreGoal | null
 ): QualityScoreResult {
+  // Effektive Gewichte nach Anlageziel (balanced/null → unverändert).
+  const effectiveConfig: ScoreThresholdsConfig =
+    goal && goal !== "balanced"
+      ? { ...config, componentWeights: applyGoalWeights(config.componentWeights, goal) }
+      : config;
+
   const components = [
-    scoreRiskAdjustedReturn(input, config),
-    scoreValuation(input, config),
-    scoreRisk(input, config),
-    scoreIncome(input, config),
-    scoreDiversification(input, config),
+    scoreRiskAdjustedReturn(input, effectiveConfig),
+    scoreValuation(input, effectiveConfig),
+    scoreRisk(input, effectiveConfig),
+    scoreIncome(input, effectiveConfig),
+    scoreDiversification(input, effectiveConfig),
   ];
 
   // Renormalize: only available components contribute
@@ -417,4 +480,25 @@ export function calculatePortfolioQualityScore(
 
 export function calculateHHI(weights: number[]): number {
   return weights.reduce((sum, w) => sum + w * w, 0);
+}
+
+// ─── Score-Bänder (0–100 → Label) ────────────────────────────────────────────
+// Einheitliche Einordnung für UI-Badges und Interpretationstexte.
+
+export interface ScoreBand {
+  min: number;
+  label: string;
+  color: string; // Tailwind-freundlicher Hex
+}
+
+export const SCORE_BANDS: ScoreBand[] = [
+  { min: 80, label: "Exzellent", color: "#00CFC1" },
+  { min: 60, label: "Solide", color: "#4ade80" },
+  { min: 40, label: "Ausbaufähig", color: "#fbbf24" },
+  { min: 0, label: "Kritisch", color: "#f87171" },
+];
+
+/** Ordnet einen Score (0–100) einem Band mit Label + Farbe zu. */
+export function getScoreBand(score: number): ScoreBand {
+  return SCORE_BANDS.find((b) => score >= b.min) ?? SCORE_BANDS[SCORE_BANDS.length - 1];
 }

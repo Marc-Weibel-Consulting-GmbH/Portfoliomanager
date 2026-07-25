@@ -18,7 +18,7 @@ import { persistAndMaybePromote, createDbArtifactRepo } from "../analytics/model
 import { getModelCache } from "../_core/modelCache";
 import { ENV } from "../_core/env";
 
-const MAX_UNIVERSE = 80; // bound training cost / API load
+const MAX_UNIVERSE = 300; // erhöht für bessere Modellqualität (Cron läuft automatisch)
 
 async function buildDeps(): Promise<TrainingJobDeps | null> {
   const serviceUrl = process.env.ANALYTICS_SERVICE_URL;

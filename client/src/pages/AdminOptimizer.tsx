@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Play, RotateCcw, CheckCircle2, AlertTriangle, Zap, Target, TrendingUp, Shield } from "lucide-react";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 export default function AdminOptimizer() {
   const [pollingEnabled, setPollingEnabled] = useState(false);
@@ -94,6 +95,12 @@ export default function AdminOptimizer() {
 
   return (
     <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Signal Auto-Optimizer", icon: <Zap className="h-4 w-4" /> },
+        ]}
+      />
       <div className="p-6 space-y-6 max-w-6xl">
         <div className="flex items-center justify-between">
           <div>

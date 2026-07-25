@@ -26,6 +26,8 @@ const BACKFILL_QUEUE_DELAY_MS = 500; // Delay between processing queue items
 // In-memory tracking of pending backfills to avoid duplicate requests
 const pendingBackfills = new Set<string>();
 const completedBackfills = new Map<string, Date>(); // ticker -> completion time
+// Registry of tickers that permanently have no data at EODHD (to surface in admin UI)
+const permanentlyFailedBackfills = new Map<string, { date: Date; reason: string }>(); // ticker -> failure info
 
 export interface BackfillStatus {
   ticker: string;
@@ -196,6 +198,8 @@ export async function triggerMaxBackfillForSymbol(
       };
     } else if (result.missingTickers.includes(normalizedTicker)) {
       console.warn(`[AutoBackfill] No data available for ${normalizedTicker}`);
+      // Register as permanently failed so admin can see it
+      permanentlyFailedBackfills.set(normalizedTicker, { date: new Date(), reason: 'No historical data available from EODHD API' });
       return {
         ticker: normalizedTicker,
         success: false,
@@ -312,16 +316,40 @@ export function getBackfillQueueStatus(): {
   pendingCount: number;
   pendingTickers: string[];
   recentlyCompletedCount: number;
+  recentlyCompleted: Array<{ ticker: string; completedAt: string }>;
+  permanentlyFailed: Array<{ ticker: string; failedAt: string; reason: string }>;
 } {
   const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
   const recentlyCompleted = Array.from(completedBackfills.entries())
-    .filter(([_, date]) => date > hourAgo);
+    .filter(([_, date]) => date > hourAgo)
+    .sort(([, a], [, b]) => b.getTime() - a.getTime())
+    .map(([ticker, date]) => ({ ticker, completedAt: date.toISOString() }));
+
+  const permanentlyFailed = Array.from(permanentlyFailedBackfills.entries())
+    .sort(([, a], [, b]) => b.date.getTime() - a.date.getTime())
+    .map(([ticker, info]) => ({ ticker, failedAt: info.date.toISOString(), reason: info.reason }));
 
   return {
     pendingCount: pendingBackfills.size,
     pendingTickers: Array.from(pendingBackfills),
-    recentlyCompletedCount: recentlyCompleted.length
+    recentlyCompletedCount: recentlyCompleted.length,
+    recentlyCompleted,
+    permanentlyFailed
   };
+}
+
+/**
+ * Clear permanently failed backfills registry
+ * Useful when a ticker becomes available at EODHD after being absent
+ */
+export function clearPermanentlyFailedBackfills(ticker?: string): void {
+  if (ticker) {
+    permanentlyFailedBackfills.delete(ticker);
+    console.log(`[AutoBackfill] Cleared permanently-failed registry for ${ticker}`);
+  } else {
+    permanentlyFailedBackfills.clear();
+    console.log('[AutoBackfill] Cleared all permanently-failed registries');
+  }
 }
 
 /**

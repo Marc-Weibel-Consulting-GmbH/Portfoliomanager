@@ -16,3 +16,11 @@ onnxruntime>=1.18.0
 
 # QuantStats tear-sheet reports (/analytics/tearsheet)
 quantstats>=0.0.80
+
+# Advanced optimization & backtesting (/analytics/optimize-advanced, /analytics/backtest)
+# skfolio deckt HRP + CVaR ab; Riskfolio-Lib bewusst nicht zusaetzlich (doppelte cvxpy-Basis)
+skfolio>=0.17.0
+bt>=1.2.0
+
+# SEC EDGAR XBRL fundamentals (/edgar/*) — v5-API (get_annual_fact/time_series)
+edgartools>=5.0.0

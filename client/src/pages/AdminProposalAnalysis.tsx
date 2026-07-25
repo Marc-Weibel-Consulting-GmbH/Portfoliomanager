@@ -6,16 +6,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   ChevronDown, ChevronRight, Brain, TrendingUp, AlertTriangle,
   CheckCircle, XCircle, ArrowDown, ArrowUp, ArrowLeftRight, Check,
   Save, X, PlusCircle, Trash2, Search, Mail, Bell,
-  ShieldCheck, RefreshCw, Columns2
+  ShieldCheck, RefreshCw, Columns2, Cpu
 } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { toast } from "sonner";
+import { InsightExpandable } from "@/components/InsightPanel";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 // ─── Badges ──────────────────────────────────────────────────────────────────
 
@@ -151,34 +154,56 @@ function ApplyRecommendationButton({
   const handleApply = () => {
     if (!onApply) return;
     onApply((prev) => {
-      let updated = prev.map(p => {
-        if (p.ticker.toUpperCase() !== adj.ticker?.toUpperCase()) return p;
-        if (adj.action === 'reduce') {
-          const newWeight = Math.max(1, p.weightPct * 0.7);
-          return { ...p, weightPct: Math.round(newWeight * 10) / 10 };
-        }
-        if (adj.action === 'increase') {
-          const newWeight = p.weightPct * 1.3;
-          return { ...p, weightPct: Math.round(newWeight * 10) / 10 };
-        }
-        if (adj.action === 'replace' && adj.replaceTicker) {
-          const replacement = allStocks.find(
-            (s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase()
-          );
-          if (replacement) {
-            return {
-              ...p,
-              ticker: replacement.ticker,
-              companyName: replacement.companyName ?? replacement.name ?? replacement.ticker,
-              sector: replacement.sector ?? replacement.industry ?? p.sector,
-              currency: replacement.currency ?? 'CHF',
-              currentPrice: parseFloat(replacement.currentPrice ?? replacement.price ?? '0') || 0,
-              exchangeRateToChf: parseFloat(replacement.exchangeRateToChf ?? '1') || 1,
-            };
+      const tickerUpper = adj.ticker?.toUpperCase() ?? '';
+      const existsInPositions = prev.some(p => p.ticker.toUpperCase() === tickerUpper);
+
+      let updated: EditablePosition[];
+
+      if (adj.action === 'increase' && !existsInPositions) {
+        // Ticker not in current positions — add it as a new position with default weight
+        const stock = allStocks.find((s: any) => s.ticker?.toUpperCase() === tickerUpper);
+        const newPos: EditablePosition = {
+          ticker: stock?.ticker ?? adj.ticker,
+          companyName: stock?.companyName ?? stock?.name ?? adj.ticker,
+          sector: stock?.sector ?? stock?.industry ?? '',
+          currency: stock?.currency ?? 'CHF',
+          currentPrice: parseFloat(stock?.currentPrice ?? stock?.price ?? '0') || 0,
+          exchangeRateToChf: parseFloat(stock?.exchangeRateToChf ?? '1') || 1,
+          weightPct: 4.5,
+          originalWeightPct: 0,
+        };
+        updated = [...prev, newPos];
+      } else {
+        updated = prev.map(p => {
+          if (p.ticker.toUpperCase() !== tickerUpper) return p;
+          if (adj.action === 'reduce') {
+            const newWeight = Math.max(1, p.weightPct * 0.7);
+            return { ...p, weightPct: Math.round(newWeight * 10) / 10 };
           }
-        }
-        return p;
-      });
+          if (adj.action === 'increase') {
+            const newWeight = p.weightPct * 1.3;
+            return { ...p, weightPct: Math.round(newWeight * 10) / 10 };
+          }
+          if (adj.action === 'replace' && adj.replaceTicker) {
+            const replacement = allStocks.find(
+              (s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase()
+            );
+            if (replacement) {
+              return {
+                ...p,
+                ticker: replacement.ticker,
+                companyName: replacement.companyName ?? replacement.name ?? replacement.ticker,
+                sector: replacement.sector ?? replacement.industry ?? p.sector,
+                currency: replacement.currency ?? 'CHF',
+                currentPrice: parseFloat(replacement.currentPrice ?? replacement.price ?? '0') || 0,
+                exchangeRateToChf: parseFloat(replacement.exchangeRateToChf ?? '1') || 1,
+              };
+            }
+          }
+          return p;
+        });
+      }
+
       // Normalize to 100%
       const total = updated.reduce((s, p) => s + p.weightPct, 0);
       if (total > 0 && Math.abs(total - 100) > 0.5) {
@@ -213,6 +238,7 @@ type EditablePosition = {
   exchangeRateToChf: number;
   weightPct: number;
   originalWeightPct?: number; // Original KI-Gewicht für Vergleich
+  aiReason?: string; // KI-generierte Positionsbegründung
 };
 
 function PositionEditor({
@@ -428,6 +454,7 @@ function ApprovePanel({
     exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
     weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
     originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0, // Snapshot des Original-Gewichts
+    aiReason: typeof p.aiReason === 'string' ? p.aiReason : undefined,
   }));
   const [portfolioName, setPortfolioName] = useState(`KI-Portfolio #${row.id}`);
   const [investmentAmount, setInvestmentAmount] = useState(String(row.investmentAmount ?? 10000));
@@ -572,6 +599,116 @@ function ApprovePanel({
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
+/**
+ * Modellwahl pro Rolle für die KI-Portfolio-Vorschläge.
+ * - Standard: Analyse (Challenger + Synthese) + Titel-Texte.
+ * - Qualitätsmodus: 2 Challenger parallel → Synthese → Titel-Texte.
+ * Bei Fehlern (z.B. fehlendes Guthaben) fällt jede Rolle automatisch auf Kimi
+ * zurück. Kimi ist stark als Challenger, aber schwach bei deutscher Prosa —
+ * für die Titel-Texte daher ein sprachlich starkes Modell wählen.
+ */
+function ProposalModelSettings() {
+  const { data, refetch } = trpc.admin.getProposalModels.useQuery();
+  const [ensemble, setEnsemble] = useState<boolean | null>(null);
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [challengerB, setChallengerB] = useState<string | null>(null);
+  const [synthesis, setSynthesis] = useState<string | null>(null);
+  const [text, setText] = useState<string | null>(null);
+  const [autoApply, setAutoApply] = useState<boolean | null>(null);
+  const save = trpc.admin.setProposalModels.useMutation({
+    onSuccess: () => { toast.success("Modellwahl gespeichert"); refetch(); },
+    onError: (e) => toast.error("Fehler beim Speichern", { description: e.message }),
+  });
+
+  const cfg = data?.config;
+  const labels: Record<string, string> = data?.labels ?? {};
+  const providers = Object.keys(labels);
+  if (!cfg) return null;
+
+  const ens = ensemble ?? cfg.ensemble;
+  const a = analysis ?? cfg.analysis;
+  const b = challengerB ?? cfg.challengerB;
+  const s = synthesis ?? cfg.synthesis;
+  const t = text ?? cfg.text;
+  const auto = autoApply ?? cfg.autoApply;
+  const dirty = ens !== cfg.ensemble || a !== cfg.analysis || b !== cfg.challengerB || s !== cfg.synthesis || t !== cfg.text || auto !== cfg.autoApply;
+
+  const Dropdown = ({ label, hint, value, onChange }: { label: string; hint: string; value: string; onChange: (v: string) => void }) => (
+    <div className="space-y-1">
+      <label className="text-sm text-slate-300">{label} <span className="text-slate-500">{hint}</span></label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
+        <SelectContent className="bg-slate-800 border-slate-700">
+          {providers.map((p) => <SelectItem key={p} value={p}>{labels[p]}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
+  return (
+    <Card className="bg-slate-800/50 border-slate-700">
+      <CardHeader className="py-3 px-4">
+        <div className="flex items-center gap-2">
+          <Cpu className="w-5 h-5 text-teal-400" />
+          <div>
+            <h2 className="text-base font-semibold text-white">Vorschlags-Modelle</h2>
+            <p className="text-xs text-slate-400">Welches KI-Modell übernimmt welche Rolle beim Portfolio-Vorschlag?</p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="px-4 pb-4 space-y-3">
+        <div className="flex items-center justify-between rounded-md bg-slate-900/60 px-3 py-2">
+          <div>
+            <div className="text-sm text-slate-200">Qualitätsmodus</div>
+            <div className="text-xs text-slate-500">2 Challenger parallel + Synthese — gründlicher, aber langsamer</div>
+          </div>
+          <Switch checked={ens} onCheckedChange={(v) => setEnsemble(v)} />
+        </div>
+
+        <div className="flex items-center justify-between rounded-md bg-slate-900/60 px-3 py-2">
+          <div>
+            <div className="text-sm text-slate-200">Verbesserungen automatisch übernehmen</div>
+            <div className="text-xs text-slate-500">Challenger-/Synthese-Anpassungen fliessen direkt in den Vorschlag — der Nutzer erhält das fertige, optimierte Portfolio in einem Schritt.</div>
+          </div>
+          <Switch checked={auto} onCheckedChange={(v) => setAutoApply(v)} />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {ens ? (
+            <>
+              <Dropdown label="Challenger A" hint="(kritische Prüfung)" value={a} onChange={setAnalysis} />
+              <Dropdown label="Challenger B" hint="(2. Sicht, andere Familie)" value={b} onChange={setChallengerB} />
+              <Dropdown label="Synthese" hint="(wägt beide Kritiken ab)" value={s} onChange={setSynthesis} />
+              <Dropdown label="Titel-Texte" hint="(einfache Begründungen)" value={t} onChange={setText} />
+            </>
+          ) : (
+            <>
+              <Dropdown label="Analyse" hint="(Challenger + Synthese)" value={a} onChange={setAnalysis} />
+              <Dropdown label="Titel-Texte" hint="(einfache Begründungen)" value={t} onChange={setText} />
+            </>
+          )}
+        </div>
+
+        <p className="text-xs text-slate-500">
+          {ens
+            ? "Qualitätsmodus: zwei Challenger prüfen parallel, ein Synthesizer wägt ab, dann die Texte (~3 Aufrufe). Für Challenger B bewusst eine andere Modell-Familie wählen. Kimi eignet sich gut als Challenger, nicht für die Titel-Texte."
+            : "Standard: Analyse in einem Aufruf; Titel-Texte separat, falls ein anderes Modell gewählt ist. Für die Texte kein Kimi (schwaches Deutsch). Fällt ein Modell aus, greift automatisch Kimi."}
+        </p>
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            disabled={!dirty || save.isPending}
+            onClick={() => save.mutate({ ensemble: ens, analysis: a as any, challengerB: b as any, synthesis: s as any, text: t as any, autoApply: auto })}
+            className="bg-teal-600 hover:bg-teal-500 text-white"
+          >
+            <Save className="w-4 h-4 mr-1" /> Speichern
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminProposalAnalysis() {
   const [, navigate] = useLocation();
   const [confidence, setConfidence] = useState<string>("all");
@@ -656,6 +793,12 @@ export default function AdminProposalAnalysis() {
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "KI-Analyse Protokoll", icon: <Brain className="h-4 w-4" /> },
+        ]}
+      />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -669,6 +812,9 @@ export default function AdminProposalAnalysis() {
           </div>
           <div className="text-sm text-slate-400">{total} Einträge gesamt</div>
         </div>
+
+        {/* Modellwahl pro Rolle */}
+        <ProposalModelSettings />
 
         {/* Filters */}
         <div className="flex gap-3 flex-wrap">
@@ -762,17 +908,20 @@ export default function AdminProposalAnalysis() {
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         {[
                           { label: "Methode", value: row.method },
-                          { label: "Erwartete Rendite", value: row.expectedReturnPct ? `${parseFloat(row.expectedReturnPct).toFixed(1)}%` : "—" },
-                          { label: "Volatilität", value: row.volatilityPct ? `${parseFloat(row.volatilityPct).toFixed(1)}%` : "—" },
-                          { label: "Sharpe", value: row.sharpe ? parseFloat(row.sharpe).toFixed(2) : "—" },
+                          { label: "Erwartete Rendite", value: row.expectedReturnPct ? `${parseFloat(row.expectedReturnPct).toFixed(1)}%` : "—", hint: !row.expectedReturnPct ? 'Nicht berechenbar — unvollständige Kurshistorie für einige Titel' : undefined },
+                          { label: "Volatilität", value: row.volatilityPct ? `${parseFloat(row.volatilityPct).toFixed(1)}%` : "—", hint: !row.volatilityPct ? 'Nicht berechenbar — unvollständige Kurshistorie für einige Titel' : undefined },
+                          { label: "Sharpe", value: row.sharpe ? parseFloat(row.sharpe).toFixed(2) : "—", hint: !row.sharpe ? 'Nicht berechenbar — unvollständige Kurshistorie für einige Titel' : undefined },
                           { label: "FX-Anteil", value: row.fxWeightPct ? `${parseFloat(row.fxWeightPct).toFixed(1)}%` : "—" },
                           { label: "FX-Limit", value: row.maxFxExposurePct ? `${row.maxFxExposurePct}%` : "—" },
                           { label: "Agenten-Dauer", value: row.agentDurationMs ? `${(row.agentDurationMs / 1000).toFixed(1)}s` : "—" },
                           { label: "Challenger-Ablehnungen", value: row.challengerRejectedCount ?? "—" },
-                        ].map(({ label, value }) => (
-                          <div key={label} className="bg-slate-900/50 rounded p-2">
-                            <div className="text-xs text-slate-500">{label}</div>
-                            <div className="text-sm text-white font-medium">{value}</div>
+                        ].map(({ label, value, hint }: any) => (
+                          <div key={label} className="bg-slate-900/50 rounded p-2" title={hint}>
+                            <div className="text-xs text-slate-500 flex items-center gap-1">
+                              {label}
+                              {hint && <span className="text-amber-500 text-[10px]" title={hint}>⚠️</span>}
+                            </div>
+                            <div className={`text-sm font-medium ${value === '—' ? 'text-slate-500 italic text-xs' : 'text-white'}`}>{value}</div>
                           </div>
                         ))}
                       </div>
@@ -826,24 +975,45 @@ export default function AdminProposalAnalysis() {
                           exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
                           weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
                           originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                          aiReason: typeof p.aiReason === 'string' ? p.aiReason : undefined,
                         }));
 
                         const effectivePositions: EditablePosition[] = approvePositions.length > 0 ? approvePositions : rawPos;
                         const adjustments: any[] = Array.isArray(row.finalAdjustments) ? row.finalAdjustments : [];
                         const actionableAdjs = adjustments.filter(a => a.action !== 'keep');
 
-                        // Helper: apply one adj to a positions array
-                        const applyAdjToPositions = (positions: EditablePosition[], adj: any): EditablePosition[] =>
-                          positions.map(p => {
-                            if (p.ticker.toUpperCase() !== adj.ticker?.toUpperCase()) return p;
-                            if (adj.action === 'reduce') return { ...p, weightPct: Math.round(Math.max(1, p.weightPct * 0.7) * 10) / 10 };
-                            if (adj.action === 'increase') return { ...p, weightPct: Math.round(p.weightPct * 1.3 * 10) / 10 };
-                            if (adj.action === 'replace' && adj.replaceTicker) {
-                              const repl = allStocks.find((s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase());
-                              if (repl) return { ...p, ticker: repl.ticker, companyName: repl.companyName ?? repl.name ?? repl.ticker, sector: repl.sector ?? p.sector, currency: repl.currency ?? 'CHF', currentPrice: parseFloat(repl.currentPrice ?? '0') || 0, exchangeRateToChf: parseFloat(repl.exchangeRateToChf ?? '1') || 1 };
-                            }
-                            return p;
-                          });
+        // Helper: apply one adj to a positions array
+        const applyAdjToPositions = (positions: EditablePosition[], adj: any): EditablePosition[] => {
+          const tickerUpper = adj.ticker?.toUpperCase() ?? '';
+          const existsInPositions = positions.some(p => p.ticker.toUpperCase() === tickerUpper);
+
+          // 'increase' on a ticker NOT in positions — add it as a new position
+          if (adj.action === 'increase' && !existsInPositions) {
+            const stock = allStocks.find((s: any) => s.ticker?.toUpperCase() === tickerUpper);
+            const newPos: EditablePosition = {
+              ticker: stock?.ticker ?? adj.ticker,
+              companyName: stock?.companyName ?? stock?.name ?? adj.ticker,
+              sector: stock?.sector ?? stock?.industry ?? '',
+              currency: stock?.currency ?? 'CHF',
+              currentPrice: parseFloat(stock?.currentPrice ?? stock?.price ?? '0') || 0,
+              exchangeRateToChf: parseFloat(stock?.exchangeRateToChf ?? '1') || 1,
+              weightPct: 4.5,
+              originalWeightPct: 0,
+            };
+            return [...positions, newPos];
+          }
+
+          return positions.map(p => {
+            if (p.ticker.toUpperCase() !== tickerUpper) return p;
+            if (adj.action === 'reduce') return { ...p, weightPct: Math.round(Math.max(1, p.weightPct * 0.7) * 10) / 10 };
+            if (adj.action === 'increase') return { ...p, weightPct: Math.round(p.weightPct * 1.3 * 10) / 10 };
+            if (adj.action === 'replace' && adj.replaceTicker) {
+              const repl = allStocks.find((s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase());
+              if (repl) return { ...p, ticker: repl.ticker, companyName: repl.companyName ?? repl.name ?? repl.ticker, sector: repl.sector ?? p.sector, currency: repl.currency ?? 'CHF', currentPrice: parseFloat(repl.currentPrice ?? '0') || 0, exchangeRateToChf: parseFloat(repl.exchangeRateToChf ?? '1') || 1 };
+            }
+            return p;
+          });
+        };
 
                         const normalizeWeights = (positions: EditablePosition[]): EditablePosition[] => {
                           const total = positions.reduce((s, p) => s + p.weightPct, 0);
@@ -979,8 +1149,27 @@ export default function AdminProposalAnalysis() {
                                       </div>
                                       {/* Detail panel — only shown when this card is selected, inline below */}
                                       {isSelected && (
-                                        <div className="mt-1 rounded-md px-3 py-2 bg-slate-800/60 border border-slate-700/40 space-y-1.5">
-                                          <p className="text-xs text-slate-300 leading-relaxed">{adj.reason}</p>
+                                        <div className="mt-1 rounded-md px-3 py-2 bg-slate-800/60 border border-slate-700/40 space-y-2">
+                                          {/* InsightExpandable: Erklärung warum diese Empfehlung */}
+                                          {(() => {
+                                            const actionLabel = adj.action === 'replace' ? 'Tausch' : adj.action === 'reduce' ? 'Reduzierung' : adj.action === 'increase' ? 'Aufstockung' : 'Empfehlung';
+                                            const factors: import('@/components/InsightPanel').InsightFactor[] = [
+                                              { label: 'Aktion', value: actionLabel, sentiment: adj.action === 'replace' ? 'negative' as const : adj.action === 'reduce' ? 'negative' as const : 'positive' as const },
+                                              { label: 'Ticker', value: adj.ticker ?? '—', sentiment: 'neutral' as const },
+                                              ...(adj.replaceTicker ? [{ label: 'Ersatz', value: adj.replaceTicker, sentiment: 'positive' as const }] : []),
+                                            ];
+                                            const variant = adj.action === 'replace' ? 'warning' as const : adj.action === 'reduce' ? 'warning' as const : 'success' as const;
+                                            return (
+                                              <InsightExpandable
+                                                title={`KI-Begründung: ${actionLabel} ${adj.ticker}`}
+                                                summary={adj.reason || 'Keine Begründung verfügbar.'}
+                                                factors={factors}
+                                                variant={variant}
+                                                triggerLabel="Synthesizer-Begründung"
+                                                defaultOpen
+                                              />
+                                            );
+                                          })()}
                                           <textarea
                                             rows={1}
                                             placeholder="Interne Notiz zu dieser Empfehlung (optional)…"
@@ -1053,17 +1242,18 @@ export default function AdminProposalAnalysis() {
                         {/* Save-and-return button — always visible, uses effective positions */}
                         {(() => {
                           const savePositions = approvePositions.length > 0
-                            ? approvePositions
-                            : (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
-                                ticker: p.ticker ?? "",
-                                companyName: p.companyName ?? p.ticker ?? "",
-                                sector: p.sector,
-                                currency: p.currency ?? "CHF",
-                                currentPrice: parseFloat(p.currentPrice ?? p.currentPriceCHF ?? "0") || 0,
-                                exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
-                                weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
-                                originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
-                              }));
+            ? approvePositions
+            : (Array.isArray(row.positions) ? row.positions : []).map((p: any) => ({
+                ticker: p.ticker ?? "",
+                companyName: p.companyName ?? p.ticker ?? "",
+                sector: p.sector,
+                currency: p.currency ?? "CHF",
+                currentPrice: parseFloat(p.currentPrice ?? p.currentPriceCHF ?? "0") || 0,
+                exchangeRateToChf: parseFloat(p.exchangeRateToChf ?? "1") || 1,
+                weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
+                aiReason: typeof p.aiReason === 'string' ? p.aiReason : undefined,
+              }));
                           return (
                             <Button
                               size="sm"

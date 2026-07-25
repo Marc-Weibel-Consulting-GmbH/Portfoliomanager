@@ -12,12 +12,13 @@ import {
   ChevronLeft, ChevronRight, Check, Search, Plus, X,
   TrendingUp, DollarSign, Scale, PieChart, PencilRuler,
   Upload, Shield, Flame, Sparkles, Clock, Ban, Leaf,
-  ArrowDownCircle, ArrowUpCircle, RefreshCw, CheckCircle, ShieldCheck
+  ArrowDownCircle, ArrowUpCircle, RefreshCw, CheckCircle, ShieldCheck, Info
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { InsightExpandable, InsightPanel } from "@/components/InsightPanel";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,10 @@ type StockSelection = {
   quantity: number;
   purchasePrice: number;
   assetType: "stock" | "bond" | "etf";
+  /** Weight as % of total capital (inkl. Cash-Reserve). Stored directly from proposal weightPct. */
+  weightPct?: number;
+  /** Multi-Asset-Anlageklasse (bond/commodity/gold/realestate/crypto) — nur bei Sleeve-ETFs aus dem KI-Vorschlag gesetzt. */
+  assetClass?: string;
 };
 
 // ─── Static data ─────────────────────────────────────────────────────────────
@@ -89,6 +94,24 @@ const RISK_PROFILES = [
   { value: "aggressiv", label: "Aggressiv", description: "Maximale Rendite, hohe Schwankungen bewusst akzeptiert", icon: <Flame className="h-7 w-7" /> },
 ];
 
+/** Empfohlene Aktienquote je Anlegerprofil (%) — Spiegel von server/lib/multiAssetSleeve.ts (STRATEGIC_EQUITY_SHARE). */
+const PROFILE_EQUITY_SHARE: Record<string, number> = {
+  konservativ: 30,
+  ausgewogen: 55,
+  wachstum: 70,
+  aggressiv: 80,
+};
+
+/** Deutsche Labels der Multi-Asset-Anlageklassen (für Allokations-Badges im Vorschlag). */
+const ASSET_CLASS_LABELS: Record<string, string> = {
+  equity: "Aktien",
+  bond: "Obligationen",
+  commodity: "Rohstoffe",
+  gold: "Gold",
+  realestate: "Immobilien",
+  crypto: "Krypto",
+};
+
 const HORIZONS = [
   { value: 2, label: "1–3 Jahre", description: "Kurzfristig — Kapital bald benötigt", icon: <Clock className="h-7 w-7" /> },
   { value: 5, label: "3–7 Jahre", description: "Mittelfristig — moderater Zeithorizont", icon: <Clock className="h-7 w-7" /> },
@@ -122,6 +145,7 @@ export default function PortfolioBuilderWizard() {
   const [autoHorizon, setAutoHorizon] = useState<number>(10);
   const [autoExcluded, setAutoExcluded] = useState<string[]>([]);
   const [autoProposal, setAutoProposal] = useState<any | null>(null);
+  const [stocksOnly, setStocksOnly] = useState(false); // true = «Nur Aktien» (Abweichung vom Profil-Mix)
 
   // ── Manual / shared state ──
   const [portfolioType, setPortfolioType] = useState<PortfolioType | null>(null);
@@ -135,6 +159,14 @@ export default function PortfolioBuilderWizard() {
   const [isLive, setIsLive] = useState(false);
   const [isAiOptimized, setIsAiOptimized] = useState(false); // true wenn aus KI-angepasstem Vorschlag
   const [isAdminReviewed, setIsAdminReviewed] = useState(false); // true wenn Vorschlag vom Admin geprüft wurde
+  const [skipAdminReview, setSkipAdminReview] = useState(false); // true = direkt erstellen ohne Admin-Review
+
+  // ── Async proposal job polling state ──
+  const [proposalJobId, setProposalJobId] = useState<string | null>(null);
+  const [proposalProgress, setProposalProgress] = useState<string[]>([]);
+  const [isProposalRunning, setIsProposalRunning] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
 
   // ── Queries & mutations ──
   const utils = trpc.useUtils();
@@ -145,10 +177,84 @@ export default function PortfolioBuilderWizard() {
   const { user } = useAuth();
   const isAdmin = (user as any)?.role === 'admin';
 
-  const buildProposal = trpc.autoPortfolio.buildProposal.useMutation({
-    onSuccess: (data) => setAutoProposal(data),
-    onError: (e) => toast.error("Vorschlag konnte nicht erstellt werden", { description: e.message }),
+  // Async job: start proposal (returns immediately with jobId)
+  const startProposal = trpc.autoPortfolio.startProposal.useMutation({
+    onSuccess: (data) => {
+      setProposalJobId(data.jobId);
+      setIsProposalRunning(true);
+      setProposalProgress(['Job gestartet...']);
+    },
+    onError: (e) => {
+      setIsProposalRunning(false);
+      toast.error('Vorschlag konnte nicht gestartet werden', { description: e.message });
+    },
   });
+
+  // Polling query: only active when we have a jobId and job is running
+  const proposalStatus = trpc.autoPortfolio.getProposalStatus.useQuery(
+    { jobId: proposalJobId ?? '' },
+    {
+      enabled: !!proposalJobId && isProposalRunning,
+      refetchInterval: (query) => {
+        const data = query.state.data;
+        if (!data) return 3000;
+        // Auch während der KI-Verfeinerung (enhancing) weiterpollen.
+        if (data.status === 'running' || data.status === 'enhancing') return 3000;
+        return false; // stop polling when done/error
+      },
+      refetchIntervalInBackground: true,
+    }
+  );
+
+  // React to polling results
+  useEffect(() => {
+    if (!proposalStatus.data) return;
+    const { status, progress, result, error } = proposalStatus.data;
+    if (progress && progress.length > proposalProgress.length) {
+      setProposalProgress(progress);
+    }
+    if (status === 'enhancing' && result) {
+      // A: deterministisches Zwischenergebnis anzeigen, KI verfeinert im Hintergrund.
+      setAutoProposal(result);
+      setIsEnhancing(true);
+      // isProposalRunning bleibt true → Polling läuft bis 'done' weiter.
+    } else if (status === 'done' && result) {
+      setIsProposalRunning(false);
+      setIsEnhancing(false);
+      setProposalJobId(null);
+      setAutoProposal(result);
+    } else if (status === 'error') {
+      setIsProposalRunning(false);
+      setIsEnhancing(false);
+      setProposalJobId(null);
+      toast.error('Vorschlag konnte nicht erstellt werden', { description: error ?? 'Unbekannter Fehler' });
+    }
+  }, [proposalStatus.data]);
+
+  // Compatibility shim: buildProposal.isPending is used in the JSX below
+  const buildProposal = {
+    isPending: isProposalRunning || startProposal.isPending,
+    reset: () => { setIsProposalRunning(false); setIsEnhancing(false); setProposalJobId(null); setProposalProgress([]); startProposal.reset(); },
+  };
+
+  // Freundliche, wechselnde Lade-Botschaften (statt technischer Einzelschritte).
+  // Mischt Beruhigung + einfache Erklärungen, wie das System arbeitet.
+  const universeCount = allStocks.length;
+  const loadingMessages = [
+    universeCount > 0
+      ? `Einen Moment bitte — ich prüfe gerade ein Universum von ${universeCount} Titeln und suche die Aktien mit der besten Qualität für Sie.`
+      : `Einen Moment bitte — ich prüfe gerade mehrere Hundert Titel und suche die Aktien mit der besten Qualität für Sie.`,
+    `So bewerte ich: Jeder Titel bekommt einen Score von 0–100 aus drei Bausteinen — ist er günstig bewertet, wie verläuft der Kurs, und passt er zum aktuellen Markttrend.`,
+    `Jetzt stelle ich Ihr Portfolio zusammen und achte auf eine gute Streuung über verschiedene Branchen und Währungen.`,
+    `Ein zweites KI-Modell prüft den Vorschlag nun kritisch gegen und verbessert ihn dort, wo es sinnvoll ist.`,
+    `Fast geschafft — ich berechne noch die erwartete Rendite, das Risiko und die wichtigsten Kennzahlen.`,
+  ];
+  useEffect(() => {
+    if (!buildProposal.isPending) { setLoadingMsgIdx(0); return; }
+    const id = setInterval(() => setLoadingMsgIdx((i) => (i + 1) % loadingMessages.length), 5000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildProposal.isPending]);
 
   // Reset all wizard state whenever the user navigates (back) to /portfolio-builder.
   // Using location as dependency ensures the reset fires on every visit, not just on first mount.
@@ -162,6 +268,7 @@ export default function PortfolioBuilderWizard() {
       setAutoHorizon(10);
       setAutoExcluded([]);
       setAutoProposal(null);
+      setStocksOnly(false);
       setPortfolioType(null);
       setPortfolioName("");
       setPortfolioDescription("");
@@ -296,18 +403,28 @@ export default function PortfolioBuilderWizard() {
     if (selectedStocks.length === 0) { toast.error("Bitte fügen Sie mindestens eine Position hinzu"); return; }
     try {
       const alloc = calculateAllocation();
-      const portfolioData = {
+      // Extract cash reserve percentage from KI proposal profile (liquidityNeedPct)
+      // This ensures the server stores the correct cashBalance when positions only cover e.g. 50% of capital
+      const liquidityNeedPct = (autoProposal as any)?.profile?.liquidityNeedPct ?? 0;
+      const portfolioData: Record<string, any> = {
         stocks: selectedStocks.map((s) => {
           const a = alloc.find((x) => x.ticker === s.ticker);
+          // Prefer weightPct from proposal (= % of total capital incl. cash reserve).
+          // Fall back to calculateAllocation weight (= % of equity only) for manually-built portfolios.
+          const weight = s.weightPct != null ? s.weightPct : (a?.weight || 0);
           return {
             ticker: s.ticker, companyName: s.companyName,
-            weight: a?.weight || 0, shares: s.quantity.toFixed(6),
+            weight, shares: Math.round(s.quantity).toString(),
             currentPrice: s.purchasePrice.toFixed(2), avgBuyPrice: s.purchasePrice.toFixed(2),
             totalValue: (s.quantity * s.purchasePrice).toFixed(2),
             currency: currency || "CHF", assetType: s.assetType,
           };
         }),
       };
+      // If KI proposal has a cash reserve, store it so server calculates cashBalance correctly
+      if (liquidityNeedPct > 0) {
+        portfolioData.cashPercentage = liquidityNeedPct;
+      }
       const result = await createPortfolioMutation.mutateAsync({
         name: portfolioName, description: portfolioDescription || undefined,
         portfolioData: JSON.stringify(portfolioData),
@@ -352,13 +469,14 @@ export default function PortfolioBuilderWizard() {
     }
   };
 
-  // Save profile + trigger proposal
+  // Save profile + trigger proposal (async job pattern — avoids HTTP 524 timeout)
   const handleBuildProposal = async () => {
     const capital = parseFloat(initialCapital);
     if (!(capital > 0)) { toast.error("Bitte geben Sie einen Anlagebetrag ein"); return; }
     if (!portfolioName.trim()) setPortfolioName("KI-Portfolio");
-    // Reset any previous mutation state so the button is re-enabled on retry
+    // Reset any previous job state
     buildProposal.reset();
+    setAutoProposal(null);
     try {
       await setProfileMutation.mutateAsync({
         riskProfile: autoRisk as any,
@@ -374,25 +492,46 @@ export default function PortfolioBuilderWizard() {
       // Non-fatal — continue even if profile save fails
       console.warn("[handleBuildProposal] Profile save failed (non-fatal):", e);
     }
-    buildProposal.mutate({ investmentAmount: capital });
+    // Start async job (returns immediately with jobId, polling handles the rest)
+    startProposal.mutate({ investmentAmount: capital, stocksOnly });
   };
 
   // Accepts the proposal — uses adjustedPositions (KI-Empfehlungen eingearbeitet) if available
   const handleAcceptProposal = (useAdjusted = true) => {
     if (!autoProposal?.positions?.length) return;
-    const capital = parseFloat(initialCapital) || 0;
+    // Use entered capital, or fall back to 100'000 CHF if not set
+    const capital = parseFloat(initialCapital) || 100000;
     // Use adjustedPositions (KI-Empfehlungen automatically applied) if available and requested
     const positionsToUse = (useAdjusted && (autoProposal as any).adjustedPositions?.length)
       ? (autoProposal as any).adjustedPositions
       : autoProposal.positions;
     // Track whether KI adjustments were applied
     setIsAiOptimized(useAdjusted && !!(autoProposal as any).adjustedPositions?.length);
+    // Build a lookup map from the allStocks list as a fallback for missing prices
+    const stockPriceMap = new Map<string, { price: number; fxRate: number }>();
+    allStocks.forEach((s) => {
+      const p = parseFloat(s.currentPrice || '0');
+      if (p > 0) stockPriceMap.set(s.ticker.toUpperCase(), { price: p, fxRate: 1 });
+    });
     const seeded: StockSelection[] = positionsToUse.map((p: any) => {
       const value = (p.weightPct / 100) * capital;
-      const fxRate = parseFloat(p.exchangeRateToChf || '1') || 1;
-      const priceCHF = p.currentPrice * fxRate;
+      const fxRate = parseFloat(String(p.exchangeRateToChf || '1')) || 1;
+      // currentPrice can be a string (raw DB value) or a number — always coerce to float
+      let rawPrice = parseFloat(String(p.currentPrice ?? '0')) || 0;
+      // Fallback: if price is missing, try allStocks lookup
+      if (rawPrice <= 0) {
+        const fallback = stockPriceMap.get(String(p.ticker ?? '').toUpperCase());
+        if (fallback) rawPrice = fallback.price;
+      }
+      // exchangeRateToChf = "1 foreign currency unit = X CHF" → to convert foreign→CHF: multiply by fxRate
+      // For CHF stocks fxRate=1 so rawPrice*1=rawPrice ✓
+      const priceCHF = fxRate > 0 ? rawPrice * fxRate : rawPrice;
       const qty = priceCHF > 0 ? value / priceCHF : 0;
-      return { ticker: p.ticker, companyName: p.companyName, quantity: parseFloat(qty.toFixed(4)), purchasePrice: priceCHF, assetType: "stock" as const };
+      // Multi-Asset-Sleeve: ETF-Positionen (inkl. Anlageklasse) korrekt typisieren,
+      // Aktien bleiben "stock" (assetClass "equity"/undefined → stock).
+      const mappedAssetType: StockSelection["assetType"] =
+        p.assetClass === "bond" ? "bond" : (p.assetType === "etf" || (p.assetClass && p.assetClass !== "equity")) ? "etf" : "stock";
+      return { ticker: p.ticker, companyName: p.companyName, quantity: Math.round(qty), purchasePrice: priceCHF, assetType: mappedAssetType, weightPct: p.weightPct, assetClass: p.assetClass && p.assetClass !== "equity" ? p.assetClass : undefined };
     });
     setSelectedStocks(seeded);
     const goalToType: Record<string, PortfolioType> = { dividends: "dividends", growth: "growth", balanced: "balanced" };
@@ -425,8 +564,34 @@ export default function PortfolioBuilderWizard() {
   useEffect(() => {
     if (!getReviewedProposal.data) return;
     const proposal = getReviewedProposal.data;
-    const reviewedPositions = (proposal.adminReviewedPositions as any[]) ?? (proposal.positions as any[]) ?? [];
-    if (reviewedPositions.length === 0) return;
+    const rawReviewed = (proposal.adminReviewedPositions as any[]) ?? (proposal.positions as any[]) ?? [];
+    if (rawReviewed.length === 0) return;
+    // Enrich adminReviewedPositions with currentPrice + exchangeRateToChf from the original positions
+    // (adminReviewedPositions only store ticker/weightPct, not price data)
+    const origByTicker = new Map<string, any>();
+    ((proposal.positions as any[]) ?? []).forEach((p: any) => origByTicker.set(String(p.ticker ?? '').toUpperCase(), p));
+    const reviewedPositions = rawReviewed.map((p: any) => {
+      const orig = origByTicker.get(String(p.ticker ?? '').toUpperCase());
+      return {
+        ...p,
+        currentPrice: (p.currentPrice != null && p.currentPrice !== 0) ? p.currentPrice : (orig?.currentPrice ?? 0),
+        exchangeRateToChf: (p.exchangeRateToChf != null && p.exchangeRateToChf !== 0) ? p.exchangeRateToChf : (orig?.exchangeRateToChf ?? 1),
+        companyName: p.companyName ?? orig?.companyName ?? p.ticker,
+        // Übertrage aiReason aus den Original-Positionen falls nicht vorhanden
+        aiReason: (typeof p.aiReason === 'string' && p.aiReason.trim()) ? p.aiReason : (orig?.aiReason ?? undefined),
+        // Übertrage weitere Felder aus Original-Positionen für die Anzeige
+        signal: p.signal ?? orig?.signal,
+        combinedScore: p.combinedScore ?? orig?.combinedScore,
+        sector: p.sector ?? orig?.sector,
+        currency: p.currency ?? orig?.currency,
+        dividendYield: p.dividendYield ?? orig?.dividendYield,
+        ytdPerf: p.ytdPerf ?? orig?.ytdPerf,
+        reason: p.reason ?? orig?.reason,
+        // Multi-Asset-Sleeve-Felder durchreichen (ETF-Typisierung im Accept-Schritt)
+        assetType: p.assetType ?? orig?.assetType,
+        assetClass: p.assetClass ?? orig?.assetClass,
+      };
+    });
     const capital = parseFloat(initialCapital) || 100000;
     // Build a synthetic autoProposal from the reviewed positions
     const methodLabelMap: Record<string, string> = {
@@ -437,7 +602,8 @@ export default function PortfolioBuilderWizard() {
       hrp: 'HRP',
     };
     setAutoProposal({
-      positions: proposal.positions,
+      // Verwende reviewedPositions als positions (mit aiReason + Admin-Gewichten)
+      positions: reviewedPositions,
       adjustedPositions: reviewedPositions,
       finalAdjustments: proposal.finalAdjustments,
       synthesizerVerdict: proposal.synthesizerVerdict,
@@ -551,8 +717,8 @@ export default function PortfolioBuilderWizard() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 overflow-y-auto">
-          <div className="w-full max-w-2xl">
+        <div className="flex-1 flex flex-col items-center justify-start px-4 py-8 overflow-y-auto">
+          <div className={`w-full ${autoStep === 5 && autoProposal ? 'max-w-4xl' : 'max-w-2xl'}`}>
             <h2 className="text-2xl md:text-3xl font-bold text-white mb-1">{meta.title}</h2>
             <p className="text-gray-400 mb-8">{meta.subtitle}</p>
 
@@ -704,135 +870,161 @@ export default function PortfolioBuilderWizard() {
                   ))}
                 </div>
 
-                {/* Name + Capital */}
-                {!autoProposal && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-gray-300">Portfolio-Name</Label>
-                      <Input
-                        placeholder="z.B. Mein KI-Portfolio"
-                        value={portfolioName}
-                        onChange={(e) => setPortfolioName(e.target.value)}
-                        className="bg-[#0f1420] border-white/10 text-white mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-gray-300">Anlagebetrag (CHF) *</Label>
-                      <Input
-                        type="number"
-                        placeholder="z.B. CHF 100'000"
-                        value={initialCapital}
-                        onChange={(e) => setInitialCapital(e.target.value)}
-                        className={`bg-[#0f1420] border-white/10 text-white mt-1 ${
-                          initialCapital && parseFloat(initialCapital) > 0 && parseFloat(initialCapital) < 100000
-                            ? "border-yellow-500/60"
-                            : ""
-                        }`}
-                      />
-                      {initialCapital && parseFloat(initialCapital) > 0 && parseFloat(initialCapital) < 100000 && (
-                        <p className="text-xs text-yellow-400 mt-1">
-                          Empfehlung: Mindestens CHF 100'000 für ein diversifiziertes Aktienportfolio.
-                        </p>
-                      )}
-                    </div>
+                {/* Name + Capital — always visible so user can adjust before accepting */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-gray-300">Portfolio-Name</Label>
+                    <Input
+                      placeholder="z.B. Mein KI-Portfolio"
+                      value={portfolioName}
+                      onChange={(e) => setPortfolioName(e.target.value)}
+                      className="bg-[#0f1420] border-white/10 text-white mt-1"
+                    />
                   </div>
-                )}
+                  <div>
+                    <Label className="text-gray-300">Anlagebetrag (CHF) *</Label>
+                    <Input
+                      type="number"
+                      placeholder="z.B. CHF 100'000"
+                      value={initialCapital}
+                      onChange={(e) => setInitialCapital(e.target.value)}
+                      className={`bg-[#0f1420] border-white/10 text-white mt-1 ${
+                        initialCapital && parseFloat(initialCapital) > 0 && parseFloat(initialCapital) < 100000
+                          ? "border-yellow-500/60"
+                          : ""
+                      }`}
+                    />
+                    {!initialCapital && autoProposal && (
+                      <p className="text-xs text-amber-400 mt-1">
+                        ⚠ Kein Betrag eingegeben — Standardwert CHF 100'000 wird verwendet.
+                      </p>
+                    )}
+                    {initialCapital && parseFloat(initialCapital) > 0 && parseFloat(initialCapital) < 100000 && (
+                      <p className="text-xs text-yellow-400 mt-1">
+                        Empfehlung: Mindestens CHF 100'000 für ein diversifiziertes Aktienportfolio.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Anlageklassen: Multi-Asset-Mix (empfohlen) vs. «Nur Aktien».
+                    Die Wahl fliesst in startProposal ein — nach einem erstellten
+                    Vorschlag ist sie gesperrt (neue Analyse nötig). */}
+                <div className="rounded-lg border border-white/10 bg-[#0f1420] p-4 space-y-3">
+                  <Label className="text-gray-300">Anlageklassen</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      disabled={isProposalRunning || !!autoProposal}
+                      onClick={() => setStocksOnly(false)}
+                      className={`rounded-lg border p-3 text-left transition-colors ${
+                        !stocksOnly
+                          ? "border-[#00CFC1]/60 bg-[#00CFC1]/10"
+                          : "border-white/10 hover:border-white/25"
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      <div className={`text-sm font-semibold ${!stocksOnly ? "text-[#00CFC1]" : "text-white"}`}>
+                        Multi-Asset-Mix (empfohlen)
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        Aktien plus Obligationen, Rohstoffe, Gold, Immobilien und ggf. Krypto — passend zu Ihrem Anlegerprofil.
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isProposalRunning || !!autoProposal}
+                      onClick={() => setStocksOnly(true)}
+                      className={`rounded-lg border p-3 text-left transition-colors ${
+                        stocksOnly
+                          ? "border-amber-500/60 bg-amber-500/10"
+                          : "border-white/10 hover:border-white/25"
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      <div className={`text-sm font-semibold ${stocksOnly ? "text-amber-400" : "text-white"}`}>
+                        Nur Aktien
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        Wie bisher: 100% Aktienanteil, keine Beimischung anderer Anlageklassen.
+                      </div>
+                    </button>
+                  </div>
+                  {stocksOnly && (PROFILE_EQUITY_SHARE[autoRisk] ?? 100) < 100 && (
+                    <p className="text-xs text-amber-400">
+                      ⚠ «Nur Aktien» weicht von Ihrem Anlegerprofil ab — empfohlene Aktienquote für «
+                      {RISK_PROFILES.find((r) => r.value === autoRisk)?.label ?? autoRisk}» ca. {PROFILE_EQUITY_SHARE[autoRisk]}%.
+                      Das bedeutet ein höheres Risiko als Ihr Profil vorsieht.
+                    </p>
+                  )}
+                </div>
 
                 {/* Proposal result */}
                 {autoProposal ? (
                   <div className="space-y-4">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
-                      <span className="px-2 py-0.5 rounded bg-[#00CFC1]/15 text-[#00CFC1] font-medium">
-                        {autoProposal.positions.length} Titel
-                      </span>
-                      <span>Methode: {autoProposal.methodLabel}</span>
-                      <span>·</span>
-                      <span>{autoProposal.stats.scoredCount} bewertet, {autoProposal.stats.buySignals} Kaufsignale</span>
-                      {(autoProposal.stats as any).watchlistRecommendations > 0 && (
+                    {/* A: Hinweis, dass die KI-Gegenprüfung noch läuft und sich der Vorschlag noch ändern kann */}
+                    {isEnhancing && (
+                      <div className="flex items-start gap-3 rounded-lg border border-[#00CFC1]/25 bg-[#00CFC1]/8 px-4 py-3">
+                        <div className="h-4 w-4 mt-0.5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                        <p className="text-sm text-slate-200 leading-relaxed">
+                          Ihr Portfolio steht schon — die KI prüft es gerade noch kritisch gegen und verfeinert es.
+                          <span className="text-slate-400"> Einzelne Titel oder Gewichte können sich gleich noch ändern.</span>
+                        </p>
+                      </div>
+                    )}
+                    {/* Abweichungs-Hinweis bei «Nur Aktien» (kommt vom Server, profilabhängig) */}
+                    {(autoProposal as any).deviationFromProfile && (
+                      <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
+                        <span className="text-amber-400 mt-0.5">⚠</span>
+                        <p className="text-sm text-amber-200 leading-relaxed">{(autoProposal as any).deviationFromProfile}</p>
+                      </div>
+                    )}
+                    {/* Ein kompakter KPI-Balken mit den wichtigsten Kennzahlen
+                        (statt mehrerer gestapelter Info-Zeilen), grössere Schrift. */}
+                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 bg-[#0f1420] border border-white/10 rounded-lg px-5 py-3.5">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-xl font-bold text-[#00CFC1]">{autoProposal.positions.length}</span>
+                        <span className="text-sm text-gray-400">Titel</span>
+                      </div>
+                      {(autoProposal as any).metrics && (
                         <>
-                          <span>·</span>
-                          <span className="text-[#00CFC1]">
-                            {(autoProposal.stats as any).watchlistRecommendations} Watchlist-Empfehlung{(autoProposal.stats as any).watchlistRecommendations > 1 ? "en" : ""}
-                          </span>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-base font-mono font-semibold text-white">~{(autoProposal as any).metrics.expectedReturnPct.toFixed(1)}%</span>
+                            <span className="text-sm text-gray-400">Rendite p.a.</span>
+                          </div>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-base font-mono font-semibold text-white">~{(autoProposal as any).metrics.volatilityPct.toFixed(1)}%</span>
+                            <span className="text-sm text-gray-400">Schwankung</span>
+                          </div>
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-base font-mono font-semibold text-white">{(autoProposal as any).metrics.sharpe.toFixed(2)}</span>
+                            <span className="text-sm text-gray-400">Sharpe</span>
+                          </div>
                         </>
                       )}
-                      {autoExcluded.length > 0 && (
-                        <>
-                          <span>·</span>
-                          <span className="text-red-400">
-                            {autoExcluded.length} Sektor{autoExcluded.length > 1 ? "en" : ""} ausgeschlossen
-                            {" ("}{autoExcluded.map((s) => EXCLUDED_SECTORS.find((e) => e.value === s)?.label ?? s).join(", ")}{")"}  
-                          </span>
-                        </>
+                      {(autoProposal as any).profile?.liquidityNeedPct > 0 && (
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-base font-mono font-semibold text-emerald-400">{(autoProposal as any).profile.liquidityNeedPct}%</span>
+                          <span className="text-sm text-gray-400">Cash-Reserve</span>
+                        </div>
                       )}
-                      {autoProposal.profile?.referenceCurrency && (
-                        <>
-                          <span>·</span>
-                          <span className="text-blue-300">
-                            Ref.-Währung: {autoProposal.profile.referenceCurrency} · FX-Limit: {autoProposal.profile.maxFxExposurePct}%
-                          </span>
-                        </>
-                      )}
+                      <span className="text-xs text-gray-500 ml-auto self-center">historisch geschätzt</span>
                     </div>
+                    {/* Anlageklassen-Mischung des Vorschlags (Multi-Asset-Sleeve, vor Cash-Quote) */}
+                    {(autoProposal as any).assetAllocation && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs text-gray-400">Mischung:</span>
+                        {Object.entries((autoProposal as any).assetAllocation as Record<string, number>)
+                          .filter(([, v]) => v > 0)
+                          .map(([k, v]) => (
+                            <span key={k} className="px-2.5 py-0.5 rounded-full bg-white/8 text-gray-200 text-xs border border-white/10">
+                              {ASSET_CLASS_LABELS[k] ?? k} {v}%
+                            </span>
+                          ))}
+                      </div>
+                    )}
                     {(autoProposal as any).weighting?.note && (
                       <p className="text-xs text-amber-400">
                         Hinweis zur Gewichtung: {(autoProposal as any).weighting.note}
                       </p>
-                    )}
-                    {/* Erwartete Kennzahlen des optimierten Vorschlags («was darf ich erwarten?») */}
-                    {(autoProposal as any).metrics && (
-                      <div className="flex flex-wrap gap-4 text-xs bg-[#0f1420] border border-white/10 rounded-lg px-4 py-2.5">
-                        <span className="text-gray-400">Erwartet (historisch geschätzt):</span>
-                        <span className="text-white font-mono">Rendite ~{(autoProposal as any).metrics.expectedReturnPct.toFixed(1)}% p.a.</span>
-                        <span className="text-white font-mono">Schwankung ~{(autoProposal as any).metrics.volatilityPct.toFixed(1)}%</span>
-                        <span className="text-white font-mono">Sharpe {(autoProposal as any).metrics.sharpe.toFixed(2)}</span>
-                        {(autoProposal as any).allocation && (
-                          <span className="text-gray-400">Fremdwährung {(autoProposal as any).allocation.fxWeightPct.toFixed(0)}%</span>
-                        )}
-                        {(autoProposal as any).profile?.liquidityNeedPct > 0 && (
-                          <span className="text-emerald-400 font-mono">Cash-Reserve {(autoProposal as any).profile.liquidityNeedPct}%</span>
-                        )}
-                      </div>
-                    )}
-                    {/* Markt-Hub-Badge: aktive Sektor-Tilts und MSCI-Faktor */}
-                    {(autoProposal as any).marktHubBadge?.hasData && (
-                      <div className="flex flex-wrap items-center gap-2 text-xs bg-[#0a1628] border border-[#00CFC1]/20 rounded-lg px-3 py-2">
-                        <span className="text-[#00CFC1] font-semibold flex items-center gap-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                          Markt-Hub
-                        </span>
-                        <span className="text-gray-300">
-                          Regime: <span className={`font-medium ${
-                            (autoProposal as any).marktHubBadge.regime === 'Risk-On' ? 'text-emerald-400' :
-                            (autoProposal as any).marktHubBadge.regime === 'Risk-Off' ? 'text-red-400' :
-                            'text-amber-400'
-                          }`}>{(autoProposal as any).marktHubBadge.regime}</span>
-                        </span>
-                        {(autoProposal as any).marktHubBadge.leadingFactor && (
-                          <span className="text-gray-300">
-                            MSCI: <span className="text-purple-400 font-medium">{(autoProposal as any).marktHubBadge.leadingFactor} führend</span>
-                          </span>
-                        )}
-                        {(autoProposal as any).marktHubBadge.activeSectorTilts?.length > 0 && (
-                          <span className="text-gray-300 flex items-center gap-1">
-                            Tilts:
-                            {(autoProposal as any).marktHubBadge.activeSectorTilts.map((t: any) => (
-                              <span key={t.sector} className={`px-1.5 py-0.5 rounded text-xs font-mono ${
-                                t.tilt > 0 ? 'bg-emerald-900/60 text-emerald-300' : 'bg-red-900/60 text-red-300'
-                              }`}>
-                                {t.sector} {t.tilt > 0 ? '+' : ''}{t.tilt}
-                              </span>
-                            ))}
-                          </span>
-                        )}
-                        {(autoProposal as any).marktHubBadge.macroSignals?.yieldCurveInverted && (
-                          <span className="text-amber-400">⚡ Invertierte Zinskurve</span>
-                        )}
-                        {(autoProposal as any).marktHubBadge.macroSignals?.inflationHigh && (
-                          <span className="text-orange-400">🔥 Inflation &gt;4%</span>
-                        )}
-                        <span className="text-gray-500 ml-auto">riskFree: {(autoProposal as any).marktHubBadge.dynamicRiskFreeRate?.toFixed(2)}%</span>
-                      </div>
                     )}
                     {/* Ehrliche Hinweise (ESG nicht verfügbar, Qualitätsstufe, Cap-Überschreitungen) */}
                     {Array.isArray((autoProposal as any).notes) && (autoProposal as any).notes.length > 0 && (
@@ -842,19 +1034,151 @@ export default function PortfolioBuilderWizard() {
                         ))}
                       </div>
                     )}
+                    {/* KI-Portfolio-Qualitätserklärung */}
+                    {(() => {
+                      const metrics = (autoProposal as any).metrics;
+                      const confidence = (autoProposal as any).overallConfidence;
+                      const qualityTier = (autoProposal as any).stats?.qualityTier;
+                      if (!metrics && !confidence) return null;
+                      const sharpe = metrics?.sharpe ?? null;
+                      const ret = metrics?.expectedReturnPct ?? null;
+                      const vol = metrics?.volatilityPct ?? null;
+                      const fxPct = (autoProposal as any).allocation?.fxWeightPct ?? null;
+                      // Bevorzugt die ausführliche KI-Gesamtbewertung (verdict, nach
+                      // dem Enhancing-Schritt vorhanden); vorher/als Fallback das
+                      // einfache Kennzahlen-Template.
+                      const llmVerdict = (autoProposal as any).synthesizerVerdict;
+                      const portfolioSummary =
+                        (typeof llmVerdict === 'string' && llmVerdict.trim().length > 40)
+                          ? llmVerdict.trim()
+                          : `Dieses Portfolio umfasst ${autoProposal.positions.length} Titel` +
+                            (ret != null ? ` mit einer erwarteten Rendite von ~${ret.toFixed(1)}% p.a.` : '') +
+                            (sharpe != null ? ` und einer Sharpe-Ratio von ${sharpe.toFixed(2)}` : '') +
+                            (vol != null ? ` (Volatilität ~${vol.toFixed(1)}%)` : '') +
+                            '. Die Zusammensetzung basiert auf Score-Ranking, Sektor-Diversifikation und Markt-Regime-Analyse.';
+                      const portfolioFactors = [
+                        ...(sharpe != null ? [{ label: 'Sharpe', value: sharpe.toFixed(2), sentiment: sharpe >= 0.5 ? 'positive' as const : sharpe >= 0.3 ? 'neutral' as const : 'negative' as const }] : []),
+                        ...(ret != null ? [{ label: 'Erw. Rendite', value: `${ret.toFixed(1)}% p.a.`, sentiment: ret >= 8 ? 'positive' as const : ret >= 5 ? 'neutral' as const : 'negative' as const }] : []),
+                        ...(vol != null ? [{ label: 'Volatilität', value: `${vol.toFixed(1)}%`, sentiment: vol <= 15 ? 'positive' as const : vol <= 25 ? 'neutral' as const : 'negative' as const }] : []),
+                        ...(fxPct != null ? [{ label: 'Fremdwährung', value: `${fxPct.toFixed(0)}%`, sentiment: fxPct <= 30 ? 'positive' as const : fxPct <= 50 ? 'neutral' as const : 'negative' as const }] : []),
+                        ...(confidence ? [{ label: 'KI-Konfidenz', value: confidence, sentiment: confidence === 'hoch' ? 'positive' as const : confidence === 'mittel' ? 'neutral' as const : 'negative' as const }] : []),
+                      ];
+                      const panelVariant = confidence === 'hoch' ? 'success' as const : confidence === 'niedrig' ? 'warning' as const : 'default' as const;
+                      return (
+                        <InsightPanel
+                          title="KI-Portfolio-Analyse"
+                          summary={portfolioSummary}
+                          factors={portfolioFactors}
+                          variant={panelVariant}
+                          collapsible
+                          defaultOpen={false}
+                          riskNote="Historische Schätzungen — keine Garantie für zukünftige Ergebnisse. Alle Angaben basieren auf Vergangenheitsdaten."
+                        />
+                      );
+                    })()}
                     <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden">
-                      {autoProposal.positions.map((p: any) => (
-                        <div key={p.ticker} className="flex items-center justify-between px-4 py-3 bg-[#0f1420]">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs text-[#00CFC1]">{p.ticker}</span>
-                              <span className="text-sm text-white truncate">{p.companyName}</span>
+                      {autoProposal.positions.map((p: any) => {
+                        const score = p.combinedScore ?? 0;
+                        const signal = p.signal ?? 'HOLD';
+                        const scoreGrade = score >= 75 ? 'A' : score >= 60 ? 'B' : score >= 45 ? 'C' : score >= 30 ? 'D' : 'F';
+                        // ytdPerf is the field name in proposal result (not ytdPerformance)
+                        const ytdNum = p.ytdPerf != null ? parseFloat(String(p.ytdPerf)) : (p.ytdPerformance ? parseFloat(p.ytdPerformance) : null);
+                        const divYield = p.dividendYield ? parseFloat(p.dividendYield) : null;
+                        const priceNum = p.currentPrice ? parseFloat(String(p.currentPrice)) : null;
+
+                        // Einfache, nicht-technische Begründung in 2–3 Sätzen: WARUM
+                        // dieser Titel vorgeschlagen wird (statt roher Score-Fachbegriffe).
+                        const isBuy = signal === 'BUY' || signal === 'STRONG_BUY';
+                        const isSell = signal === 'SELL' || signal === 'STRONG_SELL';
+                        const gradeWord = score >= 75 ? 'sehr gut' : score >= 60 ? 'gut' : score >= 45 ? 'solide' : 'eher zurückhaltend';
+                        const whyParts: string[] = [];
+                        whyParts.push(`${p.companyName} ist ein Wert aus dem Bereich ${p.sector}.`);
+                        if (isBuy) whyParts.push(`Unsere Analyse bewertet ihn aktuell als ${gradeWord} und sieht einen guten Einstiegszeitpunkt.`);
+                        else if (isSell) whyParts.push(`Unsere Analyse bewertet ihn als ${gradeWord}, rät derzeit aber eher zur Zurückhaltung.`);
+                        else whyParts.push(`Unsere Analyse bewertet ihn als ${gradeWord} und empfiehlt, ihn ruhig zu halten.`);
+                        let whyThird = `Deshalb schlagen wir dafür ${p.weightPct.toFixed(1)} % Ihres Kapitals vor.`;
+                        if (divYield && divYield > 0.5) whyThird += ` Er zahlt zudem eine Dividende von rund ${divYield.toFixed(1)} %.`;
+                        whyParts.push(whyThird);
+                        if ((p.reason ?? '').includes('Watchlist')) whyParts.push('Dieser Titel stammt aus Ihrer Merkliste.');
+                        // Bevorzugt die individuelle KI-Begründung (nach dem Enhancing-
+                        // Schritt vorhanden); vorher/als Fallback das einfache Template.
+                        const whyText = (typeof p.aiReason === 'string' && p.aiReason.trim()) ? p.aiReason.trim() : whyParts.join(' ');
+
+                        // Erklärung des Scores für den Info-Button (einfach gehalten).
+                        const scoreInfo = 'Der Signal-Score (0–100) fasst Bewertung, Kursverlauf und Markttrend zu einer Empfehlung zusammen. Note A = sehr gut, F = schwach. Er ist ein Anhaltspunkt, keine Garantie.';
+
+                        // 3 key facts
+                        const keyFacts = [
+                          {
+                            label: signal === 'BUY' || signal === 'STRONG_BUY' ? '↑ Kaufsignal' : signal === 'SELL' || signal === 'STRONG_SELL' ? '↓ Verkaufssignal' : '→ Halten',
+                            color: signal === 'BUY' || signal === 'STRONG_BUY' ? 'text-emerald-400 bg-emerald-500/10' : signal === 'SELL' || signal === 'STRONG_SELL' ? 'text-red-400 bg-red-500/10' : 'text-slate-400 bg-slate-500/10',
+                          },
+                          {
+                            label: `Note ${scoreGrade} · ${score}/100`,
+                            color: score >= 70 ? 'text-emerald-300 bg-emerald-500/10' : score >= 50 ? 'text-teal-300 bg-teal-500/10' : 'text-amber-300 bg-amber-500/10',
+                          },
+                          {
+                            label: p.isUniverseExpansion ? '✨ Universum' : ytdNum !== null ? `YTD ${ytdNum > 0 ? '+' : ''}${ytdNum.toFixed(1)}%` : divYield && divYield > 0.5 ? `Div. ${divYield.toFixed(1)}%` : p.sector,
+                            color: p.isUniverseExpansion ? 'text-violet-300 bg-violet-500/10' : ytdNum !== null && ytdNum > 0 ? 'text-emerald-300 bg-emerald-500/10' : ytdNum !== null && ytdNum < -5 ? 'text-red-300 bg-red-500/10' : 'text-slate-300 bg-slate-500/10',
+                          },
+                        ];
+
+                        return (
+                          <div key={p.ticker} className="px-4 py-3 bg-[#0f1420]">
+                            <div className="flex items-start gap-4">
+                              {/* Left: ticker + company + sector + price */}
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-mono text-xs text-[#00CFC1]">{p.ticker}</span>
+                                  <span className="text-sm text-white">{p.companyName}</span>
+                                  {p.isUniverseExpansion && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                                      ✨ Universum
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <p className="text-xs text-gray-500">{p.sector}</p>
+                                  {priceNum != null && priceNum > 0 && (
+                                    <p className="text-xs text-slate-400">
+                                      {p.currency || 'CHF'} {priceNum.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Right: einfache Begründung (WARUM) + Score-Info-Button */}
+                              <div className="hidden md:flex flex-col items-end gap-1.5 shrink-0 max-w-[340px]">
+                                <p className="text-sm text-slate-300 text-right leading-relaxed">{whyText}</p>
+                                <div className="flex flex-wrap gap-1 justify-end items-center">
+                                  {keyFacts.map((f, i) => (
+                                    <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
+                                  ))}
+                                  <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
+                                    <Info className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Weight always visible */}
+                              <span className="text-sm font-mono font-semibold text-white shrink-0">{p.weightPct.toFixed(1)}%</span>
                             </div>
-                            <p className="text-xs text-gray-500 truncate">{p.sector} · {p.reason}</p>
+
+                            {/* Mobile: Begründung + Badges + Score-Info */}
+                            <div className="flex md:hidden flex-col gap-2 mt-2">
+                              <p className="text-sm text-slate-300 leading-relaxed">{whyText}</p>
+                              <div className="flex flex-wrap gap-1 items-center">
+                                {keyFacts.map((f, i) => (
+                                  <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
+                                ))}
+                                <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
+                                  <Info className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                          <span className="text-sm font-mono font-semibold text-white ml-3 shrink-0">{p.weightPct.toFixed(1)}%</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                       {/* Cash-Reserve Position anzeigen wenn Cash-Quote > 0 */}
                       {(autoProposal as any).profile?.liquidityNeedPct > 0 && (
                         <div className="flex items-center justify-between px-4 py-3 bg-[#0f1420]">
@@ -869,8 +1193,10 @@ export default function PortfolioBuilderWizard() {
                         </div>
                       )}
                     </div>
-                    {/* KI-Empfehlungen des Synthesizers (finalAdjustments) — für Admins ausgeblendet */}
-                    {(autoProposal as any).finalAdjustments?.length > 0 && !isAdmin && (
+                    {/* KI-Empfehlungen des Synthesizers (finalAdjustments) — für Admins
+                        ausgeblendet; bei Auto-Übernahme ebenfalls (bereits eingearbeitet,
+                        der Nutzer sieht direkt das fertige Portfolio). */}
+                    {(autoProposal as any).finalAdjustments?.length > 0 && !isAdmin && !(autoProposal as any).autoApplied && (
                       <div className="border border-white/10 rounded-xl overflow-hidden">
                         <div className="px-4 py-2.5 bg-[#0f1420] border-b border-white/5 flex items-center gap-2">
                           <Sparkles className="h-3.5 w-3.5 text-[#00CFC1]" />
@@ -932,22 +1258,38 @@ export default function PortfolioBuilderWizard() {
                       ⚠️ Automatischer Vorschlag auf Basis historischer Daten — keine Anlageberatung.
                     </p>
                     <div className="flex flex-col gap-2">
-                      {/* Admin-Review Button (nur für Admins sichtbar, nicht wenn bereits geprüft) */}
+                      {/* Admin-Review Toggle + Button (nur für Admins sichtbar, nicht wenn bereits geprüft) */}
                       {isAdmin && !isAdminReviewed && (
-                        <div className="border border-amber-500/30 rounded-lg p-3 bg-amber-500/5">
-                          <div className="flex items-center gap-2 mb-2">
-                            <ShieldCheck className="h-4 w-4 text-amber-400" />
-                            <span className="text-xs font-semibold text-amber-400">Admin-Review</span>
+                        <div className="border border-amber-500/30 rounded-lg p-3 bg-amber-500/5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <ShieldCheck className="h-4 w-4 text-amber-400" />
+                              <span className="text-xs font-semibold text-amber-400">Admin-Review</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-400">{skipAdminReview ? 'Direkt erstellen' : 'Mit Admin-Review'}</span>
+                              <Switch
+                                checked={!skipAdminReview}
+                                onCheckedChange={(checked) => setSkipAdminReview(!checked)}
+                                className="data-[state=checked]:bg-amber-500"
+                              />
+                            </div>
                           </div>
-                          <p className="text-xs text-gray-400 mb-2">Vorschlag im Admin-Bereich prüfen und genehmigen, bevor das Portfolio erstellt wird.</p>
-                          <Button
-                            variant="outline"
-                            className="w-full border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-sm"
-                            onClick={handleSendToAdminReview}
-                          >
-                            <ShieldCheck className="h-4 w-4 mr-2" />
-                            Im Admin-Bereich prüfen &amp; genehmigen
-                          </Button>
+                          {!skipAdminReview ? (
+                            <>
+                              <p className="text-xs text-gray-400">Vorschlag im Admin-Bereich prüfen und genehmigen, bevor das Portfolio erstellt wird.</p>
+                              <Button
+                                variant="outline"
+                                className="w-full border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-sm"
+                                onClick={handleSendToAdminReview}
+                              >
+                                <ShieldCheck className="h-4 w-4 mr-2" />
+                                Im Admin-Bereich prüfen &amp; genehmigen
+                              </Button>
+                            </>
+                          ) : (
+                            <p className="text-xs text-gray-400">Portfolio wird direkt ohne Admin-Review erstellt. Verwenden Sie die Schaltflächen unten.</p>
+                          )}
                         </div>
                       )}
                       <div className="flex flex-wrap justify-between gap-3">
@@ -965,6 +1307,25 @@ export default function PortfolioBuilderWizard() {
                             Admin-geprüften Vorschlag übernehmen
                             <ChevronRight className="h-4 w-4 ml-1" />
                           </Button>
+                        )}
+                        {/* Admin without review: show direct-create buttons when skipAdminReview is true */}
+                        {isAdmin && !isAdminReviewed && skipAdminReview && (
+                          <div className="flex gap-2 flex-wrap">
+                            {(autoProposal as any).adjustedPositions && (
+                              <Button
+                                variant="outline"
+                                className="border-white/20 text-gray-300 hover:bg-white/5 text-sm"
+                                onClick={() => handleAcceptProposal(false)}
+                                title="Roher Algorithmus-Vorschlag ohne KI-Anpassungen"
+                              >
+                                Ohne KI-Anpassungen
+                              </Button>
+                            )}
+                            <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
+                              {(autoProposal as any).adjustedPositions ? 'KI-Angepasst übernehmen' : 'Direkt erstellen'}
+                              <ChevronRight className="h-4 w-4 ml-1" />
+                            </Button>
+                          </div>
                         )}
                         {/* Non-admins: show standard accept buttons */}
                         {!isAdmin && (
@@ -988,14 +1349,32 @@ export default function PortfolioBuilderWizard() {
                       </div>
                     </div>
                   </div>
+                ) : buildProposal.isPending ? (
+                  <div className="space-y-3 py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="h-5 w-5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                        <span className="text-sm text-[#00CFC1] font-medium">Ihr Portfolio wird erstellt…</span>
+                      </div>
+                      <span className="text-xs text-gray-500">meist 1–3 Minuten</span>
+                    </div>
+                    {/* Indeterminate progress bar */}
+                    <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                      <div className="h-full bg-[#00CFC1] rounded-full" style={{ animation: 'indeterminate 2s ease-in-out infinite' }} />
+                    </div>
+                    {/* Eine freundliche, wechselnde Botschaft statt technischer Einzelschritte */}
+                    <p className="text-sm text-slate-300 leading-relaxed min-h-[3rem]">
+                      {loadingMessages[loadingMsgIdx]}
+                    </p>
+                  </div>
                 ) : (
                   <Button
                     className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold w-full py-6 text-base"
-                    disabled={buildProposal.isPending || setProfileMutation.isPending || !(parseFloat(initialCapital) > 0)}
+                    disabled={setProfileMutation.isPending || !(parseFloat(initialCapital) > 0)}
                     onClick={handleBuildProposal}
                   >
                     <Sparkles className="h-5 w-5 mr-2" />
-                    {buildProposal.isPending || setProfileMutation.isPending ? "Vorschlag wird erstellt…" : "KI-Vorschlag erstellen"}
+                    {setProfileMutation.isPending ? "Profil wird gespeichert…" : "KI-Vorschlag erstellen"}
                   </Button>
                 )}
               </div>
@@ -1189,8 +1568,26 @@ export default function PortfolioBuilderWizard() {
                       </Select>
                     </div>
                     <div>
-                      <Label htmlFor="capital">Startkapital (optional)</Label>
-                      <Input id="capital" type="number" placeholder="10000" value={initialCapital} onChange={(e) => setInitialCapital(e.target.value)} />
+                      <Label htmlFor="capital">
+                        Startkapital (CHF)
+                        {path === "auto" && initialCapital && parseFloat(initialCapital) > 0 && (
+                          <span className="ml-2 text-xs text-muted-foreground font-normal">(aus Schritt 1 übernommen)</span>
+                        )}
+                      </Label>
+                      {path === "auto" && initialCapital && parseFloat(initialCapital) > 0 ? (
+                        // Read-only display when coming from KI-flow
+                        <div className="flex items-center h-10 px-3 rounded-md border border-white/10 bg-white/5 text-sm font-medium">
+                          {currency} {parseFloat(initialCapital).toLocaleString("de-CH")}
+                        </div>
+                      ) : (
+                        <Input
+                          id="capital"
+                          type="number"
+                          placeholder="z.B. 100000"
+                          value={initialCapital || ""}
+                          onChange={(e) => setInitialCapital(e.target.value)}
+                        />
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1220,7 +1617,7 @@ export default function PortfolioBuilderWizard() {
                               <div className="text-sm text-muted-foreground">{stock.companyName}</div>
                             </div>
                             <div className="text-right mr-4">
-                              <div className="text-sm font-medium">{stock.quantity} × {currency} {stock.purchasePrice.toFixed(2)}</div>
+                              <div className="text-sm font-medium">{Math.round(stock.quantity)} × {currency} {stock.purchasePrice.toFixed(2)}</div>
                               <div className="text-xs text-muted-foreground">{alloc ? `${alloc.weight.toFixed(1)}%` : ""}</div>
                             </div>
                             <Button variant="ghost" size="sm" onClick={() => handleRemoveStock(stock.ticker)}><X className="h-4 w-4" /></Button>
@@ -1333,7 +1730,7 @@ export default function PortfolioBuilderWizard() {
                         {allocation.map((item) => (
                           <tr key={item.ticker} className="border-t">
                             <td className="p-3"><div className="font-medium font-mono text-xs text-[#00CFC1]">{item.ticker}</div><div className="text-xs text-muted-foreground">{item.companyName}</div></td>
-                            <td className="text-right p-3">{item.quantity}</td>
+                            <td className="text-right p-3">{Math.round(item.quantity)}</td>
                             <td className="text-right p-3">{currency} {item.purchasePrice.toFixed(2)}</td>
                             <td className="text-right p-3">{currency} {item.value.toFixed(2)}</td>
                             <td className="text-right p-3"><Badge variant="outline">{item.weight.toFixed(1)}%</Badge></td>
@@ -1416,7 +1813,7 @@ export default function PortfolioBuilderWizard() {
                         {allocation.map((item) => (
                           <tr key={item.ticker} className="border-t">
                             <td className="p-2"><div className="font-mono text-xs text-[#00CFC1]">{item.ticker}</div><div className="text-xs text-muted-foreground">{item.companyName}</div></td>
-                            <td className="text-right p-2">{item.quantity}</td>
+                            <td className="text-right p-2">{Math.round(item.quantity)}</td>
                             <td className="text-right p-2">{currency} {item.purchasePrice.toFixed(2)}</td>
                             <td className="text-right p-2">{currency} {item.value.toFixed(2)}</td>
                             <td className="text-right p-2">{item.weight.toFixed(1)}%</td>
@@ -1460,10 +1857,26 @@ export default function PortfolioBuilderWizard() {
           {currentStep < totalSteps ? (
             <Button onClick={handleNext}>Weiter <ChevronRight className="h-4 w-4 ml-1" /></Button>
           ) : (
-            <Button onClick={handleFinish} disabled={createPortfolioMutation.isPending} className="bg-green-600 hover:bg-green-700">
-              <Check className="h-4 w-4 mr-1" />
-              {createPortfolioMutation.isPending ? "Erstelle..." : "Portfolio erstellen"}
-            </Button>
+            <div className="flex flex-col items-end gap-2">
+              {createPortfolioMutation.isPending && (
+                <div className="w-64">
+                  <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                    <span className="flex items-center gap-1.5">
+                      <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                      Portfolio wird angelegt…
+                    </span>
+                    <span className="text-gray-600">Bitte warten</span>
+                  </div>
+                  <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full bg-green-500 rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '60%', animation: 'indeterminate 1.5s ease-in-out infinite' }} />
+                  </div>
+                </div>
+              )}
+              <Button onClick={handleFinish} disabled={createPortfolioMutation.isPending} className="bg-green-600 hover:bg-green-700">
+                <Check className="h-4 w-4 mr-1" />
+                {createPortfolioMutation.isPending ? "Wird angelegt…" : "Portfolio erstellen"}
+              </Button>
+            </div>
           )}
         </div>
       </div>

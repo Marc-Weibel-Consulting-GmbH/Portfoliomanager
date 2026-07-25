@@ -10,6 +10,7 @@
 
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { getUserErrorMessage } from "@/lib/errorMessages";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -235,7 +236,7 @@ function KiInterpretationPanel({
 
       {open && interpret.isError && (
         <div className="mt-2 text-xs text-red-400 text-center">
-          Fehler: {interpret.error?.message}
+          {getUserErrorMessage(interpret.error)}
         </div>
       )}
     </div>

@@ -14,7 +14,7 @@ import { gapFillLog, stocks as stocksTable } from "../../drizzle/schema";
 import { fetchCompleteStockData } from "../_core/multiApiDataMerger";
 import { notifyOwner } from "../_core/notification";
 
-let isRunning = false;
+const isRunning = false;
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 

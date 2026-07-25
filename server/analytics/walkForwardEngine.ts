@@ -451,7 +451,7 @@ export async function runWalkForwardValidation(
   
   let totalExpectedPeriods = 0;
   {
-    let tempStart = new Date(startDate);
+    const tempStart = new Date(startDate);
     while (true) {
       const tempTrainEnd = new Date(tempStart);
       tempTrainEnd.setMonth(tempTrainEnd.getMonth() + trainMonths);
@@ -471,7 +471,7 @@ export async function runWalkForwardValidation(
     : STRATEGY_SCORING_WEIGHTS.midTerm;
   
   const periods: WalkForwardPeriodResult[] = [];
-  let currentStart = new Date(startDate);
+  const currentStart = new Date(startDate);
   let periodIndex = 0;
   
   // Roll forward by testMonths each iteration

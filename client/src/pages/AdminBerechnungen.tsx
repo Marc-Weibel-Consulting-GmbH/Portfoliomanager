@@ -1,11 +1,11 @@
-import { AdminTopbar } from "@/components/AdminTopbar";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useState, useCallback } from "react";
-import { Copy, Check, Download, FileText } from "lucide-react";
+import {Calculator, Check, Copy, Download, FileText} from "lucide-react";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 interface FormulaSection {
   id: string;
@@ -300,6 +300,30 @@ const FORMULAS: FormulaSection[] = [
     },
     notes: "Bias-Korrektur (R-31): Wachstumsrate wird auf max. 15 % begrenzt, WACC min. 6 %.",
   },
+  // ─── PORTFOLIO-QUALITÄT ───────────────────────────────────────────────────────
+  {
+    id: "quality-score",
+    category: "Portfolio-Qualität",
+    title: "Portfolio Quality Score (0–100)",
+    description:
+      "Deterministischer Gesamtscore aus 5 Komponenten. Jede Komponente wird aus Sub-Kennzahlen per linearer Interpolation (0–100) gebildet und gewichtet gemittelt. Fehlende Komponenten werden renormalisiert (Datenabdeckung wird ausgewiesen). Schwellen sind im Admin editierbar.",
+    formula:
+      "Score = Σ (Komponente_i × Gewicht_i) / Σ verfügbare Gewichte\n\n• Risikoadjustierte Rendite 30 % = Sharpe 0.45 · Sortino 0.30 · MaxDD 0.25\n• Bewertung 25 % = PEG 0.40 · PE 0.30 · PEG-Verteilung 0.30\n• Risiko 15 % = Volatilität 0.55 · Beta 0.45\n• Ertrag 15 % = Dividendenrendite (profilabhängig, s. Hinweise)\n• Diversifikation 15 % = Titel-HHI 0.30 · Sektor-HHI 0.30 · Positionsanzahl 0.20 · Fremdwährung 0.20",
+    variables: [
+      { name: "PEG-Verteilung", desc: "3. Sub-Kennzahl der Bewertung (0.30): Anteil Titel mit PEG<1.5 minus Anteil PEG>3 (nicht P/B oder FCF)." },
+      { name: "Titel-HHI", desc: "Herfindahl-Index der Positionsgewichte (Einzeltitel-Konzentration). v2 in «Diversifikation», nicht mehr in «Risiko» — Konzentration wird nicht doppelt gezählt." },
+      { name: "Sharpe / MaxDD-Fenster", desc: "Aus der täglichen Portfolio-Wertreihe des Snapshot-Zeitraums; Volatilität annualisiert mit √252." },
+      { name: "Beta-Kalibrierung", desc: "Bewusst defensiv: Beta 0.3 → 95, 1.0 → 60. Marktbreites Exposure (Beta≈1) ergibt daher mittlere Werte." },
+      { name: "PEG ≤ 0 / PE < 0", desc: "Nicht-positives Wachstum bzw. Verluste werden explizit niedrig bewertet (PEG≤0 → 20, PE<0 → 5), nicht wegrenormalisiert." },
+    ],
+    example: {
+      input: "Sharpe 1.2, Sortino 1.5, MaxDD −5 %, PEG 1.0, PE 15, Vol 10 %, Beta 0.7, Titel-HHI 0.06, Div 3.5 %, Sektor-HHI 0.12, FW 35 %, 15 Positionen",
+      calculation: "Jede Komponente 0–100 interpolieren, mit den obigen Gewichten mitteln.",
+      result: "Quality Score ≈ 78/100 → Band «Solide» (≥80 Exzellent · 60–79 Solide · 40–59 Ausbaufähig · <40 Kritisch)",
+    },
+    notes:
+      "Ertrag ist profilabhängig: «growth» gewichtet die Dividende schwach (Growth-Portfolios werden nicht strukturell abgewertet), «dividends» stärker, «balanced»/kein Ziel = Basisgewichte. Änderungen an den Schwellen werden mit Audit-Trail (wer/wann/alt→neu) protokolliert.",
+  },
   // ─── PORTFOLIO-OPTIMIERUNG ────────────────────────────────────────────────────
   {
     id: "sharpe-ratio",
@@ -524,7 +548,12 @@ export default function AdminBerechnungen() {
 
   return (
     <DashboardLayout>
-      <AdminTopbar />
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Berechnungen & Formeln", icon: <Calculator className="h-4 w-4" /> },
+        ]}
+      />
       <div className="space-y-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>

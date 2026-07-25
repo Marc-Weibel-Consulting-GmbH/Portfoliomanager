@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { Settings, Save, RotateCcw } from "lucide-react";
+import { Settings, Save, RotateCcw, PieChart } from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 interface DiversificationRules {
   maxPositionPercent: number;
@@ -46,25 +47,93 @@ const DEFAULT_FEES: FeeStructure = {
   fxSpreadPercent: 0.5,
 };
 
+type RiskProfile = 'konservativ' | 'ausgewogen' | 'wachstum' | 'aggressiv';
+type SleeveKey = 'equity' | 'bond' | 'commodity' | 'gold' | 'realestate' | 'crypto';
+type MultiAssetAllocation = Record<RiskProfile, Record<SleeveKey, number>>;
+
+const SLEEVE_LABELS: Record<SleeveKey, string> = {
+  equity: 'Aktien',
+  bond: 'Obligationen',
+  commodity: 'Rohstoffe',
+  gold: 'Gold',
+  realestate: 'Immobilien',
+  crypto: 'Krypto',
+};
+
+const PROFILE_LABELS: Record<RiskProfile, string> = {
+  konservativ: 'Konservativ',
+  ausgewogen: 'Ausgewogen',
+  wachstum: 'Wachstum',
+  aggressiv: 'Aggressiv',
+};
+
+const DEFAULT_MULTI_ASSET: MultiAssetAllocation = {
+  konservativ: { equity: 30, bond: 50, commodity: 4, gold: 8, realestate: 8, crypto: 0 },
+  ausgewogen:  { equity: 55, bond: 25, commodity: 4, gold: 7, realestate: 6, crypto: 3 },
+  wachstum:    { equity: 70, bond: 12, commodity: 4, gold: 6, realestate: 4, crypto: 4 },
+  aggressiv:   { equity: 80, bond: 5,  commodity: 3, gold: 4, realestate: 2, crypto: 6 },
+};
+
 export default function AdminSettings() {
   const { data: settings, isLoading } = trpc.admin.getAppSettings.useQuery();
   const updateSetting = trpc.admin.updateAppSetting.useMutation();
 
   const [divRules, setDivRules] = useState<DiversificationRules>(DEFAULT_DIVERSIFICATION);
   const [fees, setFees] = useState<FeeStructure>(DEFAULT_FEES);
+  const [multiAsset, setMultiAsset] = useState<MultiAssetAllocation>(DEFAULT_MULTI_ASSET);
 
   useEffect(() => {
     if (settings) {
       const divSetting = settings.find((s: any) => s.key === 'diversification_rules');
       const feeSetting = settings.find((s: any) => s.key === 'fee_structure');
+      const maSetting = settings.find((s: any) => s.key === 'multi_asset_allocation');
       if (divSetting?.value) {
         setDivRules({ ...DEFAULT_DIVERSIFICATION, ...(divSetting.value as any) });
       }
       if (feeSetting?.value) {
         setFees({ ...DEFAULT_FEES, ...(feeSetting.value as any) });
       }
+      if (maSetting?.value) {
+        const stored = maSetting.value as any;
+        const merged: MultiAssetAllocation = { ...DEFAULT_MULTI_ASSET };
+        for (const p of Object.keys(DEFAULT_MULTI_ASSET) as RiskProfile[]) {
+          if (stored[p]) merged[p] = { ...DEFAULT_MULTI_ASSET[p], ...stored[p] };
+        }
+        setMultiAsset(merged);
+      }
     }
   }, [settings]);
+
+  const updateSleeveValue = (profile: RiskProfile, key: SleeveKey, val: number) => {
+    setMultiAsset(prev => ({
+      ...prev,
+      [profile]: { ...prev[profile], [key]: val },
+    }));
+  };
+
+  const getRowSum = (profile: RiskProfile) =>
+    (Object.keys(SLEEVE_LABELS) as SleeveKey[]).reduce((s, k) => s + (multiAsset[profile][k] || 0), 0);
+
+  const saveMultiAsset = async () => {
+    // Validate: each profile must sum to 100
+    for (const p of Object.keys(DEFAULT_MULTI_ASSET) as RiskProfile[]) {
+      const sum = getRowSum(p);
+      if (Math.abs(sum - 100) > 1) {
+        toast.error(`${PROFILE_LABELS[p]}: Summe muss 100% ergeben (aktuell ${sum.toFixed(1)}%)`);
+        return;
+      }
+    }
+    try {
+      await updateSetting.mutateAsync({
+        key: 'multi_asset_allocation',
+        value: multiAsset,
+        description: 'Allokations-Matrix für Multi-Asset-Sleeve (je Anlegerprofil)',
+      });
+      toast.success('Allokations-Matrix gespeichert');
+    } catch (e: any) {
+      toast.error(`Fehler: ${e.message}`);
+    }
+  };
 
   const saveDiversification = async () => {
     try {
@@ -95,6 +164,12 @@ export default function AdminSettings() {
   if (isLoading) {
     return (
       <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Einstellungen", icon: <Settings className="h-4 w-4" /> },
+        ]}
+      />
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin h-8 w-8 border-2 border-[#00CFC1] border-t-transparent rounded-full" />
         </div>
@@ -281,6 +356,69 @@ export default function AdminSettings() {
               </Button>
               <Button variant="outline" onClick={() => setFees(DEFAULT_FEES)} className="border-[#2a3a4e] text-gray-300">
                 <RotateCcw className="h-4 w-4 mr-2" /> Zurücksetzen
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        {/* ── Multi-Asset Allokations-Matrix ─────────────────────────────── */}
+        <Card className="bg-[#0f1923] border-[#1e2d3d]">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              <PieChart className="h-5 w-5 text-[#00CFC1]" />
+              Multi-Asset Allokations-Matrix
+            </CardTitle>
+            <p className="text-sm text-gray-400">
+              Ziel-Quoten (%) je Anlegerprofil. Summe pro Zeile muss 100 % ergeben.
+              Wird vom KI-Portfolio-Builder verwendet.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#1e2d3d]">
+                    <th className="text-left py-2 pr-4 text-gray-400 font-medium">Profil</th>
+                    {(Object.keys(SLEEVE_LABELS) as SleeveKey[]).map(k => (
+                      <th key={k} className="text-center py-2 px-2 text-gray-400 font-medium">{SLEEVE_LABELS[k]}</th>
+                    ))}
+                    <th className="text-center py-2 px-2 text-gray-400 font-medium">Summe</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(Object.keys(DEFAULT_MULTI_ASSET) as RiskProfile[]).map(profile => {
+                    const sum = getRowSum(profile);
+                    const sumOk = Math.abs(sum - 100) <= 1;
+                    return (
+                      <tr key={profile} className="border-b border-[#1e2d3d] last:border-0">
+                        <td className="py-3 pr-4 text-gray-300 font-medium whitespace-nowrap">{PROFILE_LABELS[profile]}</td>
+                        {(Object.keys(SLEEVE_LABELS) as SleeveKey[]).map(key => (
+                          <td key={key} className="py-2 px-2">
+                            <Input
+                              type="number"
+                              min={0}
+                              max={100}
+                              step={1}
+                              value={multiAsset[profile][key]}
+                              onChange={e => updateSleeveValue(profile, key, parseFloat(e.target.value) || 0)}
+                              className="bg-[#1a2332] border-[#2a3a4e] text-white text-center w-16 h-8 px-1"
+                            />
+                          </td>
+                        ))}
+                        <td className={`py-2 px-2 text-center font-bold ${
+                          sumOk ? 'text-[#00CFC1]' : 'text-red-400'
+                        }`}>{sum.toFixed(0)}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex gap-2 pt-4">
+              <Button onClick={saveMultiAsset} className="bg-[#00CFC1] hover:bg-[#00b3a6] text-black">
+                <Save className="h-4 w-4 mr-2" /> Speichern
+              </Button>
+              <Button variant="outline" onClick={() => setMultiAsset(DEFAULT_MULTI_ASSET)} className="border-[#2a3a4e] text-gray-300">
+                <RotateCcw className="h-4 w-4 mr-2" /> Auf Standard zurücksetzen
               </Button>
             </div>
           </CardContent>

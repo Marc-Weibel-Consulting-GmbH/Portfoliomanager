@@ -696,7 +696,9 @@ export function KiBoomDashboard() {
     { staleTime: 10 * 60 * 1000 }
   );
 
-  const triggerSnapshot = trpc.kiBoom.triggerSnapshot.useMutation();
+  const triggerSnapshot = trpc.kiBoom.triggerSnapshot.useMutation({
+    onError: (err) => alert(`Snapshot fehlgeschlagen: ${err.message}`),
+  });
   const backfillCreditSpreads = trpc.kiBoom.backfillCreditSpreads.useMutation({
     onSuccess: (data) => {
       alert(`Backfill abgeschlossen: ${data.inserted} Einträge eingefügt (${data.dateRange?.from} – ${data.dateRange?.to})`);

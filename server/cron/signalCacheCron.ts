@@ -12,6 +12,7 @@ import { eq, inArray } from "drizzle-orm";
 import { getDb } from "../db";
 import { stockSignalCache, stocks } from "../../drizzle/schema";
 import { activeCurated } from "../lib/stockUniverse";
+import { detectAssetClass, generateAssetClassSignal } from "../lib/assetClassSignal";
 
 let isRunning = false;
 
@@ -63,6 +64,59 @@ export async function refreshSignalCache(): Promise<void> {
     const optimizedWeights = await getActiveWeights();
     const blendConfig = await getRegimeBlendConfig();
 
+    // B5: Wikifolio-Konsens-Signal vorab laden (einmal für alle Tickers)
+    let wikifolioConsensusMap: Map<string, { score: number; signal: string; buyCount: number; sellCount: number }> = new Map();
+    try {
+      const { computeWikifolioConsensus } = await import("../lib/wikifolioConsensus");
+      const { wikifolioTrades: wikifolioTradesTable, wikifolios: wikifoliosTable } = await import("../../drizzle/schema");
+      const { isNotNull: isNotNullWiki } = await import("drizzle-orm");
+      // Alle Trades der letzten 60 Tage aus verfolgten Wikifolios laden
+      const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
+      const { gte: gteWiki, and: andWiki } = await import("drizzle-orm");
+      const trackedWikis = await db
+        .select({ id: wikifoliosTable.id, sharpeRatio: wikifoliosTable.sharpeRatio })
+        .from(wikifoliosTable)
+        .where(eq(wikifoliosTable.isTracked, 1));
+      if (trackedWikis.length > 0) {
+        const trackedIds = trackedWikis.map(w => w.id);
+        const { inArray: inArrayWiki } = await import("drizzle-orm");
+        const recentTrades = await db
+          .select({
+            wikifolioId: wikifolioTradesTable.wikifolioId,
+            resolvedTicker: wikifolioTradesTable.resolvedTicker,
+            side: wikifolioTradesTable.side,
+            executedAt: wikifolioTradesTable.executedAt,
+          })
+          .from(wikifolioTradesTable)
+          .where(andWiki(
+            inArrayWiki(wikifolioTradesTable.wikifolioId, trackedIds),
+            isNotNullWiki(wikifolioTradesTable.resolvedTicker),
+            gteWiki(wikifolioTradesTable.executedAt, cutoff),
+          ));
+        const sharpeByWikiId = new Map(trackedWikis.map(w => [w.id, w.sharpeRatio ? parseFloat(String(w.sharpeRatio)) : null]));
+        const consensusInput = recentTrades.map(t => ({
+          wikifolioId: t.wikifolioId,
+          resolvedTicker: t.resolvedTicker,
+          side: t.side as 'buy' | 'sell' | 'other',
+          executedAt: t.executedAt ? t.executedAt.toISOString() : null,
+          sharpe: sharpeByWikiId.get(t.wikifolioId) ?? null,
+        }));
+        const results = computeWikifolioConsensus(consensusInput, { asOfMs: Date.now(), windowDays: 30, minWikifolios: 1 });
+        for (const r of results) {
+          if (r.netDirection === 'neutral') continue; // Nur echte Kauf/Verkauf-Signale speichern
+          wikifolioConsensusMap.set(r.ticker, {
+            score: r.score,
+            signal: r.netDirection === 'buy' ? 'buy_consensus' : 'sell_consensus',
+            buyCount: r.buyWikifolios,
+            sellCount: r.sellWikifolios,
+          });
+        }
+        console.log(`[signalCacheCron] Wikifolio-Konsens: ${results.length} Ticker mit Signal aus ${trackedWikis.length} Wikifolios`);
+      }
+    } catch (e) {
+      console.warn('[signalCacheCron] Wikifolio-Konsens-Fehler (nicht fatal):', (e as Error).message);
+    }
+
     let saved = 0;
     let failed = 0;
     const BATCH_SIZE = 5;
@@ -78,6 +132,10 @@ export async function refreshSignalCache(): Promise<void> {
             // 1. Get fundamental data from stocks table (fast, no external API)
             const { stocks: stocksTable } = await import("../../drizzle/schema");
             const [stockRow] = await db.select().from(stocksTable).where(eq(stocksTable.ticker, ticker)).limit(1);
+            // ACS-1: Detect asset class from category/assetType
+            const stockCategory = stockRow?.category ?? null;
+            const stockAssetType = (stockRow as any)?.assetType ?? null;
+            const assetClass = detectAssetClass(stockCategory, stockAssetType);
 
             const num = (v: string | null | undefined): number | null => {
               if (v == null) return null;
@@ -126,22 +184,37 @@ export async function refreshSignalCache(): Promise<void> {
               if (prices.length >= 15) rsi14 = calcRSI(prices, 14);
             }
 
-            // 3. Generate base signal — SIG-4 (Audit 2026-07): dieselbe GEWICHTETE
-            // Basis-Scoring-Funktion wie der Live-Pfad (generateSignal mit den
-            // optimierten Gewichten). Vorher wurden die Gewichte zwar geladen
-            // (getActiveWeights), aber eine ungewichtete Inline-Kopie gerechnet.
-            const base = generateSignal({
-              ticker,
-              companyName,
-              peRatio,
-              pegRatio,
-              dividendYield,
-              currentPrice,
-              fiftyTwoWeekHigh,
-              fiftyTwoWeekLow,
-              ytdPerformance,
-              rsi14,
-            }, optimizedWeights);
+            // 3. Generate base signal
+            // ACS-1: Non-equity assets use asset-class-aware signal instead of P/E-based equity signal
+            let base;
+            if (assetClass !== 'equity') {
+              base = generateAssetClassSignal({
+                ticker,
+                companyName,
+                assetClass,
+                dividendYield,
+                currentPrice,
+                fiftyTwoWeekHigh,
+                fiftyTwoWeekLow,
+                ytdPerformance,
+                rsi14,
+                volatility: null,
+              });
+            } else {
+              // SIG-4 (Audit 2026-07): dieselbe GEWICHTETE Basis-Scoring-Funktion
+              base = generateSignal({
+                ticker,
+                companyName,
+                peRatio,
+                pegRatio,
+                dividendYield,
+                currentPrice,
+                fiftyTwoWeekHigh,
+                fiftyTwoWeekLow,
+                ytdPerformance,
+                rsi14,
+              }, optimizedWeights);
+            }
             let signalType: "buy" | "sell" | "hold" = base.type;
             let signalStrength: "strong" | "moderate" | "weak" = base.strength;
             let reason = base.reason;
@@ -309,6 +382,11 @@ export async function refreshSignalCache(): Promise<void> {
               bubbleRegime: bubbleRegime ?? null,
               sentimentScore: null,
               sentimentLabel: null,
+              // B5: Wikifolio-Konsens-Signal
+              wikifolioScore: wikifolioConsensusMap.get(ticker)?.score ?? null,
+              wikifolioSignal: wikifolioConsensusMap.get(ticker)?.signal ?? null,
+              wikifolioBuyCount: wikifolioConsensusMap.get(ticker)?.buyCount ?? null,
+              wikifolioSellCount: wikifolioConsensusMap.get(ticker)?.sellCount ?? null,
               computedAt: new Date(),
             }).onDuplicateKeyUpdate({
               set: {
@@ -338,6 +416,11 @@ export async function refreshSignalCache(): Promise<void> {
                 overallGrade: overallGrade ?? null,
                 bubbleScore: bubbleScore !== undefined ? bubbleScore.toFixed(4) : null,
                 bubbleRegime: bubbleRegime ?? null,
+                // B5: Wikifolio-Konsens-Signal
+                wikifolioScore: wikifolioConsensusMap.get(ticker)?.score ?? null,
+                wikifolioSignal: wikifolioConsensusMap.get(ticker)?.signal ?? null,
+                wikifolioBuyCount: wikifolioConsensusMap.get(ticker)?.buyCount ?? null,
+                wikifolioSellCount: wikifolioConsensusMap.get(ticker)?.sellCount ?? null,
                 computedAt: new Date(),
               },
             });

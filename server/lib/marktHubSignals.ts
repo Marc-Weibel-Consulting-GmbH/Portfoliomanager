@@ -494,30 +494,37 @@ export function getFactorTilt(input: FactorTiltInput, factors: FactorSignals): n
 
   const { dividendYield, ytdPerf, signalScore, riskProfile, goal } = input;
 
-  // Bonus für den führenden Faktor
+  // Bonus für den führenden Faktor (verstärkt: +8/+5/+2 statt +5/+3/0)
   if (factors.leadingFactor === "value") {
-    // Value-Faktor führt: Dividendentitel und niedrig bewertete Aktien bevorzugen
-    if (dividendYield >= 3) adjustment += 5;
-    else if (dividendYield >= 2) adjustment += 3;
-    else if (dividendYield < 1 && goal !== "dividends") adjustment -= 2;
+    // Value-Faktor führt: Dividendentitel und Value-Aktien (niedrige PE, hohe Div) bevorzugen
+    if (dividendYield >= 3) adjustment += 8;
+    else if (dividendYield >= 2) adjustment += 5;
+    else if (dividendYield >= 1) adjustment += 2;
+    // Momentum-Titel (YTD > 30%) bei Value-Regime abwerten
+    if (ytdPerf !== null && ytdPerf > 30) adjustment -= 5;
+    else if (ytdPerf !== null && ytdPerf > 20) adjustment -= 3;
   } else if (factors.leadingFactor === "momentum") {
     // Momentum-Faktor führt: Titel mit starkem YTD bevorzugen
-    if (ytdPerf !== null && ytdPerf > 15) adjustment += 5;
-    else if (ytdPerf !== null && ytdPerf > 5) adjustment += 3;
-    else if (ytdPerf !== null && ytdPerf < -10) adjustment -= 3;
+    if (ytdPerf !== null && ytdPerf > 20) adjustment += 8;
+    else if (ytdPerf !== null && ytdPerf > 10) adjustment += 5;
+    else if (ytdPerf !== null && ytdPerf > 5) adjustment += 2;
+    else if (ytdPerf !== null && ytdPerf < -10) adjustment -= 5;
+    // Value-Titel (hohe Div, niedriger Score) bei Momentum-Regime abwerten
+    if (dividendYield >= 4 && signalScore < 60) adjustment -= 3;
   } else if (factors.leadingFactor === "quality") {
     // Quality-Faktor führt: Titel mit hohem signalScore bevorzugen
-    if (signalScore >= 75) adjustment += 5;
-    else if (signalScore >= 60) adjustment += 3;
-    else if (signalScore < 40) adjustment -= 3;
+    if (signalScore >= 80) adjustment += 8;
+    else if (signalScore >= 70) adjustment += 5;
+    else if (signalScore >= 60) adjustment += 2;
+    else if (signalScore < 40) adjustment -= 5;
   } else if (factors.leadingFactor === "minvol") {
-    // MinVol-Faktor führt: Defensivtitel bevorzugen (konservatives Profil)
-    if (riskProfile === "konservativ") adjustment += 5;
-    else if (riskProfile === "ausgewogen") adjustment += 2;
-    else adjustment -= 2; // Aggressiv-Profil passt nicht zu MinVol
+    // MinVol-Faktor führt: Defensivtitel bevorzugen
+    if (riskProfile === "konservativ") adjustment += 8;
+    else if (riskProfile === "ausgewogen") adjustment += 4;
+    else adjustment -= 3; // Aggressiv-Profil passt nicht zu MinVol
   }
 
-  // Malus für den schlechtesten Faktor (wenn klar negativ)
+  // Malus für den schlechtesten Faktor (wenn klar negativ, verstärkt)
   const factorYtds = [
     { key: "value", ytd: factors.valueYtd },
     { key: "momentum", ytd: factors.momentumYtd },
@@ -528,12 +535,12 @@ export function getFactorTilt(input: FactorTiltInput, factors: FactorSignals): n
   if (factorYtds.length > 0 && factorYtds[0].ytd !== null && factorYtds[0].ytd < -5) {
     const worstFactor = factorYtds[0].key;
     // Malus für Titel, die zum schlechtesten Faktor passen
-    if (worstFactor === "value" && dividendYield >= 3 && goal !== "dividends") adjustment -= 2;
-    if (worstFactor === "momentum" && ytdPerf !== null && ytdPerf > 15) adjustment -= 2;
-    if (worstFactor === "quality" && signalScore >= 75) adjustment -= 1;
+    if (worstFactor === "value" && dividendYield >= 3 && goal !== "dividends") adjustment -= 4;
+    if (worstFactor === "momentum" && ytdPerf !== null && ytdPerf > 20) adjustment -= 4;
+    if (worstFactor === "quality" && signalScore >= 75) adjustment -= 3;
   }
 
-  return Math.max(-8, Math.min(8, adjustment));
+  return Math.max(-12, Math.min(12, adjustment));
 }
 
 // ── Dynamischer risikofreier Zinssatz ─────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { invokeLLM } from "./llm";
+import { invokeLLM, invokeKimi } from "./llm";
 
 export interface DailyNewsSection {
   title: string;
@@ -51,7 +51,7 @@ Antworte im JSON-Format:
 }`;
 
   try {
-    const response = await invokeLLM({
+    const response = await invokeKimi({
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

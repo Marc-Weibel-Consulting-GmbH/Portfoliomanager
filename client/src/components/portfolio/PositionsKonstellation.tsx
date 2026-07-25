@@ -107,8 +107,9 @@ function KonstChart({
   const padL = 56, padR = 20, padT = 16, padB = 44;
   const iw = W - padL - padR, ih = H - padT - padB;
 
-  // Dynamic domain from data quantiles (p95 + 10% headroom, no fixed floors)
-  // so typical portfolios spread across the full canvas.
+  // Dynamic domain using IQR-based outlier detection (Box-Plot method).
+  // p95 fails for small portfolios (n=20 → p95 = rank 19 = near-max).
+  // Instead: upper fence = Q3 + 1.5×IQR, capped at a sensible absolute max.
   // Outliers beyond the domain are placed just inside the edge with an arrow.
   const gs = positions.map((p) => p.g);
   const pes = positions.map((p) => p.pe);
@@ -116,13 +117,22 @@ function KonstChart({
   const sortedPes = [...pes].filter(Number.isFinite).sort((a, b) => a - b);
   const quantile = (arr: number[], q: number) =>
     arr.length ? arr[Math.min(arr.length - 1, Math.floor(arr.length * q))] : NaN;
-  const p95g = quantile(sortedGs, 0.95);
-  const p95pe = quantile(sortedPes, 0.95);
+  // IQR fence: Q3 + 1.5×IQR. For very small arrays (< 4) fall back to p95.
+  const iqrFence = (sorted: number[]): number => {
+    if (sorted.length < 4) return quantile(sorted, 0.95);
+    const q1 = quantile(sorted, 0.25);
+    const q3 = quantile(sorted, 0.75);
+    const iqr = q3 - q1;
+    return q3 + 1.5 * iqr;
+  };
+  const fenceG = iqrFence(sortedGs);
+  const fencePe = iqrFence(sortedPes);
   const p10pe = quantile(sortedPes, 0.1);
   const roundUp5 = (v: number) => Math.max(5, Math.ceil(v / 5) * 5);
-  const xMax = roundUp5(Number.isFinite(p95g) ? p95g * 1.1 : 30);
+  // Use IQR fence with 10% headroom; absolute caps prevent absurd axes.
+  const xMax = roundUp5(Number.isFinite(fenceG) ? Math.min(fenceG * 1.1, 300) : 30);
   const yMin = Math.max(0, Math.floor((Number.isFinite(p10pe) ? Math.min(p10pe, 99) : 8) / 5) * 5);
-  const yMax = Math.max(yMin + 5, roundUp5(Number.isFinite(p95pe) ? p95pe * 1.1 : 40));
+  const yMax = Math.max(yMin + 5, roundUp5(Number.isFinite(fencePe) ? Math.min(fencePe * 1.1, 80) : 40));
   const X_DOM = [0, xMax], Y_DOM = [yMin, yMax];
   const sx = (v: number) => padL + ((v - X_DOM[0]) / (X_DOM[1] - X_DOM[0])) * iw;
   const sy = (v: number) => padT + ih - ((v - Y_DOM[0]) / (Y_DOM[1] - Y_DOM[0])) * ih;

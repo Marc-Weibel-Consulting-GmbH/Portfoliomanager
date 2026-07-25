@@ -78,7 +78,7 @@ export default function AdminLogs() {
     <div className="container max-w-7xl py-8">
       <Breadcrumb
         items={[
-          { label: "Admin", href: "/" },
+          { label: "Admin", href: "/admin" },
           { label: "Server Logs", icon: <FileText className="h-4 w-4" /> },
         ]}
       />

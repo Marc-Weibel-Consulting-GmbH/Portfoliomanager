@@ -91,6 +91,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { getUserErrorMessage } from "@/lib/errorMessages";
 import { ViewDensityToggle } from "@/components/ViewDensityToggle";
 import { useViewDensity } from "@/contexts/ViewDensityContext";
+import { FeatureGate } from "@/components/FeatureGate";
 import {
   Dialog,
   DialogContent,
@@ -101,6 +102,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SLEEVE_LABEL_CONFIG, SLEEVE_TICKER_LABEL } from '@shared/const';
 
 // ─── Performance Tab with Attribution Waterfall ───
 function PerformanceTab({
@@ -593,7 +595,7 @@ function OptimierungEmpfehlungenTab({
 
   // Strategie aus dem Risikoprofil ableiten (nur DB-basierte Methoden — kein Yahoo):
   // konservativ → Risikominimierung (Min. Varianz), sonst Max. Sharpe.
-  type OptMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp";
+  type OptMethod = "max_sharpe" | "min_variance" | "equal_weight" | "max_dividend" | "hrp" | "min_cvar";
   const profileMethod: OptMethod =
     profile?.riskProfile === "konservativ" ? "min_variance" : "max_sharpe";
   const [selectedMethod, setSelectedMethod] = useState<OptMethod | null>(null);
@@ -602,6 +604,7 @@ function OptimierungEmpfehlungenTab({
   const METHOD_OPTS: { value: OptMethod; label: string }[] = [
     { value: "max_sharpe", label: "Max. Sharpe" },
     { value: "min_variance", label: "Min. Varianz" },
+    { value: "min_cvar", label: "Min. Tail-Risiko (CVaR)" },
     { value: "hrp", label: "HRP (Risk Parity)" },
     { value: "equal_weight", label: "Gleichgewichtet" },
     { value: "max_dividend", label: "Max. Dividende" },
@@ -915,6 +918,7 @@ export default function PortfolioDetailsPage() {
   // Fortgeschrittene Tabs (nur «detailliert»): KI-Analysen + reine Kennzahlen.
   const ADVANCED_TABS = ['deepdive', 'signale', 'risiko', 'optimierung'];
   const [posView, setPosView] = useState<'tabelle' | 'heatmap' | 'konstellation'>('tabelle');
+  const [showDetailCols, setShowDetailCols] = useState(false);
   // Expandable row state for Positionen table
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
   // Sort state for Positionen table
@@ -972,7 +976,11 @@ export default function PortfolioDetailsPage() {
 
   // U-19: Live-Tracking deaktivieren (Live -> Demo) mit Bestätigungsdialog
   const [isDeactivateDialogOpen, setIsDeactivateDialogOpen] = useState(false);
-  
+
+  // Einzahlung für Demo-Portfolios
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [depositAmount, setDepositAmount] = useState('');
+
   // Fetch transactions for edit modal
   const { data: transactions = [] } = trpc.portfolioTransactions.list.useQuery(
     { portfolioId },
@@ -1021,9 +1029,35 @@ export default function PortfolioDetailsPage() {
   const { data: multiPeriod } = trpc.portfolios.getMultiPeriodPerformanceV2.useQuery();
   // Investor profile for reference currency and FX limit
   const { data: profile } = trpc.investmentProfile.get.useQuery();
-  const deletePortfolio = trpc.portfolios.delete.useMutation();
+    const deletePortfolio = trpc.portfolios.delete.useMutation();
   const utils = trpc.useUtils();
-  
+
+  // Einzahlung-Mutation für Demo-Portfolios
+  const depositMutation = trpc.portfolios.deposit.useMutation({
+    onSuccess: (data) => {
+      const isLiveDeposit = (data as any).type === 'live';
+      if (isLiveDeposit) {
+        toast.success('Einzahlung erfolgreich', {
+          description: `CHF ${(data as any).newInvestmentAmount.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Gesamtkapital · Als Transaktion erfasst`,
+        });
+      } else {
+        const demoData = data as any;
+        toast.success('Einzahlung erfolgreich', {
+          description: `CHF ${demoData.newInvestmentAmount.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Gesamtkapital · CHF ${demoData.newCashBalance.toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} Cash`,
+        });
+      }
+      setIsDepositModalOpen(false);
+      setDepositAmount('');
+      utils.portfolios.getWithCurrency.invalidate(portfolioId);
+      utils.portfolios.list.invalidate();
+      if (isLiveDeposit) {
+        utils.portfolioTransactions.list.invalidate({ portfolioId });
+        utils.portfolios.getMultiPeriodPerformanceV2.invalidate();
+      }
+    },
+    onError: (error) => toast.error('Einzahlung fehlgeschlagen', { description: error.message }),
+  });
+
   // Activate portfolio mutation (Demo -> Live)
   const activatePortfolio = trpc.portfolioManagement.activatePortfolio.useMutation({
     onSuccess: (data) => {
@@ -1476,25 +1510,49 @@ export default function PortfolioDetailsPage() {
             <div className="flex items-center gap-2 flex-shrink-0">
               <ViewDensityToggle className="mr-1" />
               {isDemo && (
-                <Button
-                  size="sm"
-                  onClick={() => setIsActivationModalOpen(true)}
-                  className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black"
-                >
-                  <Play className="h-4 w-4 mr-2" />
-                  Aktivieren
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsDepositModalOpen(true)}
+                    className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                    title="Kapital einzahlen (Demo-Portfolio)"
+                  >
+                    <DollarSign className="h-4 w-4 mr-1" />
+                    Einzahlung
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => setIsActivationModalOpen(true)}
+                    className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black"
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Aktivieren
+                  </Button>
+                </>
               )}
               {/* U-19: Live-Tracking deaktivieren (mit Warnhinweis) */}
               {!isDemo && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsDeactivateDialogOpen(true)}
-                  className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
-                >
-                  Deaktivieren
-                </Button>
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsDepositModalOpen(true)}
+                    className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                    title="Kapital einzahlen (Live-Portfolio)"
+                  >
+                    <DollarSign className="h-4 w-4 mr-1" />
+                    Einzahlung
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsDeactivateDialogOpen(true)}
+                    className="border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                  >
+                    Deaktivieren
+                  </Button>
+                </>
               )}
               <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
                 + Position
@@ -1659,7 +1717,30 @@ export default function PortfolioDetailsPage() {
             </p>
           </div>
         </div>
-
+        {/* Asset-Allokations-Zeile — nur wenn Sleeve-ETFs vorhanden */}
+        {(() => {
+          const assetMap: Record<string, number> = {};
+          for (const h of holdings) {
+            const label = SLEEVE_TICKER_LABEL[(h.ticker || '').toUpperCase()] ?? 'Aktien';
+            assetMap[label] = (assetMap[label] || 0) + (parseFloat(h.weight || '0'));
+          }
+          const hasSleeves = Object.keys(assetMap).some(k => k !== 'Aktien');
+          if (!hasSleeves) return null;
+          const sorted = Object.entries(assetMap).sort((a, b) => b[1] - a[1]);
+          return (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 pt-2 pb-1">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wider">Allokation:</span>
+              {sorted.map(([label, pct]) => {
+                const cfg = SLEEVE_LABEL_CONFIG[label];
+                return (
+                  <span key={label} className="inline-flex items-center gap-1 text-[11px]" style={{ color: cfg?.color ?? '#00CFC1' }}>
+                    {cfg?.icon ?? '🟢'} <span className="font-medium">{label}</span> <span className="text-gray-400">{pct.toFixed(0)}%</span>
+                  </span>
+                );
+              })}
+            </div>
+          );
+        })()}
         {/* Tabs Section — matches design PDF, with URL persistence */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
@@ -1964,6 +2045,20 @@ export default function PortfolioDetailsPage() {
                   </div>
                   {posView === 'tabelle' && (
                     <button
+                      onClick={() => setShowDetailCols(v => !v)}
+                      title="Stück / Kurs FW / Währungskurs / Kurs CHF ein-/ausblenden"
+                      className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded border transition-colors ${
+                        showDetailCols
+                          ? 'border-[#00CFC1]/50 text-[#00CFC1] bg-[#00CFC1]/10'
+                          : 'border-white/20 text-gray-400 hover:text-white hover:border-white/40'
+                      }`}
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" /></svg>
+                      {showDetailCols ? 'Kurs-Details ausblenden' : 'Kurs-Details'}
+                    </button>
+                  )}
+                  {posView === 'tabelle' && (
+                    <button
                       onClick={() => refreshSignalsMutation.mutate({ portfolioId })}
                       disabled={refreshSignalsMutation.isPending || isSignalsFetching}
                       title="Signal-Cache leeren und Scores neu berechnen"
@@ -1993,6 +2088,14 @@ export default function PortfolioDetailsPage() {
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('weight')}>
                         <span className={sortKey === 'weight' ? 'text-[#00CFC1]' : 'text-gray-400'}>Gewicht {sortKey === 'weight' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
+                      {showDetailCols && (
+                        <>
+                          <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="Anzahl Stück">Stück</th>
+                          <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="Kurs in Fremdwährung">Kurs FW</th>
+                          <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="Wechselkurs zur Referenzwährung CHF">FX-Kurs</th>
+                          <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider" title="Kurs in CHF">Kurs CHF</th>
+                        </>
+                      )}
                       <th className="text-right px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Wert</th>
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('today')}>
                         <span className={sortKey === 'today' ? 'text-[#00CFC1]' : 'text-gray-400'}>Heute {sortKey === 'today' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
@@ -2000,7 +2103,7 @@ export default function PortfolioDetailsPage() {
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="YTD = seit Jahresbeginn" onClick={() => handleSort('ytd')}>
                         <span className={sortKey === 'ytd' ? 'text-[#00CFC1]' : 'text-gray-400'}>YTD {sortKey === 'ytd' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Bewertungs-Score 0-100 (P/E, PEG, Beta, Volatilität, Sharpe) — klicken zum Sortieren. Hinweis: Der Qualitäts-Score in den Aktiendetails misst Fundamentaldaten (ROE, Verschuldung, FCF, Marge) und ist daher ein anderer Wert." onClick={() => handleSort('qualityScore')}>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Bewertungs-Score 0-100: wie attraktiv die Aktie preislich/risikoseitig bewertet ist (P/E, PEG, Beta, Volatilität, Sharpe). Nicht zu verwechseln mit «Qualität (Fund.)» im Signal-Score (ROE, Verschuldung, FCF, Marge). Klicken zum Sortieren." onClick={() => handleSort('qualityScore')}>
                         <span className={sortKey === 'qualityScore' ? 'text-[#00CFC1]' : 'text-gray-400'}>Bewertung {sortKey === 'qualityScore' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Signal-Score 0-100 (Momentum + Qualität + LPPL) — klicken zum Sortieren" onClick={() => handleSort('signalScore')}>
@@ -2013,6 +2116,19 @@ export default function PortfolioDetailsPage() {
                     {holdings
                       .slice()
                       .sort((a: any, b: any) => {
+                        // Asset-class order: Aktien(0) → Immobilien(1) → Obligationen(2) → Gold(3) → Rohstoffe(4) → Krypto(5) → Cash(6) → Other(7)
+                        const ASSET_CLASS_ORDER: Record<string, number> = {
+                          'Aktien': 0, 'Immobilien': 1, 'Obligationen': 2, 'Gold': 3, 'Rohstoffe': 4, 'Krypto': 5, 'Cash': 6,
+                        };
+                        const getAssetOrder = (h: any) => {
+                          const label = SLEEVE_TICKER_LABEL[(h.ticker || '').toUpperCase()];
+                          if (label) return ASSET_CLASS_ORDER[label] ?? 7;
+                          if (h.assetType === 'cash') return 6;
+                          return 0; // Aktien
+                        };
+                        const aClass = getAssetOrder(a);
+                        const bClass = getAssetOrder(b);
+                        if (sortKey === 'weight' && aClass !== bClass) return aClass - bClass;
                         let aVal: number, bVal: number;
                         if (sortKey === 'weight') {
                           aVal = parseFloat(a.weight || '0');
@@ -2035,10 +2151,37 @@ export default function PortfolioDetailsPage() {
                         return sortDir === 'desc' ? bVal - aVal : aVal - bVal;
                       })
                       .map((h: any) => {
+                        const isBond = h.assetType === 'bond';
+                        const isCommodity = h.assetType === 'commodity';
+                        const isCrypto = h.assetType === 'crypto';
+                        // ACS-1: Detect asset class from category for display purposes
+                        const cat = (h.category || '').toLowerCase();
+                        const isGold = cat.includes('gold');
+                        const isRealEstate = cat.includes('immobilien') || cat.includes('reit');
+                        const isCommodityByCategory = cat.includes('rohstoff') || cat.includes('commodity');
+                        const isCryptoByCategory = cat.includes('krypto') || cat.includes('crypto');
+                        const isBondByCategory = cat.includes('obligation') || cat.includes('bond') || isBond;
+                        const isNonEquity = isGold || isRealEstate || isCommodityByCategory || isCryptoByCategory || isBondByCategory;
+                        // Score/signal description labels per asset class
+                        const scoreDesc = isBondByCategory ? 'Yield · RSI · 52W-Range · Volatilität'
+                          : isGold ? 'Momentum · RSI · 52W-Range · Volatilität'
+                          : isCommodityByCategory ? 'Momentum · RSI · 52W-Range · Volatilität'
+                          : isCryptoByCategory ? 'Momentum · RSI · 52W-Range'
+                          : isRealEstate ? 'Yield · RSI · 52W-Range · Volatilität'
+                          : 'P/E · PEG · Beta · Volatilität · Sharpe';
+                        const signalDesc = isBondByCategory ? 'Yield-Trend + Momentum'
+                          : isGold ? 'Momentum + Trend'
+                          : isCommodityByCategory ? 'Momentum + Trend'
+                          : isCryptoByCategory ? 'Momentum + Trend'
+                          : isRealEstate ? 'Yield + Momentum'
+                          : 'Momentum + Qualität + LPPL-Risiko';
                         const ytd = parseFloat(h.ytdPerformance || '0');
                         const today = parseFloat(h.dailyChangePercent || h.changePercent || '0');
                         const weight = parseFloat(h.weight || '0');
-                        const value = (h.shares || 0) * (h.currentPriceCHF || 0);
+                        // Bonds: value = nominalValue × pricePercent / 100 (already computed server-side as valueCHF)
+                        const value = isBond
+                          ? (h.valueCHF || parseFloat(h.totalValue || '0'))
+                          : (parseFloat(h.shares || '0') * (h.currentPriceCHF || 0));
                         const isExpanded = expandedTicker === h.ticker;
                         const sig = signalMap.get(h.ticker);
                         const qualScore = h.qualityScore ?? null;
@@ -2061,11 +2204,26 @@ export default function PortfolioDetailsPage() {
                             }}
                           >
                             <td className="px-5 py-3.5">
-                              <span className="font-mono text-xs font-semibold text-gray-300 tracking-wide">{h.ticker}</span>
+                              {isBond ? (
+                                <span className="font-mono text-xs font-semibold text-blue-400 tracking-wide" title={h.isin || h.ticker}>
+                                  {(h.isin || h.ticker).slice(0, 12)}
+                                </span>
+                              ) : (
+                                <span className="font-mono text-xs font-semibold text-gray-300 tracking-wide">{h.ticker}</span>
+                              )}
                             </td>
                             <td className="px-3 py-3.5 text-sm text-white">
                               <div className="flex items-center gap-2">
                                 <span>{h.companyName}</span>
+                                {isBond && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 shrink-0">Obligation</span>
+                                )}
+                                {isCommodity && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 shrink-0">Rohwaren</span>
+                                )}
+                                {isCrypto && (
+                                  <span className="text-xs px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30 shrink-0">Krypto</span>
+                                )}
                                 {/* U-13: fehlender Kurs/Wechselkurs → Badge statt stiller CHF 0 */}
                                 {(h.priceMissing || h.fxMissing) && (
                                   <UiTooltip>
@@ -2091,9 +2249,59 @@ export default function PortfolioDetailsPage() {
                               </div>
                             </td>
                             <td className="px-3 py-3.5">
-                              <span className="text-xs text-[#00CFC1]/80">{h.sector || '—'}</span>
+                              {(() => {
+                                const sleeveLabel = SLEEVE_TICKER_LABEL[h.ticker?.toUpperCase()];
+                                const cfg = sleeveLabel ? SLEEVE_LABEL_CONFIG[sleeveLabel] : null;
+                                if (cfg) return (
+                                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: cfg.bg, color: cfg.color }}>
+                                    <span>{cfg.icon}</span><span>{sleeveLabel}</span>
+                                  </span>
+                                );
+                                return <span className="text-xs text-[#00CFC1]/80">{h.sector || '—'}</span>;
+                              })()}
                             </td>
                             <td className="px-3 py-3.5 text-right text-sm text-gray-300">{weight.toFixed(1)}%</td>
+                            {showDetailCols && (() => {
+                              if (isBond) {
+                                // Bonds: show Nominal, Kurs%, —, —
+                                const nominalVal = parseFloat(h.nominalValue || h.shares || '0');
+                                const pricePercent = parseFloat(h.currentPrice || '0');
+                                return (
+                                  <>
+                                    <td className="px-3 py-3.5 text-right text-sm text-gray-300" title="Nominalwert">
+                                      {nominalVal > 0 ? `${h.currency || 'CHF'} ${new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(nominalVal)}` : '—'}
+                                    </td>
+                                    <td className="px-3 py-3.5 text-right text-sm text-gray-300" title="Kurs in %">
+                                      {pricePercent > 0 ? `${pricePercent.toFixed(2)}%` : '—'}
+                                    </td>
+                                    <td className="px-3 py-3.5 text-right text-sm text-gray-400">—</td>
+                                    <td className="px-3 py-3.5 text-right text-sm text-gray-400">—</td>
+                                  </>
+                                );
+                              }
+                              const sharesVal = parseFloat(h.shares || '0');
+                              const priceLocal = parseFloat(h.currentPriceLocal || h.currentPriceCHF || '0');
+                              const priceCHF = parseFloat(h.currentPriceCHF || '0');
+                              const cur = h.currency || 'CHF';
+                              const isFx = cur !== 'CHF';
+                              const fxRateVal = parseFloat(h.fxRate || '0') || (priceCHF > 0 && priceLocal > 0 ? priceCHF / priceLocal : 0);
+                              return (
+                                <>
+                                  <td className="px-3 py-3.5 text-right text-sm text-gray-300">
+                                    {sharesVal > 0 ? new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(Math.round(sharesVal)) : '—'}
+                                  </td>
+                                  <td className="px-3 py-3.5 text-right text-sm text-gray-300">
+                                    {isFx && priceLocal > 0 ? `${cur} ${new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(priceLocal)}` : '—'}
+                                  </td>
+                                  <td className="px-3 py-3.5 text-right text-sm text-gray-300">
+                                    {isFx && fxRateVal > 0 ? new Intl.NumberFormat('de-CH', { minimumFractionDigits: 4, maximumFractionDigits: 4 }).format(fxRateVal) : '—'}
+                                  </td>
+                                  <td className="px-3 py-3.5 text-right text-sm text-gray-300">
+                                    {priceCHF > 0 ? `CHF ${new Intl.NumberFormat('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(priceCHF)}` : '—'}
+                                  </td>
+                                </>
+                              );
+                            })()}
                             <td className="px-3 py-3.5 text-right">
                               {(h.priceMissing || h.fxMissing) ? (
                                 <span className="text-sm text-gray-400" aria-label="Wert nicht verfügbar">—</span>
@@ -2156,27 +2364,57 @@ export default function PortfolioDetailsPage() {
                                   <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
                                     <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Scores & Signal</h4>
 
-                                    {/* Haupt-Scores: Qualität + Signal nebeneinander */}
+                                    {/* Haupt-Scores: Bewertung + Signal nebeneinander */}
                                     <div className="grid grid-cols-2 gap-3 mb-3">
                                       <div className="bg-[#0a0f1a] rounded-md p-2.5">
                                         <div className="flex items-center gap-1.5 mb-1">
                                           <ShieldCheck className="h-3.5 w-3.5 text-[#00CFC1]" />
-                                          <p className="text-xs text-gray-400">Qualitäts-Score</p>
+                                          <p className="text-xs text-gray-400">{isNonEquity ? 'Technischer Score' : 'Bewertungs-Score'}</p>
+                                          <UiTooltip>
+                                            <TooltipTrigger asChild>
+                                              <button type="button" aria-label="Was ist der Bewertungs-Score?" className="text-gray-600 hover:text-gray-300">
+                                                <Info className="h-3 w-3" />
+                                              </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="bg-[#1a1f2e] border-white/20 text-white max-w-[260px] p-3">
+                                              <p className="text-xs font-semibold mb-1">{isNonEquity ? 'Technischer Score (0–100)' : 'Bewertungs-Score (0–100)'}</p>
+                                              <p className="text-xs text-gray-300">
+                                                {isNonEquity
+                                                  ? `Technische Attraktivität basierend auf ${scoreDesc}. Höher = bessere Einstiegssituation.`
+                                                  : 'Wie attraktiv ist die Aktie preislich/risikoseitig bewertet — aus P/E, PEG, Beta, Volatilität und Sharpe. Höher = günstiger/robuster.'}
+                                              </p>
+                                            </TooltipContent>
+                                          </UiTooltip>
                                         </div>
                                         <p className={`text-xl font-bold font-mono ${qualColor}`}>
                                           {qualScore !== null ? qualScore : '—'}<span className="text-xs text-gray-500">/100</span>
                                         </p>
-                                        <p className="text-[10px] text-gray-500 mt-0.5">P/E · PEG · Beta · Volatilität · Sharpe</p>
+                                        <p className="text-[10px] text-gray-500 mt-0.5">{scoreDesc}</p>
                                       </div>
                                       <div className="bg-[#0a0f1a] rounded-md p-2.5">
                                         <div className="flex items-center gap-1.5 mb-1">
                                           <Zap className="h-3.5 w-3.5 text-yellow-400" />
                                           <p className="text-xs text-gray-400">Signal-Score</p>
+                                          <UiTooltip>
+                                            <TooltipTrigger asChild>
+                                              <button type="button" aria-label="Was ist der Signal-Score?" className="text-gray-600 hover:text-gray-300">
+                                                <Info className="h-3 w-3" />
+                                              </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="top" className="bg-[#1a1f2e] border-white/20 text-white max-w-[260px] p-3">
+                                              <p className="text-xs font-semibold mb-1">Signal-Score (0–100)</p>
+                                              <p className="text-xs text-gray-300">
+                                                {isNonEquity
+                                                  ? `Signal basierend auf ${signalDesc}. Höher = stärkeres Kaufsignal.`
+                                                  : 'Kauf-/Verkaufssignal aus Momentum, fundamentaler Qualität und LPPL-Bubble-Risiko. Höher = stärkeres Kaufsignal. Die Einzelteile sehen Sie unter «Score-Komponenten».'}
+                                              </p>
+                                            </TooltipContent>
+                                          </UiTooltip>
                                         </div>
                                         <p className={`text-xl font-bold font-mono ${sigColor}`}>
                                           {signalScore !== null ? Math.round(signalScore) : '—'}<span className="text-xs text-gray-500">/100</span>
                                         </p>
-                                        <p className="text-[10px] text-gray-500 mt-0.5">Momentum + Qualität + LPPL-Risiko</p>
+                                        <p className="text-[10px] text-gray-500 mt-0.5">{signalDesc}</p>
                                       </div>
                                     </div>
 
@@ -2200,9 +2438,12 @@ export default function PortfolioDetailsPage() {
                                           </div>
                                         </div>
 
-                                        {/* Komponenten-Breakdown */}
-                                        <div className="border-t border-white/5 pt-2">
-                                          <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Score-Komponenten</p>
+                                        {/* Komponenten-Breakdown — standardmässig eingeklappt (Details-Toggle) */}
+                                        <details className="border-t border-white/5 pt-2 group">
+                                          <summary className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5 cursor-pointer hover:text-gray-300 flex items-center gap-1 list-none select-none [&::-webkit-details-marker]:hidden">
+                                            <ChevronDown className="h-3 w-3 -rotate-90 group-open:rotate-0 transition-transform" />
+                                            Score-Komponenten
+                                          </summary>
                                           <div className="grid grid-cols-2 gap-1.5">
                                             {/* Momentum */}
                                             <div className="flex items-center justify-between bg-[#0a0f1a] rounded px-2 py-1">
@@ -2264,52 +2505,91 @@ export default function PortfolioDetailsPage() {
                                               }`}>{(sig.bubbleScore * 100).toFixed(0)}%</span>
                                             </div>
                                           )}
-                                        </div>
+                                        </details>
                                       </div>
                                     )}
                                   </div>
-                                  {/* Fundamentals Panel */}
+                                  {/* Fundamentals Panel — ACS-1: asset-class-aware metrics */}
                                   <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
-                                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Fundamentaldaten</h4>
+                                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                                      {isBondByCategory ? 'Obligationen-Kennzahlen'
+                                        : isGold ? 'Gold-Kennzahlen'
+                                        : isCommodityByCategory ? 'Rohstoff-Kennzahlen'
+                                        : isCryptoByCategory ? 'Krypto-Kennzahlen'
+                                        : isRealEstate ? 'Immobilien-Kennzahlen'
+                                        : 'Fundamentaldaten'}
+                                    </h4>
                                     <div className="grid grid-cols-3 gap-x-4 gap-y-2">
-                                      <div>
-                                        <p className="text-xs text-gray-400">P/E Ratio</p>
-                                        <p className="text-sm font-semibold text-white">{sig?.peRatio?.toFixed(1) ?? (h.peRatio ? parseFloat(h.peRatio).toFixed(1) : '—')}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-gray-400">PEG Ratio</p>
-                                        <p className="text-sm font-semibold text-white">{sig?.pegRatio?.toFixed(2) ?? (h.pegRatio ? parseFloat(h.pegRatio).toFixed(2) : '—')}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-gray-400">Div. Rendite</p>
-                                        <p className="text-sm font-semibold text-white">{sig?.dividendYield?.toFixed(2) ?? (h.dividendYield ? parseFloat(h.dividendYield).toFixed(2) : '—')}%</p>
-                                      </div>
+                                      {/* Equity-only: P/E and PEG */}
+                                      {!isNonEquity && (
+                                        <>
+                                          <div>
+                                            <p className="text-xs text-gray-400">P/E Ratio</p>
+                                            <p className="text-sm font-semibold text-white">{sig?.peRatio?.toFixed(1) ?? (h.peRatio ? parseFloat(h.peRatio).toFixed(1) : '—')}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-gray-400">PEG Ratio</p>
+                                            <p className="text-sm font-semibold text-white">{sig?.pegRatio?.toFixed(2) ?? (h.pegRatio ? parseFloat(h.pegRatio).toFixed(2) : '—')}</p>
+                                          </div>
+                                        </>
+                                      )}
+                                      {/* Bonds & REITs: Yield/Coupon */}
+                                      {(isBondByCategory || isRealEstate) && (
+                                        <div>
+                                          <p className="text-xs text-gray-400">{isBondByCategory ? 'Rendite (Coupon)' : 'Ausschüttungsrendite'}</p>
+                                          <p className="text-sm font-semibold text-emerald-400">{sig?.dividendYield?.toFixed(2) ?? (h.dividendYield ? parseFloat(h.dividendYield).toFixed(2) : '—')}%</p>
+                                        </div>
+                                      )}
+                                      {/* Equity: Div. Rendite */}
+                                      {!isNonEquity && (
+                                        <div>
+                                          <p className="text-xs text-gray-400">Div. Rendite</p>
+                                          <p className="text-sm font-semibold text-white">{sig?.dividendYield?.toFixed(1) ?? (h.dividendYield ? parseFloat(h.dividendYield).toFixed(1) : '—')}%</p>
+                                        </div>
+                                      )}
+                                      {/* RSI — universal */}
                                       <div>
                                         <p className="text-xs text-gray-400">RSI (14)</p>
                                         <p className={`text-sm font-semibold ${
                                           sig?.rsi14 ? (sig.rsi14 < 30 ? 'text-emerald-400' : sig.rsi14 > 70 ? 'text-red-400' : 'text-white') : 'text-white'
                                         }`}>{sig?.rsi14?.toFixed(0) ?? '—'}</p>
                                       </div>
+                                      {/* Zielkurs — universal */}
                                       <div>
                                         <p className="text-xs text-gray-400">Zielkurs</p>
                                         <p className="text-sm font-semibold text-white">{sig?.targetPrice?.toFixed(2) ?? '—'}</p>
                                       </div>
+                                      {/* 52W Hoch — universal */}
                                       <div>
                                         <p className="text-xs text-gray-400">52W Hoch</p>
                                         <p className="text-sm font-semibold text-white">{sig?.fiftyTwoWeekHigh?.toFixed(2) ?? '—'}</p>
                                       </div>
+                                      {/* 52W Tief — universal */}
                                       <div>
                                         <p className="text-xs text-gray-400">52W Tief</p>
                                         <p className="text-sm font-semibold text-white">{sig?.fiftyTwoWeekLow?.toFixed(2) ?? '—'}</p>
                                       </div>
-                                      <div>
-                                        <p className="text-xs text-gray-400">Beta</p>
-                                        <p className="text-sm font-semibold text-white">{h.beta ? parseFloat(h.beta).toFixed(2) : '—'}</p>
-                                      </div>
+                                      {/* Beta — equity only (non-equity: not meaningful) */}
+                                      {!isNonEquity && (
+                                        <div>
+                                          <p className="text-xs text-gray-400">Beta</p>
+                                          <p className="text-sm font-semibold text-white">{h.beta ? parseFloat(h.beta).toFixed(2) : '—'}</p>
+                                        </div>
+                                      )}
+                                      {/* Volatilität — universal */}
                                       <div>
                                         <p className="text-xs text-gray-400">Volatilität</p>
                                         <p className="text-sm font-semibold text-white">{h.volatility ? parseFloat(h.volatility).toFixed(1) + '%' : '—'}</p>
                                       </div>
+                                      {/* YTD Performance — non-equity highlight */}
+                                      {isNonEquity && (
+                                        <div>
+                                          <p className="text-xs text-gray-400">YTD</p>
+                                          <p className={`text-sm font-semibold ${
+                                            parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-emerald-400' : 'text-red-400'
+                                          }`}>{parseFloat(h.ytdPerformance || '0') >= 0 ? '+' : ''}{parseFloat(h.ytdPerformance || '0').toFixed(1)}%</p>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -2502,7 +2782,7 @@ export default function PortfolioDetailsPage() {
               </div>
             )}
             {(() => {
-              const buys = transactions.filter((t: any) => (t.type || t.transactionType) === 'BUY' || (t.type || t.transactionType) === 'buy');
+              const buys = transactions.filter((t: any) => ['BUY', 'buy', 'entry'].includes(t.type || t.transactionType));
               const sells = transactions.filter((t: any) => (t.type || t.transactionType) === 'SELL' || (t.type || t.transactionType) === 'sell');
               const dividends = transactions.filter((t: any) => (t.type || t.transactionType) === 'dividend');
               // Volumen in CHF (totalAmountCHF ist der vom Server umgerechnete Betrag; Fallback shares*price)
@@ -2642,9 +2922,32 @@ export default function PortfolioDetailsPage() {
                               <tbody>
                                 {filteredTx.slice(0, 50).map((t: any) => {
                                   const txType = t.type || t.transactionType;
-                                  const isBuy = txType === 'BUY' || txType === 'buy';
+                                  const isBuy = txType === 'BUY' || txType === 'buy' || txType === 'entry';
                                   const isSell = txType === 'SELL' || txType === 'sell';
                                   const isDiv = txType === 'dividend';
+                                  const isDeposit = txType === 'deposit';
+                                  const isWithdrawal = txType === 'withdrawal';
+                                  const isCashTx = isDeposit || isWithdrawal;
+                                  // For buy/sell: use pricePerShare; if 0, derive from totalAmountCHF/shares; for cash transactions: show '—'
+                                  const displayPrice = isCashTx ? null : (() => {
+                                    const raw = parseFloat(t.price || t.pricePerShare || '0');
+                                    if (raw > 0) return raw;
+                                    // Derive price from totalAmountCHF / shares when pricePerShare not stored
+                                    const shares = parseFloat(t.shares || t.quantity || '0');
+                                    const total = parseFloat(t.totalAmountCHF || t.totalAmount || '0');
+                                    return shares > 0 && total > 0 ? total / shares : 0;
+                                  })();
+                                  // For cash transactions: show totalAmountCHF or totalAmount directly
+                                  // For buy/sell: calculate from shares * price, fallback to totalAmountCHF
+                                  const displayTotal = isCashTx
+                                    ? parseFloat(t.totalAmountCHF || t.totalAmount || '0')
+                                    : (() => {
+                                        const shares = parseFloat(t.shares || t.quantity || '0');
+                                        const price = parseFloat(t.price || t.pricePerShare || '0');
+                                        if (shares > 0 && price > 0) return shares * price;
+                                        return parseFloat(t.totalAmountCHF || t.totalAmount || '0');
+                                      })();
+                                  const displayCurrency = t.currency || 'CHF';
                                   return (
                                     <tr key={t.id} className={`border-b border-white/5 hover:bg-white/[0.03] ${selectedTxIds.has(t.id) ? 'bg-red-500/5' : ''}`}>
                                       {!isDemo && (
@@ -2657,20 +2960,22 @@ export default function PortfolioDetailsPage() {
                                         <span className={`text-xs font-medium px-2 py-0.5 rounded ${
                                           isBuy ? 'bg-emerald-500/10 text-positive' :
                                           isDiv ? 'bg-[#00CFC1]/10 text-[#00CFC1]' :
+                                          isDeposit ? 'bg-blue-500/10 text-blue-400' :
+                                          isWithdrawal ? 'bg-orange-500/10 text-orange-400' :
                                           'bg-red-500/10 text-negative'
                                         }`}>
-                                          {isBuy ? 'Kauf' : isSell ? 'Verkauf' : isDiv ? 'Dividende' : txType}
+                                          {isBuy ? (txType === 'entry' ? 'Eingang' : 'Kauf') : isSell ? 'Verkauf' : isDiv ? 'Dividende' : isDeposit ? 'Einzahlung' : isWithdrawal ? 'Auszahlung' : txType}
                                         </span>
                                       </td>
                                       <td className="px-3 py-3">
-                                        <div className="font-mono font-semibold text-sm text-gray-300">{t.ticker}</div>
+                                        <div className="font-mono font-semibold text-sm text-gray-300">{t.ticker || (isCashTx ? <span className="text-gray-500 text-xs italic">Konto</span> : '—')}</div>
                                         {t.companyName && t.companyName !== t.ticker && (
                                           <div className="text-xs text-gray-500 truncate max-w-[120px]">{t.companyName}</div>
                                         )}
                                       </td>
-                                      <td className="px-3 py-3 text-right text-sm text-white">{t.shares || t.quantity || '—'}</td>
-                                      <td className="px-3 py-3 text-right text-sm text-gray-300">{formatCurrency(t.price || t.pricePerShare || 0, t.currency || 'CHF')}</td>
-                                      <td className="px-5 py-3 text-right text-sm text-white font-semibold">{formatCurrency((t.shares || t.quantity || 0) * (t.price || t.pricePerShare || 0), t.currency || 'CHF')}</td>
+                                      <td className="px-3 py-3 text-right text-sm text-white">{isCashTx ? '—' : (t.shares || t.quantity || '—')}</td>
+                                      <td className="px-3 py-3 text-right text-sm text-gray-300">{displayPrice != null && displayPrice > 0 ? formatCurrency(displayPrice, displayCurrency) : '—'}</td>
+                                      <td className="px-5 py-3 text-right text-sm text-white font-semibold">{formatCurrency(displayTotal, 'CHF')}</td>
                                       {!isDemo && (
                                         <td className="px-2 py-3">
                                           <DeleteTransactionButton transactionId={t.id} portfolioId={portfolioId} />
@@ -2715,8 +3020,15 @@ export default function PortfolioDetailsPage() {
           </TabsContent>
 
           {/* OPTIMIERUNG & EMPFEHLUNGEN — F3: konsolidiert (Optimieren KI + Empfehlungen KI) */}
+          {/* Premium-Feature «optimizer» (Basic/Pro) — im Soft-Launch ohne Wirkung. */}
           <TabsContent value="optimierung" className="mt-6">
-            <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} onNavigateToPositions={() => handleTabChange('positionen')} portfolioCreatedAt={portfolio.createdAt ? String(portfolio.createdAt) : null} portfolioType={portfolio.portfolioType ?? null} />
+            <FeatureGate
+              feature="optimizer"
+              title="Portfolio-Optimierung & KI-Empfehlungen"
+              description="Lassen Sie Ihr Portfolio optimieren und erhalten Sie konkrete KI-Umschichtungsvorschläge. Teil von Basic und Pro."
+            >
+              <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} onNavigateToPositions={() => handleTabChange('positionen')} portfolioCreatedAt={portfolio.createdAt ? String(portfolio.createdAt) : null} portfolioType={portfolio.portfolioType ?? null} />
+            </FeatureGate>
           </TabsContent>
 
           {/* DEEP-DIVE TAB — Fundamentaldaten + KI-Analyse (F-12: aus Copilot hierher verschoben) */}
@@ -2735,6 +3047,15 @@ export default function PortfolioDetailsPage() {
               <Button variant="outline" size="sm" onClick={() => navigate('/price-alerts')}>
                 <Bell className="h-4 w-4 mr-2" />
                 Alarm erstellen
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsDepositModalOpen(true)}
+                className="border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+              >
+                <DollarSign className="h-4 w-4 mr-2" />
+                Einzahlung
               </Button>
               <Button 
                 variant="outline" 
@@ -3006,6 +3327,68 @@ export default function PortfolioDetailsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Einzahlung Dialog für Demo-Portfolios */}
+      <Dialog open={isDepositModalOpen} onOpenChange={(open) => { setIsDepositModalOpen(open); if (!open) setDepositAmount(''); }}>
+        <DialogContent className="bg-[#1a1f2e] border-[#00CFC1]/30 max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-emerald-400" />
+              Einzahlung
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              {isDemo
+                ? 'Kapital einzahlen und als Cash-Position im Demo-Portfolio verbuchen.'
+                : 'Kapital einzahlen und als Deposit-Transaktion im Live-Portfolio erfassen.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="deposit-amount" className="text-gray-300 text-sm">Betrag (CHF)</Label>
+              <Input
+                id="deposit-amount"
+                type="number"
+                min="1"
+                max="10000000"
+                step="1000"
+                placeholder="z.B. 10000"
+                value={depositAmount}
+                onChange={(e) => setDepositAmount(e.target.value)}
+                className="bg-[#0f1420] border-white/20 text-white placeholder:text-gray-500 focus:border-emerald-400"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && depositAmount && parseFloat(depositAmount) > 0) {
+                    depositMutation.mutate({ portfolioId, amount: parseFloat(depositAmount) });
+                  }
+                }}
+              />
+            </div>
+            <div className="bg-[#0f1420] rounded-lg p-3 space-y-1 text-xs text-gray-400">
+              <div className="flex justify-between">
+                <span>Aktuelles Kapital</span>
+                <span className="text-white font-mono">CHF {parseFloat(portfolio.investmentAmount || '0').toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+              </div>
+              {depositAmount && parseFloat(depositAmount) > 0 && (
+                <div className="flex justify-between text-emerald-400">
+                  <span>Nach Einzahlung</span>
+                  <span className="font-mono">CHF {(parseFloat(portfolio.investmentAmount || '0') + parseFloat(depositAmount)).toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsDepositModalOpen(false); setDepositAmount(''); }} className="border-white/10 text-gray-300 hover:bg-white/10">
+              Abbrechen
+            </Button>
+            <Button
+              onClick={() => depositMutation.mutate({ portfolioId, amount: parseFloat(depositAmount) })}
+              disabled={!depositAmount || parseFloat(depositAmount) <= 0 || depositMutation.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {depositMutation.isPending ? 'Wird verbucht…' : 'Einzahlen'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

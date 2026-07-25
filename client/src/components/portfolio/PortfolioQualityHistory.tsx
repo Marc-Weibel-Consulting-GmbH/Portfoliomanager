@@ -17,6 +17,9 @@
  */
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { InsightPanel, InsightExpandable } from "@/components/InsightPanel";
+import { getScoreBand } from "@/lib/scoreBand";
+import { KpiTooltip as RichKpiTooltip, type KpiKey } from "@/components/ui/KpiTooltip";
 import {
   LineChart,
   Line,
@@ -144,10 +147,11 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           label="Quality Score"
           value={qualityScore != null ? `${qualityScore}` : "—"}
           unit="/100"
+          suffix={qualityScore != null ? getScoreBand(qualityScore).label : undefined}
           delta={qualityDelta}
           icon={<Shield className="w-4 h-4" />}
           color="text-cyan-400"
-          tooltip="Gewichteter Score aus 5 Komponenten (Rendite 30%, Bewertung 25%, Risiko 20%, Ertrag 15%, Diversifikation 10%)"
+          tooltip="Gewichteter Score aus 5 Komponenten (Rendite 30%, Bewertung 25%, Risiko 15%, Ertrag 15%, Diversifikation 15%). Bänder: ≥80 Exzellent, 60–79 Solide, 40–59 Ausbaufähig, <40 Kritisch."
         />
         <KPICard
           label="Sharpe"
@@ -156,6 +160,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           icon={<TrendingUp className="w-4 h-4" />}
           color="text-cyan-400"
           tooltip="> 1 = gut, > 1.5 = exzellent. Portfolio-Sharpe aus Wertreihe (rf = 2%)"
+          kpiKey="sharpe"
         />
         <KPICard
           label="Max Drawdown"
@@ -163,6 +168,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           icon={<TrendingDown className="w-4 h-4" />}
           color="text-violet-400"
           tooltip="Grösster Wertverlust vom Höchststand. < -10% = moderat, < -20% = hoch"
+          kpiKey="maxDrawdown"
         />
         <KPICard
           label="Beta"
@@ -171,6 +177,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           icon={<Shield className="w-4 h-4" />}
           color="text-violet-400"
           tooltip="Gewichteter Ø der Einzeltitel-Betas. < 1 = defensiver als Markt"
+          kpiKey="beta"
         />
         <KPICard
           label="Ø PEG"
@@ -178,6 +185,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           icon={<BarChart3 className="w-4 h-4" />}
           color="text-amber-400"
           tooltip="< 1.5 = günstig, 1.5–2.5 = fair, > 3 = teuer"
+          kpiKey="peg"
         />
         <KPICard
           label="Div. Rendite"
@@ -186,6 +194,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
           icon={<Coins className="w-4 h-4" />}
           color="text-emerald-400"
           tooltip="Gewichtete Brutto-Dividendenrendite des Portfolios"
+          kpiKey="dividend"
         />
       </div>
 
@@ -237,6 +246,35 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
         avgDivYield={avgDivYield}
         maxDrawdown={maxDrawdown}
       />
+
+      {/* InsightPanel: Detailbegründung pro Quality-Score-Faktor */}
+      {latest?.qualityComponents && Array.isArray(latest.qualityComponents) && latest.qualityComponents.length > 0 && (
+        <div className="mt-4">
+          <InsightExpandable
+            title="Quality Score — Detailbegründung pro Faktor"
+            summary={(() => {
+              const comps = latest.qualityComponents as any[];
+              const sorted = [...comps].filter(c => c.available).sort((a, b) => b.score - a.score);
+              const best = sorted[0];
+              const worst = sorted[sorted.length - 1];
+              const qs = qualityScore ?? 0;
+              const intro = `Ihr Portfolio erzielt einen Quality Score von ${qs}/100 — Einordnung: ${getScoreBand(qs).label}.`;
+              const detail = best && worst && best.name !== worst.name
+                ? ` Stärkster Faktor: ${best.name} (${best.score}/100, Gewicht ${Math.round(best.weight * 100)}%). Schwächster Faktor: ${worst.name} (${worst.score}/100, Gewicht ${Math.round(worst.weight * 100)}%).`
+                : '';
+              return intro + detail;
+            })()}
+            factors={(latest.qualityComponents as any[]).filter(c => c.available).map((c: any) => ({
+              label: `${c.name} (${Math.round(c.weight * 100)}%)`,
+              value: `${c.score}/100`,
+              sentiment: c.score >= 70 ? 'positive' as const : c.score >= 40 ? 'neutral' as const : 'negative' as const,
+            }))}
+            variant={qualityScore != null && qualityScore >= 70 ? 'success' : qualityScore != null && qualityScore < 40 ? 'warning' : 'default'}
+            triggerLabel="Detailbegründung Quality Score anzeigen"
+            riskNote="Der Quality Score basiert auf historischen Kennzahlen. Vergangenheitswerte sind kein Indikator für zukünftige Ergebnisse."
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -253,6 +291,7 @@ function KPICard({
   icon,
   color,
   tooltip,
+  kpiKey,
 }: {
   label: string;
   value: string;
@@ -262,12 +301,21 @@ function KPICard({
   icon: React.ReactNode;
   color: string;
   tooltip: string;
+  kpiKey?: KpiKey;
 }) {
   return (
     <div className="relative group bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/[0.08] transition-colors">
       <div className="flex items-center gap-1.5 mb-1">
         <span className={color}>{icon}</span>
         <span className="text-[11px] text-white/50 uppercase tracking-wide">{label}</span>
+        {kpiKey
+          ? <RichKpiTooltip kpi={kpiKey} iconOnly side="top" />
+          : (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-white/20 rounded-lg text-xs text-white/80 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-52 text-center whitespace-normal">
+              {tooltip}
+            </div>
+          )
+        }
       </div>
       <div className="flex items-baseline gap-1">
         <span className="text-xl font-bold text-white">{value}</span>
@@ -280,10 +328,6 @@ function KPICard({
       )}
       {delta == null && <div className="text-xs mt-0.5 text-white/30">—</div>}
       {suffix && <div className="text-[10px] text-white/30 mt-0.5">{suffix}</div>}
-      {/* Tooltip */}
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 border border-white/20 rounded-lg text-xs text-white/80 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 w-52 text-center whitespace-normal">
-        {tooltip}
-      </div>
     </div>
   );
 }
@@ -494,13 +538,7 @@ function Interpretation({
   // Build interpretation text (§4.5 — regelbasiert, deterministisch)
   const parts: string[] = [];
 
-  if (qualityScore >= 75) {
-    parts.push(`Das Portfolio erreicht einen Quality Score von ${qualityScore}/100 — eine starke Gesamtbewertung.`);
-  } else if (qualityScore >= 50) {
-    parts.push(`Das Portfolio erreicht einen Quality Score von ${qualityScore}/100 — solide, mit Verbesserungspotenzial.`);
-  } else {
-    parts.push(`Das Portfolio erreicht einen Quality Score von ${qualityScore}/100 — hier besteht deutliches Optimierungspotenzial.`);
-  }
+  parts.push(`Das Portfolio erreicht einen Quality Score von ${qualityScore}/100 — Einordnung: ${getScoreBand(qualityScore).label}.`);
 
   const sorted = [...components].filter((c: any) => c.available).sort((a: any, b: any) => b.score - a.score);
   if (sorted.length >= 2) {

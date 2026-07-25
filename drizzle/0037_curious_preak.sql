@@ -1,0 +1,20 @@
+CREATE TABLE `gapFillConfig` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`minStocksPerSector` int NOT NULL DEFAULT 3,
+	`minDividendStocks` int NOT NULL DEFAULT 5,
+	`minDividendYield` int NOT NULL DEFAULT 2,
+	`maxCandidatesPerGap` int NOT NULL DEFAULT 3,
+	`maxStocksPerRun` int NOT NULL DEFAULT 10,
+	`minMarketCapBillions` int NOT NULL DEFAULT 0,
+	`targetSectors` json NOT NULL,
+	`allowedExchanges` json NOT NULL,
+	`enableRegionCheck` tinyint NOT NULL DEFAULT 0,
+	`minStocksPerRegion` int NOT NULL DEFAULT 2,
+	`enableLowBetaCheck` tinyint NOT NULL DEFAULT 0,
+	`maxBetaForLowBeta` varchar(10) NOT NULL DEFAULT '0.8',
+	`minLowBetaStocks` int NOT NULL DEFAULT 3,
+	`enableEsgCheck` tinyint NOT NULL DEFAULT 0,
+	`minEsgStocks` int NOT NULL DEFAULT 2,
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `gapFillConfig_id` PRIMARY KEY(`id`)
+);

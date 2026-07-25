@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /dashboard
+Disallow: /aktien
+Disallow: /markt
+Disallow: /copilot
+Disallow: /tools
+Disallow: /einstellungen
+
+Sitemap: https://portfolio.mw/sitemap.xml

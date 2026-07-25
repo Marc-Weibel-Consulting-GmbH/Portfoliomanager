@@ -135,9 +135,17 @@ export async function handleMarketReportWebhook(req: any, res: any) {
     const correctDateDE = new Date(date + 'T00:00:00').toLocaleDateString('de-CH', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
     });
+    const monthsDE = 'Januar|Februar|M\u00e4rz|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember';
+    const weekdaysDE = 'Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag';
     const sanitisedContent = (content as string)
+      // Replace "Mittwoch, Donnerstag, 30. Juli 2026" (one or more weekdays before the date)
       .replace(
-        /\d{1,2}\.\s*(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}/gi,
+        new RegExp(`(?:(?:${weekdaysDE}),\\s*)+\\d{1,2}\\.\\s*(?:${monthsDE})\\s+\\d{4}`, 'gi'),
+        correctDateDE
+      )
+      // Replace remaining bare dates like "30. Juli 2026"
+      .replace(
+        new RegExp(`\\d{1,2}\\.\\s*(?:${monthsDE})\\s+\\d{4}`, 'gi'),
         correctDateDE
       );
 

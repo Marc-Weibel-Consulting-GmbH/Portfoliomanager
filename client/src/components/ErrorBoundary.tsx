@@ -41,7 +41,6 @@ class ErrorBoundary extends Component<Props, State> {
               Bitte laden Sie die Seite neu. Falls das Problem bestehen bleibt,
               kontaktieren Sie uns über die Seite «Kontakt».
             </p>
-
             <button
               onClick={() => window.location.reload()}
               className={cn(

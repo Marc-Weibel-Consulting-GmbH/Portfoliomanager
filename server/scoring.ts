@@ -274,6 +274,71 @@ function scoreGrowthStock(metrics: StockMetrics): SubScore[] {
   return subScores;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// ACS-1 (2026-07): Asset-class-specific scoring functions
+// Obligationen, Gold, Rohstoffe, Krypto, Immobilien have no P/E / PEG.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Score for bond ETFs: Yield (50%), Momentum (25%), Volatility (25%) */
+function scoreBond(metrics: StockMetrics): SubScore[] {
+  const subScores: SubScore[] = [];
+  const yld = calcSubscore(metrics.dividendYield, [1, 2, 3.5, 5], false);
+  subScores.push({ metric: 'Rendite (Coupon)', value: metrics.dividendYield ?? null, score: yld.score, weight: 0.50, color: yld.color });
+  const mom = calcSubscore(metrics.ytdPerformance, [-10, -5, 0, 5], false);
+  subScores.push({ metric: 'Momentum (YTD)', value: metrics.ytdPerformance ?? null, score: mom.score, weight: 0.25, color: mom.color });
+  const vol = calcSubscore(metrics.volatility, [3, 6, 10, 10], true);
+  subScores.push({ metric: 'Volatilität', value: metrics.volatility ?? null, score: vol.score, weight: 0.25, color: vol.color });
+  return subScores;
+}
+
+/** Score for gold ETFs: Momentum (40%), Sharpe (35%), Volatility (25%) */
+function scoreGold(metrics: StockMetrics): SubScore[] {
+  const subScores: SubScore[] = [];
+  const mom = calcSubscore(metrics.ytdPerformance, [-15, -5, 5, 20], false);
+  subScores.push({ metric: 'Momentum (YTD)', value: metrics.ytdPerformance ?? null, score: mom.score, weight: 0.40, color: mom.color });
+  const sharpe = calcSubscore(metrics.sharpeRatio, [0.3, 0.7, 1.2, 1.8], false);
+  subScores.push({ metric: 'Sharpe Ratio', value: metrics.sharpeRatio ?? null, score: sharpe.score, weight: 0.35, color: sharpe.color });
+  const vol = calcSubscore(metrics.volatility, [10, 15, 22, 22], true);
+  subScores.push({ metric: 'Volatilität', value: metrics.volatility ?? null, score: vol.score, weight: 0.25, color: vol.color });
+  return subScores;
+}
+
+/** Score for commodity ETFs: Momentum (45%), Sharpe (30%), Volatility (25%) */
+function scoreCommodity(metrics: StockMetrics): SubScore[] {
+  const subScores: SubScore[] = [];
+  const mom = calcSubscore(metrics.ytdPerformance, [-20, -8, 5, 25], false);
+  subScores.push({ metric: 'Momentum (YTD)', value: metrics.ytdPerformance ?? null, score: mom.score, weight: 0.45, color: mom.color });
+  const sharpe = calcSubscore(metrics.sharpeRatio, [0.2, 0.6, 1.0, 1.5], false);
+  subScores.push({ metric: 'Sharpe Ratio', value: metrics.sharpeRatio ?? null, score: sharpe.score, weight: 0.30, color: sharpe.color });
+  const vol = calcSubscore(metrics.volatility, [12, 20, 30, 30], true);
+  subScores.push({ metric: 'Volatilität', value: metrics.volatility ?? null, score: vol.score, weight: 0.25, color: vol.color });
+  return subScores;
+}
+
+/** Score for crypto ETPs: Momentum (50%), Sharpe (30%), Volatility (20%) — higher thresholds */
+function scoreCrypto(metrics: StockMetrics): SubScore[] {
+  const subScores: SubScore[] = [];
+  const mom = calcSubscore(metrics.ytdPerformance, [-50, -20, 10, 80], false);
+  subScores.push({ metric: 'Momentum (YTD)', value: metrics.ytdPerformance ?? null, score: mom.score, weight: 0.50, color: mom.color });
+  const sharpe = calcSubscore(metrics.sharpeRatio, [0.2, 0.5, 1.0, 1.5], false);
+  subScores.push({ metric: 'Sharpe Ratio', value: metrics.sharpeRatio ?? null, score: sharpe.score, weight: 0.30, color: sharpe.color });
+  const vol = calcSubscore(metrics.volatility, [30, 50, 80, 80], true);
+  subScores.push({ metric: 'Volatilität', value: metrics.volatility ?? null, score: vol.score, weight: 0.20, color: vol.color });
+  return subScores;
+}
+
+/** Score for real estate ETFs (REITs): Yield (45%), Momentum (30%), Volatility (25%) */
+function scoreRealEstate(metrics: StockMetrics): SubScore[] {
+  const subScores: SubScore[] = [];
+  const yld = calcSubscore(metrics.dividendYield, [1.5, 2.5, 3.5, 5], false);
+  subScores.push({ metric: 'Ausschüttungsrendite', value: metrics.dividendYield ?? null, score: yld.score, weight: 0.45, color: yld.color });
+  const mom = calcSubscore(metrics.ytdPerformance, [-15, -5, 5, 20], false);
+  subScores.push({ metric: 'Momentum (YTD)', value: metrics.ytdPerformance ?? null, score: mom.score, weight: 0.30, color: mom.color });
+  const vol = calcSubscore(metrics.volatility, [10, 18, 28, 28], true);
+  subScores.push({ metric: 'Volatilität', value: metrics.volatility ?? null, score: vol.score, weight: 0.25, color: vol.color });
+  return subScores;
+}
+
 /**
  * Get color from total score
  */
@@ -293,7 +358,30 @@ export function calculateStockScore(
   stockType?: StockType,
   category?: string
 ): StockScore {
-  // Determine type if not provided
+  // ACS-1: Route to asset-class-specific scorer for non-equity assets
+  const cat = (category || '').toLowerCase();
+  let assetSubScores: SubScore[] | null = null;
+  let assetTypeName: StockType = 'growth';
+  if (cat.includes('obligation') || cat.includes('bond') || cat.includes('anleihe')) {
+    assetSubScores = scoreBond(metrics); assetTypeName = 'dividend';
+  } else if (cat.includes('gold')) {
+    assetSubScores = scoreGold(metrics); assetTypeName = 'growth';
+  } else if (cat.includes('rohstoff') || cat.includes('commodity') || cat.includes('rohwaren')) {
+    assetSubScores = scoreCommodity(metrics); assetTypeName = 'growth';
+  } else if (cat.includes('krypto') || cat.includes('crypto')) {
+    assetSubScores = scoreCrypto(metrics); assetTypeName = 'growth';
+  } else if (cat.includes('immobilien') || cat.includes('realestate') || cat.includes('reit')) {
+    assetSubScores = scoreRealEstate(metrics); assetTypeName = 'dividend';
+  }
+  if (assetSubScores !== null) {
+    let totalScore = 0; let totalWeight = 0;
+    for (const sub of assetSubScores) {
+      if (sub.value !== null && sub.score !== null) { totalScore += sub.score * sub.weight; totalWeight += sub.weight; }
+    }
+    const finalScore = totalWeight > 0 ? totalScore / totalWeight : 0;
+    return { ticker, type: assetTypeName, totalScore: Math.round(finalScore * 100) / 100, color: getColorFromScore(finalScore), subScores: assetSubScores };
+  }
+  // Equity path: determine type if not provided
   const type = stockType || determineStockType(metrics, category);
 
   // Calculate subscores based on type

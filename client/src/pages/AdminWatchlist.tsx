@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Plus, Trash2, RefreshCw, Sparkles, Search, TrendingUp, TrendingDown, Minus, Eye, Users, Bot, Star, ListChecks, Wrench } from "lucide-react";
+import { Breadcrumb } from "@/components/Breadcrumb";
 
 export default function AdminWatchlist() {
   const { user } = useAuth();
@@ -223,6 +224,12 @@ export default function AdminWatchlist() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Aktien-Universum", icon: <Eye className="h-4 w-4" /> },
+        ]}
+      />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -451,7 +458,7 @@ export default function AdminWatchlist() {
             <Card>
               <CardContent className="pt-4 pb-4">
                 <div className="text-2xl font-bold">{stats.total}</div>
-                <div className="text-xs text-muted-foreground">/ {stats.maxAllowed} Titel</div>
+                <div className="text-xs text-muted-foreground">Titel im Universum</div>
               </CardContent>
             </Card>
             <Card>

@@ -276,6 +276,84 @@ const normalizeResponseFormat = ({
   };
 };
 
+// ─── Kimi K2 Integration ───────────────────────────────────────────────────
+
+const KIMI_API_URL = "https://api.moonshot.ai/v1/chat/completions";
+const KIMI_MODEL = "kimi-k3"; // Kimi K3: flagship model with 1M context, long-horizon coding & reasoning
+
+/**
+ * Invoke Kimi K3 (flagship) via Moonshot AI API (api.moonshot.ai).
+ * Falls back to invokeLLM (Gemini) if KIMI_API_KEY is not set or request fails.
+ * Available models: kimi-k3, kimi-k2.6, kimi-k2.7-code, kimi-k2.7-code-highspeed
+ */
+export async function invokeKimi(params: InvokeParams): Promise<InvokeResult> {
+  const kimiKey = ENV.kimiApiKey;
+  if (!kimiKey) {
+    console.warn("[Kimi] KIMI_API_KEY not set, falling back to default LLM");
+    return invokeLLM(params);
+  }
+
+  const {
+    messages,
+    tools,
+    toolChoice,
+    tool_choice,
+    outputSchema,
+    output_schema,
+    responseFormat,
+    response_format,
+  } = params;
+
+  const payload: Record<string, unknown> = {
+    model: KIMI_MODEL,
+    messages: messages.map(normalizeMessage),
+    max_tokens: params.maxTokens || params.max_tokens || 16384,
+  };
+
+  if (tools && tools.length > 0) {
+    payload.tools = tools;
+  }
+
+  const normalizedToolChoice = normalizeToolChoice(toolChoice || tool_choice, tools);
+  if (normalizedToolChoice) {
+    payload.tool_choice = normalizedToolChoice;
+  }
+
+  const normalizedResponseFormat = normalizeResponseFormat({
+    responseFormat,
+    response_format,
+    outputSchema,
+    output_schema,
+  });
+  if (normalizedResponseFormat) {
+    payload.response_format = normalizedResponseFormat;
+  }
+
+  try {
+    const response = await fetch(KIMI_API_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${kimiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn(`[Kimi] Request failed (${response.status}): ${errorText}. Falling back to default LLM.`);
+      return invokeLLM(params);
+    }
+
+    const result = (await response.json()) as InvokeResult;
+    console.log(`[Kimi] Request successful (model: ${KIMI_MODEL})`);
+    return result;
+  } catch (err: any) {
+    console.warn(`[Kimi] Network error: ${err.message}. Falling back to default LLM.`);
+    return invokeLLM(params);
+  }
+}
+
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   assertApiKey();
 
@@ -308,9 +386,6 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   }
 
   payload.max_tokens = 32768
-  payload.thinking = {
-    "budget_tokens": 128
-  }
 
   const normalizedResponseFormat = normalizeResponseFormat({
     responseFormat,
@@ -320,7 +395,11 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   });
 
   if (normalizedResponseFormat) {
+    // Do NOT set thinking when using json_schema — they are incompatible with Gemini 2.5 Flash
     payload.response_format = normalizedResponseFormat;
+  } else {
+    // Only enable thinking for free-form text generation (no structured output)
+    payload.thinking = { budget_tokens: 128 };
   }
 
   const response = await fetch(resolveApiUrl(), {

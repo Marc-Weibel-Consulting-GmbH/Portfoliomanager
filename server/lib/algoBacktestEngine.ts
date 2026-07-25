@@ -15,7 +15,7 @@
  */
 
 import { getDb } from "../db";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, invokeKimi } from "../_core/llm";
 import { getMarktHubSignals, getSectorTilts, getDynamicRiskFreeRate, buildMarktHubContext, type MarktHubSignals } from "./marktHubSignals";
 
 // Aktuelle Algorithmus-Version (Semver)
@@ -246,7 +246,7 @@ async function createBacktestPortfolio(
   // Gewichtung (score-proportional mit Cap)
   const maxCap = Math.max(params.maxPositionWeight, 1.2 / selected.length);
   const total = selected.reduce((s, c) => s + c.combinedScore, 0) || 1;
-  let weights: Record<string, number> = {};
+  const weights: Record<string, number> = {};
   selected.forEach((c) => { weights[c.stock.ticker] = c.combinedScore / total; });
 
   // Cap-Normierung
@@ -556,7 +556,7 @@ Durchschnitt aller Portfolios: ${avgPerf !== null ? avgPerf.toFixed(2) + "%" : "
 Antworte im JSON-Format.`;
 
   try {
-    const response = await invokeLLM({
+    const response = await invokeKimi({
       messages: [
         { role: "system", content: "Du bist ein quantitativer Portfolio-Analyst. Antworte präzise und datenbasiert auf Deutsch. Vermeide Overfitting-Empfehlungen." },
         { role: "user", content: prompt },
@@ -835,28 +835,46 @@ export async function applyFeedbackLoopToSignalWeights(currentRunId: number): Pr
 // 5. HILFSFUNKTIONEN FÜR ADMIN-UI
 // ============================================================
 
+// Die Getter degradieren bewusst zu [] statt zu werfen: Ist die Migration 0033
+// (algo_backtest_*, algo_tuning_log) in der Ziel-DB noch nicht angewendet, soll
+// die Admin-Seite einen leeren Zustand zeigen statt einen 500-Fehler auszulösen.
 export async function getBacktestRuns(limit = 12) {
   const db = await getDb();
   if (!db) return [];
-  const { algoBacktestRuns } = await import("../../drizzle/schema");
-  const { desc } = await import("drizzle-orm");
-  return db.select().from(algoBacktestRuns).orderBy(desc(algoBacktestRuns.runMonth)).limit(limit);
+  try {
+    const { algoBacktestRuns } = await import("../../drizzle/schema");
+    const { desc } = await import("drizzle-orm");
+    return await db.select().from(algoBacktestRuns).orderBy(desc(algoBacktestRuns.runMonth)).limit(limit);
+  } catch (e) {
+    console.warn("[algoBacktest] getBacktestRuns fehlgeschlagen (Tabelle fehlt?):", (e as Error).message);
+    return [];
+  }
 }
 
 export async function getBacktestPortfolios(runId: number) {
   const db = await getDb();
   if (!db) return [];
-  const { algoBacktestPortfolios } = await import("../../drizzle/schema");
-  const { eq } = await import("drizzle-orm");
-  return db.select().from(algoBacktestPortfolios).where(eq(algoBacktestPortfolios.runId, runId));
+  try {
+    const { algoBacktestPortfolios } = await import("../../drizzle/schema");
+    const { eq } = await import("drizzle-orm");
+    return await db.select().from(algoBacktestPortfolios).where(eq(algoBacktestPortfolios.runId, runId));
+  } catch (e) {
+    console.warn("[algoBacktest] getBacktestPortfolios fehlgeschlagen:", (e as Error).message);
+    return [];
+  }
 }
 
 export async function getTuningLog(limit = 20) {
   const db = await getDb();
   if (!db) return [];
-  const { algoTuningLog } = await import("../../drizzle/schema");
-  const { desc } = await import("drizzle-orm");
-  return db.select().from(algoTuningLog).orderBy(desc(algoTuningLog.createdAt)).limit(limit);
+  try {
+    const { algoTuningLog } = await import("../../drizzle/schema");
+    const { desc } = await import("drizzle-orm");
+    return await db.select().from(algoTuningLog).orderBy(desc(algoTuningLog.createdAt)).limit(limit);
+  } catch (e) {
+    console.warn("[algoBacktest] getTuningLog fehlgeschlagen (Tabelle fehlt?):", (e as Error).message);
+    return [];
+  }
 }
 
 export async function getPendingEvaluations(): Promise<Array<{ runId: number; runMonth: string }>> {

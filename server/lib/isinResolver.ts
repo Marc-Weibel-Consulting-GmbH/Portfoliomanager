@@ -101,7 +101,7 @@ export function isLikelyIsin(value: string | null | undefined): boolean {
  */
 export function pickTickerFromQuotes(quotes: YahooSearchQuote[] | undefined): string | null {
   if (!quotes || quotes.length === 0) return null;
-  const match = quotes.find(q => !!q.symbol && (q.quoteType === "EQUITY" || q.quoteType === "ETF"));
+  const match = quotes.find(q => !!q.symbol && (q.quoteType === "EQUITY" || q.quoteType === "ETF" || q.quoteType === "BOND" || q.quoteType === "MUTUALFUND"));
   return match?.symbol ?? null;
 }
 
@@ -122,8 +122,8 @@ export async function resolveIsinViaEodhd(isin: string): Promise<string | null> 
     const results: Array<{ Code?: string; Name?: string; Exchange?: string; Type?: string }> = await res.json();
     if (!Array.isArray(results) || results.length === 0) return null;
 
-    // Prefer equities/ETFs, then take the first result
-    const preferred = results.find(r => r.Type === 'Common Stock' || r.Type === 'ETF') ?? results[0];
+    // Prefer equities/ETFs/bonds, then take the first result
+    const preferred = results.find(r => r.Type === 'Common Stock' || r.Type === 'ETF' || r.Type === 'Bond' || r.Type === 'Fund') ?? results[0];
     if (!preferred?.Code || !preferred?.Exchange) return null;
 
     const ticker = eodhdResultToTicker(preferred.Code, preferred.Exchange);

@@ -3,7 +3,7 @@
  * Finds better alternative stocks using LLM and financial APIs
  */
 
-import { invokeLLM } from "./llm";
+import { invokeLLM, invokeKimi } from "./llm";
 import { fetchStockMetrics } from "./stockDataApi";
 import { fetchEODHDFundamentals } from "./eodhdApi";
 import { validateTicker } from "./tickerValidator";
@@ -83,7 +83,7 @@ function generateReason(current: CompetitorStock, alternative: CompetitorStock):
   
   if (alternative.dividendYield !== null && current.dividendYield !== null) {
     if (alternative.dividendYield > current.dividendYield) {
-      reasons.push(`Höhere Dividende (${alternative.dividendYield.toFixed(2)}% vs ${current.dividendYield.toFixed(2)}%)`);
+      reasons.push(`Höhere Dividende (${alternative.dividendYield.toFixed(1)}% vs ${current.dividendYield.toFixed(1)}%)`);
     }
   }
   
@@ -149,7 +149,7 @@ export async function findCompetitors(
   console.log(`[CompetitorAnalyzer] Industry: ${industry}`);
   
   // Step 2: Use LLM to find similar companies
-  const llmResponse = await invokeLLM({
+  const llmResponse = await invokeKimi({
     messages: [
       {
         role: "system",
