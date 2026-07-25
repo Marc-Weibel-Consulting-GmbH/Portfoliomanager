@@ -59,28 +59,33 @@ export default function Invest() {
   const [hasSearched, setHasSearched] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Active filter dimension (chip group), persisted in the URL via ?filter=
-  const [activeDimension, setActiveDimension] = useState<FilterDimension>("sektor");
   // Selected chip value within the active dimension ("all" = no value filter)
   const [activeValue, setActiveValue] = useState<string>("all");
 
   // Read ?filter= from the URL on load / when it changes (e.g. via /categories,
-  // /sectors redirects). When a filter param is present, open the filter UI and
-  // activate the corresponding grouping.
-  useEffect(() => {
-    const params = new URLSearchParams(searchString);
-    const filterParam = params.get("filter");
-    if (filterParam && (FILTER_DIMENSIONS as string[]).includes(filterParam)) {
-      setActiveDimension(filterParam as FilterDimension);
+  // /sectors redirects). The active filter dimension (chip group) is derived
+  // directly from the param, falling back to "sektor".
+  const filterParam = useMemo<FilterDimension | null>(() => {
+    const param = new URLSearchParams(searchString).get("filter");
+    return param && (FILTER_DIMENSIONS as string[]).includes(param)
+      ? (param as FilterDimension)
+      : null;
+  }, [searchString]);
+  const activeDimension: FilterDimension = filterParam ?? "sektor";
+
+  // A (new) filter param additionally opens the filter UI. Adjusted during
+  // render instead of in an effect so there is no extra commit.
+  const [seenSearchString, setSeenSearchString] = useState<string | null>(null);
+  if (seenSearchString !== searchString) {
+    setSeenSearchString(searchString);
+    if (filterParam) {
       setShowFilters(true);
     }
-     
-  }, [searchString]);
+  }
 
   // Write the active dimension to the URL (?filter=) so it is shareable and
   // survives reload. Reset the selected chip value when switching dimensions.
   const selectDimension = (dim: FilterDimension) => {
-    setActiveDimension(dim);
     setActiveValue("all");
     const params = new URLSearchParams(searchString);
     params.set("filter", dim);

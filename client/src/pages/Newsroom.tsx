@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { ExternalLink, Newspaper } from "lucide-react";
 import { useLocation, useSearch } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -13,14 +13,9 @@ interface NewsroomProps {
 
 function NewsroomInner({ tickerFromUrl }: { tickerFromUrl?: string | null }) {
   const { data: allNews = [], isLoading } = trpc.news.getAll.useQuery();
+  // Seeded from the URL ticker; the caller passes `key={tickerFromUrl}` so a URL
+  // change remounts this component and re-seeds the selection.
   const [selectedTicker, setSelectedTicker] = useState<string>(tickerFromUrl || "all");
-
-  // Update selected ticker when URL changes
-  useEffect(() => {
-    if (tickerFromUrl) {
-      setSelectedTicker(tickerFromUrl);
-    }
-  }, [tickerFromUrl]);
 
   // Get unique tickers
   const uniqueTickers = useMemo(() => {
@@ -169,7 +164,7 @@ export default function Newsroom({ onBackClick, embedded, ...props }: NewsroomPr
 
   // When embedded as a tab, just render the inner content
   if (embedded) {
-    return <NewsroomInner tickerFromUrl={tickerFromUrl} />;
+    return <NewsroomInner key={tickerFromUrl ?? "all"} tickerFromUrl={tickerFromUrl} />;
   }
 
   // Standalone page with DashboardLayout
@@ -193,7 +188,7 @@ export default function Newsroom({ onBackClick, embedded, ...props }: NewsroomPr
             </button>
           )}
         </div>
-        <NewsroomInner tickerFromUrl={tickerFromUrl} />
+        <NewsroomInner key={tickerFromUrl ?? "all"} tickerFromUrl={tickerFromUrl} />
       </div>
     </DashboardLayout>
   );
