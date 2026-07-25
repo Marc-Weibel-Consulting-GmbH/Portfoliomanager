@@ -29,12 +29,13 @@ jobs:
       - name: Tests
         run: pnpm test
 
-  # PR #130: Lint-Job (Ratcheting) — Legacy-Befunde blockieren vorerst NICHT
-  # (eslint.config.js meldet no-explicit-any/no-unused-vars als "warn").
+  # Lint-Job: blockierend. Der Legacy-Bestand von 200 Errors wurde in den
+  # PRs #183-#192 auf 0 abgebaut, damit neue Errors ab jetzt wieder auffallen.
+  # `eslint .` bricht nur bei Errors ab — Warnings (no-explicit-any,
+  # no-unused-vars) laufen weiterhin durch und blockieren nichts.
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
