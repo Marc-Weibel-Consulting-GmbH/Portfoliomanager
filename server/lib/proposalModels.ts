@@ -79,6 +79,19 @@ export async function getProposalModelConfig(): Promise<ProposalModelConfig> {
   }
 }
 
+/** Normalisiert content (string | Array<{type,text}>) zu einem String. */
+function contentToString(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    // Gemini/Forge kann Array-Content zurückgeben: [{type:"text",text:"..."}]
+    return content
+      .filter((p: any) => p?.type === "text" && typeof p?.text === "string")
+      .map((p: any) => p.text as string)
+      .join("");
+  }
+  return "";
+}
+
 /** Erstes balanciertes JSON-Objekt aus einem Freitext extrahieren (String-sicher). */
 function extractJson(text: string): any {
   const start = text.indexOf("{");
@@ -107,7 +120,7 @@ async function callKimiJson(system: string, user: string, schema: JsonSchema, ma
     max_tokens: maxTokens,
     response_format: { type: "json_schema", json_schema: schema },
   });
-  const content = res.choices[0]?.message?.content as string | undefined;
+  const content = contentToString(res.choices[0]?.message?.content);
   if (!content) throw new Error("Kimi: leere Antwort");
   return extractJson(content);
 }
@@ -120,7 +133,7 @@ async function callGeminiJson(system: string, user: string, schema: JsonSchema, 
     max_tokens: maxTokens,
     response_format: { type: "json_schema", json_schema: schema },
   });
-  const content = res.choices[0]?.message?.content as string | undefined;
+  const content = contentToString(res.choices[0]?.message?.content);
   if (!content) throw new Error("Gemini/Kimi: leere Antwort");
   return extractJson(content);
 }
@@ -255,10 +268,13 @@ export async function invokeProposalAgent(
       default: return callKimiJson(args.system, args.user, args.schema, maxTokens);
     }
   };
-  // Fallback-Kaskade: gewählter Anbieter → Kimi → Groq. Groq (json_object) ist
-  // ein verlässlich funktionierender, verifizierter Pfad; so bleibt der Schritt
-  // auch dann robust, wenn der bevorzugte Anbieter leer antwortet oder ausfällt.
-  const chain = [...new Set<ProposalProvider>([provider, "kimi", "groq"])];
+  // Vollständige Fallback-Kaskade: gewählter Anbieter → alle weiteren in
+  // absteigender Präferenz. So bleibt jeder Schritt auch dann robust, wenn
+  // der bevorzugte Anbieter ausfällt, kein Key hinterlegt ist oder leer antwortet.
+  // Reihenfolge: kimi (1M-Kontext) → gemini (Manus-intern, immer verfügbar) →
+  // claude (stärkstes Reasoning) → omniroute (271 Modelle) → groq (gratis) → perplexity.
+  const FULL_FALLBACK_ORDER: ProposalProvider[] = ["kimi", "gemini", "claude", "omniroute", "groq", "perplexity"];
+  const chain = [...new Set<ProposalProvider>([provider, ...FULL_FALLBACK_ORDER])];
   let lastErr: any;
   for (const p of chain) {
     try {

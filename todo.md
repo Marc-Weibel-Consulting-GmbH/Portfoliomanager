@@ -486,3 +486,5 @@
 - [x] Täglicher Cron für Sleeve-ETF-Preise: MULTI_ASSET_ETFS-Tickers immer in getUniqueTickers() inkludieren
 - [x] bug: Tag-1-Rendite -14% bei Multi-Asset-Portfolios — avgBuyPrice/avgBuyPriceCHF beim Portfolio-Erstellen aus Vorschlag explizit setzen (adminRouter.ts)
 - [x] bug: BCOM.SW kein EODHD-Endpunkt — durch CMOD.SW (iShares Diversified Commodity Swap, SIX) ersetzt
+- [x] fix: KI-Briefing array-content von Gemini/invokeLLM-Fallback (contentToString)
+- [x] fix: KI-Briefing vollständige Fallback-Kaskade (kimi→gemini→claude→omniroute→groq→perplexity)
