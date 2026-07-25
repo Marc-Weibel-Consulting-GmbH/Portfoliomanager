@@ -132,6 +132,35 @@ const EXCLUDED_SECTORS = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+/**
+ * Vorschlags-Positionen → editierbare Positionen für den Bearbeiten-Bereich.
+ *
+ * Wird von BEIDEN Wegen zu Schritt 5 gebraucht: dem frisch berechneten
+ * Vorschlag (Polling-Ergebnis) und dem admin-geprüften Vorschlag aus dem
+ * KI-Protokoll. Letzterer hatte das Seeding bisher nicht, weshalb dort das
+ * Bearbeiten-Panel (`reviewPositions.length > 0`) gar nicht erschien.
+ */
+function toEditablePositions(src: any[]): EditablePosition[] {
+  return (src ?? []).map((p: any) => {
+    const w = parseFloat(String(p.weightPct ?? p.weight ?? '0')) || 0;
+    return {
+      ticker: p.ticker,
+      companyName: p.companyName,
+      sector: p.sector,
+      currency: p.currency,
+      currentPrice: parseFloat(String(p.currentPrice ?? '0')) || 0,
+      exchangeRateToChf: parseFloat(String(p.exchangeRateToChf ?? '1')) || 1,
+      weightPct: w,
+      originalWeightPct: w,
+      aiReason: p.aiReason,
+      assetType: p.assetType,
+      assetClass: p.assetClass,
+      combinedScore: p.combinedScore ?? null,
+      signal: p.signal,
+    } as EditablePosition;
+  });
+}
+
 export default function PortfolioBuilderWizard() {
   const [, navigate] = useLocation();
 
@@ -232,24 +261,7 @@ export default function PortfolioBuilderWizard() {
       setAutoProposal(result);
       // Editierbare Positionen aus dem FINALEN Vorschlag (inkl. Austausch-Titel) seeden.
       const src = ((result as any).adjustedPositions?.length ? (result as any).adjustedPositions : (result as any).positions) || [];
-      setReviewPositions(src.map((p: any) => {
-        const w = parseFloat(String(p.weightPct ?? p.weight ?? '0')) || 0;
-        return {
-          ticker: p.ticker,
-          companyName: p.companyName,
-          sector: p.sector,
-          currency: p.currency,
-          currentPrice: parseFloat(String(p.currentPrice ?? '0')) || 0,
-          exchangeRateToChf: parseFloat(String(p.exchangeRateToChf ?? '1')) || 1,
-          weightPct: w,
-          originalWeightPct: w,
-          aiReason: p.aiReason,
-          assetType: p.assetType,
-          assetClass: p.assetClass,
-          combinedScore: p.combinedScore ?? null,
-          signal: p.signal,
-        } as EditablePosition;
-      }));
+      setReviewPositions(toEditablePositions(src));
     } else if (status === 'error') {
       setIsProposalRunning(false);
       setIsEnhancing(false);
@@ -679,6 +691,9 @@ export default function PortfolioBuilderWizard() {
       },
       weighting: { source: 'optimizer', method: proposal.method ?? 'max_sharpe' },
     });
+    // Auch auf diesem Weg die Positionen zum Bearbeiten freigeben — sonst
+    // landet man in Schritt 5 auf einer reinen Leseansicht.
+    setReviewPositions(toEditablePositions(reviewedPositions));
     setPath('auto');
     setAutoStep(5);
     setInitialCapital(capital.toString());

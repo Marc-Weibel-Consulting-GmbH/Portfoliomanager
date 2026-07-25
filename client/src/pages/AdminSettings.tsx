@@ -8,16 +8,15 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Settings, Save, RotateCcw, PieChart } from "lucide-react";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import {
+  DEFAULT_DIVERSIFICATION_RULES,
+  type DiversificationRules,
+} from "@shared/diversificationRules";
 
-interface DiversificationRules {
-  maxPositionPercent: number;
-  minPositionPercent: number;
-  minPositionAmountCHF: number;
-  minTitles: number;
-  maxTitles: number;
-  maxSectorPercent: number;
-  maxCurrencyPercent: number;
-}
+// Typ und Defaults kommen aus shared/ — dieselbe Quelle, aus der die Engine
+// liest. Vorher standen hier abweichende Werte, sodass der Admin-Bereich
+// Regeln anzeigte, nach denen gar nicht optimiert wurde.
+
 
 interface FeeStructure {
   buyFeePercent: number;
@@ -28,15 +27,7 @@ interface FeeStructure {
   fxSpreadPercent: number;
 }
 
-const DEFAULT_DIVERSIFICATION: DiversificationRules = {
-  maxPositionPercent: 10,
-  minPositionPercent: 1,
-  minPositionAmountCHF: 3000,
-  minTitles: 15,
-  maxTitles: 20,
-  maxSectorPercent: 30,
-  maxCurrencyPercent: 100,
-};
+const DEFAULT_DIVERSIFICATION = DEFAULT_DIVERSIFICATION_RULES;
 
 const DEFAULT_FEES: FeeStructure = {
   buyFeePercent: 0.25,

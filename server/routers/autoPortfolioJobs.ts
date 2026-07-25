@@ -115,7 +115,40 @@ export const startProposalProcedure = protectedProcedure
             if (!baseTickerSeen.has(base)) { baseTickerSeen.set(base, deduplicatedStocks.length); deduplicatedStocks.push(s); }
             else if (!hasSuffix) { const existingIdx = baseTickerSeen.get(base)!; deduplicatedStocks[existingIdx] = s; }
           }
-          const universe = deduplicatedStocks.filter((s: any) => {
+
+          // Zweitnotierungen desselben Emittenten zusammenführen. Der
+          // Basis-Ticker-Abgleich oben greift nur bei gleichem Symbol
+          // («NESN» / «NESN.SW»); zwei Notierungen unter verschiedenen
+          // Symbolen — «BATS.L» und «BTI» für British American Tobacco —
+          // rutschten beide ins Universum und damit in denselben Vorschlag.
+          // Behalten wird die Notierung mit der grösseren Marktkapitalisierung
+          // (in aller Regel die Hauptnotierung), bei Gleichstand der
+          // alphabetisch erste Ticker — damit ist die Auswahl deterministisch
+          // und nicht von der DB-Reihenfolge abhängig.
+          const { issuerKey } = await import('../lib/issuerIdentity');
+          const mcapOf = (s: any) => {
+            const raw = s.marketCap ? String(s.marketCap).replace(/[^0-9.]/g, '') : '';
+            const v = raw ? parseFloat(raw) : NaN;
+            return Number.isFinite(v) ? v : 0;
+          };
+          const byIssuer = new Map<string, any>();
+          const issuerDuplicates: string[] = [];
+          for (const s of deduplicatedStocks as any[]) {
+            const key = issuerKey(s.companyName);
+            if (!key) { byIssuer.set(`__ticker__${String(s.ticker)}`, s); continue; }
+            const prev = byIssuer.get(key);
+            if (!prev) { byIssuer.set(key, s); continue; }
+            const prevWins = mcapOf(prev) > mcapOf(s)
+              || (mcapOf(prev) === mcapOf(s) && String(prev.ticker) <= String(s.ticker));
+            const loser = prevWins ? s : prev;
+            if (!prevWins) byIssuer.set(key, s);
+            issuerDuplicates.push(`${loser.ticker} (zugunsten von ${(prevWins ? prev : s).ticker})`);
+          }
+          const issuerDeduplicated = Array.from(byIssuer.values());
+          if (issuerDuplicates.length > 0) {
+            console.log(`[startProposal] Zweitnotierungen entfernt: ${issuerDuplicates.join(', ')}`);
+          }
+          const universe = issuerDeduplicated.filter((s: any) => {
             const tickerUpper = String(s.ticker ?? '').toUpperCase();
             const baseUpper = tickerUpper.split('.')[0];
             if (TICKER_BLACKLIST.has(tickerUpper) || TICKER_BLACKLIST.has(baseUpper)) return false;
@@ -582,8 +615,12 @@ export const startProposalProcedure = protectedProcedure
                 batches.push(positionSummary.slice(i, i + BATCH_SIZE));
               }
               job.progress.push(`KI-Texte (${models.text}): ${positionSummary.length} Titel in ${batches.length} Batch(es) begründen...`);
-              for (let bi = 0; bi < batches.length; bi++) {
-                const batch = batches[bi];
+              // Batches PARALLEL: sie sind voneinander unabhängig (jeder erhält
+              // seine eigenen Positionen, das Ergebnis wird später per Ticker
+              // zugeordnet). Vorher liefen sie nacheinander, sodass die Wartezeit
+              // mit der Titelzahl linear wuchs — bei 30 Titeln drei volle
+              // Modell-Aufrufe hintereinander. Fehler bleiben pro Batch isoliert.
+              await Promise.all(batches.map(async (batch, bi) => {
                 try {
                   const batchLabel = batches.length > 1 ? ` (Batch ${bi + 1}/${batches.length})` : '';
                   const { result: textResult, providerUsed } = await invokeProposalAgent(models.text, {
@@ -606,7 +643,7 @@ export const startProposalProcedure = protectedProcedure
                   textFailureReason = batchErr?.message ?? textFailureReason;
                   job.progress.push(`⚠️ KI-Texte Batch ${bi + 1} fehlgeschlagen: ${batchErr?.message ?? 'unbekannter Fehler'}`);
                 }
-              }
+              }));
               if (allReasons.length > 0) {
                 agentResult.positionReasons = allReasons;
                 job.progress.push(`KI-Texte: ${allReasons.length}/${positionSummary.length} Titel individuell begründet.`);

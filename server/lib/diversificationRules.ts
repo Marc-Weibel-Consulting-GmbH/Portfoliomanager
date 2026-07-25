@@ -18,44 +18,13 @@
  * - minSectorPercent / maxSectorPercent analog für Sektoren.
  */
 
-export interface DiversificationRules {
-  /** Einzelposition-Untergrenze in % des Portfolios (Kleinstpositionen vermeiden). */
-  minPositionPercent: number;
-  /** Einzelposition-Obergrenze in % des Portfolios (Klumpenrisiko). */
-  maxPositionPercent: number;
-  /** Mindest-Positionsgrösse in CHF (Transaktionskosten-Effizienz). */
-  minPositionAmountCHF: number;
-  /** Mindestanzahl verschiedener Titel. */
-  minTitles: number;
-  /** Höchstanzahl verschiedener Titel. */
-  maxTitles: number;
-  /** Sektor-Untergrenze in % des Portfolios (Mindestdiversifikation je Sektor). */
-  minSectorPercent: number;
-  /** Sektor-Obergrenze in % des Portfolios (Klumpenrisiko je Sektor). */
-  maxSectorPercent: number;
-  /**
-   * Währungs-Obergrenze in % des Portfolios (Klumpenrisiko je Währung).
-   * Default 100 = Regel inaktiv, bis ein Admin sie verschärft.
-   */
-  maxCurrencyPercent: number;
-  /**
-   * Score-Schwelle für Upgrade-Vorschläge: Positionen mit Qualitäts-Score
-   * unterhalb dieses Wertes werden als Upgrade-Kandidaten markiert.
-   */
-  upgradeScoreThreshold: number;
-}
+// Typ und Defaults liegen in shared/, damit der Admin-Bereich exakt dieselben
+// Standardwerte anzeigt, mit denen die Engine rechnet.
+export type { DiversificationRules } from "../../shared/diversificationRules";
+export { DEFAULT_DIVERSIFICATION_RULES } from "../../shared/diversificationRules";
 
-export const DEFAULT_DIVERSIFICATION_RULES: DiversificationRules = {
-  minPositionPercent: 3,    // Erhöht von 1% → 3%: Kleinstpositionen (< 3%) vermeiden
-  maxPositionPercent: 15,   // Reduziert von 25% → 15%: Klumpenrisiko begrenzen
-  minPositionAmountCHF: 3000,
-  minTitles: 10,            // Gelockert von 15 → 10
-  maxTitles: 30,            // Erhöht von 20 → 30
-  minSectorPercent: 0,      // Neu: keine Mindestquote je Sektor
-  maxSectorPercent: 30,     // Reduziert von 40% → 30%: bessere Diversifikation für balanced-Profile
-  maxCurrencyPercent: 100,
-  upgradeScoreThreshold: 55, // Positionen mit Score < 55 werden als Upgrade-Kandidaten vorgeschlagen
-};
+import { DEFAULT_DIVERSIFICATION_RULES } from "../../shared/diversificationRules";
+import type { DiversificationRules } from "../../shared/diversificationRules";
 
 /** Aktiven Regelsatz lesen (Defaults + gespeicherte Überschreibungen). */
 export async function getDiversificationRules(): Promise<DiversificationRules> {
