@@ -540,7 +540,7 @@ export function randomForestSignal(
       const featureValues = features.map(f => f[idx]);
       const variance = featureValues.length > 1 ? ss.variance(featureValues) : 0;
       // Correlation with labels
-      let corr = 0;
+      let corr: number;
       try {
         const pairs: [number, number][] = featureValues.map((v, i) => [v, labels[i]]);
         corr = Math.abs(ss.sampleCorrelation(featureValues, labels));

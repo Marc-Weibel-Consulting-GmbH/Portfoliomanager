@@ -1815,7 +1815,7 @@ export async function calcTechnicalAnalysis(input: TechnicalAnalysisInput): Prom
   const rsiValues = calcRSI(prices, 14);
   const currentRSI = rsiValues.length > 0 ? rsiValues[rsiValues.length - 1] : 50;
   let rsiSignal: "oversold" | "neutral" | "overbought" = "neutral";
-  let rsiDescription = "";
+  let rsiDescription: string;
   if (currentRSI < 30) {
     rsiSignal = "oversold";
     rsiDescription = `RSI bei ${currentRSI.toFixed(1)} – stark überverkauft. Mögliche Kaufgelegenheit.`;
@@ -1847,7 +1847,7 @@ export async function calcTechnicalAnalysis(input: TechnicalAnalysisInput): Prom
   const prevHistogram = histogram.length > 1 ? histogram[histogram.length - 2] : 0;
 
   let macdSignal: "bullish" | "neutral" | "bearish" = "neutral";
-  let macdDescription = "";
+  let macdDescription: string;
   if (currentMACD > currentSignalLine && currentHistogram > 0) {
     if (prevHistogram <= 0) {
       macdSignal = "bullish";
@@ -1887,7 +1887,7 @@ export async function calcTechnicalAnalysis(input: TechnicalAnalysisInput): Prom
     : 0.5;
 
   let bbSignal: "oversold" | "neutral" | "overbought" = "neutral";
-  let bbDescription = "";
+  let bbDescription: string;
   if (currentPrice <= currentLower) {
     bbSignal = "oversold";
     bbDescription = `Kurs am unteren Bollinger Band – überverkauft. Mögliche Umkehr nach oben.`;
@@ -1930,7 +1930,7 @@ export async function calcTechnicalAnalysis(input: TechnicalAnalysisInput): Prom
   if (bbSignal === "overbought") sellSignals++;
 
   let overallSignal: "buy" | "hold" | "sell" = "hold";
-  let overallDescription = "";
+  let overallDescription: string;
   if (buySignals >= 2) {
     overallSignal = "buy";
     overallDescription = `${buySignals} von 3 Indikatoren zeigen Kaufsignale. Technisch attraktiver Einstiegspunkt.`;

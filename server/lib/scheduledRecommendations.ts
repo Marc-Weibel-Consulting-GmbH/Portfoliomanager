@@ -117,7 +117,7 @@ async function processPortfolio(
   const portfolio = rows[0];
   if (!portfolio) return;
 
-  let stocks: Array<{ ticker: string; companyName?: string; name?: string; shares?: number | string; sector?: string }> = [];
+  let stocks: Array<{ ticker: string; companyName?: string; name?: string; shares?: number | string; sector?: string }>;
   try {
     const parsed = JSON.parse(portfolio.portfolioData || "{}");
     stocks = Array.isArray(parsed) ? parsed : parsed.stocks || [];

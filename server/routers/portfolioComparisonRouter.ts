@@ -85,7 +85,7 @@ export const portfolioComparisonRouter = router({
             // Get transactions for live portfolios
             let currentValue = 0;
             let totalInvested = 0;
-            let performance = 0;
+            let performance: number;
 
             if (portfolio.isLive) {
               const transactions = await getPortfolioTransactions(portfolio.id);

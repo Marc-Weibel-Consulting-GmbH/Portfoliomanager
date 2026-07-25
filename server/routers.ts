@@ -480,7 +480,7 @@ export const appRouter = router({
             }
           } catch (error: any) {
             console.error("[Research] File upload failed:", error);
-            throw new Error(`Datei-Upload fehlgeschlagen: ${error.message}`);
+            throw new Error(`Datei-Upload fehlgeschlagen: ${error.message}`, { cause: error });
           }
         }
         
@@ -643,7 +643,7 @@ export const appRouter = router({
           };
         } catch (error: any) {
           console.error("Stripe checkout error:", error);
-          throw new Error(`Fehler beim Erstellen der Zahlungssitzung: ${error.message}`);
+          throw new Error(`Fehler beim Erstellen der Zahlungssitzung: ${error.message}`, { cause: error });
         }
       }),
     

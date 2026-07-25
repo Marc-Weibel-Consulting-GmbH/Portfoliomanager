@@ -105,16 +105,11 @@ describe('Walk-Forward Progress Callback', () => {
 
 describe('Walk-Forward Non-blocking State Machine', () => {
   it('should track running state correctly', () => {
-    let isRunning = false;
-    let progress: string[] = [];
-    let result: any = null;
-    let error: string | null = null;
-
     // Start
-    isRunning = true;
-    progress = ['Walk-Forward gestartet...'];
-    result = null;
-    error = null;
+    let isRunning = true;
+    const progress: string[] = ['Walk-Forward gestartet...'];
+    let result: any = null;
+    const error: string | null = null;
 
     expect(isRunning).toBe(true);
     expect(progress).toHaveLength(1);
@@ -132,14 +127,12 @@ describe('Walk-Forward Non-blocking State Machine', () => {
   });
 
   it('should track error state correctly', () => {
-    let isRunning = true;
-    let error: string | null = null;
     const progress: string[] = ['Walk-Forward gestartet...'];
 
     // Simulate error
-    error = 'Universe too small: only 5 tickers. Need at least 10.';
+    const error: string | null = 'Universe too small: only 5 tickers. Need at least 10.';
     progress.push(`❌ Fehler: ${error}`);
-    isRunning = false;
+    const isRunning = false;
 
     expect(isRunning).toBe(false);
     expect(error).toContain('Universe too small');

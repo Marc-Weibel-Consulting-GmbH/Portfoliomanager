@@ -65,7 +65,7 @@ export async function refreshSignalCache(): Promise<void> {
     const blendConfig = await getRegimeBlendConfig();
 
     // B5: Wikifolio-Konsens-Signal vorab laden (einmal für alle Tickers)
-    let wikifolioConsensusMap: Map<string, { score: number; signal: string; buyCount: number; sellCount: number }> = new Map();
+    const wikifolioConsensusMap: Map<string, { score: number; signal: string; buyCount: number; sellCount: number }> = new Map();
     try {
       const { computeWikifolioConsensus } = await import("../lib/wikifolioConsensus");
       const { wikifolioTrades: wikifolioTradesTable, wikifolios: wikifoliosTable } = await import("../../drizzle/schema");

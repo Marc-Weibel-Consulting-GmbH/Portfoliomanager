@@ -101,7 +101,7 @@ describe('Dashboard Features', () => {
       const hasHistoricalData = false;
       const ytdStartValueCHF = 0;
       
-      let performancePercent = 0;
+      let performancePercent: number;
       if (hasHistoricalData && ytdStartValueCHF > 0) {
         // Would calculate performance here
         performancePercent = 10; // Example

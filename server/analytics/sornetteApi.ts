@@ -301,7 +301,7 @@ export function formatBubbleIndicatorResponse(score: SornetteBubbleScore) {
   const s = score.score;
   const label = s < 33 ? 'Niedrig' : s < 55 ? 'Mittel' : s < 75 ? 'Erhöht' : 'Hoch';
 
-  let interpretation = '';
+  let interpretation: string;
   if (s < 33) {
     interpretation = 'Markt zeigt keine Überhitzung. Strategie kann beibehalten werden.';
   } else if (s < 55) {

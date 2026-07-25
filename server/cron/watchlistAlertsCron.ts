@@ -173,7 +173,9 @@ export async function checkWatchlistAlerts() {
               signalType: 'hold' as const,
               lastMetricsUpdate: new Date(),
             }).where(eq(stocksTable.id, stock.id));
-          } catch {}
+          } catch {
+            // Best-effort status update; ignore failures
+          }
         } else {
           console.warn(`[watchlistAlertsCron] Error checking ${stock.ticker}:`, err);
         }

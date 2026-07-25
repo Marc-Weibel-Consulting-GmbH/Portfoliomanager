@@ -194,7 +194,7 @@ function generateWeightedScore(
   let totalWeight = 0;
 
   if (indicators.peRatio !== null && indicators.peRatio > 0) {
-    let peScore = 0;
+    let peScore: number;
     if (indicators.peRatio < 12) peScore = 1;
     else if (indicators.peRatio < 15) peScore = 0.5;
     else if (indicators.peRatio < 20) peScore = 0;
@@ -205,7 +205,7 @@ function generateWeightedScore(
   }
 
   if (indicators.pegRatio !== null && indicators.pegRatio > 0) {
-    let pegScore = 0;
+    let pegScore: number;
     if (indicators.pegRatio < 0.8) pegScore = 1;
     else if (indicators.pegRatio < 1.2) pegScore = 0.5;
     else if (indicators.pegRatio < 1.8) pegScore = 0;
@@ -216,7 +216,7 @@ function generateWeightedScore(
   }
 
   if (indicators.rsi14 !== null) {
-    let rsiScore = 0;
+    let rsiScore: number;
     if (indicators.rsi14 < 30) rsiScore = 1;
     else if (indicators.rsi14 < 40) rsiScore = 0.5;
     else if (indicators.rsi14 < 60) rsiScore = 0;
@@ -232,7 +232,7 @@ function generateWeightedScore(
   // Strategie als die, die produktiv läuft (Tuning-Produktions-Mismatch).
 
   {
-    let divScore = 0;
+    let divScore: number;
     if (indicators.dividendYield > 4) divScore = 1;
     else if (indicators.dividendYield > 2.5) divScore = 0.5;
     else if (indicators.dividendYield > 1) divScore = 0;
@@ -242,7 +242,7 @@ function generateWeightedScore(
   }
 
   if (indicators.positionIn52W !== null) {
-    let rangeScore = 0;
+    let rangeScore: number;
     if (indicators.positionIn52W < 0.2) rangeScore = 1;
     else if (indicators.positionIn52W < 0.4) rangeScore = 0.5;
     else if (indicators.positionIn52W < 0.6) rangeScore = 0;
@@ -253,7 +253,7 @@ function generateWeightedScore(
   }
 
   {
-    let ytdScore = 0;
+    let ytdScore: number;
     if (indicators.ytdPerformance > 20) ytdScore = -0.5;
     else if (indicators.ytdPerformance > 10) ytdScore = 0.3;
     else if (indicators.ytdPerformance > 0) ytdScore = 0.5;

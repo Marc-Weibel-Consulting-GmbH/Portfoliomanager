@@ -122,7 +122,9 @@ export const predictionRouter = router({
                 dividendYield: (quote?.summaryDetail?.dividendYield || 0) * 100,
                 beta: quote?.defaultKeyStatistics?.beta || 1,
               };
-            } catch (e) {}
+            } catch (e) {
+              // Fundamentals are optional; ignore fetch failures
+            }
             
             const prediction = generatePricePrediction(input.ticker, prices, currentPrice);
             const rfSignal = await signalForSeries(getActiveSignalModel, () => randomForestSignal(prices, volumes, fundamentals), 'gb_signal', prices);

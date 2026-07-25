@@ -446,7 +446,7 @@ export const investmentProfileRouter = router({
       return { success: true };
     } catch (e) {
       console.error("[investmentProfile] Überprüfung bestätigen fehlgeschlagen:", (e as Error).message);
-      throw new Error("Überprüfung konnte nicht gespeichert werden.");
+      throw new Error("Überprüfung konnte nicht gespeichert werden.", { cause: e });
     }
   }),
 });

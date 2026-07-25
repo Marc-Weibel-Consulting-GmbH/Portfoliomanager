@@ -2189,7 +2189,7 @@ export const dashboardRouter = router({
       const score = latest[0].bubbleConfidence;
       const label = score < 33 ? "Niedrig" : score < 66 ? "Mittel" : "Hoch";
       const historyScores = history.reverse().map(r => r.bubbleConfidence);
-      let interpretation = "";
+      let interpretation: string;
       if (score < 33) interpretation = "Markt zeigt keine Überhitzung. Strategie kann beibehalten werden.";
       else if (score < 66) interpretation = "Moderate Überhitzungssignale. Risikomanagement überprüfen.";
       else interpretation = "Starke Bubble-Signale erkannt. Defensive Positionierung empfohlen.";
@@ -2982,8 +2982,8 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         return `${ticker} (${stock?.name || ticker}, Sektor: ${stock?.sector || 'unbekannt'}, Branche: ${stock?.industry || 'unbekannt'})`;
       }).join('\n');
 
-      let systemPrompt = '';
-      let userPrompt = '';
+      let systemPrompt: string;
+      let userPrompt: string;
 
       if (input.actionType === 'sektoren') {
         systemPrompt = 'Du bist ein erfahrener Portfolio-Manager. Analysiere die Sektorverteilung und gib konkrete Empfehlungen auf Deutsch. Antworte strukturiert mit Markdown.';
@@ -3162,7 +3162,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         .join(', ');
 
 
-      let prompt = '';
+      let prompt: string;
       if (input.insightType === 'sector_check') {
         prompt = `Analysiere die Sektorverteilung dieses Portfolios und schlage konkrete Umschichtungen vor.
 Sektoren: ${sectorContext}
@@ -3428,7 +3428,7 @@ WICHTIG: Signal-Score-Regeln:
 
           return { success: true, mode: 'demo', updatedPositions: stocks.length };
         } catch (e) {
-          throw new Error(`Fehler beim Aktualisieren: ${(e as Error).message}`);
+          throw new Error(`Fehler beim Aktualisieren: ${(e as Error).message}`, { cause: e });
         }
       }
     }),

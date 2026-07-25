@@ -26,7 +26,7 @@ export function describeAnalyticsConfig(url: string | undefined | null): Analyti
       hint: "ANALYTICS_SERVICE_URL ist nicht gesetzt — die trainierte ML-Pipeline ist inaktiv, es greift der Heuristik-/RandomForest-Fallback.",
     };
   }
-  let host: string | null = null;
+  let host: string | null;
   try {
     host = new URL(url).host;
   } catch {

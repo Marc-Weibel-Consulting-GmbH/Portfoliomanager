@@ -108,8 +108,8 @@ export async function handleMarketReportWebhook(req: any, res: any) {
     // Sanitise title: remove any embedded date (LLM often hallucinates wrong dates).
     // Replace patterns like "– 22. Juli 2026", "- 13.07.2026", "(22. Juli 2026)" etc.
     const sanitisedTitle = (title as string)
-      .replace(/[–\-]?\s*\d{1,2}\.\s*(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}/gi, '')
-      .replace(/[–\-]?\s*\d{1,2}\.\d{2}\.\d{4}/g, '')
+      .replace(/[–-]?\s*\d{1,2}\.\s*(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}/gi, '')
+      .replace(/[–-]?\s*\d{1,2}\.\d{2}\.\d{4}/g, '')
       .replace(/\s{2,}/g, ' ')
       .trim();
 

@@ -428,7 +428,7 @@ export const adminRouter = router({
           throw new Error('Unauthorized: Admin access required');
         }
 
-        let tickers: string[] = [];
+        let tickers: string[];
 
         // If portfolioId provided, get tickers from that portfolio
         if (input.portfolioId) {
@@ -474,7 +474,7 @@ export const adminRouter = router({
           throw new Error('Unauthorized: Admin access required');
         }
 
-        let tickers: string[] = [];
+        let tickers: string[];
 
         // If portfolioId provided, get tickers from that portfolio
         if (input.portfolioId) {
@@ -1172,7 +1172,7 @@ export const adminRouter = router({
         return Number.isFinite(n) ? n : null;
       };
 
-      let weights: any[] = [];
+      let weights: any[];
       try {
         const rows = await db
           .select({
@@ -1201,7 +1201,7 @@ export const adminRouter = router({
         }).reverse();
       } catch { weights = []; }
 
-      let models: any[] = [];
+      let models: any[];
       try {
         const rows = await db
           .select({

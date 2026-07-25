@@ -90,7 +90,7 @@ describe('Portfolio Creation', () => {
     } catch (error: any) {
       // Check if it's a TRPCError reference error (the bug we're fixing)
       if (error.message && error.message.includes('TRPCError is not defined')) {
-        throw new Error('BUG STILL EXISTS: TRPCError is not defined in portfoliosRouter.ts');
+        throw new Error('BUG STILL EXISTS: TRPCError is not defined in portfoliosRouter.ts', { cause: error });
       }
       
       // Other errors are acceptable (e.g., database connection issues in test environment)

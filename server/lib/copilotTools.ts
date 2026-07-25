@@ -294,7 +294,7 @@ const TOOL_TIMEOUT_MS = 12_000;
 export async function executeCopilotTool(userId: number, name: string, argsJson: string): Promise<string> {
   const impl = TOOL_IMPL[name];
   if (!impl) return `Unbekanntes Werkzeug «${name}».`;
-  let args: any = {};
+  let args: any;
   try {
     args = argsJson ? JSON.parse(argsJson) : {};
   } catch {
