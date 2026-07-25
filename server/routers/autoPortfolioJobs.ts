@@ -624,9 +624,35 @@ export const startProposalProcedure = protectedProcedure
               return reasonMap.size;
             };
 
-            // Titel-Texte ZUERST und ISOLIERT: sie müssen im ERSTEN Vorschlag
-            // erscheinen (vor der Admin-Prüfung) und dürfen nicht an der
-            // langsameren/fragileren Challenger-Synthese-Analyse hängen.
+            // ── Parallelisierung: fillTexts + KI-Analyse gleichzeitig starten ──
+            // Im Standard-Modus (kein Ensemble) sind beide Aufrufe unabhängig:
+            // fillTexts braucht positionSummary, die KI-Analyse braucht contextBlock.
+            // Beide sind bereits bekannt → parallel starten spart 30–60 s.
+            // Im Ensemble-Modus läuft fillTexts vorab (Texte erscheinen im
+            // Zwischenergebnis, bevor die Challenger fertig sind).
+
+            // Analyse-Promise vorab definieren (wird im Standard-Modus parallel gestartet).
+            const analysisProps: Record<string, any> = {
+              critique: { type: 'string' },
+              rejected: { type: 'array', items: tickerReasonItem },
+              alternatives: { type: 'array', items: tickerReasonItem },
+              verdict: { type: 'string' },
+              adjustments: { type: 'array', items: adjustmentItem },
+              overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] },
+            };
+            const analysisRequired = ['critique', 'rejected', 'alternatives', 'verdict', 'adjustments', 'overallConfidence'];
+            let analysisPromise: Promise<any> | null = null;
+            if (!models.ensemble) {
+              // Standard-Modus: Analyse sofort starten, parallel zu fillTexts.
+              job.progress.push(`KI-Analyse (${models.analysis}): Vorschlag prüfen & finalisieren...`);
+              analysisPromise = invokeProposalAgent(models.analysis, {
+                system: 'Du bist zugleich kritischer Portfolio-Analyst ("Challenger") und erfahrener Portfolio-Manager ("Synthesizer"). Prüfe den algorithmischen Vorschlag zuerst kritisch und erstelle im selben Schritt die finale Empfehlung mit konkreten Anpassungen. Antworte immer auf Deutsch, präzise und konstruktiv.',
+                user: `Prüfe diesen Portfolio-Vorschlag kritisch und erstelle die finale Empfehlung.\n\n${contextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n4. verdict: ${verdictInstruction}\n5. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n6. overallConfidence: ${confidenceRule}.\n\nAntworte im JSON-Format.`,
+                schema: { name: 'portfolio_review', strict: true, schema: { type: 'object', properties: analysisProps, required: analysisRequired, additionalProperties: false } },
+                maxTokens: 4096,
+              }).catch((e: any) => { console.warn(`[startProposal] Analyse fehlgeschlagen: ${e?.message}`); return { result: null }; });
+            }
+
             await fillTexts();
             const reasonCount = attachPositionReasons(agentResult.positionReasons);
             console.log(`[startProposal] aiReason: ${reasonCount}/${positions.length} gesetzt.`);
@@ -673,27 +699,14 @@ export const startProposalProcedure = protectedProcedure
                 positionReasons: [],
               };
             } else {
-              // ── Standard: ein Analyse-Aufruf (Challenger + Synthese). ──
-              // Titel-Texte laufen bereits separat & vorab (oben), daher hier NICHT.
-              job.progress.push(`KI-Analyse (${models.analysis}): Vorschlag prüfen & finalisieren...`);
-              const analysisProps: Record<string, any> = {
-                critique: { type: 'string' },
-                rejected: { type: 'array', items: tickerReasonItem },
-                alternatives: { type: 'array', items: tickerReasonItem },
-                verdict: { type: 'string' },
-                adjustments: { type: 'array', items: adjustmentItem },
-                overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] },
-              };
-              const analysisRequired = ['critique', 'rejected', 'alternatives', 'verdict', 'adjustments', 'overallConfidence'];
-
-              const { result } = await invokeProposalAgent(models.analysis, {
-                system: 'Du bist zugleich kritischer Portfolio-Analyst ("Challenger") und erfahrener Portfolio-Manager ("Synthesizer"). Prüfe den algorithmischen Vorschlag zuerst kritisch und erstelle im selben Schritt die finale Empfehlung mit konkreten Anpassungen. Antworte immer auf Deutsch, präzise und konstruktiv.',
-                user: `Prüfe diesen Portfolio-Vorschlag kritisch und erstelle die finale Empfehlung.\n\n${contextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n4. verdict: ${verdictInstruction}\n5. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n6. overallConfidence: ${confidenceRule}.\n\nAntworte im JSON-Format.`,
-                schema: { name: 'portfolio_review', strict: true, schema: { type: 'object', properties: analysisProps, required: analysisRequired, additionalProperties: false } },
-                maxTokens: 4096,
-              });
+              // ── Standard: Analyse-Promise wurde bereits parallel zu fillTexts gestartet. ──
+              // Hier nur noch auf das Ergebnis warten.
+              const analysisOutcome = analysisPromise ? await analysisPromise : null;
+              const result = analysisOutcome?.result ?? null;
               // positionReasons aus dem frühen Text-Schritt beibehalten.
-              agentResult = { ...result, positionReasons: agentResult.positionReasons };
+              if (result) {
+                agentResult = { ...result, positionReasons: agentResult.positionReasons };
+              }
             }
 
             const challengerResult = {
