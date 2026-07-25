@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,23 +37,15 @@ export function PortfolioEditModal({
   isLive = false,
   onSuccess
 }: PortfolioEditModalProps) {
-  const [stocks, setStocks] = useState<PortfolioStock[]>([]);
+  // Der Aufrufer montiert das Modal bei jedem Öffnen neu (wechselnder `key`),
+  // daher genügt das Seeding über den useState-Initializer — kein Reset-Effect.
+  const [stocks, setStocks] = useState<PortfolioStock[]>(() => initialStocks.map(s => ({ ...s })));
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
 
   const utils = trpc.useUtils();
-
-  // Initialize stocks when modal opens
-  useEffect(() => {
-    if (open) {
-      setStocks(initialStocks.map(s => ({ ...s })));
-      setHasChanges(false);
-      setSearchQuery("");
-      setSearchResults([]);
-    }
-  }, [open, initialStocks]);
 
   // Search for stocks
   const { data: allStocks } = trpc.stocks.getAll.useQuery();

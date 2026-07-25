@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,8 @@ export function PortfolioSettingsModal({
 }: PortfolioSettingsModalProps) {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription || "");
-  const [investmentAmount, setInvestmentAmount] = useState(initialInvestmentAmount);
+  // Read-only Feld — wird nie gesetzt, nur beim Mount aus den Props übernommen.
+  const [investmentAmount] = useState(initialInvestmentAmount);
   // inceptionDate stored as YYYY-MM-DD string for the date input
   const [inceptionDate, setInceptionDate] = useState<string>(() => {
     if (!initialInceptionDate) return "";
@@ -46,22 +47,9 @@ export function PortfolioSettingsModal({
   });
   const utils = trpc.useUtils();
 
-  // Initialize form when modal opens
-  useEffect(() => {
-    if (open) {
-      setName(initialName);
-      setDescription(initialDescription || "");
-      setInvestmentAmount(initialInvestmentAmount);
-      setInceptionDate(() => {
-        if (!initialInceptionDate) return "";
-        try {
-          return new Date(initialInceptionDate).toISOString().split('T')[0];
-        } catch {
-          return "";
-        }
-      });
-    }
-  }, [open, initialName, initialDescription, initialInvestmentAmount, initialInceptionDate]);
+  // Das Formular wird ausschliesslich über die useState-Initializer aus den Props
+  // gesetzt. Der Aufrufer montiert das Modal bei jedem Öffnen neu (wechselnder
+  // `key`), daher braucht es keinen Reset-Effect.
 
   // Track changes (derived during render)
   const initialDateStr = initialInceptionDate

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,19 +42,15 @@ export function EditPositionFieldsModal({
   const utils = trpc.useUtils();
   const originalTicker = holding?.ticker ?? "";
 
-  const [form, setForm] = useState({ ticker: "", isin: "", shares: "", avgBuyPrice: "", currency: "CHF" });
-
-  useEffect(() => {
-    if (holding) {
-      setForm({
-        ticker: holding.ticker ?? "",
-        isin: holding.isin ?? "",
-        shares: holding.shares != null ? String(holding.shares) : "",
-        avgBuyPrice: holding.avgBuyPrice != null ? String(holding.avgBuyPrice) : "",
-        currency: holding.currency || "CHF",
-      });
-    }
-  }, [holding]);
+  // Der Aufrufer montiert das Modal bei jedem Öffnen neu (wechselnder `key`),
+  // daher genügt das Seeding über den useState-Initializer — kein Reset-Effect.
+  const [form, setForm] = useState(() => ({
+    ticker: holding?.ticker ?? "",
+    isin: holding?.isin ?? "",
+    shares: holding?.shares != null ? String(holding.shares) : "",
+    avgBuyPrice: holding?.avgBuyPrice != null ? String(holding.avgBuyPrice) : "",
+    currency: holding?.currency || "CHF",
+  }));
 
   const update = trpc.portfolios.update.useMutation({
     onSuccess: () => {
