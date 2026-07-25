@@ -167,6 +167,10 @@ export default function PortfolioBuilderWizard() {
   const [isProposalRunning, setIsProposalRunning] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
+  // Echtzeit-Fortschritt: Zeitstempel pro Schritt + laufende Sekunden
+  const [stepTimestamps, setStepTimestamps] = useState<number[]>([]);
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const [jobStartTime, setJobStartTime] = useState<number | null>(null);
 
   // ── Queries & mutations ──
   const utils = trpc.useUtils();
@@ -180,9 +184,13 @@ export default function PortfolioBuilderWizard() {
   // Async job: start proposal (returns immediately with jobId)
   const startProposal = trpc.autoPortfolio.startProposal.useMutation({
     onSuccess: (data) => {
+      const now = Date.now();
       setProposalJobId(data.jobId);
       setIsProposalRunning(true);
       setProposalProgress(['Job gestartet...']);
+      setStepTimestamps([now]);
+      setJobStartTime(now);
+      setElapsedSec(0);
     },
     onError: (e) => {
       setIsProposalRunning(false);
@@ -211,6 +219,12 @@ export default function PortfolioBuilderWizard() {
     if (!proposalStatus.data) return;
     const { status, progress, result, error } = proposalStatus.data;
     if (progress && progress.length > proposalProgress.length) {
+      const now = Date.now();
+      const newCount = progress.length - proposalProgress.length;
+      setStepTimestamps(prev => [
+        ...prev,
+        ...Array(newCount).fill(now),
+      ]);
       setProposalProgress(progress);
     }
     if (status === 'enhancing' && result) {
@@ -234,8 +248,24 @@ export default function PortfolioBuilderWizard() {
   // Compatibility shim: buildProposal.isPending is used in the JSX below
   const buildProposal = {
     isPending: isProposalRunning || startProposal.isPending,
-    reset: () => { setIsProposalRunning(false); setIsEnhancing(false); setProposalJobId(null); setProposalProgress([]); startProposal.reset(); },
+    reset: () => {
+      setIsProposalRunning(false);
+      setIsEnhancing(false);
+      setProposalJobId(null);
+      setProposalProgress([]);
+      setStepTimestamps([]);
+      setJobStartTime(null);
+      setElapsedSec(0);
+      startProposal.reset();
+    },
   };
+
+  // Echtzeit-Sekundenzähler: läuft solange der Job aktiv ist
+  useEffect(() => {
+    if (!buildProposal.isPending || !jobStartTime) { setElapsedSec(0); return; }
+    const id = setInterval(() => setElapsedSec(Math.floor((Date.now() - jobStartTime) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [buildProposal.isPending, jobStartTime]);
 
   // Freundliche, wechselnde Lade-Botschaften (statt technischer Einzelschritte).
   // Mischt Beruhigung + einfache Erklärungen, wie das System arbeitet.
@@ -1351,21 +1381,46 @@ export default function PortfolioBuilderWizard() {
                   </div>
                 ) : buildProposal.isPending ? (
                   <div className="space-y-3 py-4">
+                    {/* Header: Titel + Gesamtzeit */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="h-5 w-5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin flex-shrink-0" />
                         <span className="text-sm text-[#00CFC1] font-medium">Ihr Portfolio wird erstellt…</span>
                       </div>
-                      <span className="text-xs text-gray-500">meist 1–3 Minuten</span>
+                      <span className="text-xs text-gray-400 tabular-nums">{elapsedSec}s</span>
                     </div>
                     {/* Indeterminate progress bar */}
                     <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
                       <div className="h-full bg-[#00CFC1] rounded-full" style={{ animation: 'indeterminate 2s ease-in-out infinite' }} />
                     </div>
-                    {/* Eine freundliche, wechselnde Botschaft statt technischer Einzelschritte */}
-                    <p className="text-sm text-slate-300 leading-relaxed min-h-[3rem]">
-                      {loadingMessages[loadingMsgIdx]}
-                    </p>
+                    {/* Echtzeit-Schrittlog aus job.progress */}
+                    {proposalProgress.length > 0 ? (
+                      <div className="space-y-1 max-h-40 overflow-y-auto">
+                        {proposalProgress.map((msg, idx) => {
+                          const isLast = idx === proposalProgress.length - 1;
+                          const stepAge = stepTimestamps[idx]
+                            ? Math.floor((Date.now() - stepTimestamps[idx]) / 1000)
+                            : null;
+                          return (
+                            <div key={idx} className={`flex items-start gap-2 text-xs ${isLast ? 'text-slate-200' : 'text-slate-500'}`}>
+                              {isLast ? (
+                                <div className="h-3 w-3 mt-0.5 border border-[#00CFC1] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                              ) : (
+                                <span className="text-[#00CFC1] flex-shrink-0">✓</span>
+                              )}
+                              <span className="flex-1 leading-relaxed">{msg}</span>
+                              {isLast && stepAge !== null && stepAge > 2 && (
+                                <span className="text-gray-500 tabular-nums flex-shrink-0">{stepAge}s</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-300 leading-relaxed min-h-[2rem]">
+                        {loadingMessages[loadingMsgIdx]}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <Button
