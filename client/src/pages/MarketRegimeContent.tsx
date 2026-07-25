@@ -110,11 +110,26 @@ const RISK_LABEL: Record<string, string> = {
 
 // Regime-Verlauf (R4): Sparkline des Gesamt-Scores der letzten Tage.
 // Dynamic-scale sparkline with hover tooltip. Y-axis auto-fits to actual data range.
+const fmtDate = (d: string) => new Date(d).toLocaleDateString("de-CH", { day: "2-digit", month: "short" });
+
+// Auf Modul-Ebene definiert: eine im Render erzeugte Komponente bekommt bei jedem
+// Render eine neue Identität und würde von React unnötig neu gemountet.
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  const val = payload[0].value;
+  const col = val >= 5 ? "#34d399" : val <= -5 ? "#f87171" : "#fbbf24";
+  return (
+    <div className="bg-[#0d1220] border border-[#1e2840] rounded-lg px-3 py-2 text-xs shadow-xl">
+      <p className="text-gray-400 mb-1">{fmtDate(label)}</p>
+      <p style={{ color: col }} className="font-semibold text-sm">{val >= 0 ? "+" : ""}{val}</p>
+    </div>
+  );
+};
+
 function RegimeSparkline({ points }: { points: { date: string; score: number }[] }) {
   const last = points[points.length - 1];
   const lastColor = last.score >= 0.05 ? "#34d399" : last.score <= -0.05 ? "#f87171" : "#fbbf24";
   const fmt = (s: number) => `${s >= 0 ? "+" : ""}${Math.round(s * 100)}`;
-  const fmtDate = (d: string) => new Date(d).toLocaleDateString("de-CH", { day: "2-digit", month: "short" });
 
   // Compute dynamic Y domain with 15% padding so the line doesn't hug the edges
   const scores = points.map((p) => p.score);
@@ -130,18 +145,6 @@ function RegimeSparkline({ points }: { points: { date: string; score: number }[]
     score: Math.round(p.score * 100),
     label: fmtDate(p.date),
   }));
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
-    const val = payload[0].value;
-    const col = val >= 5 ? "#34d399" : val <= -5 ? "#f87171" : "#fbbf24";
-    return (
-      <div className="bg-[#0d1220] border border-[#1e2840] rounded-lg px-3 py-2 text-xs shadow-xl">
-        <p className="text-gray-400 mb-1">{fmtDate(label)}</p>
-        <p style={{ color: col }} className="font-semibold text-sm">{val >= 0 ? "+" : ""}{val}</p>
-      </div>
-    );
-  };
 
   // Ticks: show ~6 evenly spaced dates
   const tickIndices = points.length <= 6
