@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { trpc } from "@/lib/trpc";
-import { useState, useEffect, useMemo } from "react";
+import { trpc, type RouterOutputs } from "@/lib/trpc";
+import { useState, useMemo } from "react";
 import { toast } from "sonner";
 import {ChevronDown, ChevronRight, Eye, RotateCcw, Save, Settings, SlidersHorizontal} from "lucide-react";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -38,15 +38,25 @@ const CLASS_LABELS: Record<keyof AssetClassWeights, string> = {
 
 function AssetClassWeightsSection() {
   const { data, isLoading } = trpc.admin.getAssetClassWeights.useQuery();
-  const updateMutation = trpc.admin.updateAssetClassWeights.useMutation();
-  const [weights, setWeights] = useState<AssetClassWeights>(DEFAULT_WEIGHTS);
-  const [dirty, setDirty] = useState(false);
 
-  useEffect(() => {
-    if (data?.weights) {
-      setWeights(data.weights as AssetClassWeights);
-    }
-  }, [data]);
+  if (isLoading) return null;
+
+  // Das Formular seedet seinen State aus den Props (kein Effect). Die Query
+  // liefert keine stabile Zeilen-ID, deshalb wird ausschliesslich auf das
+  // Vorhandensein der Gewichte gekeyt — ein Hintergrund-Refetch derselben
+  // Werte ändert den Key nicht und verwirft keine offenen Eingaben.
+  return (
+    <AssetClassWeightsForm
+      key={data?.weights ? "geladen" : "leer"}
+      initialWeights={(data?.weights as AssetClassWeights | null) ?? DEFAULT_WEIGHTS}
+    />
+  );
+}
+
+function AssetClassWeightsForm({ initialWeights }: { initialWeights: AssetClassWeights }) {
+  const updateMutation = trpc.admin.updateAssetClassWeights.useMutation();
+  const [weights, setWeights] = useState<AssetClassWeights>(initialWeights);
+  const [dirty, setDirty] = useState(false);
 
   function setW<K extends keyof AssetClassWeights>(
     cls: K,
@@ -87,8 +97,6 @@ function AssetClassWeightsSection() {
       </div>
     );
   }
-
-  if (isLoading) return null;
 
   return (
     <Card>
@@ -196,13 +204,39 @@ const THRESHOLD_LABELS: Record<string, { label: string; unit: string; component:
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
+type ScoreConfigData = RouterOutputs["admin"]["getScoreConfig"];
+
 export default function AdminScoreConfig() {
   const { data, isLoading } = trpc.admin.getScoreConfig.useQuery();
+
+  if (isLoading || !data?.config) {
+    return (
+      <DashboardLayout>
+        <div className="p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-muted rounded w-64" />
+            <div className="h-64 bg-muted rounded" />
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Das Formular seedet seinen State aus den Props (kein Effect). Die Query
+  // liefert keine stabile Zeilen-ID, deshalb wird ausschliesslich auf das
+  // Vorhandensein der Konfiguration gekeyt — ein Hintergrund-Refetch derselben
+  // Konfiguration ändert den Key nicht und verwirft keine offenen Eingaben.
+  return <ScoreConfigForm key={data.config ? "geladen" : "leer"} data={data} />;
+}
+
+function ScoreConfigForm({ data }: { data: ScoreConfigData }) {
   const { data: auditData, refetch: refetchAudit } = trpc.admin.getScoreConfigAudit.useQuery();
   const updateMutation = trpc.admin.updateScoreConfig.useMutation();
   const previewMutation = trpc.admin.previewScoreConfig.useMutation();
 
-  const [config, setConfig] = useState<ScoreThresholdsConfig | null>(null);
+  const [config, setConfig] = useState<ScoreThresholdsConfig>(
+    () => JSON.parse(JSON.stringify(data.config)) as ScoreThresholdsConfig
+  );
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     componentWeights: true,
     riskAdjustedReturn: false,
@@ -213,14 +247,8 @@ export default function AdminScoreConfig() {
   });
   const [previewResult, setPreviewResult] = useState<any>(null);
 
-  useEffect(() => {
-    if (data?.config) {
-      setConfig(JSON.parse(JSON.stringify(data.config)));
-    }
-  }, [data]);
-
   const hasChanges = useMemo(() => {
-    if (!config || !data?.defaults) return false;
+    if (!data?.defaults) return false;
     return JSON.stringify(config) !== JSON.stringify(data.config);
   }, [config, data]);
 
@@ -229,7 +257,6 @@ export default function AdminScoreConfig() {
   };
 
   const handleWeightChange = (key: string, value: string) => {
-    if (!config) return;
     const num = parseFloat(value);
     if (isNaN(num)) return;
     setConfig({
@@ -239,7 +266,6 @@ export default function AdminScoreConfig() {
   };
 
   const handleSubWeightChange = (key: string, value: string) => {
-    if (!config) return;
     const num = parseFloat(value);
     if (isNaN(num)) return;
     setConfig({
@@ -249,7 +275,6 @@ export default function AdminScoreConfig() {
   };
 
   const handleThresholdChange = (thresholdKey: string, index: number, field: 0 | 1, value: string) => {
-    if (!config) return;
     const num = parseFloat(value);
     if (isNaN(num)) return;
     const newThresholds = { ...config.thresholds };
@@ -261,7 +286,6 @@ export default function AdminScoreConfig() {
   };
 
   const addThresholdRow = (thresholdKey: string) => {
-    if (!config) return;
     const newThresholds = { ...config.thresholds };
     const arr = [...newThresholds[thresholdKey]];
     const lastRow = arr[arr.length - 1] || [0, 50];
@@ -271,7 +295,6 @@ export default function AdminScoreConfig() {
   };
 
   const removeThresholdRow = (thresholdKey: string, index: number) => {
-    if (!config) return;
     const newThresholds = { ...config.thresholds };
     const arr = [...newThresholds[thresholdKey]];
     if (arr.length <= 2) {
@@ -284,7 +307,6 @@ export default function AdminScoreConfig() {
   };
 
   const handleSave = async () => {
-    if (!config) return;
     // Validate weights sum
     const wSum = Object.values(config.componentWeights).reduce((a, b) => a + b, 0);
     if (Math.abs(wSum - 1.0) > 0.01) {
@@ -308,7 +330,6 @@ export default function AdminScoreConfig() {
   };
 
   const handlePreview = async () => {
-    if (!config) return;
     // Sample input for a typical balanced portfolio
     const sampleInput = {
       sharpe: 0.65,
@@ -333,22 +354,7 @@ export default function AdminScoreConfig() {
     }
   };
 
-  const weightSum = config
-    ? Object.values(config.componentWeights).reduce((a, b) => a + b, 0)
-    : 0;
-
-  if (isLoading || !config) {
-    return (
-      <DashboardLayout>
-        <div className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-muted rounded w-64" />
-            <div className="h-64 bg-muted rounded" />
-          </div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  const weightSum = Object.values(config.componentWeights).reduce((a, b) => a + b, 0);
 
   return (
     <DashboardLayout>

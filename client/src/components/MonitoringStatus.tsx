@@ -8,7 +8,7 @@
  * Also allows configuring the LPPL bubble confidence threshold (server-persisted).
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -39,25 +39,31 @@ interface ScheduledJob {
 }
 
 export default function MonitoringStatus() {
-  const [lpplThreshold, setLpplThreshold] = useState(70);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
   // Load threshold from server
   const { data: serverThreshold } = trpc.copilot.getLpplThreshold.useQuery();
-  
+
+  // Der Inhalt wird genau einmal gemountet, sobald der Server-Wert da ist —
+  // gekeyt nur auf dessen Vorhandensein, nicht auf den Wert selbst. Ein
+  // Hintergrund-Refetch lässt den Key unverändert und verwirft daher weder eine
+  // laufende Schieberegler-Bewegung noch ungespeicherte Änderungen.
+  return (
+    <MonitoringStatusContent
+      key={serverThreshold !== undefined ? 'geladen' : 'leer'}
+      initialThreshold={serverThreshold ?? 70}
+    />
+  );
+}
+
+function MonitoringStatusContent({ initialThreshold }: { initialThreshold: number }) {
+  const [lpplThreshold, setLpplThreshold] = useState(initialThreshold);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
   // Save threshold mutation
   const saveMutation = trpc.copilot.setLpplThreshold.useMutation({
     onSuccess: () => {
       setHasUnsavedChanges(false);
     },
   });
-
-  // Initialize from server value
-  useEffect(() => {
-    if (serverThreshold !== undefined) {
-      setLpplThreshold(serverThreshold);
-    }
-  }, [serverThreshold]);
 
   const handleThresholdChange = (val: number[]) => {
     setLpplThreshold(val[0]);

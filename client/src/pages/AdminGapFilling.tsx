@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { trpc } from "@/lib/trpc";
+import { useState } from "react";
+import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -127,49 +127,33 @@ function NumInput({
   );
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
+type GapFillConfigData = RouterOutputs["admin"]["getGapFillConfig"];
 
-export default function AdminGapFilling() {
-  const [lastResult, setLastResult] = useState<{
-    success: boolean;
-    gapsFound: GapInfo[];
-    stocksAdded: StockAdded[];
-    stocksSkipped: number;
-    durationMs: number;
-    error?: string;
-  } | null>(null);
+function configFromSaved(saved: GapFillConfigData | null): ConfigState {
+  if (!saved) return DEFAULT_CONFIG;
+  return {
+    minStocksPerSector: saved.minStocksPerSector,
+    minDividendStocks: saved.minDividendStocks,
+    minDividendYield: saved.minDividendYield,
+    maxCandidatesPerGap: saved.maxCandidatesPerGap,
+    maxStocksPerRun: saved.maxStocksPerRun,
+    minMarketCapBillions: saved.minMarketCapBillions,
+    targetSectors: (saved.targetSectors as string[]) ?? [...ALL_SECTORS],
+    allowedExchanges: (saved.allowedExchanges as string[]) ?? [],
+    enableRegionCheck: saved.enableRegionCheck,
+    minStocksPerRegion: saved.minStocksPerRegion,
+    enableLowBetaCheck: saved.enableLowBetaCheck,
+    maxBetaForLowBeta: saved.maxBetaForLowBeta,
+    minLowBetaStocks: saved.minLowBetaStocks,
+    enableEsgCheck: saved.enableEsgCheck,
+    minEsgStocks: saved.minEsgStocks,
+  };
+}
 
+function GapFillConfigSection({ saved }: { saved: GapFillConfigData | null }) {
   const [showConfig, setShowConfig] = useState(false);
-  const [config, setConfig] = useState<ConfigState>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<ConfigState>(() => configFromSaved(saved));
   const [configDirty, setConfigDirty] = useState(false);
-
-  const { data: savedConfig, isLoading: configLoading } = trpc.admin.getGapFillConfig.useQuery(undefined, {
-    refetchOnWindowFocus: false,
-  });
-
-  // Sync loaded config into local state
-  useEffect(() => {
-    if (savedConfig) {
-      setConfig({
-        minStocksPerSector: savedConfig.minStocksPerSector,
-        minDividendStocks: savedConfig.minDividendStocks,
-        minDividendYield: savedConfig.minDividendYield,
-        maxCandidatesPerGap: savedConfig.maxCandidatesPerGap,
-        maxStocksPerRun: savedConfig.maxStocksPerRun,
-        minMarketCapBillions: savedConfig.minMarketCapBillions,
-        targetSectors: (savedConfig.targetSectors as string[]) ?? [...ALL_SECTORS],
-        allowedExchanges: (savedConfig.allowedExchanges as string[]) ?? [],
-        enableRegionCheck: savedConfig.enableRegionCheck,
-        minStocksPerRegion: savedConfig.minStocksPerRegion,
-        enableLowBetaCheck: savedConfig.enableLowBetaCheck,
-        maxBetaForLowBeta: savedConfig.maxBetaForLowBeta,
-        minLowBetaStocks: savedConfig.minLowBetaStocks,
-        enableEsgCheck: savedConfig.enableEsgCheck,
-        minEsgStocks: savedConfig.minEsgStocks,
-      });
-      setConfigDirty(false);
-    }
-  }, [savedConfig]);
 
   const updateConfigMutation = trpc.admin.updateGapFillConfig.useMutation({
     onSuccess: () => {
@@ -178,34 +162,6 @@ export default function AdminGapFilling() {
     },
     onError: (err) => toast.error("Fehler beim Speichern", { description: err.message }),
   });
-
-  const { data: logs, refetch: refetchLogs, isLoading: logsLoading } = trpc.admin.getGapFillLogs.useQuery(
-    { limit: 10 },
-    { refetchOnWindowFocus: false }
-  );
-
-  const triggerMutation = trpc.admin.triggerGapFilling.useMutation({
-    onSuccess: (data) => {
-      setLastResult(data as any);
-      refetchLogs();
-      if (data.success) {
-        if (data.stocksAdded.length > 0) {
-          toast.success(`${data.stocksAdded.length} neue Titel hinzugefügt`, {
-            description: data.stocksAdded.map((s: StockAdded) => `${s.ticker} (${s.gapType})`).join(", "),
-          });
-        } else {
-          toast.info("Kein Gap-Filling nötig", {
-            description: "Das Universum ist bereits gut diversifiziert.",
-          });
-        }
-      } else {
-        toast.error("Gap-Filling fehlgeschlagen", { description: (data as any).error });
-      }
-    },
-    onError: (err) => toast.error("Fehler beim Gap-Filling", { description: err.message }),
-  });
-
-  const isRunning = triggerMutation.isPending;
 
   const setField = <K extends keyof ConfigState>(key: K, value: ConfigState[K]) => {
     setConfig((prev) => ({ ...prev, [key]: value }));
@@ -228,32 +184,7 @@ export default function AdminGapFilling() {
   };
 
   return (
-    <DashboardLayout>
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-        <Breadcrumb
-          items={[
-            { label: "Admin", href: "/admin" },
-            { label: "Universum Gap-Filling", icon: <Database className="h-4 w-4" /> },
-          ]}
-        />
-
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Search className="w-6 h-6 text-primary" />
-              Universum Gap-Filling
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Analysiert das Watchlist-Universum auf Lücken und ergänzt fehlende Titel automatisch via EODHD API.
-            </p>
-          </div>
-          <Button onClick={() => triggerMutation.mutate()} disabled={isRunning} className="gap-2">
-            {isRunning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-            {isRunning ? "Analysiert..." : "Jetzt ausführen"}
-          </Button>
-        </div>
-
+    <>
         {/* Config Summary Box */}
         <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
           <CardContent className="pt-4 pb-3">
@@ -556,6 +487,96 @@ export default function AdminGapFilling() {
               </div>
             </CardContent>
           </Card>
+        )}
+    </>
+  );
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export default function AdminGapFilling() {
+  const [lastResult, setLastResult] = useState<{
+    success: boolean;
+    gapsFound: GapInfo[];
+    stocksAdded: StockAdded[];
+    stocksSkipped: number;
+    durationMs: number;
+    error?: string;
+  } | null>(null);
+
+  const { data: savedConfig, isLoading: configLoading } = trpc.admin.getGapFillConfig.useQuery(undefined, {
+    refetchOnWindowFocus: false,
+  });
+
+  const { data: logs, refetch: refetchLogs, isLoading: logsLoading } = trpc.admin.getGapFillLogs.useQuery(
+    { limit: 10 },
+    { refetchOnWindowFocus: false }
+  );
+
+  const triggerMutation = trpc.admin.triggerGapFilling.useMutation({
+    onSuccess: (data) => {
+      setLastResult(data as any);
+      refetchLogs();
+      if (data.success) {
+        if (data.stocksAdded.length > 0) {
+          toast.success(`${data.stocksAdded.length} neue Titel hinzugefügt`, {
+            description: data.stocksAdded.map((s: StockAdded) => `${s.ticker} (${s.gapType})`).join(", "),
+          });
+        } else {
+          toast.info("Kein Gap-Filling nötig", {
+            description: "Das Universum ist bereits gut diversifiziert.",
+          });
+        }
+      } else {
+        toast.error("Gap-Filling fehlgeschlagen", { description: (data as any).error });
+      }
+    },
+    onError: (err) => toast.error("Fehler beim Gap-Filling", { description: err.message }),
+  });
+
+  const isRunning = triggerMutation.isPending;
+
+  return (
+    <DashboardLayout>
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        <Breadcrumb
+          items={[
+            { label: "Admin", href: "/admin" },
+            { label: "Universum Gap-Filling", icon: <Database className="h-4 w-4" /> },
+          ]}
+        />
+
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Search className="w-6 h-6 text-primary" />
+              Universum Gap-Filling
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Analysiert das Watchlist-Universum auf Lücken und ergänzt fehlende Titel automatisch via EODHD API.
+            </p>
+          </div>
+          <Button onClick={() => triggerMutation.mutate()} disabled={isRunning} className="gap-2">
+            {isRunning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {isRunning ? "Analysiert..." : "Jetzt ausführen"}
+          </Button>
+        </div>
+
+        {/* Config Summary Box + Kriterien-Panel */}
+        {configLoading ? (
+          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-800">
+            <CardContent className="pt-4 pb-3">
+              <div className="text-sm text-muted-foreground">Lade Konfiguration...</div>
+            </CardContent>
+          </Card>
+        ) : (
+          // Das Formular seedet seinen State aus den Props (kein Effect). Die
+          // gespeicherte Zeile hat zwar eine id, diese wird beim Speichern aber
+          // neu vergeben (delete + insert). Deshalb wird nur auf das Vorhandensein
+          // der Daten gekeyt — ein Hintergrund-Refetch ändert den Key nicht und
+          // verwirft keine ungespeicherten Eingaben.
+          <GapFillConfigSection key={savedConfig ? "geladen" : "leer"} saved={savedConfig ?? null} />
         )}
 
         {/* Last Run Result */}

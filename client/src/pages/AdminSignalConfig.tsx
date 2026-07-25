@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,16 +21,21 @@ export default function AdminSignalConfig() {
   const { data: config = [], isLoading } = trpc.admin.getRegimeSignalConfig.useQuery();
   const { data: mlStatus } = trpc.admin.analyticsServiceStatus.useQuery();
 
-  // Editierbarer Qualitätsanteil je Regime in Prozent (Timing = 100 − Qualität).
-  const [quality, setQuality] = useState<Record<string, number>>({});
-  useEffect(() => {
+  // Qualitätsanteil je Regime in Prozent (Timing = 100 − Qualität). Der Wert ist
+  // rein aus der Query ableitbar, deshalb wird er berechnet statt gespiegelt.
+  const serverQuality = useMemo(() => {
     const seed: Record<string, number> = {};
     for (const r of config) {
       const total = r.qualityWeight + r.tradingWeight || 1;
       seed[r.regime] = Math.round((r.qualityWeight / total) * 100);
     }
-    setQuality(seed);
+    return seed;
   }, [config]);
+
+  // Ungespeicherte Schieberegler-Änderungen liegen als Overlay über den
+  // Server-Werten: ein Hintergrund-Refetch aktualisiert nur unberührte Regimes
+  // und verwirft keine offene Eingabe.
+  const [qualityOverrides, setQualityOverrides] = useState<Record<string, number>>({});
 
   const setBlend = trpc.admin.setRegimeBlend.useMutation({
     onSuccess: () => {
@@ -106,7 +111,7 @@ export default function AdminSignalConfig() {
         <div className="grid gap-4 md:grid-cols-2">
           {isLoading && <p className="text-sm text-muted-foreground">Lädt…</p>}
           {config.map((r) => {
-            const q = quality[r.regime] ?? 50;
+            const q = qualityOverrides[r.regime] ?? serverQuality[r.regime] ?? 50;
             return (
               <Card key={r.regime}>
                 <CardHeader className="pb-2">
@@ -126,7 +131,7 @@ export default function AdminSignalConfig() {
                     max={100}
                     step={5}
                     value={q}
-                    onChange={(e) => setQuality((s) => ({ ...s, [r.regime]: parseInt(e.target.value, 10) }))}
+                    onChange={(e) => setQualityOverrides((s) => ({ ...s, [r.regime]: parseInt(e.target.value, 10) }))}
                     className="w-full"
                     aria-label={`Qualitätsanteil ${REGIME_LABELS[r.regime] ?? r.regime}`}
                   />
