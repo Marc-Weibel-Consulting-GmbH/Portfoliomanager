@@ -24,6 +24,14 @@ import { saveCopilotRecommendations, getCopilotHistoryForPortfolio, getCopilotHi
 import { runLPPLFullBacktest, runLPPLCustomBacktest, KNOWN_BUBBLES, fitLPPLMultiScale, calculateBubbleConfidence } from '../analytics/lpplBacktest';
 import { calcRiskMetrics } from '../analytics/engine';
 import { fetchEODHDFundamentals, type EODHDFundamentals } from '../_core/eodhdApi';
+import { MULTI_ASSET_ETFS, ASSET_CLASS_LABELS } from '../lib/multiAssetSleeve';
+
+/** Flat lookup: ticker (uppercase) → Anlageklassen-Label (z.B. "AGGH.SW" → "Obligationen") */
+const SLEEVE_TICKER_LABEL: Record<string, string> = Object.fromEntries(
+  Object.entries(MULTI_ASSET_ETFS).flatMap(([cls, etfs]) =>
+    etfs.map(e => [e.ticker.toUpperCase(), ASSET_CLASS_LABELS[cls as keyof typeof ASSET_CLASS_LABELS]])
+  )
+);
 import { userSettings, lpplResults } from '../../drizzle/schema';
 import { eq, desc, gte } from 'drizzle-orm';
 import YahooFinance from 'yahoo-finance2';
@@ -1006,7 +1014,8 @@ export const copilotRouter = router({
           name: f.companyName || s.companyName || s.name || s.ticker,
           weight,
           value: Math.round(value * 100) / 100,
-          sector: f.sector || s.sector || 'Unbekannt',
+          // Sleeve-ETFs bekommen ihr Anlageklassen-Label statt EODHD-Sektor
+          sector: SLEEVE_TICKER_LABEL[s.ticker?.toUpperCase()] ?? f.sector ?? s.sector ?? 'Unbekannt',
           industry: f.industry || null,
           peRatio: f.peRatio !== null ? Math.round((f.peRatio ?? 0) * 10) / 10 : null,
           pegRatio: f.pegRatio !== null ? Math.round((f.pegRatio ?? 0) * 100) / 100 : null,
@@ -1076,8 +1085,19 @@ export const copilotRouter = router({
         aiSummary = cachedSummary.summary;
       } else {
         try {
-          const topSectors = sectorBreakdown.slice(0, 3).map(s => `${s.sector} (${s.weight.toFixed(1)}%)`).join(', ');
-          const prompt = `Erstelle eine präzise Portfolio-Zusammenfassung auf Deutsch (max. 180 Wörter):\n\nPortfolio: ${(portfolio as any).name}\nPositionen: ${portfolioMetrics.positionCount}\nTop-Sektoren: ${topSectors}\nDurchschn. KGV: ${portfolioMetrics.avgPE ?? 'n/a'}\nDurchschn. PEG: ${portfolioMetrics.avgPEG ?? 'n/a'}\nDurchschn. Beta: ${portfolioMetrics.avgBeta ?? 'n/a'}\nDurchschn. Dividendenrendite: ${portfolioMetrics.avgDividendYield ?? 'n/a'}%\nDurchschn. Gewinnwachstum: ${portfolioMetrics.avgEarningsGrowth ?? 'n/a'}%\n\nBewerte: Ist das Portfolio günstig oder teuer bewertet? Defensiv oder aggressiv? Dividendenstärke? Gib 2 konkrete Handlungsempfehlungen.`;
+          // Sleeve-ETFs von Aktien/Aktien-ETFs trennen für den LLM-Prompt
+          const sleeveHoldings = holdings.filter(h => SLEEVE_TICKER_LABEL[h.ticker?.toUpperCase()]);
+          const equityHoldings = holdings.filter(h => !SLEEVE_TICKER_LABEL[h.ticker?.toUpperCase()]);
+          const equityWeight = Math.round(equityHoldings.reduce((s, h) => s + h.weight, 0));
+          const sleeveWeight = Math.round(sleeveHoldings.reduce((s, h) => s + h.weight, 0));
+          const topSectors = sectorBreakdown
+            .filter(s => !Object.values(ASSET_CLASS_LABELS).includes(s.sector as any))
+            .slice(0, 4)
+            .map(s => `${s.sector} (${s.weight.toFixed(1)}%)`).join(', ') || 'n/a';
+          const sleeveBreakdown = sleeveHoldings.length > 0
+            ? `\nAlternative Anlageklassen (Diversifikations-Sleeves): ${sleeveHoldings.map(h => `${SLEEVE_TICKER_LABEL[h.ticker.toUpperCase()]} ${h.ticker} (${h.weight.toFixed(1)}%)`).join(', ')}`
+            : '';
+          const prompt = `Erstelle eine präzise Portfolio-Zusammenfassung auf Deutsch (max. 220 Wörter):\n\nPortfolio: ${(portfolio as any).name}\nPositionen gesamt: ${portfolioMetrics.positionCount} (${equityHoldings.length} Aktien/Aktien-ETFs [${equityWeight}%], ${sleeveHoldings.length} alternative Anlageklassen [${sleeveWeight}%])\nTop-Sektoren (Aktien): ${topSectors}${sleeveBreakdown}\nDurchschn. KGV (Aktien): ${portfolioMetrics.avgPE ?? 'n/a'}\nDurchschn. PEG (Aktien): ${portfolioMetrics.avgPEG ?? 'n/a'}\nDurchschn. Beta (Aktien): ${portfolioMetrics.avgBeta ?? 'n/a'}\nDurchschn. Dividendenrendite: ${portfolioMetrics.avgDividendYield ?? 'n/a'}%\nDurchschn. Gewinnwachstum (Aktien): ${portfolioMetrics.avgEarningsGrowth ?? 'n/a'}%\n\nHINWEIS: Die Positionen in Obligationen, Gold, Rohstoffen, Immobilien und Krypto sind bewusst gewählte Diversifikations-Sleeves — behandle sie NICHT als undekl. Sektoren, sondern als strategische Asset-Allokation.\n\nBewerte: Aktien-Bewertung (günstig/teuer)? Diversifikationsqualität der Sleeves? Dividendenstärke? Gib 2 konkrete Handlungsempfehlungen.`;
           // Inject research context into AI recommendations
           const researchCtx = await getResearchContextForLLM();
           const systemContent = 'Du bist ein erfahrener Schweizer Portfoliomanager. Antworte präzise auf Deutsch.' + researchCtx.contextString;

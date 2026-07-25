@@ -488,3 +488,4 @@
 - [x] bug: BCOM.SW kein EODHD-Endpunkt — durch CMOD.SW (iShares Diversified Commodity Swap, SIX) ersetzt
 - [x] fix: KI-Briefing array-content von Gemini/invokeLLM-Fallback (contentToString)
 - [x] fix: KI-Briefing vollständige Fallback-Kaskade (kimi→gemini→claude→omniroute→groq→perplexity)
+- [x] fix: Deep-Dive erkennt Multi-Asset-Sleeve-ETFs korrekt (Sektor-Label + LLM-Prompt)
