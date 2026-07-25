@@ -674,7 +674,7 @@ export default function PortfolioBuilderWizard() {
                   <div>
                     <h3 className="font-semibold text-xl text-white">{option.label}</h3>
                     <p className="text-sm text-gray-400 mt-2">{option.description}</p>
-                    </div>
+                  </div>
                   <ChevronRight className="h-5 w-5 text-gray-600" />
                 </CardContent>
               </Card>
