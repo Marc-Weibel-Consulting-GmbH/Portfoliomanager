@@ -992,7 +992,9 @@ export default function PortfolioDetailsPage() {
 
   // U-03: Transaktion erfassen + Swissquote-PDF-Import (Transaktionen-Tab)
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
-  const [isPdfImportOpen, setIsPdfImportOpen] = useState(false);
+  // U-02: Beim Einstieg aus dem Portfolio-Builder-Importpfad (?import=1) startet
+  // der PDF-Import direkt geöffnet (Seed aus dem Query-Param beim Mount).
+  const [isPdfImportOpen, setIsPdfImportOpen] = useState(() => searchParams.get('import') === '1');
   
   // State for activation modal (Demo -> Live)
   const [isActivationModalOpen, setIsActivationModalOpen] = useState(false);
@@ -1030,11 +1032,10 @@ export default function PortfolioDetailsPage() {
     setIsEditPositionModalOpen(true);
   };
   
-  // U-02: Einstieg aus dem Portfolio-Builder-Importpfad (?import=1) —
-  // PDF-Import einmalig automatisch öffnen, dann den Query-Param entfernen.
+  // U-02: Der Query-Param ?import=1 wird nach dem Mount einmalig aus der URL
+  // entfernt (das Öffnen des PDF-Imports passiert über den State-Seed oben).
   useEffect(() => {
     if (searchParams.get('import') === '1') {
-      setIsPdfImportOpen(true);
       navigate(`/portfolios/${portfolioId}?tab=transaktionen`, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
