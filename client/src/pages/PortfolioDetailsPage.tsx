@@ -102,6 +102,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SLEEVE_LABEL_CONFIG, SLEEVE_TICKER_LABEL } from '@shared/const';
 
 // ─── Performance Tab with Attribution Waterfall ───
 function PerformanceTab({
@@ -1716,7 +1717,30 @@ export default function PortfolioDetailsPage() {
             </p>
           </div>
         </div>
-
+        {/* Asset-Allokations-Zeile — nur wenn Sleeve-ETFs vorhanden */}
+        {(() => {
+          const assetMap: Record<string, number> = {};
+          for (const h of holdings) {
+            const label = SLEEVE_TICKER_LABEL[(h.ticker || '').toUpperCase()] ?? 'Aktien';
+            assetMap[label] = (assetMap[label] || 0) + (parseFloat(h.weight || '0'));
+          }
+          const hasSleeves = Object.keys(assetMap).some(k => k !== 'Aktien');
+          if (!hasSleeves) return null;
+          const sorted = Object.entries(assetMap).sort((a, b) => b[1] - a[1]);
+          return (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 pt-2 pb-1">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wider">Allokation:</span>
+              {sorted.map(([label, pct]) => {
+                const cfg = SLEEVE_LABEL_CONFIG[label];
+                return (
+                  <span key={label} className="inline-flex items-center gap-1 text-[11px]" style={{ color: cfg?.color ?? '#00CFC1' }}>
+                    {cfg?.icon ?? '🟢'} <span className="font-medium">{label}</span> <span className="text-gray-400">{pct.toFixed(0)}%</span>
+                  </span>
+                );
+              })}
+            </div>
+          );
+        })()}
         {/* Tabs Section — matches design PDF, with URL persistence */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
@@ -2191,7 +2215,16 @@ export default function PortfolioDetailsPage() {
                               </div>
                             </td>
                             <td className="px-3 py-3.5">
-                              <span className="text-xs text-[#00CFC1]/80">{h.sector || '—'}</span>
+                              {(() => {
+                                const sleeveLabel = SLEEVE_TICKER_LABEL[h.ticker?.toUpperCase()];
+                                const cfg = sleeveLabel ? SLEEVE_LABEL_CONFIG[sleeveLabel] : null;
+                                if (cfg) return (
+                                  <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: cfg.bg, color: cfg.color }}>
+                                    <span>{cfg.icon}</span><span>{sleeveLabel}</span>
+                                  </span>
+                                );
+                                return <span className="text-xs text-[#00CFC1]/80">{h.sector || '—'}</span>;
+                              })()}
                             </td>
                             <td className="px-3 py-3.5 text-right text-sm text-gray-300">{weight.toFixed(1)}%</td>
                             {showDetailCols && (() => {

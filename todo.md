@@ -492,3 +492,5 @@
 - [x] Deep-Dive Cache-Clear Button im Admin-Dashboard
 - [x] Sleeve-ETF-Icons in Positionen-Tabelle (Deep-Dive)
 - [x] Asset-Allokations-Donut-Chart im Deep-Dive
+- [x] Sleeve-ETF-Icons in Positionen-Tabelle (PortfolioDetailsPage)
+- [x] Asset-Allokations-Zeile unter KPI-Karten (PortfolioDetailsPage)
