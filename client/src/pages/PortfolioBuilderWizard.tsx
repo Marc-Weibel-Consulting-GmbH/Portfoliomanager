@@ -1,96 +1,100 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Check,
-  Sparkles,
-  TrendingUp,
-  Briefcase,
-  Upload,
-  Search,
-  Plus,
-  X,
-  Target,
-  Shield,
-  Flame,
-  Leaf,
-  Building2,
-  Landmark,
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle,
-  RefreshCw,
-  ArrowDownCircle,
-  ArrowUpCircle,
-  Info,
-  ShieldCheck,
+  ChevronLeft, ChevronRight, Check, Search, Plus, X,
+  TrendingUp, DollarSign, Scale, PieChart, PencilRuler,
+  Upload, Shield, Flame, Sparkles, Clock, Ban, Leaf,
+  ArrowDownCircle, ArrowUpCircle, RefreshCw, CheckCircle, ShieldCheck, Info
 } from "lucide-react";
-import InsightPanel from "@/components/InsightPanel";
-import { SwissquotePDFImport } from "@/components/SwissquotePDFImport";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { InsightExpandable, InsightPanel } from "@/components/InsightPanel";
 
-// Types
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type PortfolioType = "dividends" | "growth" | "balanced" | "etf";
+type BuilderPath = "auto" | "manual" | "import";
+
+// Sub-steps for the Auto (KI) flow
+// autoStep 1 = Anlageziel, 2 = Risikoprofil, 3 = Anlagehorizont,
+// 4 = Ausgeschlossene Sektoren, 5 = Portfolio-Details + KI-Vorschlag
+type AutoStep = 1 | 2 | 3 | 4 | 5;
+
 type StockSelection = {
   ticker: string;
   companyName: string;
   quantity: number;
   purchasePrice: number;
   assetType: "stock" | "bond" | "etf";
-  /** Multi-Asset-Anlageklasse aus dem KI-Vorschlag (equity|bond|commodity|gold|realestate|crypto). */
-  assetClass?: string;
   /** Weight as % of total capital (inkl. Cash-Reserve). Stored directly from proposal weightPct. */
   weightPct?: number;
+  /** Multi-Asset-Anlageklasse (bond/commodity/gold/realestate/crypto) — nur bei Sleeve-ETFs aus dem KI-Vorschlag gesetzt. */
+  assetClass?: string;
 };
 
-type PortfolioType = "simple" | "live";
-type BuilderPath = "auto" | "manual" | "import" | null;
+// ─── Static data ─────────────────────────────────────────────────────────────
 
-// Portfolio types
-const portfolioTypes = [
+const pathOptions: Array<{ value: BuilderPath; label: string; icon: React.ReactNode; description: string }> = [
   {
-    value: "simple" as const,
-    label: "Einfaches Portfolio",
-    description: "Statische Übersicht Ihrer Anlagen ohne Transaktionsverfolgung",
-    icon: <Briefcase className="h-10 w-10" />,
+    value: "auto",
+    label: "Automatisch (KI)",
+    icon: <Sparkles className="h-8 w-8" />,
+    description: "KI erstellt Ihren Vorschlag basierend auf Ihrem Anlageprofil — bewertet nach Scores, Regeln & Optimierung",
   },
   {
-    value: "live" as const,
-    label: "Live Portfolio (Premium)",
-    description: "Mit Transaktionsverfolgung, IRR/MWR Performance-Berechnung und Echtzeit-Analysen",
-    icon: <TrendingUp className="h-10 w-10" />,
+    value: "manual",
+    label: "Manuell",
+    icon: <PencilRuler className="h-8 w-8" />,
+    description: "Erstellen Sie Ihr Portfolio Schritt für Schritt von Grund auf",
+  },
+  {
+    value: "import",
+    label: "Import",
+    icon: <Upload className="h-8 w-8" />,
+    description: "Übernehmen Sie Ihr bestehendes Depot aus einer Swissquote-PDF-Abrechnung",
   },
 ];
 
-// Investment goals
+const portfolioTypes: Array<{ value: PortfolioType; label: string; icon: React.ReactNode; description: string }> = [
+  { value: "dividends", label: "Dividenden", icon: <DollarSign className="h-8 w-8" />, description: "Fokus auf regelmäßige Dividendenerträge" },
+  { value: "growth", label: "Wachstum", icon: <TrendingUp className="h-8 w-8" />, description: "Langfristiges Kapitalwachstum" },
+  { value: "balanced", label: "Balanced", icon: <Scale className="h-8 w-8" />, description: "Ausgewogene Mischung aus Wachstum und Dividenden" },
+  { value: "etf", label: "ETF", icon: <PieChart className="h-8 w-8" />, description: "Diversifizierung durch ETFs" },
+];
+
+// Auto-flow step data
+const autoStepMeta: Record<AutoStep, { title: string; subtitle: string }> = {
+  1: { title: "Was ist Ihr Anlageziel?", subtitle: "Wählen Sie das Ziel, das am besten zu Ihnen passt" },
+  2: { title: "Wie viel Schwankung akzeptieren Sie?", subtitle: "Ihr Risikoprofil bestimmt die Zusammensetzung" },
+  3: { title: "Wie lange möchten Sie anlegen?", subtitle: "Der Anlagehorizont beeinflusst die Titelauswahl" },
+  4: { title: "Welche Sektoren möchten Sie ausschliessen?", subtitle: "Optional — lassen Sie alle leer, wenn keine Einschränkungen gewünscht" },
+  5: { title: "Portfolio-Details & KI-Vorschlag", subtitle: "Geben Sie Ihrem Portfolio einen Namen und starten Sie die KI-Analyse" },
+};
+
 const INVESTMENT_GOALS = [
-  { value: "income", label: "Einkommen", description: "Regelmässige Dividenden und Erträge", icon: <Landmark className="h-7 w-7" /> },
-  { value: "growth", label: "Wachstum", description: "Langfristiger Kapitalzuwachs", icon: <TrendingUp className="h-7 w-7" /> },
-  { value: "balanced", label: "Ausgewogen", description: "Balance zwischen Einkommen und Wachstum", icon: <Target className="h-7 w-7" /> },
-  { value: "preservation", label: "Kapitalerhalt", description: "Sicherheit und Stabilität stehen im Vordergrund", icon: <Shield className="h-7 w-7" /> },
+  { value: "dividends", label: "Dividenden & Ertrag", description: "Regelmässige Ausschüttungen, stabile Titel", icon: <DollarSign className="h-7 w-7" /> },
+  { value: "growth", label: "Wachstum", description: "Langfristiger Kapitalzuwachs, Wachstumswerte", icon: <TrendingUp className="h-7 w-7" /> },
+  { value: "balanced", label: "Ertrag & Wachstum", description: "Kombination aus Ertrag und Wachstum", icon: <Scale className="h-7 w-7" /> },
 ];
 
-// Risk profiles
 const RISK_PROFILES = [
-  { value: "konservativ", label: "Konservativ", description: "Minimales Risiko, Stabilität zuerst", icon: <Shield className="h-7 w-7" /> },
-  { value: "ausgewogen", label: "Ausgewogen", description: "Moderates Risiko für solide Rendite", icon: <Target className="h-7 w-7" /> },
-  { value: "wachstum", label: "Wachstumsorientiert", description: "Höheres Risiko für höhere Rendite", icon: <TrendingUp className="h-7 w-7" /> },
+  { value: "konservativ", label: "Konservativ", description: "Kapitalerhalt im Fokus, geringe Schwankungen akzeptiert", icon: <Shield className="h-7 w-7" /> },
+  { value: "ausgewogen", label: "Ausgewogen", description: "Moderate Schwankungen für bessere Rendite", icon: <Scale className="h-7 w-7" /> },
+  { value: "wachstum", label: "Wachstum", description: "Höhere Schwankungen für mehr Rendite", icon: <TrendingUp className="h-7 w-7" /> },
   { value: "aggressiv", label: "Aggressiv", description: "Maximale Rendite, hohe Schwankungen bewusst akzeptiert", icon: <Flame className="h-7 w-7" /> },
 ];
 
-// Empfohlene Aktienquote je Risikoprofil (%) — Spiegel von
-// server/lib/multiAssetSleeve.ts (MULTI_ASSET_ALLOCATION[].equity).
-// Bei «Nur Aktien»-Wahl wird damit die Profil-Abweichung angezeigt.
+/** Empfohlene Aktienquote je Anlegerprofil (%) — Spiegel von server/lib/multiAssetSleeve.ts (STRATEGIC_EQUITY_SHARE). */
 const PROFILE_EQUITY_SHARE: Record<string, number> = {
   konservativ: 30,
   ausgewogen: 55,
@@ -98,7 +102,7 @@ const PROFILE_EQUITY_SHARE: Record<string, number> = {
   aggressiv: 80,
 };
 
-// Anzeigenamen der Multi-Asset-Anlageklassen (Badges im Vorschlag).
+/** Deutsche Labels der Multi-Asset-Anlageklassen (für Allokations-Badges im Vorschlag). */
 const ASSET_CLASS_LABELS: Record<string, string> = {
   equity: "Aktien",
   bond: "Obligationen",
@@ -108,425 +112,533 @@ const ASSET_CLASS_LABELS: Record<string, string> = {
   crypto: "Krypto",
 };
 
-// Horizons
 const HORIZONS = [
-  { value: 3, label: "Kurzfristig", description: "Bis 3 Jahre" },
-  { value: 7, label: "Mittelfristig", description: "3–7 Jahre" },
-  { value: 15, label: "Langfristig", description: "Über 7 Jahre" },
+  { value: 2, label: "1–3 Jahre", description: "Kurzfristig — Kapital bald benötigt", icon: <Clock className="h-7 w-7" /> },
+  { value: 5, label: "3–7 Jahre", description: "Mittelfristig — moderater Zeithorizont", icon: <Clock className="h-7 w-7" /> },
+  { value: 10, label: "7–15 Jahre", description: "Langfristig — Zeit für Wachstum", icon: <Clock className="h-7 w-7" /> },
+  { value: 20, label: "15+ Jahre", description: "Sehr langfristig — maximales Wachstumspotenzial", icon: <Clock className="h-7 w-7" /> },
 ];
 
-// Excluded sectors
+// Values must match DB sector names exactly for filtering to work in buildProposal
 const EXCLUDED_SECTORS = [
-  { value: "tabak", label: "Tabak", icon: <X className="h-5 w-5" /> },
-  { value: "ruediag", label: "Rüstung", icon: <X className="h-5 w-5" /> },
-  { value: "fossil", label: "Fossile Energie", icon: <X className="h-5 w-5" /> },
-  { value: "glücksspiel", label: "Glücksspiel", icon: <X className="h-5 w-5" /> },
-  { value: "kernkraft", label: "Kernkraft", icon: <X className="h-5 w-5" /> },
+  { value: "Energy", label: "Energie (u. a. Öl & Gas)", icon: <Flame className="h-5 w-5" /> },
+  { value: "Industrials", label: "Industrie (u. a. Rüstung)", icon: <Shield className="h-5 w-5" /> },
+  { value: "Consumer", label: "Basiskonsum (u. a. Alkohol & Tabak)", icon: <Ban className="h-5 w-5" /> },
+  { value: "Consumer Cyclical", label: "Zyklischer Konsum (u. a. Glücksspiel, Handel, Reisen)", icon: <Ban className="h-5 w-5" /> },
+  { value: "Finance", label: "Finanzsektor", icon: <Ban className="h-5 w-5" /> },
+  { value: "Telecommunications", label: "Telekommunikation", icon: <Ban className="h-5 w-5" /> },
 ];
 
-const loadingMessages = [
-  "Wir analysieren Ihre Anlageziele und suchen passende Titel für Sie…",
-  "Wir bewerten einzelne Aktien nach Qualität, Bewertung und Marktlage…",
-  "Wir prüfen Branchen-Mischung und Diversifikation Ihres Portfolios…",
-  "Wir optimieren die Gewichtung für ein gutes Rendite-Risiko-Profil…",
-  "Gleich geschafft — wir erstellen Ihren persönlichen Vorschlag…",
-];
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PortfolioBuilderWizard() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
 
-  // Path selection
-  const [path, setPath] = useState<BuilderPath>(null);
-  const [currentStep, setCurrentStep] = useState(0);
+  // ── Global state ──
+  const [currentStep, setCurrentStep] = useState(0); // 0 = path picker, 1-5 = manual flow
+  const [path, setPath] = useState<BuilderPath | null>(null);
 
-  // Auto builder state
-  const [autoStep, setAutoStep] = useState(1);
-  const [autoGoal, setAutoGoal] = useState("balanced");
-  const [autoRisk, setAutoRisk] = useState("ausgewogen");
-  const [autoHorizon, setAutoHorizon] = useState(10);
+  // ── Auto (KI) sub-flow state ──
+  const [autoStep, setAutoStep] = useState<AutoStep>(1);
+  const [autoGoal, setAutoGoal] = useState<string>("balanced");
+  const [autoRisk, setAutoRisk] = useState<string>("ausgewogen");
+  const [autoHorizon, setAutoHorizon] = useState<number>(10);
   const [autoExcluded, setAutoExcluded] = useState<string[]>([]);
-  const [autoProposal, setAutoProposal] = useState<any>(null);
-  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
-  const [profilePrefilled, setProfilePrefilled] = useState(false);
+  const [autoProposal, setAutoProposal] = useState<any | null>(null);
+  const [stocksOnly, setStocksOnly] = useState(false); // true = «Nur Aktien» (Abweichung vom Profil-Mix)
 
-  // Shared state
-  const [portfolioType, setPortfolioType] = useState<PortfolioType>("simple");
+  // ── Manual / shared state ──
+  const [portfolioType, setPortfolioType] = useState<PortfolioType | null>(null);
   const [portfolioName, setPortfolioName] = useState("");
   const [portfolioDescription, setPortfolioDescription] = useState("");
-  const [initialCapital, setInitialCapital] = useState<string>("");
   const [currency, setCurrency] = useState("CHF");
-  const [isLive, setIsLive] = useState(false);
+  const [initialCapital, setInitialCapital] = useState("");
   const [selectedStocks, setSelectedStocks] = useState<StockSelection[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [stockInputs, setStockInputs] = useState<Record<string, { quantity: string; price: string }>>({});
-  const [isAdminReviewed, setIsAdminReviewed] = useState(false); // true nach Rückkehr vom Admin-Review
+  const [perStockInputs, setPerStockInputs] = useState<Record<string, { quantity: string; price: string }>>({});
+  const [isLive, setIsLive] = useState(false);
+  const [isAiOptimized, setIsAiOptimized] = useState(false); // true wenn aus KI-angepasstem Vorschlag
+  const [isAdminReviewed, setIsAdminReviewed] = useState(false); // true wenn Vorschlag vom Admin geprüft wurde
   const [skipAdminReview, setSkipAdminReview] = useState(false); // true = direkt erstellen ohne Admin-Review
-  const [stocksOnly, setStocksOnly] = useState(false); // false = Multi-Asset-Mix gemäss Anlegerprofil (empfohlen)
 
-  // Fetch current user to check role
-  const { data: currentUser } = trpc.auth.me.useQuery();
-  const isAdmin = currentUser?.role === "admin";
-
-  // Fetch existing investment profile for pre-fill
-  const { data: existingProfile } = trpc.investmentProfile.get.useQuery();
-
-  // Pre-fill auto builder from existing profile
-  useEffect(() => {
-    if (existingProfile && !profilePrefilled) {
-      if (existingProfile.goal) setAutoGoal(existingProfile.goal);
-      if (existingProfile.riskProfile) setAutoRisk(existingProfile.riskProfile);
-      if (existingProfile.investmentHorizon) {
-        const h = existingProfile.investmentHorizon;
-        setAutoHorizon(h <= 3 ? 3 : h <= 7 ? 7 : 15);
-      }
-      if (existingProfile.excludedSectors?.length) setAutoExcluded(existingProfile.excludedSectors);
-      if (existingProfile.availableCapital) setInitialCapital(String(existingProfile.availableCapital));
-      setProfilePrefilled(true);
-    }
-  }, [existingProfile, profilePrefilled]);
-
-  // Handle return from admin review with reviewed proposal data
-  useEffect(() => {
-    const reviewedData = sessionStorage.getItem("reviewedProposal");
-    if (reviewedData) {
-      try {
-        const parsed = JSON.parse(reviewedData);
-        // Restore all wizard state from the reviewed proposal
-        if (parsed.positions) {
-          setAutoProposal({
-            positions: parsed.positions,
-            metrics: parsed.metrics,
-            profile: parsed.profile,
-            adminReviewed: parsed.adminReviewed,
-            adminReviewedAt: parsed.adminReviewedAt,
-            adminReviewNotes: parsed.adminReviewNotes,
-          });
-        }
-        if (parsed.portfolioName) setPortfolioName(parsed.portfolioName);
-        if (parsed.initialCapital) setInitialCapital(String(parsed.initialCapital));
-        if (parsed.autoGoal) setAutoGoal(parsed.autoGoal);
-        if (parsed.autoRisk) setAutoRisk(parsed.autoRisk);
-        if (parsed.autoHorizon) setAutoHorizon(parsed.autoHorizon);
-        if (parsed.autoExcluded) setAutoExcluded(parsed.autoExcluded);
-        setPath("auto");
-        setAutoStep(5);
-        setIsAdminReviewed(true);
-        sessionStorage.removeItem("reviewedProposal");
-        toast.success("Geprüfter Vorschlag geladen", {
-          description: "Sie können das Portfolio jetzt direkt erstellen.",
-        });
-      } catch (e) {
-        console.error("Failed to parse reviewed proposal:", e);
-        sessionStorage.removeItem("reviewedProposal");
-      }
-    }
-  }, []);
-
-  // Stocks query for manual selection
-  const { data: availableStocks = [], isLoading: stocksLoading } = trpc.stock.list.useQuery();
-
-  // Mutations
-  const createPortfolioMutation = trpc.portfolio.create.useMutation();
-  const setProfileMutation = trpc.investmentProfile.set.useMutation();
-
-  // Async proposal job (PR #173): start + poll statt synchronem buildProposal-Call.
-  // Der Job läuft serverseitig weiter, auch wenn der Client zwischenzeitlich
-  // die Verbindung verliert; der Client pollt getProposalStatus im 3s-Rhythmus.
+  // ── Async proposal job polling state ──
   const [proposalJobId, setProposalJobId] = useState<string | null>(null);
+  const [proposalProgress, setProposalProgress] = useState<string[]>([]);
+  const [isProposalRunning, setIsProposalRunning] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
+
+  // ── Queries & mutations ──
+  const utils = trpc.useUtils();
+  const { data: savedProfile } = trpc.investmentProfile.get.useQuery();
+  const { data: allStocks = [] } = trpc.stocks.list.useQuery();
+  const createPortfolioMutation = trpc.portfolios.create.useMutation();
+  const setProfileMutation = trpc.investmentProfile.set.useMutation();
+  const { user } = useAuth();
+  const isAdmin = (user as any)?.role === 'admin';
+
+  // Async job: start proposal (returns immediately with jobId)
   const startProposal = trpc.autoPortfolio.startProposal.useMutation({
     onSuccess: (data) => {
       setProposalJobId(data.jobId);
+      setIsProposalRunning(true);
+      setProposalProgress(['Job gestartet...']);
     },
-    onError: (err) => {
-      toast.error("Portfolio-Vorschlag fehlgeschlagen", { description: err.message });
+    onError: (e) => {
+      setIsProposalRunning(false);
+      toast.error('Vorschlag konnte nicht gestartet werden', { description: e.message });
     },
   });
+
+  // Polling query: only active when we have a jobId and job is running
   const proposalStatus = trpc.autoPortfolio.getProposalStatus.useQuery(
-    { jobId: proposalJobId! },
+    { jobId: proposalJobId ?? '' },
     {
-      enabled: !!proposalJobId,
+      enabled: !!proposalJobId && isProposalRunning,
       refetchInterval: (query) => {
-        const status = query.state.data?.status;
-        return status === "done" || status === "error" ? false : 3000;
+        const data = query.state.data;
+        if (!data) return 3000;
+        // Auch während der KI-Verfeinerung (enhancing) weiterpollen.
+        if (data.status === 'running' || data.status === 'enhancing') return 3000;
+        return false; // stop polling when done/error
       },
+      refetchIntervalInBackground: true,
     }
   );
-  // Verarbeitet den Job-Status: bei done → Vorschlag übernehmen (ggf. Enhancing-
-  // Phase, wenn der Synthesizer noch läuft), bei error → Fehler anzeigen.
+
+  // React to polling results
   useEffect(() => {
-    const data = proposalStatus.data;
-    if (!data) return;
-    if (data.status === "done" && data.result) {
-      const result = data.result as any;
+    if (!proposalStatus.data) return;
+    const { status, progress, result, error } = proposalStatus.data;
+    if (progress && progress.length > proposalProgress.length) {
+      setProposalProgress(progress);
+    }
+    if (status === 'enhancing' && result) {
+      // A: deterministisches Zwischenergebnis anzeigen, KI verfeinert im Hintergrund.
       setAutoProposal(result);
-      // Wenn adjustedPositions noch fehlen, läuft die KI-Gegenprüfung noch
-      setIsEnhancing(!result.adjustedPositions && !result.enhancingSkipped);
-      if (result.adjustedPositions || result.enhancingSkipped) setIsEnhancing(false);
-      setProposalJobId(null);
-      toast.success("Portfolio-Vorschlag ist bereit");
-    } else if (data.status === "error") {
-      setProposalJobId(null);
+      setIsEnhancing(true);
+      // isProposalRunning bleibt true → Polling läuft bis 'done' weiter.
+    } else if (status === 'done' && result) {
+      setIsProposalRunning(false);
       setIsEnhancing(false);
-      toast.error("Portfolio-Vorschlag fehlgeschlagen", { description: data.error ?? "Unbekannter Fehler" });
+      setProposalJobId(null);
+      setAutoProposal(result);
+    } else if (status === 'error') {
+      setIsProposalRunning(false);
+      setIsEnhancing(false);
+      setProposalJobId(null);
+      toast.error('Vorschlag konnte nicht erstellt werden', { description: error ?? 'Unbekannter Fehler' });
     }
   }, [proposalStatus.data]);
-  // Wenn der Synthesizer nachliefert (adjustedPositions erscheinen in einer
-  // späteren Poll-Runde), Enhancing-Flag zurücksetzen. Da der Job nach done
-  // nicht mehr gepollt wird, ist das vor allem ein Safety-Net.
-  useEffect(() => {
-    if (autoProposal?.adjustedPositions || autoProposal?.enhancingSkipped) setIsEnhancing(false);
-  }, [autoProposal?.adjustedPositions, autoProposal?.enhancingSkipped]);
-  // Kompatibilitäts-Shim: bestehender JSX-Code referenziert buildProposal.isPending
-  // für den Ladezustand. Neu: pending = Job gestartet und noch kein Ergebnis.
-  const buildProposal = { isPending: startProposal.isPending || !!proposalJobId };
 
-  // Cycle loading messages while proposal is being built
+  // Compatibility shim: buildProposal.isPending is used in the JSX below
+  const buildProposal = {
+    isPending: isProposalRunning || startProposal.isPending,
+    reset: () => { setIsProposalRunning(false); setIsEnhancing(false); setProposalJobId(null); setProposalProgress([]); startProposal.reset(); },
+  };
+
+  // Freundliche, wechselnde Lade-Botschaften (statt technischer Einzelschritte).
+  // Mischt Beruhigung + einfache Erklärungen, wie das System arbeitet.
+  const universeCount = allStocks.length;
+  const loadingMessages = [
+    universeCount > 0
+      ? `Einen Moment bitte — ich prüfe gerade ein Universum von ${universeCount} Titeln und suche die Aktien mit der besten Qualität für Sie.`
+      : `Einen Moment bitte — ich prüfe gerade mehrere Hundert Titel und suche die Aktien mit der besten Qualität für Sie.`,
+    `So bewerte ich: Jeder Titel bekommt einen Score von 0–100 aus drei Bausteinen — ist er günstig bewertet, wie verläuft der Kurs, und passt er zum aktuellen Markttrend.`,
+    `Jetzt stelle ich Ihr Portfolio zusammen und achte auf eine gute Streuung über verschiedene Branchen und Währungen.`,
+    `Ein zweites KI-Modell prüft den Vorschlag nun kritisch gegen und verbessert ihn dort, wo es sinnvoll ist.`,
+    `Fast geschafft — ich berechne noch die erwartete Rendite, das Risiko und die wichtigsten Kennzahlen.`,
+  ];
   useEffect(() => {
-    if (!buildProposal.isPending) return;
-    const interval = setInterval(() => {
-      setLoadingMsgIdx((i) => (i + 1) % loadingMessages.length);
-    }, 3500);
-    return () => clearInterval(interval);
+    if (!buildProposal.isPending) { setLoadingMsgIdx(0); return; }
+    const id = setInterval(() => setLoadingMsgIdx((i) => (i + 1) % loadingMessages.length), 5000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildProposal.isPending]);
 
-  // Portfolio creation error handling
+  // Reset all wizard state whenever the user navigates (back) to /portfolio-builder.
+  // Using location as dependency ensures the reset fires on every visit, not just on first mount.
   useEffect(() => {
-    if (createPortfolioMutation.error) {
-      toast.error("Fehler beim Erstellen", { description: createPortfolioMutation.error.message });
-    }
-  }, [createPortfolioMutation.error]);
-
-  // Reset when choosing a path
-  const handlePathSelect = (p: BuilderPath) => {
-    setPath(p);
-    setCurrentStep(p === "auto" ? 0 : 1);
-    if (p === "auto") {
+    if (location === "/portfolio-builder") {
+      setCurrentStep(0);
+      setPath(null);
       setAutoStep(1);
-      setAutoProposal(null);
       setAutoGoal("balanced");
       setAutoRisk("ausgewogen");
       setAutoHorizon(10);
-      setStocksOnly(false);
       setAutoExcluded([]);
+      setAutoProposal(null);
+      setStocksOnly(false);
+      setPortfolioType(null);
+      setPortfolioName("");
+      setPortfolioDescription("");
+      setCurrency("CHF");
+      setInitialCapital("");
+      setSelectedStocks([]);
+      setSearchQuery("");
+      setPerStockInputs({});
+      setIsLive(false);
     }
-  };
+  }, [location]); // fires on every navigation to this route
 
-  // Auto builder navigation
-  const TOTAL_AUTO_STEPS = 5;
-  const autoStepMeta: Record<number, { title: string; subtitle: string }> = {
-    1: { title: "Anlageziel", subtitle: "Was möchten Sie mit Ihrer Anlage erreichen?" },
-    2: { title: "Risikoprofil", subtitle: "Wie viel Risiko möchten Sie eingehen?" },
-    3: { title: "Anlagehorizont", subtitle: "Wie lange möchten Sie investiert bleiben?" },
-    4: { title: "Ausschlüsse", subtitle: "Welche Branchen möchten Sie ausschliessen? (optional)" },
-    5: { title: "Ihr Portfolio", subtitle: "Name, Betrag und KI-Vorschlag" },
-  };
-
-  const goNextAuto = () => {
-    if (autoStep < TOTAL_AUTO_STEPS) setAutoStep(autoStep + 1);
-  };
-  const goPrevAuto = () => {
-    if (autoStep > 1) setAutoStep(autoStep - 1);
-    else setPath(null);
-  };
-
-  const toggleExcluded = (value: string) => {
-    setAutoExcluded((prev) => (prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]));
-  };
-
-  // Build auto proposal
-  const handleBuildProposal = async () => {
-    // Save profile first
-    try {
-      await setProfileMutation.mutateAsync({
-        goal: autoGoal,
-        riskProfile: autoRisk,
-        investmentHorizon: autoHorizon,
-        excludedSectors: autoExcluded,
-        availableCapital: parseFloat(initialCapital) || 0,
-      });
-    } catch (e: any) {
-      toast.error("Profil konnte nicht gespeichert werden", { description: e.message });
-      return;
+  // Pre-fill auto wizard from saved profile when user selects auto path
+  useEffect(() => {
+    if (savedProfile && path === "auto") {
+      if (savedProfile.investmentGoal) setAutoGoal(savedProfile.investmentGoal);
+      if (savedProfile.riskProfile) setAutoRisk(savedProfile.riskProfile);
+      if (savedProfile.investmentHorizonYears) {
+        const yr = savedProfile.investmentHorizonYears;
+        setAutoHorizon(yr <= 3 ? 2 : yr <= 7 ? 5 : yr <= 15 ? 10 : 20);
+      }
+      if (Array.isArray(savedProfile.excludedSectors) && savedProfile.excludedSectors.length > 0) {
+        setAutoExcluded(savedProfile.excludedSectors);
+      }
     }
-    const capital = parseFloat(initialCapital);
-    if (!(capital > 0)) {
-      toast.error("Bitte geben Sie einen Anlagebetrag ein");
-      return;
-    }
-    // Job starten; Ergebnis kommt über getProposalStatus-Polling (siehe useEffect oben)
-    setAutoProposal(null);
-    startProposal.mutate({ investmentAmount: capital, stocksOnly });
-  };
+  }, [savedProfile, path]);
 
-  // Accept auto proposal → pre-fill manual builder
-  const handleAcceptProposal = (useAdjusted: boolean = true) => {
-    const positions = (useAdjusted && (autoProposal as any).adjustedPositions)
-      ? (autoProposal as any).adjustedPositions
-      : autoProposal.positions;
-    const totalCapital = parseFloat(initialCapital) || 100000;
-    const stocks: StockSelection[] = positions.map((p: any) => {
-      const price = parseFloat(p.currentPrice ?? "0");
-      const fxRate = p.exchangeRateToChf ? parseFloat(p.exchangeRateToChf) : 1;
-      const priceCHF = price * fxRate;
-      const qty = priceCHF > 0 ? (totalCapital * p.weightPct / 100) / priceCHF : 0;
-      // assetType aus dem Vorschlag übernehmen (Multi-Asset): Obligationen-ETF
-      // → "bond", übrige ETF-/ETP-Sleeves → "etf", Aktien → "stock" (Default).
-      const mappedAssetType: "stock" | "bond" | "etf" =
-        p.assetClass === "bond" ? "bond" : p.assetType === "etf" || p.assetClass ? "etf" : "stock";
-      return { ticker: p.ticker, companyName: p.companyName, quantity: Math.round(qty), purchasePrice: priceCHF, assetType: mappedAssetType, assetClass: p.assetClass ?? (mappedAssetType === "stock" ? "equity" : undefined), weightPct: p.weightPct };
-    });
-    setSelectedStocks(stocks);
-    setPortfolioType("live");
-    setIsLive(true);
-    if (!portfolioName) setPortfolioName("KI-Portfolio");
-    setPath("manual");
-    setCurrentStep(2);
-    toast.success("Vorschlag übernommen — Sie können die Positionen jetzt anpassen");
-  };
+  // ── Derived ──
+  const totalSteps = 5;
+  const progress = (currentStep / totalSteps) * 100;
 
-  // Send proposal to admin review
-  const handleSendToAdminReview = () => {
-    // Store proposal data in sessionStorage so AdminPortfolioReview can pick it up
-    const reviewData = {
-      positions: autoProposal.positions,
-      metrics: autoProposal.metrics,
-      profile: autoProposal.profile,
-      portfolioName: portfolioName || "KI-Portfolio",
-      initialCapital: parseFloat(initialCapital) || 100000,
-      autoGoal,
-      autoRisk,
-      autoHorizon,
-      autoExcluded,
-    };
-    sessionStorage.setItem("pendingAdminReview", JSON.stringify(reviewData));
-    toast.info("Vorschlag wird zur Admin-Prüfung vorbereitet", {
-      description: "Sie werden zum Admin-Review weitergeleitet.",
-    });
-    navigate("/admin/portfolio-review");
-  };
+  const filteredStocks = allStocks.filter((stock) => {
+    const matchesSearch =
+      stock.ticker.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      stock.companyName.toLowerCase().includes(searchQuery.toLowerCase());
+    if (currentStep === 2) return matchesSearch && stock.category !== "ETF";
+    if (currentStep === 3) return matchesSearch && (stock.category === "ETF" || stock.category?.includes("Anleihe"));
+    return matchesSearch;
+  });
 
-  // Manual builder helpers
-  const filteredStocks = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return availableStocks;
-    return availableStocks.filter(
-      (s) => s.ticker.toLowerCase().includes(q) || s.companyName.toLowerCase().includes(q)
-    );
-  }, [availableStocks, searchQuery]);
-
-  const getStockInput = (ticker: string, field: "quantity" | "price") =>
-    stockInputs[ticker]?.[field] ?? "";
-
+  const getStockInput = (ticker: string, field: "quantity" | "price") => perStockInputs[ticker]?.[field] || "";
   const setStockInput = (ticker: string, field: "quantity" | "price", value: string) =>
-    setStockInputs((prev) => ({ ...prev, [ticker]: { ...prev[ticker], [field]: value } }));
+    setPerStockInputs((prev) => ({ ...prev, [ticker]: { ...prev[ticker], [field]: value } }));
 
-  const handleAddStock = (stock: (typeof availableStocks)[0]) => {
-    const quantity = parseFloat(getStockInput(stock.ticker, "quantity")) || 0;
-    const price = parseFloat(getStockInput(stock.ticker, "price")) || parseFloat(stock.currentPrice ?? "0") || 0;
-    if (quantity <= 0 || price <= 0) {
-      toast.error("Bitte Anzahl und Preis eingeben");
-      return;
-    }
-    setSelectedStocks((prev) => [
-      ...prev,
-      {
-        ticker: stock.ticker,
-        companyName: stock.companyName,
-        quantity,
-        purchasePrice: price,
-        assetType: currentStep === 3 ? "etf" : "stock",
-      },
-    ]);
-    setStockInput(stock.ticker, "quantity", "");
-    setStockInput(stock.ticker, "price", "");
-  };
-
-  const handleRemoveStock = (ticker: string) => {
-    setSelectedStocks((prev) => prev.filter((s) => s.ticker !== ticker));
-  };
-
-  const totalValue = useMemo(
-    () => selectedStocks.reduce((sum, s) => sum + s.quantity * s.purchasePrice, 0),
-    [selectedStocks]
-  );
-
-  const allocation = useMemo(() => {
-    if (totalValue <= 0) return [];
+  const calculateAllocation = () => {
+    const totalValue = selectedStocks.reduce((sum, s) => sum + s.quantity * s.purchasePrice, 0);
     return selectedStocks.map((s) => ({
       ...s,
       value: s.quantity * s.purchasePrice,
-      weight: (s.quantity * s.purchasePrice / totalValue) * 100,
+      weight: ((s.quantity * s.purchasePrice) / totalValue) * 100,
     }));
-  }, [selectedStocks, totalValue]);
+  };
 
-  const assetTypeBreakdown = useMemo(() => {
-    const total = totalValue || 1;
-    const stocks = selectedStocks.filter((s) => s.assetType === "stock").reduce((sum, s) => sum + s.quantity * s.purchasePrice, 0);
-    const bonds = selectedStocks.filter((s) => s.assetType === "bond").reduce((sum, s) => sum + s.quantity * s.purchasePrice, 0);
-    const etfs = selectedStocks.filter((s) => s.assetType === "etf").reduce((sum, s) => sum + s.quantity * s.purchasePrice, 0);
-    return { stocks: (stocks / total) * 100, bonds: (bonds / total) * 100, etfs: (etfs / total) * 100 };
-  }, [selectedStocks, totalValue]);
+  const allocation = calculateAllocation();
+  const totalValue = allocation.reduce((sum, item) => sum + item.value, 0);
+  const assetTypeBreakdown = {
+    stocks: allocation.filter((a) => a.assetType === "stock").reduce((sum, a) => sum + a.weight, 0),
+    bonds: allocation.filter((a) => a.assetType === "bond").reduce((sum, a) => sum + a.weight, 0),
+    etfs: allocation.filter((a) => a.assetType === "etf").reduce((sum, a) => sum + a.weight, 0),
+  };
 
-  // Create portfolio (manual flow final step)
-  const handleFinish = async () => {
-    if (!portfolioName.trim()) {
-      toast.error("Bitte geben Sie einen Portfolio-Namen ein");
-      return;
+  // ── Handlers ──
+
+  const handleAddStock = (stock: (typeof allStocks)[0]) => {
+    const inputs = perStockInputs[stock.ticker] || { quantity: "", price: "" };
+    const quantity = parseFloat(inputs.quantity) || 10;
+    const price = parseFloat(inputs.price) || parseFloat(stock.currentPrice || "0");
+    if (!quantity || quantity <= 0) { toast.error("Bitte geben Sie eine gültige Anzahl ein"); return; }
+    if (!price || price <= 0) { toast.error("Kein aktueller Preis verfügbar. Bitte geben Sie einen Preis ein."); return; }
+    const assetType: "stock" | "bond" | "etf" =
+      stock.category === "ETF" ? "etf" : stock.category?.includes("Anleihe") ? "bond" : "stock";
+    setSelectedStocks([...selectedStocks, { ticker: stock.ticker, companyName: stock.companyName, quantity, purchasePrice: price, assetType }]);
+    setPerStockInputs((prev) => { const next = { ...prev }; delete next[stock.ticker]; return next; });
+    setSearchQuery("");
+    toast.success(`${stock.ticker} hinzugefügt`);
+  };
+
+  const handleRemoveStock = (ticker: string) => {
+    setSelectedStocks(selectedStocks.filter((s) => s.ticker !== ticker));
+  };
+
+  const handleNext = () => {
+    if (currentStep === 1) {
+      if (!portfolioType) { toast.error("Bitte wählen Sie einen Portfolio-Typ"); return; }
+      if (!portfolioName.trim()) { toast.error("Bitte geben Sie einen Portfolio-Namen ein"); return; }
     }
-    try {
-      const result = await createPortfolioMutation.mutateAsync({
-        name: portfolioName,
-        description: portfolioDescription,
-        portfolioType: isLive ? "live" : "simple",
-        initialCapital: parseFloat(initialCapital) || 0,
-        currency,
-        positions: selectedStocks.map((s) => ({
-          ticker: s.ticker,
-          companyName: s.companyName,
-          quantity: s.quantity,
-          purchasePrice: s.purchasePrice,
-          assetType: s.assetType,
-          assetClass: s.assetClass,
-          weightPct: s.weightPct,
-        })),
+    if (currentStep === 2 || currentStep === 3) {
+      const pendingTickers = Object.entries(perStockInputs).filter(([ticker, inputs]) => {
+        const qty = parseFloat(inputs.quantity);
+        if (!(qty > 0)) return false;
+        if (selectedStocks.some((s) => s.ticker === ticker)) return false;
+        const price = parseFloat(inputs.price);
+        if (price > 0) return true;
+        const stockInfo = allStocks.find((s) => s.ticker === ticker);
+        return parseFloat(stockInfo?.currentPrice || "0") > 0;
       });
-      toast.success(`Portfolio "${portfolioName}" wurde erstellt`);
-      navigate("/portfolios");
-    } catch (e: any) {
-      // error toast handled by useEffect above
+      if (pendingTickers.length > 0) {
+        const newStocks: StockSelection[] = [];
+        for (const [ticker, inputs] of pendingTickers) {
+          const stockInfo = allStocks.find((s) => s.ticker === ticker);
+          if (stockInfo) {
+            const assetType: "stock" | "bond" | "etf" =
+              stockInfo.category === "ETF" ? "etf" : stockInfo.category?.includes("Anleihe") ? "bond" : "stock";
+            const price = parseFloat(inputs.price) || parseFloat(stockInfo.currentPrice || "0");
+            newStocks.push({ ticker, companyName: stockInfo.companyName, quantity: parseFloat(inputs.quantity), purchasePrice: price, assetType });
+          }
+        }
+        if (newStocks.length > 0) {
+          setSelectedStocks((prev) => [...prev, ...newStocks]);
+          setPerStockInputs((prev) => { const next = { ...prev }; newStocks.forEach((s) => delete next[s.ticker]); return next; });
+          toast.success(`${newStocks.length} Position(en) automatisch hinzugefügt`);
+        }
+      }
+      if (currentStep === 3 && selectedStocks.length === 0 && pendingTickers.length === 0) {
+        toast.error("Bitte fügen Sie mindestens eine Position hinzu, bevor Sie fortfahren");
+        return;
+      }
+    }
+    if (currentStep < totalSteps) setCurrentStep(currentStep + 1);
+  };
+
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+    } else if (currentStep === 1) {
+      setCurrentStep(0);
+      setPath(null);
     }
   };
 
-  // Create portfolio for import flow
+  const handleFinish = async () => {
+    if (selectedStocks.length === 0) { toast.error("Bitte fügen Sie mindestens eine Position hinzu"); return; }
+    try {
+      const alloc = calculateAllocation();
+      // Extract cash reserve percentage from KI proposal profile (liquidityNeedPct)
+      // This ensures the server stores the correct cashBalance when positions only cover e.g. 50% of capital
+      const liquidityNeedPct = (autoProposal as any)?.profile?.liquidityNeedPct ?? 0;
+      const portfolioData: Record<string, any> = {
+        stocks: selectedStocks.map((s) => {
+          const a = alloc.find((x) => x.ticker === s.ticker);
+          // Prefer weightPct from proposal (= % of total capital incl. cash reserve).
+          // Fall back to calculateAllocation weight (= % of equity only) for manually-built portfolios.
+          const weight = s.weightPct != null ? s.weightPct : (a?.weight || 0);
+          return {
+            ticker: s.ticker, companyName: s.companyName,
+            weight, shares: Math.round(s.quantity).toString(),
+            currentPrice: s.purchasePrice.toFixed(2), avgBuyPrice: s.purchasePrice.toFixed(2),
+            totalValue: (s.quantity * s.purchasePrice).toFixed(2),
+            currency: currency || "CHF", assetType: s.assetType,
+          };
+        }),
+      };
+      // If KI proposal has a cash reserve, store it so server calculates cashBalance correctly
+      if (liquidityNeedPct > 0) {
+        portfolioData.cashPercentage = liquidityNeedPct;
+      }
+      const result = await createPortfolioMutation.mutateAsync({
+        name: portfolioName, description: portfolioDescription || undefined,
+        portfolioData: JSON.stringify(portfolioData),
+        investmentAmount: parseFloat(initialCapital) || 0,
+        portfolioType: isLive ? "live" : "demo",
+        isAiOptimized,
+      });
+      toast.success("Portfolio erstellt 🎉");
+      // M-02: Invalidate dashboard caches so data loads immediately after navigation
+      await Promise.all([
+        utils.dashboard.getPortfolioCompact.invalidate(),
+        utils.portfolios.list.invalidate(),
+        utils.dashboard.getSectorAllocation.invalidate(),
+        utils.dashboard.getRegionAllocation.invalidate(),
+        utils.dashboard.getAggregatedHoldings.invalidate(),
+        utils.dashboard.getAggregatedMetrics.invalidate(),
+        utils.dashboard.getPerformanceTimeseries.invalidate(),
+      ]);
+      if (result?.portfolio?.id) navigate(`/portfolios/${result.portfolio.id}`);
+      else navigate("/portfolios");
+    } catch (error: any) {
+      toast.error(error.message || "Fehler beim Erstellen des Portfolios");
+    }
+  };
+
   const handleCreateImportPortfolio = async () => {
-    if (!portfolioName.trim()) {
-      toast.error("Bitte geben Sie einen Portfolio-Namen ein");
-      return;
-    }
-    if (!(parseFloat(initialCapital) > 0)) {
-      toast.error("Bitte geben Sie das Startkapital ein");
-      return;
-    }
+    if (!portfolioName.trim()) { toast.error("Bitte geben Sie einen Portfolio-Namen ein"); return; }
+    const capital = parseFloat(initialCapital);
+    if (!(capital > 0)) { toast.error("Bitte geben Sie Ihr Startkapital ein"); return; }
     try {
       const result = await createPortfolioMutation.mutateAsync({
-        name: portfolioName,
-        description: portfolioDescription,
-        portfolioType: "live",
-        initialCapital: parseFloat(initialCapital),
-        currency: "CHF",
-        positions: [],
+        name: portfolioName, description: portfolioDescription || undefined,
+        portfolioData: JSON.stringify({ stocks: [] }),
+        investmentAmount: capital, portfolioType: "live",
       });
-      toast.success(`Portfolio "${portfolioName}" wurde angelegt — importieren Sie jetzt Ihre PDF`);
-      // Navigate to the portfolio detail page where the PDF import lives
-      navigate(`/portfolios/${(result as any)?.id ?? ""}`);
-    } catch (e: any) {
-      // error toast handled by useEffect above
+      if (result?.portfolio?.id) {
+        toast.success("Portfolio erstellt — Sie können jetzt Ihr Swissquote-PDF hochladen");
+        navigate(`/portfolios/${result.portfolio.id}?tab=transaktionen&import=1`);
+      } else navigate("/portfolios");
+    } catch (error: any) {
+      toast.error(error.message || "Fehler beim Erstellen des Portfolios");
     }
+  };
+
+  // Save profile + trigger proposal (async job pattern — avoids HTTP 524 timeout)
+  const handleBuildProposal = async () => {
+    const capital = parseFloat(initialCapital);
+    if (!(capital > 0)) { toast.error("Bitte geben Sie einen Anlagebetrag ein"); return; }
+    if (!portfolioName.trim()) setPortfolioName("KI-Portfolio");
+    // Reset any previous job state
+    buildProposal.reset();
+    setAutoProposal(null);
+    try {
+      await setProfileMutation.mutateAsync({
+        riskProfile: autoRisk as any,
+        investmentHorizonYears: autoHorizon,
+        maxDrawdownTolerancePct: autoRisk === "konservativ" ? 15 : autoRisk === "ausgewogen" ? 25 : autoRisk === "wachstum" ? 35 : 50,
+        investmentGoal: autoGoal as any,
+        // Gespeicherte Cash-Quote aus dem Anlegerprofil übernehmen (nicht überschreiben)
+        liquidityNeedPct: savedProfile?.liquidityNeedPct ?? 0,
+        excludedSectors: autoExcluded,
+        esgOnly: false,
+      });
+    } catch (e) {
+      // Non-fatal — continue even if profile save fails
+      console.warn("[handleBuildProposal] Profile save failed (non-fatal):", e);
+    }
+    // Start async job (returns immediately with jobId, polling handles the rest)
+    startProposal.mutate({ investmentAmount: capital, stocksOnly });
+  };
+
+  // Accepts the proposal — uses adjustedPositions (KI-Empfehlungen eingearbeitet) if available
+  const handleAcceptProposal = (useAdjusted = true) => {
+    if (!autoProposal?.positions?.length) return;
+    // Use entered capital, or fall back to 100'000 CHF if not set
+    const capital = parseFloat(initialCapital) || 100000;
+    // Use adjustedPositions (KI-Empfehlungen automatically applied) if available and requested
+    const positionsToUse = (useAdjusted && (autoProposal as any).adjustedPositions?.length)
+      ? (autoProposal as any).adjustedPositions
+      : autoProposal.positions;
+    // Track whether KI adjustments were applied
+    setIsAiOptimized(useAdjusted && !!(autoProposal as any).adjustedPositions?.length);
+    // Build a lookup map from the allStocks list as a fallback for missing prices
+    const stockPriceMap = new Map<string, { price: number; fxRate: number }>();
+    allStocks.forEach((s) => {
+      const p = parseFloat(s.currentPrice || '0');
+      if (p > 0) stockPriceMap.set(s.ticker.toUpperCase(), { price: p, fxRate: 1 });
+    });
+    const seeded: StockSelection[] = positionsToUse.map((p: any) => {
+      const value = (p.weightPct / 100) * capital;
+      const fxRate = parseFloat(String(p.exchangeRateToChf || '1')) || 1;
+      // currentPrice can be a string (raw DB value) or a number — always coerce to float
+      let rawPrice = parseFloat(String(p.currentPrice ?? '0')) || 0;
+      // Fallback: if price is missing, try allStocks lookup
+      if (rawPrice <= 0) {
+        const fallback = stockPriceMap.get(String(p.ticker ?? '').toUpperCase());
+        if (fallback) rawPrice = fallback.price;
+      }
+      // exchangeRateToChf = "1 foreign currency unit = X CHF" → to convert foreign→CHF: multiply by fxRate
+      // For CHF stocks fxRate=1 so rawPrice*1=rawPrice ✓
+      const priceCHF = fxRate > 0 ? rawPrice * fxRate : rawPrice;
+      const qty = priceCHF > 0 ? value / priceCHF : 0;
+      // Multi-Asset-Sleeve: ETF-Positionen (inkl. Anlageklasse) korrekt typisieren,
+      // Aktien bleiben "stock" (assetClass "equity"/undefined → stock).
+      const mappedAssetType: StockSelection["assetType"] =
+        p.assetClass === "bond" ? "bond" : (p.assetType === "etf" || (p.assetClass && p.assetClass !== "equity")) ? "etf" : "stock";
+      return { ticker: p.ticker, companyName: p.companyName, quantity: Math.round(qty), purchasePrice: priceCHF, assetType: mappedAssetType, weightPct: p.weightPct, assetClass: p.assetClass && p.assetClass !== "equity" ? p.assetClass : undefined };
+    });
+    setSelectedStocks(seeded);
+    const goalToType: Record<string, PortfolioType> = { dividends: "dividends", growth: "growth", balanced: "balanced" };
+    setPortfolioType(goalToType[autoGoal] ?? "balanced");
+    if (!portfolioName.trim()) setPortfolioName("KI-Portfolio");
+    setPath("auto");
+    setCurrentStep(1);
+  };
+
+  const handleSendToAdminReview = () => {
+    const logId = (autoProposal as any)?.proposalLogId;
+    if (logId) {
+      // Use window.location.href so query params (proposalId, returnTo) are preserved
+      // Wouter's navigate() does not pass query params to window.location.search
+      window.location.href = `/admin/proposal-analysis?proposalId=${logId}&returnTo=/portfolio-builder`;
+    } else {
+      window.location.href = '/admin/proposal-analysis';
+    }
+  };
+
+  // Handle return from admin review: load reviewed proposal and pre-fill wizard
+  const getReviewedProposal = trpc.admin.getProposalById.useQuery(
+    { proposalId: (() => {
+      if (typeof window === 'undefined') return 0;
+      const p = new URLSearchParams(window.location.search).get('reviewedProposalId');
+      return p ? parseInt(p, 10) : 0;
+    })() },
+    { enabled: typeof window !== 'undefined' && !!new URLSearchParams(window.location.search).get('reviewedProposalId') }
+  );
+  useEffect(() => {
+    if (!getReviewedProposal.data) return;
+    const proposal = getReviewedProposal.data;
+    const rawReviewed = (proposal.adminReviewedPositions as any[]) ?? (proposal.positions as any[]) ?? [];
+    if (rawReviewed.length === 0) return;
+    // Enrich adminReviewedPositions with currentPrice + exchangeRateToChf from the original positions
+    // (adminReviewedPositions only store ticker/weightPct, not price data)
+    const origByTicker = new Map<string, any>();
+    ((proposal.positions as any[]) ?? []).forEach((p: any) => origByTicker.set(String(p.ticker ?? '').toUpperCase(), p));
+    const reviewedPositions = rawReviewed.map((p: any) => {
+      const orig = origByTicker.get(String(p.ticker ?? '').toUpperCase());
+      return {
+        ...p,
+        currentPrice: (p.currentPrice != null && p.currentPrice !== 0) ? p.currentPrice : (orig?.currentPrice ?? 0),
+        exchangeRateToChf: (p.exchangeRateToChf != null && p.exchangeRateToChf !== 0) ? p.exchangeRateToChf : (orig?.exchangeRateToChf ?? 1),
+        companyName: p.companyName ?? orig?.companyName ?? p.ticker,
+        // Übertrage aiReason aus den Original-Positionen falls nicht vorhanden
+        aiReason: (typeof p.aiReason === 'string' && p.aiReason.trim()) ? p.aiReason : (orig?.aiReason ?? undefined),
+        // Übertrage weitere Felder aus Original-Positionen für die Anzeige
+        signal: p.signal ?? orig?.signal,
+        combinedScore: p.combinedScore ?? orig?.combinedScore,
+        sector: p.sector ?? orig?.sector,
+        currency: p.currency ?? orig?.currency,
+        dividendYield: p.dividendYield ?? orig?.dividendYield,
+        ytdPerf: p.ytdPerf ?? orig?.ytdPerf,
+        reason: p.reason ?? orig?.reason,
+        // Multi-Asset-Sleeve-Felder durchreichen (ETF-Typisierung im Accept-Schritt)
+        assetType: p.assetType ?? orig?.assetType,
+        assetClass: p.assetClass ?? orig?.assetClass,
+      };
+    });
+    const capital = parseFloat(initialCapital) || 100000;
+    // Build a synthetic autoProposal from the reviewed positions
+    const methodLabelMap: Record<string, string> = {
+      max_sharpe: 'Max. Sharpe',
+      min_variance: 'Min. Varianz',
+      max_dividend: 'Max. Dividende',
+      equal_weight: 'Gleichgewichtet',
+      hrp: 'HRP',
+    };
+    setAutoProposal({
+      // Verwende reviewedPositions als positions (mit aiReason + Admin-Gewichten)
+      positions: reviewedPositions,
+      adjustedPositions: reviewedPositions,
+      finalAdjustments: proposal.finalAdjustments,
+      synthesizerVerdict: proposal.synthesizerVerdict,
+      challengerCritique: proposal.challengerCritique,
+      overallConfidence: proposal.overallConfidence,
+      proposalLogId: proposal.id,
+      expectedReturn: proposal.expectedReturnPct,
+      volatility: proposal.volatilityPct,
+      sharpe: proposal.sharpe,
+      fxWeightPct: proposal.fxWeightPct,
+      meetsKennzahlenFilter: proposal.meetsKennzahlenFilter,
+      // Synthetic fields required by the Wizard UI
+      methodLabel: methodLabelMap[proposal.method ?? ''] ?? 'KI-Optimiert (Admin-geprüft)',
+      stats: {
+        scoredCount: reviewedPositions.length,
+        buySignals: reviewedPositions.length,
+        watchlistRecommendations: 0,
+      },
+      weighting: { source: 'optimizer', method: proposal.method ?? 'max_sharpe' },
+    });
+    setPath('auto');
+    setAutoStep(5);
+    setInitialCapital(capital.toString());
+    setIsAdminReviewed(true);
+    toast.success('Admin-geprüfter Vorschlag geladen — Sie können ihn jetzt übernehmen');
+    // Clean up URL param
+    window.history.replaceState({}, '', '/portfolio-builder');
+  }, [getReviewedProposal.data]);
+
+  const toggleExcluded = (sector: string) => {
+    setAutoExcluded((prev) => prev.includes(sector) ? prev.filter((s) => s !== sector) : [...prev, sector]);
   };
 
   // ─────────────────────────────────────────────────────────────────────────
-  // ── RENDER: Path Selection ────────────────────────────────────────────
+  // ── RENDER: Step 0 — Path Picker ──────────────────────────────────────
   // ─────────────────────────────────────────────────────────────────────────
 
   if (currentStep === 0 && path === null) {
@@ -535,66 +647,30 @@ export default function PortfolioBuilderWizard() {
         <div className="max-w-4xl mx-auto">
           <div className="mb-8 flex items-start justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2 text-white">Portfolio erstellen</h1>
-              <p className="text-gray-400">Wählen Sie, wie Sie Ihr Portfolio aufbauen möchten</p>
+              <h1 className="text-3xl font-bold mb-2 text-white">Neues Portfolio erstellen</h1>
+              <p className="text-gray-400">Wie möchten Sie Ihr Portfolio erstellen?</p>
             </div>
             <button onClick={() => navigate("/portfolios")} className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors shrink-0">
               <X className="h-4 w-4" /> Abbrechen
             </button>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card
-              className="cursor-pointer transition-all hover:border-[#00CFC1] bg-gradient-to-b from-[#1a1f2e] to-[#0f1420] border-white/10"
-              onClick={() => handlePathSelect("auto")}
-            >
-              <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
-                <div className="h-16 w-16 rounded-full bg-[#00CFC1]/15 flex items-center justify-center">
-                  <Sparkles className="h-8 w-8 text-[#00CFC1]" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg text-white">KI-Vorschlag</h3>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Beantworten Sie 4 Fragen — unsere KI erstellt Ihnen einen persönlichen Portfoliovorschlag
-                  </p>
-                </div>
-                <Badge className="bg-[#00CFC1]/20 text-[#00CFC1] border-[#00CFC1]/30">Empfohlen</Badge>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="cursor-pointer transition-all hover:border-[#00CFC1] bg-gradient-to-b from-[#1a1f2e] to-[#0f1420] border-white/10"
-              onClick={() => handlePathSelect("manual")}
-            >
-              <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
-                <div className="h-16 w-16 rounded-full bg-blue-500/15 flex items-center justify-center">
-                  <Briefcase className="h-8 w-8 text-blue-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg text-white">Manuell erstellen</h3>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Wählen Sie selbst Aktien, Anleihen und ETFs aus und bestimmen Sie die Gewichtung
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card
-              className="cursor-pointer transition-all hover:border-[#00CFC1] bg-gradient-to-b from-[#1a1f2e] to-[#0f1420] border-white/10"
-              onClick={() => handlePathSelect("import")}
-            >
-              <CardContent className="p-6 flex flex-col items-center text-center space-y-4">
-                <div className="h-16 w-16 rounded-full bg-purple-500/15 flex items-center justify-center">
-                  <Upload className="h-8 w-8 text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg text-white">Depot importieren</h3>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Importieren Sie Ihr bestehendes Depot aus einer Bank-PDF (z.B. Swissquote)
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            {pathOptions.map((option) => (
+              <Card
+                key={option.value}
+                className="cursor-pointer transition-all bg-gradient-to-b from-[#1a1f2e] to-[#0f1420] border-white/10 hover:border-[#00CFC1]/60 hover:ring-1 hover:ring-[#00CFC1]/20"
+                onClick={() => { setPath(option.value); if (option.value === "manual") { setCurrentStep(1); } }}
+              >
+                <CardContent className="p-8 flex flex-col items-center text-center space-y-4">
+                  <div className="text-[#00CFC1]">{option.icon}</div>
+                  <div>
+                    <h3 className="font-semibold text-xl text-white">{option.label}</h3>
+                    <p className="text-sm text-gray-400 mt-2">{option.description}</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-600" />
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </div>
@@ -602,43 +678,54 @@ export default function PortfolioBuilderWizard() {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // ── RENDER: Auto Builder (KI-Vorschlag) ──────────────────────────────
+  // ── RENDER: Auto (KI) Flow ────────────────────────────────────────────
   // ─────────────────────────────────────────────────────────────────────────
 
-  if (path === "auto") {
+  if (currentStep === 0 && path === "auto") {
+    const TOTAL_AUTO_STEPS = 5;
+    const autoProgress = ((autoStep - 1) / TOTAL_AUTO_STEPS) * 100;
     const meta = autoStepMeta[autoStep];
+
+    const goNextAuto = () => {
+      if (autoStep < TOTAL_AUTO_STEPS) setAutoStep((s) => (s + 1) as AutoStep);
+    };
+    const goPrevAuto = () => {
+      if (autoStep > 1) setAutoStep((s) => (s - 1) as AutoStep);
+      else { setPath(null); }
+    };
+
     return (
-      <div className="min-h-screen bg-[#0a0f1a] flex flex-col">
+      <div className="h-screen bg-[#0a0f1a] flex flex-col overflow-hidden">
         {/* Top bar */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-          <button onClick={goPrevAuto} className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors">
-            <ArrowLeft className="h-4 w-4" /> Zurück
-          </button>
-          <div className="flex items-center gap-1.5">
-            {Array.from({ length: TOTAL_AUTO_STEPS }).map((_, i) => (
-              <div
-                key={i}
-                className={`h-1.5 rounded-full transition-all ${
-                  i + 1 === autoStep ? "w-8 bg-[#00CFC1]" : i + 1 < autoStep ? "w-4 bg-[#00CFC1]/50" : "w-4 bg-white/10"
-                }`}
-              />
-            ))}
+          <div className="flex items-center gap-2 text-[#00CFC1]">
+            <Sparkles className="h-5 w-5" />
+            <span className="font-semibold text-white">KI-Portfolio erstellen</span>
           </div>
           <button onClick={() => navigate("/portfolios")} className="flex items-center gap-1 text-sm text-gray-400 hover:text-white transition-colors">
             <X className="h-4 w-4" /> Abbrechen
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 flex items-start justify-center p-6 overflow-y-auto">
-          <div className="w-full max-w-2xl space-y-6 py-4">
-            <div className="text-center space-y-2">
-              <h1 className="text-2xl font-bold text-white">{meta.title}</h1>
-              <p className="text-gray-400">{meta.subtitle}</p>
-            </div>
+        {/* Progress */}
+        <div className="px-6 pt-4">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-500">Schritt {autoStep} von {TOTAL_AUTO_STEPS}</span>
+            <span className="text-xs text-gray-500">{Math.round(autoProgress)}%</span>
+          </div>
+          <Progress value={autoProgress} className="h-1 bg-white/10" />
+        </div>
 
-            {profilePrefilled && autoStep === 1 && existingProfile && (
-              <div className="flex items-center gap-2 justify-center">
+        {/* Content */}
+        <div className="flex-1 flex flex-col items-center justify-start px-4 py-8 overflow-y-auto">
+          <div className={`w-full ${autoStep === 5 && autoProposal ? 'max-w-4xl' : 'max-w-2xl'}`}>
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-1">{meta.title}</h2>
+            <p className="text-gray-400 mb-8">{meta.subtitle}</p>
+
+            {/* N-07: Profile hint when savedProfile was loaded */}
+            {autoStep === 1 && savedProfile && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#00CFC1]/10 border border-[#00CFC1]/20 mb-4">
+                <CheckCircle className="h-4 w-4 text-[#00CFC1] shrink-0" />
                 <p className="text-xs text-[#00CFC1]/90">
                   Ihr Anlageprofil wurde übernommen. Sie können die Einstellungen hier anpassen.
                 </p>
@@ -820,53 +907,53 @@ export default function PortfolioBuilderWizard() {
                   </div>
                 </div>
 
-                {/* Anlageklassen-Wahl: Multi-Asset-Mix (Default, gemäss Profil) vs. Nur Aktien */}
+                {/* Anlageklassen: Multi-Asset-Mix (empfohlen) vs. «Nur Aktien».
+                    Die Wahl fliesst in startProposal ein — nach einem erstellten
+                    Vorschlag ist sie gesperrt (neue Analyse nötig). */}
                 <div className="rounded-lg border border-white/10 bg-[#0f1420] p-4 space-y-3">
-                  <p className="text-sm font-medium text-white">Anlageklassen</p>
+                  <Label className="text-gray-300">Anlageklassen</Label>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <button
                       type="button"
+                      disabled={isProposalRunning || !!autoProposal}
                       onClick={() => setStocksOnly(false)}
-                      className={`text-left rounded-lg border p-3 transition-all ${
+                      className={`rounded-lg border p-3 text-left transition-colors ${
                         !stocksOnly
-                          ? "border-[#00CFC1] bg-[#00CFC1]/10"
+                          ? "border-[#00CFC1]/60 bg-[#00CFC1]/10"
                           : "border-white/10 hover:border-white/25"
-                      }`}
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      <p className={`text-sm font-medium ${!stocksOnly ? "text-[#00CFC1]" : "text-white"}`}>
-                        Multi-Asset-Mix <span className="text-xs font-normal">(empfohlen)</span>
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Aktien, Obligationen, Gold, Rohstoffe, Immobilien{PROFILE_EQUITY_SHARE[autoRisk] > 30 ? " und Krypto" : ""} — gemischt nach Ihrem Anlegerprofil
-                        {PROFILE_EQUITY_SHARE[autoRisk] ? ` (ca. ${PROFILE_EQUITY_SHARE[autoRisk]}% Aktien)` : ""}.
-                      </p>
+                      <div className={`text-sm font-semibold ${!stocksOnly ? "text-[#00CFC1]" : "text-white"}`}>
+                        Multi-Asset-Mix (empfohlen)
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        Aktien plus Obligationen, Rohstoffe, Gold, Immobilien und ggf. Krypto — passend zu Ihrem Anlegerprofil.
+                      </div>
                     </button>
                     <button
                       type="button"
+                      disabled={isProposalRunning || !!autoProposal}
                       onClick={() => setStocksOnly(true)}
-                      className={`text-left rounded-lg border p-3 transition-all ${
+                      className={`rounded-lg border p-3 text-left transition-colors ${
                         stocksOnly
                           ? "border-amber-500/60 bg-amber-500/10"
                           : "border-white/10 hover:border-white/25"
-                      }`}
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
-                      <p className={`text-sm font-medium ${stocksOnly ? "text-amber-300" : "text-white"}`}>
+                      <div className={`text-sm font-semibold ${stocksOnly ? "text-amber-400" : "text-white"}`}>
                         Nur Aktien
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        100% Aktienquote — wie bisher, ohne andere Anlageklassen.
-                      </p>
+                      </div>
+                      <div className="text-xs text-gray-400 mt-1">
+                        Wie bisher: 100% Aktienanteil, keine Beimischung anderer Anlageklassen.
+                      </div>
                     </button>
                   </div>
-                  {stocksOnly && PROFILE_EQUITY_SHARE[autoRisk] && PROFILE_EQUITY_SHARE[autoRisk] < 100 && (
-                    <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5">
-                      <span className="text-amber-400 mt-0.5">⚠</span>
-                      <p className="text-xs text-amber-200 leading-relaxed">
-                        Achtung: «Nur Aktien» (100% Aktienanteil) weicht von Ihrem Anlegerprofil
-                        «{RISK_PROFILES.find((r) => r.value === autoRisk)?.label ?? autoRisk}» ab —
-                        empfohlene Aktienquote ca. {PROFILE_EQUITY_SHARE[autoRisk]}%. Erhöhtes Risiko.
-                      </p>
-                    </div>
+                  {stocksOnly && (PROFILE_EQUITY_SHARE[autoRisk] ?? 100) < 100 && (
+                    <p className="text-xs text-amber-400">
+                      ⚠ «Nur Aktien» weicht von Ihrem Anlegerprofil ab — empfohlene Aktienquote für «
+                      {RISK_PROFILES.find((r) => r.value === autoRisk)?.label ?? autoRisk}» ca. {PROFILE_EQUITY_SHARE[autoRisk]}%.
+                      Das bedeutet ein höheres Risiko als Ihr Profil vorsieht.
+                    </p>
                   )}
                 </div>
 
@@ -883,9 +970,9 @@ export default function PortfolioBuilderWizard() {
                         </p>
                       </div>
                     )}
-                    {/* Abweichungs-Hinweis (z. B. «Nur Aktien» gegen Profil-Empfehlung) */}
+                    {/* Abweichungs-Hinweis bei «Nur Aktien» (kommt vom Server, profilabhängig) */}
                     {(autoProposal as any).deviationFromProfile && (
-                      <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+                      <div className="flex items-start gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3">
                         <span className="text-amber-400 mt-0.5">⚠</span>
                         <p className="text-sm text-amber-200 leading-relaxed">{(autoProposal as any).deviationFromProfile}</p>
                       </div>
@@ -921,14 +1008,14 @@ export default function PortfolioBuilderWizard() {
                       )}
                       <span className="text-xs text-gray-500 ml-auto self-center">historisch geschätzt</span>
                     </div>
-                    {/* Multi-Asset-Mischung des Vorschlags (Anlageklassen-Badges) */}
+                    {/* Anlageklassen-Mischung des Vorschlags (Multi-Asset-Sleeve, vor Cash-Quote) */}
                     {(autoProposal as any).assetAllocation && (
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-gray-500">Mischung:</span>
+                        <span className="text-xs text-gray-400">Mischung:</span>
                         {Object.entries((autoProposal as any).assetAllocation as Record<string, number>)
                           .filter(([, v]) => v > 0)
                           .map(([k, v]) => (
-                            <span key={k} className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-gray-300">
+                            <span key={k} className="px-2.5 py-0.5 rounded-full bg-white/8 text-gray-200 text-xs border border-white/10">
                               {ASSET_CLASS_LABELS[k] ?? k} {v}%
                             </span>
                           ))}
@@ -968,7 +1055,7 @@ export default function PortfolioBuilderWizard() {
                             (ret != null ? ` mit einer erwarteten Rendite von ~${ret.toFixed(1)}% p.a.` : '') +
                             (sharpe != null ? ` und einer Sharpe-Ratio von ${sharpe.toFixed(2)}` : '') +
                             (vol != null ? ` (Volatilität ~${vol.toFixed(1)}%)` : '') +
-                            '. Die Zusammensetzung basiert auf Score-Ranking, Sektor-Diversifikation und Markt-Regime-Analyse.'
+                            '. Die Zusammensetzung basiert auf Score-Ranking, Sektor-Diversifikation und Markt-Regime-Analyse.';
                       const portfolioFactors = [
                         ...(sharpe != null ? [{ label: 'Sharpe', value: sharpe.toFixed(2), sentiment: sharpe >= 0.5 ? 'positive' as const : sharpe >= 0.3 ? 'neutral' as const : 'negative' as const }] : []),
                         ...(ret != null ? [{ label: 'Erw. Rendite', value: `${ret.toFixed(1)}% p.a.`, sentiment: ret >= 8 ? 'positive' as const : ret >= 5 ? 'neutral' as const : 'negative' as const }] : []),
