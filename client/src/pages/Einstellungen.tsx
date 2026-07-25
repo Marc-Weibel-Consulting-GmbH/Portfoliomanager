@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Bell, Shield, KeyRound, HelpCircle, PlayCircle, Landmark, Info, Target, ChevronDown, ChevronUp, Mail, MessageSquare, CreditCard } from "lucide-react";
 import GuidedTourModal from "@/components/GuidedTourModal";
 import AnlageprofilTab from "@/components/settings/AnlageprofilTab";
-import { trpc } from "@/lib/trpc";
+import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { toast } from "sonner";
 import { getUserErrorMessage } from "@/lib/errorMessages";
 import { usePlan } from "@/hooks/usePlan";
@@ -67,36 +67,37 @@ const BROKER_PRESETS: Record<string, {
   },
 };
 
+type UserSettingsData = NonNullable<RouterOutputs["userSettings"]["get"]>;
+
 function GebührenTab() {
   const { data: settings, isLoading } = trpc.userSettings.get.useQuery();
+
+  if (isLoading) return <div className="text-gray-400 text-sm py-4">Lade Einstellungen…</div>;
+
+  // Das Formular seedet seinen State aus den Props (kein Effect). Gekeyt wird
+  // auf die stabile Zeilen-ID der Einstellungen – die ändert sich bei einem
+  // Hintergrund-Refetch derselben Zeile nicht, ungespeicherte Eingaben bleiben
+  // also erhalten. Existiert noch keine Zeile, gilt "neu"; sobald nach dem
+  // ersten Speichern eine ID vorliegt, mountet das Formular mit den
+  // gespeicherten Werten neu.
+  return <GebührenForm key={settings?.id ?? "neu"} settings={settings ?? null} />;
+}
+
+function GebührenForm({ settings }: { settings: UserSettingsData | null }) {
   const updateMutation = trpc.userSettings.updateBrokerFees.useMutation({
     onSuccess: () => toast.success("Gebührenstruktur gespeichert"),
     onError: (e) => toast.error("Fehler beim Speichern", { description: getUserErrorMessage(e) }),
   });
 
   const [form, setForm] = useState({
-    brokerName: "",
-    feePerTrade: "",
-    feePercent: "",
-    minFeePerTrade: "",
-    maxFeePerTrade: "",
-    stampDutyPercent: "0.075",
-    currencyConversionFee: "",
+    brokerName: settings?.brokerName || "",
+    feePerTrade: settings?.feePerTrade?.toString() || "",
+    feePercent: settings?.feePercent?.toString() || "",
+    minFeePerTrade: settings?.minFeePerTrade?.toString() || "",
+    maxFeePerTrade: settings?.maxFeePerTrade?.toString() || "",
+    stampDutyPercent: settings?.stampDutyPercent?.toString() || "0.075",
+    currencyConversionFee: settings?.currencyConversionFee?.toString() || "",
   });
-
-  useEffect(() => {
-    if (settings) {
-      setForm({
-        brokerName: settings.brokerName || "",
-        feePerTrade: settings.feePerTrade?.toString() || "",
-        feePercent: settings.feePercent?.toString() || "",
-        minFeePerTrade: settings.minFeePerTrade?.toString() || "",
-        maxFeePerTrade: settings.maxFeePerTrade?.toString() || "",
-        stampDutyPercent: settings.stampDutyPercent?.toString() || "0.075",
-        currencyConversionFee: settings.currencyConversionFee?.toString() || "",
-      });
-    }
-  }, [settings]);
 
   const applyPreset = (key: string) => {
     const preset = BROKER_PRESETS[key];
@@ -106,8 +107,6 @@ function GebührenTab() {
   const handleSave = () => {
     updateMutation.mutate(form);
   };
-
-  if (isLoading) return <div className="text-gray-400 text-sm py-4">Lade Einstellungen…</div>;
 
   return (
     <div className="space-y-6">
@@ -281,24 +280,28 @@ function GebührenTab() {
   );
 }
 
+type NotificationSettingsData = RouterOutputs["notificationSettings"]["getSettings"];
+
 function BenachrichtigungenTab() {
   const { data: settings, isLoading } = trpc.notificationSettings.getSettings.useQuery();
+
+  if (isLoading) return <div className="text-gray-400 text-sm py-4">Lade Einstellungen…</div>;
+
+  // Die Query liefert keine stabile ID (nur die Werte selbst), deshalb wird das
+  // Formular genau einmal gemountet, sobald Daten da sind – gekeyt auf das
+  // Vorhandensein der Daten, nicht auf deren Inhalt. Ein Refetch derselben
+  // Einstellungen ändert den Key nicht und überschreibt keine offenen Eingaben.
+  return <BenachrichtigungenForm key={settings ? "geladen" : "leer"} settings={settings ?? null} />;
+}
+
+function BenachrichtigungenForm({ settings }: { settings: NotificationSettingsData | null }) {
   const updateMutation = trpc.notificationSettings.updateSettings.useMutation({
     onSuccess: () => toast.success("Benachrichtigungseinstellungen gespeichert"),
     onError: (e) => toast.error("Fehler beim Speichern", { description: getUserErrorMessage(e) }),
   });
 
-  const [whatsappAlerts, setWhatsappAlerts] = useState(false);
-  const [mobile, setMobile] = useState("");
-
-  useEffect(() => {
-    if (settings) {
-      setWhatsappAlerts(settings.whatsappAlerts ?? false);
-      setMobile(settings.mobile ?? "");
-    }
-  }, [settings]);
-
-  if (isLoading) return <div className="text-gray-400 text-sm py-4">Lade Einstellungen…</div>;
+  const [whatsappAlerts, setWhatsappAlerts] = useState(settings?.whatsappAlerts ?? false);
+  const [mobile, setMobile] = useState(settings?.mobile ?? "");
 
   const handleSave = () => {
     updateMutation.mutate({ whatsappAlerts, mobile: mobile || undefined });
