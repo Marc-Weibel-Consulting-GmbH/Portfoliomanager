@@ -4,8 +4,8 @@
  * Das Bearbeitungsformular enthält ALLE Felder des Assistenten, aufgeteilt in
  * 5 Sektionen mit Tab-Navigation (kein endloses Scrollen).
  */
-import { useEffect, useState } from "react";
-import { trpc } from "@/lib/trpc";
+import { useState } from "react";
+import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,55 @@ const FORM_DEFAULTS: FormState = {
   referenceCurrency: 'CHF' as const,
   maxFxExposurePct: 50,
 };
+
+type ProfileData = RouterOutputs["investmentProfile"]["get"];
+type AssessmentData = RouterOutputs["investmentProfile"]["getAssessment"];
+
+/**
+ * Startwerte des Formulars aus den geladenen Daten — dieselbe Reihenfolge wie
+ * bisher: das vollständige Assessment gewinnt, sonst greift das aktive Profil
+ * als Teil-Vorbelegung, sonst gelten die Defaults.
+ */
+function seedFormState(assessment: AssessmentData | null, profile: ProfileData | null): FormState {
+  if (assessment?.isAssessed && assessment.answers) {
+    const a = assessment.answers as any;
+    return {
+      purpose: a.purpose ?? "aufbau",
+      goal: a.goal ?? "balanced",
+      horizonYears: a.horizonYears ?? 10,
+      wealthBand: a.wealthBand ?? "b50_250",
+      savingsRateBand: a.savingsRateBand ?? "mittel",
+      liquidityReserveBand: a.liquidityReserveBand ?? "b3_6m",
+      incomeStability: a.incomeStability ?? "mittel",
+      drawdownReaction: a.drawdownReaction ?? "halten",
+      lossComfortPct: a.lossComfortPct ?? 20,
+      experienceWithLosses: a.experienceWithLosses ?? "ja_unruhig",
+      knowledgeLevel: a.knowledgeLevel ?? "fortgeschritten",
+      excludedSectors: a.excludedSectors ?? [],
+      esgOnly: a.esgOnly ?? false,
+      targetReturnPct: a.targetReturnPct != null ? String(a.targetReturnPct) : "",
+      liquidityNeedPct: a.liquidityNeedPct ?? 0,
+      referenceCurrency: ((a as any).referenceCurrency ?? 'CHF') as 'CHF' | 'EUR' | 'USD',
+      maxFxExposurePct: (a as any).maxFxExposurePct ?? 50,
+    };
+  }
+  if (profile?.isSet) {
+    // Fallback: populate from active profile (partial data)
+    return {
+      ...FORM_DEFAULTS,
+      goal: (profile.investmentGoal as any) ?? "balanced",
+      horizonYears: profile.investmentHorizonYears ?? 10,
+      lossComfortPct: profile.maxDrawdownTolerancePct ?? 20,
+      excludedSectors: profile.excludedSectors ?? [],
+      esgOnly: profile.esgOnly ?? false,
+      targetReturnPct: profile.targetReturnPct != null ? String(profile.targetReturnPct) : "",
+      liquidityNeedPct: profile.liquidityNeedPct ?? 0,
+      referenceCurrency: (profile.referenceCurrency ?? 'CHF') as 'CHF' | 'EUR' | 'USD',
+      maxFxExposurePct: profile.maxFxExposurePct ?? 50,
+    };
+  }
+  return FORM_DEFAULTS;
+}
 
 // ─── Chips helper ─────────────────────────────────────────────────────────────
 
@@ -457,6 +506,39 @@ function EditForm({
   );
 }
 
+/**
+ * Hält den Formular-State und seedet ihn beim Mounten aus den geladenen Daten
+ * (kein Effect). Der Aufrufer mountet die Komponente per `key`, der nur am
+ * Vorhandensein der Daten hängt — ein Hintergrund-Refetch derselben Daten
+ * verwirft also keine ungespeicherten Eingaben.
+ */
+function AnlageprofilEditForm({
+  assessment,
+  profile,
+  onSave,
+  onCancel,
+  isSaving,
+}: {
+  assessment: AssessmentData | null;
+  profile: ProfileData | null;
+  onSave: (form: FormState) => void;
+  onCancel: () => void;
+  isSaving: boolean;
+}) {
+  const [form, setForm] = useState<FormState>(() => seedFormState(assessment, profile));
+
+  return (
+    <EditForm
+      form={form}
+      setForm={setForm}
+      onSave={() => onSave(form)}
+      onCancel={onCancel}
+      isSaving={isSaving}
+      hasExistingData={!!profile?.isSet}
+    />
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AnlageprofilTab() {
@@ -464,51 +546,17 @@ export default function AnlageprofilTab() {
   const { data, isLoading } = trpc.investmentProfile.get.useQuery();
   const { data: assessment } = trpc.investmentProfile.getAssessment.useQuery();
 
-  const [editing, setEditing] = useState(false);
+  // Ohne Assessment und ohne Profil öffnet sich das Formular automatisch —
+  // abgeleitet statt per Effect gesetzt. Sobald der Nutzer den Modus selbst
+  // wählt (Bearbeiten / Abbrechen / Speichern), gewinnt seine Wahl.
+  const [editingChoice, setEditingChoice] = useState<boolean | null>(null);
   const [wizard, setWizard] = useState(false);
-  const [form, setForm] = useState<FormState>(FORM_DEFAULTS);
 
-  // Populate form from existing data
-  useEffect(() => {
-    if (assessment?.isAssessed && assessment.answers) {
-      const a = assessment.answers as any;
-      setForm({
-        purpose: a.purpose ?? "aufbau",
-        goal: a.goal ?? "balanced",
-        horizonYears: a.horizonYears ?? 10,
-        wealthBand: a.wealthBand ?? "b50_250",
-        savingsRateBand: a.savingsRateBand ?? "mittel",
-        liquidityReserveBand: a.liquidityReserveBand ?? "b3_6m",
-        incomeStability: a.incomeStability ?? "mittel",
-        drawdownReaction: a.drawdownReaction ?? "halten",
-        lossComfortPct: a.lossComfortPct ?? 20,
-        experienceWithLosses: a.experienceWithLosses ?? "ja_unruhig",
-        knowledgeLevel: a.knowledgeLevel ?? "fortgeschritten",
-        excludedSectors: a.excludedSectors ?? [],
-        esgOnly: a.esgOnly ?? false,
-        targetReturnPct: a.targetReturnPct != null ? String(a.targetReturnPct) : "",
-        liquidityNeedPct: a.liquidityNeedPct ?? 0,
-        referenceCurrency: ((a as any).referenceCurrency ?? 'CHF') as 'CHF' | 'EUR' | 'USD',
-        maxFxExposurePct: (a as any).maxFxExposurePct ?? 50,
-      });
-    } else if (data?.isSet) {
-      // Fallback: populate from active profile (partial data)
-      setForm((f) => ({
-        ...f,
-        goal: (data.investmentGoal as any) ?? "balanced",
-        horizonYears: data.investmentHorizonYears ?? 10,
-        lossComfortPct: data.maxDrawdownTolerancePct ?? 20,
-        excludedSectors: data.excludedSectors ?? [],
-        esgOnly: data.esgOnly ?? false,
-        targetReturnPct: data.targetReturnPct != null ? String(data.targetReturnPct) : "",
-        liquidityNeedPct: data.liquidityNeedPct ?? 0,
-        referenceCurrency: (data.referenceCurrency ?? 'CHF') as 'CHF' | 'EUR' | 'USD',
-        maxFxExposurePct: data.maxFxExposurePct ?? 50,
-      }));
-    } else if (!isLoading && !data?.isSet) {
-      setEditing(true);
-    }
-  }, [assessment, data, isLoading]);
+  const hasAssessmentAnswers = !!(assessment?.isAssessed && assessment.answers);
+  const editing = editingChoice ?? (!isLoading && !data?.isSet && !hasAssessmentAnswers);
+  // Key nur am Vorhandensein der Daten, nie an deren Werten: ein Refetch
+  // derselben Datenlage remountet das Formular nicht.
+  const formSeedKey = `${hasAssessmentAnswers ? "assessment" : "kein-assessment"}:${data?.isSet ? "profil" : "kein-profil"}`;
 
   // Save via saveAssessment so all fields are processed and scoring is applied
   const save = trpc.investmentProfile.saveAssessment.useMutation({
@@ -516,12 +564,12 @@ export default function AnlageprofilTab() {
       toast.success(`Profil gespeichert: ${r.result.bindingProfile}`);
       utils.investmentProfile.get.invalidate();
       utils.investmentProfile.getAssessment.invalidate();
-      setEditing(false);
+      setEditingChoice(false);
     },
     onError: (e) => toast.error(`Fehler: ${e.message}`),
   });
 
-  const handleSave = () => {
+  const handleSave = (form: FormState) => {
     const tr = form.targetReturnPct.trim();
     save.mutate({
       purpose: form.purpose,
@@ -545,7 +593,7 @@ export default function AnlageprofilTab() {
   };
 
   const handleCancel = () => {
-    setEditing(false);
+    setEditingChoice(false);
   };
 
   if (isLoading) {
@@ -570,13 +618,13 @@ export default function AnlageprofilTab() {
   // ── Edit form ─────────────────────────────────────────────────────────────
   if (editing) {
     return (
-      <EditForm
-        form={form}
-        setForm={setForm}
+      <AnlageprofilEditForm
+        key={formSeedKey}
+        assessment={assessment ?? null}
+        profile={data ?? null}
         onSave={handleSave}
         onCancel={handleCancel}
         isSaving={save.isPending}
-        hasExistingData={!!data?.isSet}
       />
     );
   }
@@ -619,7 +667,7 @@ export default function AnlageprofilTab() {
         </div>
         <Button
           className="bg-[#00CFC1] text-black hover:bg-[#00CFC1]/80 gap-2"
-          onClick={() => setEditing(true)}
+          onClick={() => setEditingChoice(true)}
         >
           <Pencil className="h-4 w-4" /> Manuell bearbeiten
         </Button>
@@ -643,7 +691,7 @@ export default function AnlageprofilTab() {
         <Button
           variant="outline"
           className="border-white/10 text-gray-300 hover:text-white hover:border-white/30 gap-2"
-          onClick={() => setEditing(true)}
+          onClick={() => setEditingChoice(true)}
         >
           <Pencil className="h-4 w-4" />
           Bearbeiten
