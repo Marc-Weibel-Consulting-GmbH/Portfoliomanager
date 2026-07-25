@@ -116,7 +116,7 @@ describe("applyMultiAssetSleeve — Krypto-Split (wachstum)", () => {
     });
     const crypto = result.positions.filter((p) => p.assetClass === "crypto");
     expect(crypto).toHaveLength(2);
-    const btc = crypto.find((p) => p.ticker === "VBTC.SW");
+    const btc = crypto.find((p) => p.ticker === "ABTC.SW");
     const sol = crypto.find((p) => p.ticker === "ASOL.SW");
     expect(btc?.weight).toBeCloseTo(2.8, 2); // 4 * 0.7
     expect(sol?.weight).toBeCloseTo(1.2, 2); // 4 * 0.3
@@ -127,7 +127,7 @@ describe("applyMultiAssetSleeve — Krypto-Split (wachstum)", () => {
 describe("applyMultiAssetSleeve — Fallbacks", () => {
   it("Primär-ETF nicht auflösbar → Fallback-Ticker wird verwendet", async () => {
     // Bond-Primär AGGH.SW fällt aus, Rest verfügbar
-    const resolver = only(["AGG", "CSBGC0.SW", "CMOD.SW", "ZGLD.SW", "IWDP.L", "VBTC.SW", "ASOL.SW"]);
+    const resolver = only(["AGG", "CSBGC0.SW", "CMDY", "ZGLD.SW", "REET", "ABTC.SW", "ASOL.SW"]);
     const result = await applyMultiAssetSleeve({
       equityPositions: equity([100]),
       riskProfile: "ausgewogen",
@@ -144,7 +144,7 @@ describe("applyMultiAssetSleeve — Fallbacks", () => {
 
   it("Totalfall: alle ETFs einer Klasse null → Klasse gestrichen, proportional umverteilt, Summe 100", async () => {
     // Alle Bond-ETFs nicht auflösbar (konservativ: bond 50%)
-    const resolver = only(["CMOD.SW", "ZGLD.SW", "IWDP.L"]);
+    const resolver = only(["CMDY", "ZGLD.SW", "REET"]);
     const result = await applyMultiAssetSleeve({
       equityPositions: equity([100]),
       riskProfile: "konservativ",
@@ -165,7 +165,7 @@ describe("applyMultiAssetSleeve — Fallbacks", () => {
 
   it("ein Krypto-Bein fällt aus → anderes Bein bleibt, Anteil umverteilt", async () => {
     // SOL-ETPs nicht auflösbar, Rest verfügbar (wachstum: crypto 4%)
-    const resolver = only(["AGGH.SW", "CMOD.SW", "ZGLD.SW", "IWDP.L", "VBTC.SW"]);
+    const resolver = only(["AGGH.SW", "CMDY", "ZGLD.SW", "REET", "ABTC.SW"]);
     const result = await applyMultiAssetSleeve({
       equityPositions: equity([100]),
       riskProfile: "wachstum",
@@ -174,7 +174,7 @@ describe("applyMultiAssetSleeve — Fallbacks", () => {
     });
     const crypto = result.positions.filter((p) => p.assetClass === "crypto");
     expect(crypto).toHaveLength(1);
-    expect(crypto[0].ticker).toBe("VBTC.SW");
+    expect(crypto[0].ticker).toBe("ABTC.SW");
     expect(result.notes.some((n) => n.includes("Solana"))).toBe(true);
     expect(sumWeights(result.positions)).toBeCloseTo(100, 1);
   });

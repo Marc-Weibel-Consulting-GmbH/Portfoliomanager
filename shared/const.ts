@@ -14,20 +14,19 @@ export const SLEEVE_TICKER_LABEL: Record<string, string> = {
   'AGG': 'Obligationen',
   'CSBGC0.SW': 'Obligationen',
   // Rohstoffe
-  'CMOD.SW': 'Rohstoffe',
   'CMDY': 'Rohstoffe',
+  'PDBC': 'Rohstoffe',
   // Gold
   'ZGLD.SW': 'Gold',
   'CSGLDE.SW': 'Gold',
   'SGLN.L': 'Gold',
   // Immobilien
-  'IWDP.L': 'Immobilien',
-  'SRET': 'Immobilien',
-  'SRFCHA.SW': 'Immobilien',
+  'REET': 'Immobilien',
+  'VNQI': 'Immobilien',
   // Krypto
-  'VBTC.SW': 'Krypto',
-  'BTCE.DE': 'Krypto',
-  'EBTC.SW': 'Krypto',
+  'ABTC.SW': 'Krypto',
+  'ASOL.SW': 'Krypto',
+  'VSOL.SW': 'Krypto',
 };
 
 /** Icon/color config for each asset class label */

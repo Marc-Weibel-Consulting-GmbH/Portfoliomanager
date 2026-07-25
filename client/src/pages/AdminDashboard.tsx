@@ -46,9 +46,20 @@ export default function AdminDashboard() {
   });
   const backfillSleeveEtfs = trpc.admin.backfillSleeveEtfs.useMutation({
     onSuccess: (data) => {
-      const msg = `${data.totalPricesImported} Kurse importiert für: ${data.tickers.join(', ')}`;
+      const ok = data.results.filter((r: any) => r.success && r.pricesImported > 0);
+      const fail = data.results.filter((r: any) => !r.success || r.pricesImported === 0);
+      const okStr = ok.map((r: any) => `${r.ticker}(${r.pricesImported})`).join(', ');
+      const failStr = fail.map((r: any) => r.ticker).join(', ');
+      const parts = [`${data.totalPricesImported} Kurse importiert`];
+      if (okStr) parts.push(`✅ ${okStr}`);
+      if (failStr) parts.push(`❌ Keine Daten: ${failStr}`);
+      const msg = parts.join(' | ');
       setSleeveBackfillStatus(msg);
-      toast.success('Sleeve-ETF-Backfill abgeschlossen', { description: msg });
+      if (fail.length === 0) {
+        toast.success('Sleeve-ETF-Backfill abgeschlossen', { description: msg });
+      } else {
+        toast.warning('Sleeve-ETF-Backfill teilweise erfolgreich', { description: msg });
+      }
     },
     onError: (err: any) => {
       setSleeveBackfillStatus('Fehler: ' + err.message);

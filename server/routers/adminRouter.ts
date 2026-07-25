@@ -371,7 +371,7 @@ export const adminRouter = router({
       }),
 
     /**
-     * Trigger immediate backfill for all sleeve ETF tickers (AGGH.SW, ZGLD.SW, CMOD.SW, VBTC.SW, IWDP.L)
+     * Trigger immediate backfill for all sleeve ETF tickers (AGGH.SW, ZGLD.SW, CMDY, ABTC.SW, REET, ...)
      */
     backfillSleeveEtfs: adminProcedure
       .mutation(async () => {
