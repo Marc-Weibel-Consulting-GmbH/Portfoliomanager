@@ -40,7 +40,7 @@ export const DEFAULT_PROPOSAL_MODELS: ProposalModelConfig = {
   challengerB: "gemini",
   synthesis: "omniroute",
   text: "gemini",
-  autoApply: false,
+  autoApply: true, // Challenger-/Synthese-Anpassungen immer automatisch übernehmen
 };
 
 export const PROVIDER_LABELS: Record<ProposalProvider, string> = {
@@ -72,7 +72,7 @@ export async function getProposalModelConfig(): Promise<ProposalModelConfig> {
       challengerB: pick(cfg?.challengerB, DEFAULT_PROPOSAL_MODELS.challengerB),
       synthesis: pick(cfg?.synthesis, DEFAULT_PROPOSAL_MODELS.synthesis),
       text: pick(cfg?.text, DEFAULT_PROPOSAL_MODELS.text),
-      autoApply: cfg?.autoApply === true,
+      autoApply: true, // Immer automatisch übernehmen — unabhängig von DB-Einstellung
     };
   } catch {
     return { ...DEFAULT_PROPOSAL_MODELS };
@@ -247,10 +247,16 @@ export interface ProposalAgentOutcome {
   providerUsed: ProposalProvider;
 }
 
+/** Maximale Wartezeit pro Provider-Aufruf. Verhindert, dass ein hängender
+ * Provider die gesamte Fallback-Kaskade blockiert. 45 s reichen für 4096-Token-
+ * Antworten bei allen unterstützten Anbietern; Groq ist meist < 5 s.
+ */
+const PROVIDER_TIMEOUT_MS = 45_000;
+
 /**
  * Führt einen Rollen-Aufruf beim gewählten Anbieter aus und liefert das
- * geparste JSON. Bei jedem Fehler (fehlender Key, HTTP, JSON) fällt der Aufruf
- * automatisch auf Kimi zurück — der Enhancing-Schritt bleibt so robust.
+ * geparste JSON. Bei jedem Fehler (fehlender Key, HTTP, JSON, Timeout) fällt
+ * der Aufruf automatisch auf den nächsten Anbieter in der Kaskade zurück.
  */
 export async function invokeProposalAgent(
   provider: ProposalProvider,
@@ -268,6 +274,15 @@ export async function invokeProposalAgent(
       default: return callKimiJson(args.system, args.user, args.schema, maxTokens);
     }
   };
+  /** Wraps a provider call with a hard timeout so a hanging provider doesn't
+   * block the whole chain. */
+  const runWithTimeout = (p: ProposalProvider): Promise<any> =>
+    Promise.race([
+      run(p),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`${p}: Timeout nach ${PROVIDER_TIMEOUT_MS / 1000}s`)), PROVIDER_TIMEOUT_MS),
+      ),
+    ]);
   // Vollständige Fallback-Kaskade: gewählter Anbieter → alle weiteren in
   // absteigender Präferenz. So bleibt jeder Schritt auch dann robust, wenn
   // der bevorzugte Anbieter ausfällt, kein Key hinterlegt ist oder leer antwortet.
@@ -278,7 +293,7 @@ export async function invokeProposalAgent(
   let lastErr: any;
   for (const p of chain) {
     try {
-      const result = await run(p);
+      const result = await runWithTimeout(p);
       if (result && typeof result === "object") return { result, providerUsed: p };
       throw new Error(`${p}: leeres/ungültiges Ergebnis`);
     } catch (err: any) {

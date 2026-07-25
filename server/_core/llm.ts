@@ -369,7 +369,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   } = params;
 
   const payload: Record<string, unknown> = {
-    model: "gemini-2.5-flash",
+    model: ENV.forgeModel,
     messages: messages.map(normalizeMessage),
   };
 
@@ -385,7 +385,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768
+  payload.max_tokens = params.maxTokens || params.max_tokens || ENV.forgeMaxTokens;
 
   const normalizedResponseFormat = normalizeResponseFormat({
     responseFormat,
@@ -397,8 +397,9 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   if (normalizedResponseFormat) {
     // Do NOT set thinking when using json_schema — they are incompatible with Gemini 2.5 Flash
     payload.response_format = normalizedResponseFormat;
-  } else {
-    // Only enable thinking for free-form text generation (no structured output)
+  } else if (ENV.forgeModel.startsWith("gemini")) {
+    // 'thinking' ist Gemini-/Manus-spezifisch — bei anderen Anbietern weglassen,
+    // sonst lehnen z.B. Groq/OpenAI die Anfrage ab.
     payload.thinking = { budget_tokens: 128 };
   }
 

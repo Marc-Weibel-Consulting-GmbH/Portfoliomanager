@@ -239,6 +239,20 @@ type EditablePosition = {
   weightPct: number;
   originalWeightPct?: number; // Original KI-Gewicht für Vergleich
   aiReason?: string; // KI-generierte Positionsbegründung
+  // Multi-Asset-/Anzeige-Felder (müssen den Review-Roundtrip überleben)
+  assetType?: string; // 'stock' | 'etf' | 'bond'
+  assetClass?: string; // 'equity' | 'bond' | 'commodity' | 'gold' | 'realestate' | 'crypto'
+  combinedScore?: number | null;
+  signal?: string;
+};
+
+/** Multi-Asset-Sleeve-Position? (fixer Baustein — keine KI-Aktien-Anpassungen) */
+const isSleevePosition = (p: { assetClass?: string }) => !!(p.assetClass && p.assetClass !== 'equity');
+
+/** Deutsche Anzeigenamen der Multi-Asset-Anlageklassen. */
+const SLEEVE_CLASS_LABELS: Record<string, string> = {
+  equity: 'Aktien', bond: 'Obligationen', commodity: 'Rohstoffe',
+  gold: 'Gold', realestate: 'Immobilien', crypto: 'Krypto',
 };
 
 function PositionEditor({
@@ -285,6 +299,9 @@ function PositionEditor({
       currentPrice: parseFloat(stock.currentPrice ?? stock.price ?? '0') || 0,
       exchangeRateToChf: parseFloat(stock.exchangeRateToChf ?? '1') || 1,
       weightPct: 5,
+      combinedScore: stock.signalScore != null ? parseFloat(String(stock.signalScore)) : null,
+      signal: stock.signalType ? String(stock.signalType).toUpperCase() : undefined,
+      assetType: stock.category === 'ETF' ? 'etf' : stock.category?.includes?.('Anleihe') ? 'bond' : 'stock',
     }]);
   };
 
@@ -330,6 +347,16 @@ function PositionEditor({
 
               {/* Name */}
               <span className="text-xs text-slate-300 flex-1 truncate">{p.companyName}</span>
+
+              {/* Anlageklassen-Badge für Multi-Asset-Bausteine */}
+              {isSleevePosition(p) && (
+                <span
+                  className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                  title="Multi-Asset-Baustein — von KI-Anpassungen geschützt"
+                >
+                  {SLEEVE_CLASS_LABELS[p.assetClass!] ?? p.assetClass}
+                </span>
+              )}
 
               {/* Original weight (read-only) */}
               <div className="w-20 shrink-0 text-right">
@@ -455,6 +482,10 @@ function ApprovePanel({
     weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
     originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0, // Snapshot des Original-Gewichts
     aiReason: typeof p.aiReason === 'string' ? p.aiReason : undefined,
+    assetType: p.assetType ?? undefined,
+    assetClass: p.assetClass ?? undefined,
+    combinedScore: p.combinedScore ?? null,
+    signal: p.signal ?? undefined,
   }));
   const [portfolioName, setPortfolioName] = useState(`KI-Portfolio #${row.id}`);
   const [investmentAmount, setInvestmentAmount] = useState(String(row.investmentAmount ?? 10000));
@@ -976,16 +1007,38 @@ export default function AdminProposalAnalysis() {
                           weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
                           originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
                           aiReason: typeof p.aiReason === 'string' ? p.aiReason : undefined,
+                          assetType: p.assetType ?? undefined,
+                          assetClass: p.assetClass ?? undefined,
+                          combinedScore: p.combinedScore ?? null,
+                          signal: p.signal ?? undefined,
                         }));
 
                         const effectivePositions: EditablePosition[] = approvePositions.length > 0 ? approvePositions : rawPos;
-                        const adjustments: any[] = Array.isArray(row.finalAdjustments) ? row.finalAdjustments : [];
-                        const actionableAdjs = adjustments.filter(a => a.action !== 'keep');
+                        // finalAdjustments kann neu als { autoApplied, items } geloggt sein
+                        // (bei Auto-Übernahme sind die Empfehlungen bereits in row.positions
+                        // eingearbeitet — erneutes Anwenden würde sie doppelt verrechnen).
+                        const faRaw: any = row.finalAdjustments;
+                        const adjustmentsAlreadyApplied = !!(faRaw && !Array.isArray(faRaw) && faRaw.autoApplied);
+                        const adjustments: any[] = Array.isArray(faRaw) ? faRaw : (Array.isArray(faRaw?.items) ? faRaw.items : []);
+                        // Sleeve-Bausteine sind geschützt — Empfehlungen darauf nie anwenden.
+                        const isProtectedAdj = (a: any) => {
+                          const t = (a?.ticker ?? '').toUpperCase();
+                          const pos = rawPos.find(p => p.ticker.toUpperCase() === t);
+                          return pos ? isSleevePosition(pos) : false;
+                        };
+                        const protectedAdjs = adjustments.filter(a => a.action !== 'keep' && isProtectedAdj(a));
+                        const actionableAdjs = adjustments.filter(a => a.action !== 'keep' && !isProtectedAdj(a));
 
         // Helper: apply one adj to a positions array
         const applyAdjToPositions = (positions: EditablePosition[], adj: any): EditablePosition[] => {
           const tickerUpper = adj.ticker?.toUpperCase() ?? '';
           const existsInPositions = positions.some(p => p.ticker.toUpperCase() === tickerUpper);
+
+          // Multi-Asset-Sleeve-Positionen sind fixe, profilbedingte Bausteine —
+          // KI-Empfehlungen (reduce/increase/replace) greifen dort NICHT und
+          // tauschen sie schon gar nicht gegen Aktien aus.
+          const targetPos = positions.find(p => p.ticker.toUpperCase() === tickerUpper);
+          if (targetPos && isSleevePosition(targetPos)) return positions;
 
           // 'increase' on a ticker NOT in positions — add it as a new position
           if (adj.action === 'increase' && !existsInPositions) {
@@ -999,6 +1052,9 @@ export default function AdminProposalAnalysis() {
               exchangeRateToChf: parseFloat(stock?.exchangeRateToChf ?? '1') || 1,
               weightPct: 4.5,
               originalWeightPct: 0,
+              combinedScore: stock?.signalScore != null ? parseFloat(String(stock.signalScore)) : null,
+              signal: stock?.signalType ? String(stock.signalType).toUpperCase() : undefined,
+              assetType: stock?.category === 'ETF' ? 'etf' : stock?.category?.includes?.('Anleihe') ? 'bond' : 'stock',
             };
             return [...positions, newPos];
           }
@@ -1009,7 +1065,7 @@ export default function AdminProposalAnalysis() {
             if (adj.action === 'increase') return { ...p, weightPct: Math.round(p.weightPct * 1.3 * 10) / 10 };
             if (adj.action === 'replace' && adj.replaceTicker) {
               const repl = allStocks.find((s: any) => s.ticker?.toUpperCase() === adj.replaceTicker?.toUpperCase());
-              if (repl) return { ...p, ticker: repl.ticker, companyName: repl.companyName ?? repl.name ?? repl.ticker, sector: repl.sector ?? p.sector, currency: repl.currency ?? 'CHF', currentPrice: parseFloat(repl.currentPrice ?? '0') || 0, exchangeRateToChf: parseFloat(repl.exchangeRateToChf ?? '1') || 1 };
+              if (repl) return { ...p, ticker: repl.ticker, companyName: repl.companyName ?? repl.name ?? repl.ticker, sector: repl.sector ?? p.sector, currency: repl.currency ?? 'CHF', currentPrice: parseFloat(repl.currentPrice ?? '0') || 0, exchangeRateToChf: parseFloat(repl.exchangeRateToChf ?? '1') || 1, combinedScore: (repl as any).signalScore != null ? parseFloat(String((repl as any).signalScore)) : null, signal: (repl as any).signalType ? String((repl as any).signalType).toUpperCase() : undefined, assetType: (repl as any).category === 'ETF' ? 'etf' : (repl as any).category?.includes?.('Anleihe') ? 'bond' : 'stock', assetClass: undefined, aiReason: undefined };
             }
             return p;
           });
@@ -1068,7 +1124,7 @@ export default function AdminProposalAnalysis() {
                               <Columns2 className="w-4 h-4 text-teal-400" />
                               <span className="text-sm font-semibold text-white">Vorschlag überprüfen &amp; anpassen</span>
                               {approvePositions.length > 0 && <span className="text-xs text-amber-400 ml-1">(bearbeitet)</span>}
-                              {actionableAdjs.length > 0 && (
+                              {actionableAdjs.length > 0 && !adjustmentsAlreadyApplied && (
                                 <button
                                   className="ml-auto text-xs px-3 py-1.5 rounded-md bg-teal-600 hover:bg-teal-700 text-white font-medium transition-colors flex items-center gap-1.5"
                                   onClick={applyAllAdjustments}
@@ -1095,7 +1151,17 @@ export default function AdminProposalAnalysis() {
                                   <span className="text-xs text-slate-500 ml-auto">{actionableAdjs.length} Aktionen</span>
                                 </div>
 
-                                {actionableAdjs.length === 0 && (
+                                {adjustmentsAlreadyApplied && (
+                                  <p className="text-xs text-teal-300/90 px-3 py-2 rounded-md bg-teal-500/10 border border-teal-500/20">
+                                    ✓ Diese Empfehlungen wurden bereits automatisch in den Vorschlag eingearbeitet (Auto-Übernahme). Sie werden nicht erneut angewendet.
+                                  </p>
+                                )}
+                                {protectedAdjs.length > 0 && (
+                                  <p className="text-xs text-slate-400 px-3 py-2">
+                                    🛡 {protectedAdjs.length} Multi-Asset-Baustein{protectedAdjs.length > 1 ? 'e' : ''} geschützt (bleiben unverändert): {protectedAdjs.map(a => a.ticker).join(', ')}
+                                  </p>
+                                )}
+                                {actionableAdjs.length === 0 && !adjustmentsAlreadyApplied && (
                                   <p className="text-xs text-slate-500 px-3 py-2">Keine Empfehlungen vorhanden.</p>
                                 )}
 
@@ -1123,29 +1189,33 @@ export default function AdminProposalAnalysis() {
                                         {adj.replaceTicker && <span className="text-xs text-violet-400">→ {adj.replaceTicker}</span>}
                                         <span className="flex-1" />
                                         {isAccepted && <CheckCircle className="w-3.5 h-3.5 text-teal-400 shrink-0" />}
-                                        {/* Accept / Reject buttons */}
-                                        <button
-                                          onClick={e => { e.stopPropagation(); applySingleAdj(adj); }}
-                                          className={`text-xs px-1.5 py-1 rounded border transition-colors ${
-                                            isAccepted
-                                              ? 'bg-teal-600/30 border-teal-500/50 text-teal-300'
-                                              : 'border-slate-600 text-slate-400 hover:border-teal-500 hover:text-teal-400'
-                                          }`}
-                                          title="Empfehlung übernehmen"
-                                        >
-                                          <CheckCircle className="w-3.5 h-3.5" />
-                                        </button>
-                                        <button
-                                          onClick={e => { e.stopPropagation(); rejectAdj(adj); }}
-                                          className={`text-xs px-1.5 py-1 rounded border transition-colors ${
-                                            !isAccepted && approvePositions.length > 0
-                                              ? 'bg-red-600/20 border-red-500/40 text-red-400'
-                                              : 'border-slate-600 text-slate-400 hover:border-red-500 hover:text-red-400'
-                                          }`}
-                                          title="Empfehlung ablehnen"
-                                        >
-                                          <XCircle className="w-3.5 h-3.5" />
-                                        </button>
+                                        {/* Accept / Reject buttons — nicht bei bereits auto-applied Empfehlungen */}
+                                        {!adjustmentsAlreadyApplied && (
+                                          <>
+                                            <button
+                                              onClick={e => { e.stopPropagation(); applySingleAdj(adj); }}
+                                              className={`text-xs px-1.5 py-1 rounded border transition-colors ${
+                                                isAccepted
+                                                  ? 'bg-teal-600/30 border-teal-500/50 text-teal-300'
+                                                  : 'border-slate-600 text-slate-400 hover:border-teal-500 hover:text-teal-400'
+                                              }`}
+                                              title="Empfehlung übernehmen"
+                                            >
+                                              <CheckCircle className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                              onClick={e => { e.stopPropagation(); rejectAdj(adj); }}
+                                              className={`text-xs px-1.5 py-1 rounded border transition-colors ${
+                                                !isAccepted && approvePositions.length > 0
+                                                  ? 'bg-red-600/20 border-red-500/40 text-red-400'
+                                                  : 'border-slate-600 text-slate-400 hover:border-red-500 hover:text-red-400'
+                                              }`}
+                                              title="Empfehlung ablehnen"
+                                            >
+                                              <XCircle className="w-3.5 h-3.5" />
+                                            </button>
+                                          </>
+                                        )}
                                       </div>
                                       {/* Detail panel — only shown when this card is selected, inline below */}
                                       {isSelected && (
@@ -1253,6 +1323,10 @@ export default function AdminProposalAnalysis() {
                 weightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
                 originalWeightPct: parseFloat(p.weightPct ?? p.weight ?? "0") || 0,
                 aiReason: typeof p.aiReason === 'string' ? p.aiReason : undefined,
+                assetType: p.assetType ?? undefined,
+                assetClass: p.assetClass ?? undefined,
+                combinedScore: p.combinedScore ?? null,
+                signal: p.signal ?? undefined,
               }));
                           return (
                             <Button

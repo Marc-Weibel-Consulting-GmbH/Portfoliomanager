@@ -159,7 +159,7 @@ export default function PortfolioBuilderWizard() {
   const [isLive, setIsLive] = useState(false);
   const [isAiOptimized, setIsAiOptimized] = useState(false); // true wenn aus KI-angepasstem Vorschlag
   const [isAdminReviewed, setIsAdminReviewed] = useState(false); // true wenn Vorschlag vom Admin geprüft wurde
-  const [skipAdminReview, setSkipAdminReview] = useState(false); // true = direkt erstellen ohne Admin-Review
+  const [skipAdminReview, setSkipAdminReview] = useState(true); // true = direkt erstellen ohne Admin-Review (Default; Review optional per Toggle)
 
   // ── Async proposal job polling state ──
   const [proposalJobId, setProposalJobId] = useState<string | null>(null);
@@ -601,11 +601,19 @@ export default function PortfolioBuilderWizard() {
       equal_weight: 'Gleichgewichtet',
       hrp: 'HRP',
     };
+    // finalAdjustments kann neu als { autoApplied, items } gewrappt sein
+    // (Auto-Übernahme markiert) — für die Anzeige immer das Array entpacken.
+    const faRaw: any = (proposal as any).finalAdjustments;
+    const finalAdjustmentsArr: any[] = Array.isArray(faRaw)
+      ? faRaw
+      : (Array.isArray(faRaw?.items) ? faRaw.items : []);
+    const adjustmentsAutoApplied = !!(faRaw && !Array.isArray(faRaw) && faRaw.autoApplied);
     setAutoProposal({
       // Verwende reviewedPositions als positions (mit aiReason + Admin-Gewichten)
       positions: reviewedPositions,
       adjustedPositions: reviewedPositions,
-      finalAdjustments: proposal.finalAdjustments,
+      finalAdjustments: finalAdjustmentsArr,
+      autoApplied: adjustmentsAutoApplied,
       synthesizerVerdict: proposal.synthesizerVerdict,
       challengerCritique: proposal.challengerCritique,
       overallConfidence: proposal.overallConfidence,
@@ -1086,6 +1094,10 @@ export default function PortfolioBuilderWizard() {
                         const divYield = p.dividendYield ? parseFloat(p.dividendYield) : null;
                         const priceNum = p.currentPrice ? parseFloat(String(p.currentPrice)) : null;
 
+                        // Multi-Asset-Sleeve-/ETF-Position? Strategischer Baustein —
+                        // kein Aktien-Score, kein Kauf-/Verkaufssignal, eigener Text.
+                        const isEtfPos = p.signal === 'ETF' || p.assetType === 'etf' || (!!p.assetClass && p.assetClass !== 'equity');
+
                         // Einfache, nicht-technische Begründung in 2–3 Sätzen: WARUM
                         // dieser Titel vorgeschlagen wird (statt roher Score-Fachbegriffe).
                         const isBuy = signal === 'BUY' || signal === 'STRONG_BUY';
@@ -1102,26 +1114,59 @@ export default function PortfolioBuilderWizard() {
                         if ((p.reason ?? '').includes('Watchlist')) whyParts.push('Dieser Titel stammt aus Ihrer Merkliste.');
                         // Bevorzugt die individuelle KI-Begründung (nach dem Enhancing-
                         // Schritt vorhanden); vorher/als Fallback das einfache Template.
-                        const whyText = (typeof p.aiReason === 'string' && p.aiReason.trim()) ? p.aiReason.trim() : whyParts.join(' ');
+                        // ETF-/Sleeve-Positionen bekommen einen rollenbasierten eigenen
+                        // Text (nie das Aktien-Template mit «eher zurückhaltend»).
+                        const whyText = (typeof p.aiReason === 'string' && p.aiReason.trim())
+                          ? p.aiReason.trim()
+                          : isEtfPos
+                            ? (() => {
+                                const clsLabel = ASSET_CLASS_LABELS[p.assetClass ?? ''] ?? p.sector ?? 'ETF';
+                                const roleText: Record<string, string> = {
+                                  bond: 'er dämpft Schwankungen und stabilisiert das Portfolio',
+                                  commodity: 'er diversifiziert und dient als Inflationsschutz',
+                                  gold: 'er dient als Absicherung in Krisenzeiten',
+                                  realestate: 'er bildet den Immobilienmarkt ab und diversifiziert',
+                                  crypto: 'er ist eine kleine, chancenorientierte Beimischung mit höherem Risiko',
+                                };
+                                const role = roleText[p.assetClass ?? ''] ?? 'er ergänzt die Aktienquote um eine weitere Anlageklasse';
+                                return `${p.companyName} bildet den Baustein «${clsLabel}» Ihrer Anlagestrategie ab — ${role}. Die Gewichtung von ${p.weightPct.toFixed(1)} % folgt Ihrem Anlegerprofil.`;
+                              })()
+                            : whyParts.join(' ');
 
                         // Erklärung des Scores für den Info-Button (einfach gehalten).
                         const scoreInfo = 'Der Signal-Score (0–100) fasst Bewertung, Kursverlauf und Markttrend zu einer Empfehlung zusammen. Note A = sehr gut, F = schwach. Er ist ein Anhaltspunkt, keine Garantie.';
 
-                        // 3 key facts
-                        const keyFacts = [
-                          {
-                            label: signal === 'BUY' || signal === 'STRONG_BUY' ? '↑ Kaufsignal' : signal === 'SELL' || signal === 'STRONG_SELL' ? '↓ Verkaufssignal' : '→ Halten',
-                            color: signal === 'BUY' || signal === 'STRONG_BUY' ? 'text-emerald-400 bg-emerald-500/10' : signal === 'SELL' || signal === 'STRONG_SELL' ? 'text-red-400 bg-red-500/10' : 'text-slate-400 bg-slate-500/10',
-                          },
-                          {
-                            label: `Note ${scoreGrade} · ${score}/100`,
-                            color: score >= 70 ? 'text-emerald-300 bg-emerald-500/10' : score >= 50 ? 'text-teal-300 bg-teal-500/10' : 'text-amber-300 bg-amber-500/10',
-                          },
-                          {
-                            label: p.isUniverseExpansion ? '✨ Universum' : ytdNum !== null ? `YTD ${ytdNum > 0 ? '+' : ''}${ytdNum.toFixed(1)}%` : divYield && divYield > 0.5 ? `Div. ${divYield.toFixed(1)}%` : p.sector,
-                            color: p.isUniverseExpansion ? 'text-violet-300 bg-violet-500/10' : ytdNum !== null && ytdNum > 0 ? 'text-emerald-300 bg-emerald-500/10' : ytdNum !== null && ytdNum < -5 ? 'text-red-300 bg-red-500/10' : 'text-slate-300 bg-slate-500/10',
-                          },
-                        ];
+                        // 3 key facts — ETF-/Sleeve-Positionen haben keinen Aktien-Score;
+                        // statt «Halten»/«Note F · 0/100» zeigen wir die Anlageklasse.
+                        const keyFacts = isEtfPos
+                          ? [
+                              {
+                                label: `ETF · ${ASSET_CLASS_LABELS[p.assetClass ?? ''] ?? p.sector ?? 'Baustein'}`,
+                                color: 'text-violet-300 bg-violet-500/10',
+                              },
+                              {
+                                label: 'Baustein des Anlegerprofils',
+                                color: 'text-slate-300 bg-slate-500/10',
+                              },
+                              {
+                                label: ytdNum !== null ? `YTD ${ytdNum > 0 ? '+' : ''}${ytdNum.toFixed(1)}%` : `${p.weightPct.toFixed(1)} % Gewicht`,
+                                color: ytdNum !== null && ytdNum > 0 ? 'text-emerald-300 bg-emerald-500/10' : ytdNum !== null && ytdNum < -5 ? 'text-red-300 bg-red-500/10' : 'text-slate-300 bg-slate-500/10',
+                              },
+                            ]
+                          : [
+                              {
+                                label: signal === 'BUY' || signal === 'STRONG_BUY' ? '↑ Kaufsignal' : signal === 'SELL' || signal === 'STRONG_SELL' ? '↓ Verkaufssignal' : '→ Halten',
+                                color: signal === 'BUY' || signal === 'STRONG_BUY' ? 'text-emerald-400 bg-emerald-500/10' : signal === 'SELL' || signal === 'STRONG_SELL' ? 'text-red-400 bg-red-500/10' : 'text-slate-400 bg-slate-500/10',
+                              },
+                              {
+                                label: `Note ${scoreGrade} · ${score}/100`,
+                                color: score >= 70 ? 'text-emerald-300 bg-emerald-500/10' : score >= 50 ? 'text-teal-300 bg-teal-500/10' : 'text-amber-300 bg-amber-500/10',
+                              },
+                              {
+                                label: p.isUniverseExpansion ? '✨ Universum' : ytdNum !== null ? `YTD ${ytdNum > 0 ? '+' : ''}${ytdNum.toFixed(1)}%` : divYield && divYield > 0.5 ? `Div. ${divYield.toFixed(1)}%` : p.sector,
+                                color: p.isUniverseExpansion ? 'text-violet-300 bg-violet-500/10' : ytdNum !== null && ytdNum > 0 ? 'text-emerald-300 bg-emerald-500/10' : ytdNum !== null && ytdNum < -5 ? 'text-red-300 bg-red-500/10' : 'text-slate-300 bg-slate-500/10',
+                              },
+                            ];
 
                         return (
                           <div key={p.ticker} className="px-4 py-3 bg-[#0f1420]">
@@ -1149,14 +1194,20 @@ export default function PortfolioBuilderWizard() {
 
                               {/* Right: einfache Begründung (WARUM) + Score-Info-Button */}
                               <div className="hidden md:flex flex-col items-end gap-1.5 shrink-0 max-w-[340px]">
-                                <p className="text-sm text-slate-300 text-right leading-relaxed">{whyText}</p>
+                                {isEnhancing && !(typeof p.aiReason === 'string' && p.aiReason.trim()) ? (
+                                  <p className="text-sm text-slate-500 text-right leading-relaxed italic">Die KI formuliert gerade die Begründung für diesen Titel…</p>
+                                ) : (
+                                  <p className="text-sm text-slate-300 text-right leading-relaxed">{whyText}</p>
+                                )}
                                 <div className="flex flex-wrap gap-1 justify-end items-center">
                                   {keyFacts.map((f, i) => (
                                     <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
                                   ))}
-                                  <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
-                                    <Info className="h-4 w-4" />
-                                  </button>
+                                  {!isEtfPos && (
+                                    <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
+                                      <Info className="h-4 w-4" />
+                                    </button>
+                                  )}
                                 </div>
                               </div>
 
@@ -1166,14 +1217,20 @@ export default function PortfolioBuilderWizard() {
 
                             {/* Mobile: Begründung + Badges + Score-Info */}
                             <div className="flex md:hidden flex-col gap-2 mt-2">
-                              <p className="text-sm text-slate-300 leading-relaxed">{whyText}</p>
+                              {isEnhancing && !(typeof p.aiReason === 'string' && p.aiReason.trim()) ? (
+                                <p className="text-sm text-slate-500 leading-relaxed italic">Die KI formuliert gerade die Begründung für diesen Titel…</p>
+                              ) : (
+                                <p className="text-sm text-slate-300 leading-relaxed">{whyText}</p>
+                              )}
                               <div className="flex flex-wrap gap-1 items-center">
                                 {keyFacts.map((f, i) => (
                                   <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
                                 ))}
-                                <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
-                                  <Info className="h-4 w-4" />
-                                </button>
+                                {!isEtfPos && (
+                                  <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
+                                    <Info className="h-4 w-4" />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1243,109 +1300,30 @@ export default function PortfolioBuilderWizard() {
                       </div>
                     )}
 
-                    {/* Admin-geprüft Badge — erscheint nach Rückkehr vom Admin-Review */}
-                    {isAdminReviewed && (
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                        <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
-                        <div>
-                          <span className="text-xs font-semibold text-emerald-400">Admin-geprüft</span>
-                          <p className="text-xs text-emerald-400/70">Dieser Vorschlag wurde vom Admin überprüft und angepasst. Sie können ihn jetzt direkt übernehmen.</p>
-                        </div>
-                      </div>
-                    )}
-
                     <p className="text-xs text-gray-600">
                       ⚠️ Automatischer Vorschlag auf Basis historischer Daten — keine Anlageberatung.
                     </p>
-                    <div className="flex flex-col gap-2">
-                      {/* Admin-Review Toggle + Button (nur für Admins sichtbar, nicht wenn bereits geprüft) */}
-                      {isAdmin && !isAdminReviewed && (
-                        <div className="border border-amber-500/30 rounded-lg p-3 bg-amber-500/5 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <ShieldCheck className="h-4 w-4 text-amber-400" />
-                              <span className="text-xs font-semibold text-amber-400">Admin-Review</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-400">{skipAdminReview ? 'Direkt erstellen' : 'Mit Admin-Review'}</span>
-                              <Switch
-                                checked={!skipAdminReview}
-                                onCheckedChange={(checked) => setSkipAdminReview(!checked)}
-                                className="data-[state=checked]:bg-amber-500"
-                              />
-                            </div>
-                          </div>
-                          {!skipAdminReview ? (
-                            <>
-                              <p className="text-xs text-gray-400">Vorschlag im Admin-Bereich prüfen und genehmigen, bevor das Portfolio erstellt wird.</p>
-                              <Button
-                                variant="outline"
-                                className="w-full border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-sm"
-                                onClick={handleSendToAdminReview}
-                              >
-                                <ShieldCheck className="h-4 w-4 mr-2" />
-                                Im Admin-Bereich prüfen &amp; genehmigen
-                              </Button>
-                            </>
-                          ) : (
-                            <p className="text-xs text-gray-400">Portfolio wird direkt ohne Admin-Review erstellt. Verwenden Sie die Schaltflächen unten.</p>
-                          )}
-                        </div>
-                      )}
-                      <div className="flex flex-wrap justify-between gap-3">
-                        <Button variant="outline" className="border-white/10 text-gray-300"
-                          onClick={() => setAutoProposal(null)} disabled={buildProposal.isPending}>
-                          Neu erstellen
-                        </Button>
-                        {/* After admin review: show green accept button */}
-                        {isAdmin && isAdminReviewed && (
+                    {/* Direkte Übernahme-Buttons — Admin-Review entfernt, Challenger/Synthesizer-Anpassungen werden automatisch eingearbeitet */}
+                    <div className="flex flex-wrap justify-between gap-3">
+                      <Button variant="outline" className="border-white/10 text-gray-300"
+                        onClick={() => setAutoProposal(null)} disabled={buildProposal.isPending}>
+                        Neu erstellen
+                      </Button>
+                      <div className="flex gap-2 flex-wrap">
+                        {(autoProposal as any).adjustedPositions && (
                           <Button
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                            onClick={() => handleAcceptProposal(true)}
+                            variant="outline"
+                            className="border-white/20 text-gray-300 hover:bg-white/5 text-sm"
+                            onClick={() => handleAcceptProposal(false)}
+                            title="Roher Algorithmus-Vorschlag ohne KI-Anpassungen"
                           >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Admin-geprüften Vorschlag übernehmen
-                            <ChevronRight className="h-4 w-4 ml-1" />
+                            Ohne KI-Anpassungen
                           </Button>
                         )}
-                        {/* Admin without review: show direct-create buttons when skipAdminReview is true */}
-                        {isAdmin && !isAdminReviewed && skipAdminReview && (
-                          <div className="flex gap-2 flex-wrap">
-                            {(autoProposal as any).adjustedPositions && (
-                              <Button
-                                variant="outline"
-                                className="border-white/20 text-gray-300 hover:bg-white/5 text-sm"
-                                onClick={() => handleAcceptProposal(false)}
-                                title="Roher Algorithmus-Vorschlag ohne KI-Anpassungen"
-                              >
-                                Ohne KI-Anpassungen
-                              </Button>
-                            )}
-                            <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
-                              {(autoProposal as any).adjustedPositions ? 'KI-Angepasst übernehmen' : 'Direkt erstellen'}
-                              <ChevronRight className="h-4 w-4 ml-1" />
-                            </Button>
-                          </div>
-                        )}
-                        {/* Non-admins: show standard accept buttons */}
-                        {!isAdmin && (
-                          <div className="flex gap-2 flex-wrap">
-                            {(autoProposal as any).adjustedPositions && (
-                              <Button
-                                variant="outline"
-                                className="border-white/20 text-gray-300 hover:bg-white/5 text-sm"
-                                onClick={() => handleAcceptProposal(false)}
-                                title="Roher Algorithmus-Vorschlag ohne KI-Anpassungen"
-                              >
-                                Ohne KI-Anpassungen
-                              </Button>
-                            )}
-                            <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
-                              {(autoProposal as any).adjustedPositions ? 'KI-Angepasst übernehmen' : 'In den Builder übernehmen'}
-                              <ChevronRight className="h-4 w-4 ml-1" />
-                            </Button>
-                          </div>
-                        )}
+                        <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
+                          {(autoProposal as any).adjustedPositions ? 'KI-Optimiert übernehmen' : 'Vorschlag übernehmen'}
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
                       </div>
                     </div>
                   </div>
