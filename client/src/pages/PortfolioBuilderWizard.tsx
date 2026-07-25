@@ -19,6 +19,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { InsightExpandable, InsightPanel } from "@/components/InsightPanel";
+import { ProposalPositionEditor, type EditablePosition } from "@/components/portfolio/ProposalPositionEditor";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -154,6 +155,8 @@ export default function PortfolioBuilderWizard() {
   const [currency, setCurrency] = useState("CHF");
   const [initialCapital, setInitialCapital] = useState("");
   const [selectedStocks, setSelectedStocks] = useState<StockSelection[]>([]);
+  // Editierbare Vorschlags-Positionen (Gewicht/Austausch/Löschen/Hinzufügen VOR der Übernahme).
+  const [reviewPositions, setReviewPositions] = useState<EditablePosition[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [perStockInputs, setPerStockInputs] = useState<Record<string, { quantity: string; price: string }>>({});
   const [isLive, setIsLive] = useState(false);
@@ -223,6 +226,26 @@ export default function PortfolioBuilderWizard() {
       setIsEnhancing(false);
       setProposalJobId(null);
       setAutoProposal(result);
+      // Editierbare Positionen aus dem FINALEN Vorschlag (inkl. Austausch-Titel) seeden.
+      const src = ((result as any).adjustedPositions?.length ? (result as any).adjustedPositions : (result as any).positions) || [];
+      setReviewPositions(src.map((p: any) => {
+        const w = parseFloat(String(p.weightPct ?? p.weight ?? '0')) || 0;
+        return {
+          ticker: p.ticker,
+          companyName: p.companyName,
+          sector: p.sector,
+          currency: p.currency,
+          currentPrice: parseFloat(String(p.currentPrice ?? '0')) || 0,
+          exchangeRateToChf: parseFloat(String(p.exchangeRateToChf ?? '1')) || 1,
+          weightPct: w,
+          originalWeightPct: w,
+          aiReason: p.aiReason,
+          assetType: p.assetType,
+          assetClass: p.assetClass,
+          combinedScore: p.combinedScore ?? null,
+          signal: p.signal,
+        } as EditablePosition;
+      }));
     } else if (status === 'error') {
       setIsProposalRunning(false);
       setIsEnhancing(false);
@@ -520,9 +543,17 @@ export default function PortfolioBuilderWizard() {
     // Use entered capital, or fall back to 100'000 CHF if not set
     const capital = parseFloat(initialCapital) || 100000;
     // Use adjustedPositions (KI-Empfehlungen automatically applied) if available and requested
-    const positionsToUse = (useAdjusted && (autoProposal as any).adjustedPositions?.length)
+    // Bevorzugt die im Vorschlag bearbeiteten Positionen (Gewicht/Austausch/Löschen/
+    // Hinzufügen), sonst der KI-Vorschlag. "Ohne KI-Anpassungen" nimmt bewusst die Rohliste.
+    const rawSource = (useAdjusted && (autoProposal as any).adjustedPositions?.length)
       ? (autoProposal as any).adjustedPositions
       : autoProposal.positions;
+    const source: any[] = (useAdjusted && reviewPositions.length) ? reviewPositions : rawSource;
+    // Gewichte auf 100 % normieren — der Editor lässt beliebige Summen zu.
+    const totalW = source.reduce((s: number, p: any) => s + (parseFloat(String(p.weightPct ?? p.weight ?? '0')) || 0), 0);
+    const positionsToUse: any[] = totalW > 0
+      ? source.map((p: any) => ({ ...p, weightPct: (parseFloat(String(p.weightPct ?? p.weight ?? '0')) || 0) / totalW * 100 }))
+      : source;
     // Track whether KI adjustments were applied
     setIsAiOptimized(useAdjusted && !!(autoProposal as any).adjustedPositions?.length);
     // Build a lookup map from the allStocks list as a fallback for missing prices
@@ -1315,6 +1346,23 @@ export default function PortfolioBuilderWizard() {
                             <p className="text-xs text-emerald-400">Die angepassten Positionen wurden bereits in den Vorschlag eingearbeitet. Sie können diese in den nächsten Schritten weiter anpassen.</p>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Positionen VOR der Übernahme direkt bearbeiten: Gewicht anpassen,
+                        Titel austauschen (Ticker anklicken), löschen oder hinzufügen.
+                        Nur wenn der Vorschlag final ist (nicht während der KI-Verfeinerung). */}
+                    {!isEnhancing && reviewPositions.length > 0 && (
+                      <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
+                        <ProposalPositionEditor
+                          positions={reviewPositions}
+                          allStocks={allStocks}
+                          onChange={setReviewPositions}
+                        />
+                        <p className="text-xs text-gray-500 mt-3">
+                          Gewichte anpassen, Titel austauschen (Ticker anklicken), entfernen oder
+                          hinzufügen. Beim Übernehmen werden die Gewichte auf 100 % normiert.
+                        </p>
                       </div>
                     )}
 
