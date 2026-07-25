@@ -1892,6 +1892,14 @@ export const adminRouter = router({
         weightPct: z.number(),
         originalWeightPct: z.number().optional(),
         aiReason: z.string().optional(),
+        // Multi-Asset-/Anzeige-Felder — müssen den Review-Roundtrip überleben,
+        // sonst fallen ETF-/Sleeve-Positionen im Wizard auf «Aktie, Note F» zurück.
+        assetType: z.string().optional(),
+        assetClass: z.string().optional(),
+        combinedScore: z.number().nullable().optional(),
+        signal: z.string().optional(),
+        currentPrice: z.number().optional(),
+        exchangeRateToChf: z.number().optional(),
       })),
       adminComments: z.record(z.string(), z.string()).optional(),
     }))

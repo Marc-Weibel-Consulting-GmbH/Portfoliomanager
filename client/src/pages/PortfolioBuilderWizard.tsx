@@ -159,7 +159,7 @@ export default function PortfolioBuilderWizard() {
   const [isLive, setIsLive] = useState(false);
   const [isAiOptimized, setIsAiOptimized] = useState(false); // true wenn aus KI-angepasstem Vorschlag
   const [isAdminReviewed, setIsAdminReviewed] = useState(false); // true wenn Vorschlag vom Admin geprüft wurde
-  const [skipAdminReview, setSkipAdminReview] = useState(false); // true = direkt erstellen ohne Admin-Review
+  const [skipAdminReview, setSkipAdminReview] = useState(true); // true = direkt erstellen ohne Admin-Review (Default; Review optional per Toggle)
 
   // ── Async proposal job polling state ──
   const [proposalJobId, setProposalJobId] = useState<string | null>(null);
@@ -167,10 +167,6 @@ export default function PortfolioBuilderWizard() {
   const [isProposalRunning, setIsProposalRunning] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
-  // Echtzeit-Fortschritt: Zeitstempel pro Schritt + laufende Sekunden
-  const [stepTimestamps, setStepTimestamps] = useState<number[]>([]);
-  const [elapsedSec, setElapsedSec] = useState(0);
-  const [jobStartTime, setJobStartTime] = useState<number | null>(null);
 
   // ── Queries & mutations ──
   const utils = trpc.useUtils();
@@ -184,13 +180,9 @@ export default function PortfolioBuilderWizard() {
   // Async job: start proposal (returns immediately with jobId)
   const startProposal = trpc.autoPortfolio.startProposal.useMutation({
     onSuccess: (data) => {
-      const now = Date.now();
       setProposalJobId(data.jobId);
       setIsProposalRunning(true);
       setProposalProgress(['Job gestartet...']);
-      setStepTimestamps([now]);
-      setJobStartTime(now);
-      setElapsedSec(0);
     },
     onError: (e) => {
       setIsProposalRunning(false);
@@ -219,12 +211,6 @@ export default function PortfolioBuilderWizard() {
     if (!proposalStatus.data) return;
     const { status, progress, result, error } = proposalStatus.data;
     if (progress && progress.length > proposalProgress.length) {
-      const now = Date.now();
-      const newCount = progress.length - proposalProgress.length;
-      setStepTimestamps(prev => [
-        ...prev,
-        ...Array(newCount).fill(now),
-      ]);
       setProposalProgress(progress);
     }
     if (status === 'enhancing' && result) {
@@ -248,24 +234,8 @@ export default function PortfolioBuilderWizard() {
   // Compatibility shim: buildProposal.isPending is used in the JSX below
   const buildProposal = {
     isPending: isProposalRunning || startProposal.isPending,
-    reset: () => {
-      setIsProposalRunning(false);
-      setIsEnhancing(false);
-      setProposalJobId(null);
-      setProposalProgress([]);
-      setStepTimestamps([]);
-      setJobStartTime(null);
-      setElapsedSec(0);
-      startProposal.reset();
-    },
+    reset: () => { setIsProposalRunning(false); setIsEnhancing(false); setProposalJobId(null); setProposalProgress([]); startProposal.reset(); },
   };
-
-  // Echtzeit-Sekundenzähler: läuft solange der Job aktiv ist
-  useEffect(() => {
-    if (!buildProposal.isPending || !jobStartTime) { setElapsedSec(0); return; }
-    const id = setInterval(() => setElapsedSec(Math.floor((Date.now() - jobStartTime) / 1000)), 1000);
-    return () => clearInterval(id);
-  }, [buildProposal.isPending, jobStartTime]);
 
   // Freundliche, wechselnde Lade-Botschaften (statt technischer Einzelschritte).
   // Mischt Beruhigung + einfache Erklärungen, wie das System arbeitet.
@@ -631,11 +601,19 @@ export default function PortfolioBuilderWizard() {
       equal_weight: 'Gleichgewichtet',
       hrp: 'HRP',
     };
+    // finalAdjustments kann neu als { autoApplied, items } gewrappt sein
+    // (Auto-Übernahme markiert) — für die Anzeige immer das Array entpacken.
+    const faRaw: any = (proposal as any).finalAdjustments;
+    const finalAdjustmentsArr: any[] = Array.isArray(faRaw)
+      ? faRaw
+      : (Array.isArray(faRaw?.items) ? faRaw.items : []);
+    const adjustmentsAutoApplied = !!(faRaw && !Array.isArray(faRaw) && faRaw.autoApplied);
     setAutoProposal({
       // Verwende reviewedPositions als positions (mit aiReason + Admin-Gewichten)
       positions: reviewedPositions,
       adjustedPositions: reviewedPositions,
-      finalAdjustments: proposal.finalAdjustments,
+      finalAdjustments: finalAdjustmentsArr,
+      autoApplied: adjustmentsAutoApplied,
       synthesizerVerdict: proposal.synthesizerVerdict,
       challengerCritique: proposal.challengerCritique,
       overallConfidence: proposal.overallConfidence,
@@ -1116,6 +1094,10 @@ export default function PortfolioBuilderWizard() {
                         const divYield = p.dividendYield ? parseFloat(p.dividendYield) : null;
                         const priceNum = p.currentPrice ? parseFloat(String(p.currentPrice)) : null;
 
+                        // Multi-Asset-Sleeve-/ETF-Position? Strategischer Baustein —
+                        // kein Aktien-Score, kein Kauf-/Verkaufssignal, eigener Text.
+                        const isEtfPos = p.signal === 'ETF' || p.assetType === 'etf' || (!!p.assetClass && p.assetClass !== 'equity');
+
                         // Einfache, nicht-technische Begründung in 2–3 Sätzen: WARUM
                         // dieser Titel vorgeschlagen wird (statt roher Score-Fachbegriffe).
                         const isBuy = signal === 'BUY' || signal === 'STRONG_BUY';
@@ -1132,26 +1114,59 @@ export default function PortfolioBuilderWizard() {
                         if ((p.reason ?? '').includes('Watchlist')) whyParts.push('Dieser Titel stammt aus Ihrer Merkliste.');
                         // Bevorzugt die individuelle KI-Begründung (nach dem Enhancing-
                         // Schritt vorhanden); vorher/als Fallback das einfache Template.
-                        const whyText = (typeof p.aiReason === 'string' && p.aiReason.trim()) ? p.aiReason.trim() : whyParts.join(' ');
+                        // ETF-/Sleeve-Positionen bekommen einen rollenbasierten eigenen
+                        // Text (nie das Aktien-Template mit «eher zurückhaltend»).
+                        const whyText = (typeof p.aiReason === 'string' && p.aiReason.trim())
+                          ? p.aiReason.trim()
+                          : isEtfPos
+                            ? (() => {
+                                const clsLabel = ASSET_CLASS_LABELS[p.assetClass ?? ''] ?? p.sector ?? 'ETF';
+                                const roleText: Record<string, string> = {
+                                  bond: 'er dämpft Schwankungen und stabilisiert das Portfolio',
+                                  commodity: 'er diversifiziert und dient als Inflationsschutz',
+                                  gold: 'er dient als Absicherung in Krisenzeiten',
+                                  realestate: 'er bildet den Immobilienmarkt ab und diversifiziert',
+                                  crypto: 'er ist eine kleine, chancenorientierte Beimischung mit höherem Risiko',
+                                };
+                                const role = roleText[p.assetClass ?? ''] ?? 'er ergänzt die Aktienquote um eine weitere Anlageklasse';
+                                return `${p.companyName} bildet den Baustein «${clsLabel}» Ihrer Anlagestrategie ab — ${role}. Die Gewichtung von ${p.weightPct.toFixed(1)} % folgt Ihrem Anlegerprofil.`;
+                              })()
+                            : whyParts.join(' ');
 
                         // Erklärung des Scores für den Info-Button (einfach gehalten).
                         const scoreInfo = 'Der Signal-Score (0–100) fasst Bewertung, Kursverlauf und Markttrend zu einer Empfehlung zusammen. Note A = sehr gut, F = schwach. Er ist ein Anhaltspunkt, keine Garantie.';
 
-                        // 3 key facts
-                        const keyFacts = [
-                          {
-                            label: signal === 'BUY' || signal === 'STRONG_BUY' ? '↑ Kaufsignal' : signal === 'SELL' || signal === 'STRONG_SELL' ? '↓ Verkaufssignal' : '→ Halten',
-                            color: signal === 'BUY' || signal === 'STRONG_BUY' ? 'text-emerald-400 bg-emerald-500/10' : signal === 'SELL' || signal === 'STRONG_SELL' ? 'text-red-400 bg-red-500/10' : 'text-slate-400 bg-slate-500/10',
-                          },
-                          {
-                            label: `Note ${scoreGrade} · ${score}/100`,
-                            color: score >= 70 ? 'text-emerald-300 bg-emerald-500/10' : score >= 50 ? 'text-teal-300 bg-teal-500/10' : 'text-amber-300 bg-amber-500/10',
-                          },
-                          {
-                            label: p.isUniverseExpansion ? '✨ Universum' : ytdNum !== null ? `YTD ${ytdNum > 0 ? '+' : ''}${ytdNum.toFixed(1)}%` : divYield && divYield > 0.5 ? `Div. ${divYield.toFixed(1)}%` : p.sector,
-                            color: p.isUniverseExpansion ? 'text-violet-300 bg-violet-500/10' : ytdNum !== null && ytdNum > 0 ? 'text-emerald-300 bg-emerald-500/10' : ytdNum !== null && ytdNum < -5 ? 'text-red-300 bg-red-500/10' : 'text-slate-300 bg-slate-500/10',
-                          },
-                        ];
+                        // 3 key facts — ETF-/Sleeve-Positionen haben keinen Aktien-Score;
+                        // statt «Halten»/«Note F · 0/100» zeigen wir die Anlageklasse.
+                        const keyFacts = isEtfPos
+                          ? [
+                              {
+                                label: `ETF · ${ASSET_CLASS_LABELS[p.assetClass ?? ''] ?? p.sector ?? 'Baustein'}`,
+                                color: 'text-violet-300 bg-violet-500/10',
+                              },
+                              {
+                                label: 'Baustein des Anlegerprofils',
+                                color: 'text-slate-300 bg-slate-500/10',
+                              },
+                              {
+                                label: ytdNum !== null ? `YTD ${ytdNum > 0 ? '+' : ''}${ytdNum.toFixed(1)}%` : `${p.weightPct.toFixed(1)} % Gewicht`,
+                                color: ytdNum !== null && ytdNum > 0 ? 'text-emerald-300 bg-emerald-500/10' : ytdNum !== null && ytdNum < -5 ? 'text-red-300 bg-red-500/10' : 'text-slate-300 bg-slate-500/10',
+                              },
+                            ]
+                          : [
+                              {
+                                label: signal === 'BUY' || signal === 'STRONG_BUY' ? '↑ Kaufsignal' : signal === 'SELL' || signal === 'STRONG_SELL' ? '↓ Verkaufssignal' : '→ Halten',
+                                color: signal === 'BUY' || signal === 'STRONG_BUY' ? 'text-emerald-400 bg-emerald-500/10' : signal === 'SELL' || signal === 'STRONG_SELL' ? 'text-red-400 bg-red-500/10' : 'text-slate-400 bg-slate-500/10',
+                              },
+                              {
+                                label: `Note ${scoreGrade} · ${score}/100`,
+                                color: score >= 70 ? 'text-emerald-300 bg-emerald-500/10' : score >= 50 ? 'text-teal-300 bg-teal-500/10' : 'text-amber-300 bg-amber-500/10',
+                              },
+                              {
+                                label: p.isUniverseExpansion ? '✨ Universum' : ytdNum !== null ? `YTD ${ytdNum > 0 ? '+' : ''}${ytdNum.toFixed(1)}%` : divYield && divYield > 0.5 ? `Div. ${divYield.toFixed(1)}%` : p.sector,
+                                color: p.isUniverseExpansion ? 'text-violet-300 bg-violet-500/10' : ytdNum !== null && ytdNum > 0 ? 'text-emerald-300 bg-emerald-500/10' : ytdNum !== null && ytdNum < -5 ? 'text-red-300 bg-red-500/10' : 'text-slate-300 bg-slate-500/10',
+                              },
+                            ];
 
                         return (
                           <div key={p.ticker} className="px-4 py-3 bg-[#0f1420]">
@@ -1179,14 +1194,20 @@ export default function PortfolioBuilderWizard() {
 
                               {/* Right: einfache Begründung (WARUM) + Score-Info-Button */}
                               <div className="hidden md:flex flex-col items-end gap-1.5 shrink-0 max-w-[340px]">
-                                <p className="text-sm text-slate-300 text-right leading-relaxed">{whyText}</p>
+                                {isEnhancing && !(typeof p.aiReason === 'string' && p.aiReason.trim()) ? (
+                                  <p className="text-sm text-slate-500 text-right leading-relaxed italic">Die KI formuliert gerade die Begründung für diesen Titel…</p>
+                                ) : (
+                                  <p className="text-sm text-slate-300 text-right leading-relaxed">{whyText}</p>
+                                )}
                                 <div className="flex flex-wrap gap-1 justify-end items-center">
                                   {keyFacts.map((f, i) => (
                                     <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
                                   ))}
-                                  <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
-                                    <Info className="h-4 w-4" />
-                                  </button>
+                                  {!isEtfPos && (
+                                    <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
+                                      <Info className="h-4 w-4" />
+                                    </button>
+                                  )}
                                 </div>
                               </div>
 
@@ -1196,14 +1217,20 @@ export default function PortfolioBuilderWizard() {
 
                             {/* Mobile: Begründung + Badges + Score-Info */}
                             <div className="flex md:hidden flex-col gap-2 mt-2">
-                              <p className="text-sm text-slate-300 leading-relaxed">{whyText}</p>
+                              {isEnhancing && !(typeof p.aiReason === 'string' && p.aiReason.trim()) ? (
+                                <p className="text-sm text-slate-500 leading-relaxed italic">Die KI formuliert gerade die Begründung für diesen Titel…</p>
+                              ) : (
+                                <p className="text-sm text-slate-300 leading-relaxed">{whyText}</p>
+                              )}
                               <div className="flex flex-wrap gap-1 items-center">
                                 {keyFacts.map((f, i) => (
                                   <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
                                 ))}
-                                <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
-                                  <Info className="h-4 w-4" />
-                                </button>
+                                {!isEtfPos && (
+                                  <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
+                                    <Info className="h-4 w-4" />
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1381,46 +1408,21 @@ export default function PortfolioBuilderWizard() {
                   </div>
                 ) : buildProposal.isPending ? (
                   <div className="space-y-3 py-4">
-                    {/* Header: Titel + Gesamtzeit */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="h-5 w-5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin flex-shrink-0" />
                         <span className="text-sm text-[#00CFC1] font-medium">Ihr Portfolio wird erstellt…</span>
                       </div>
-                      <span className="text-xs text-gray-400 tabular-nums">{elapsedSec}s</span>
+                      <span className="text-xs text-gray-500">meist 1–3 Minuten</span>
                     </div>
                     {/* Indeterminate progress bar */}
                     <div className="w-full bg-gray-800 rounded-full h-1.5 overflow-hidden">
                       <div className="h-full bg-[#00CFC1] rounded-full" style={{ animation: 'indeterminate 2s ease-in-out infinite' }} />
                     </div>
-                    {/* Echtzeit-Schrittlog aus job.progress */}
-                    {proposalProgress.length > 0 ? (
-                      <div className="space-y-1 max-h-40 overflow-y-auto">
-                        {proposalProgress.map((msg, idx) => {
-                          const isLast = idx === proposalProgress.length - 1;
-                          const stepAge = stepTimestamps[idx]
-                            ? Math.floor((Date.now() - stepTimestamps[idx]) / 1000)
-                            : null;
-                          return (
-                            <div key={idx} className={`flex items-start gap-2 text-xs ${isLast ? 'text-slate-200' : 'text-slate-500'}`}>
-                              {isLast ? (
-                                <div className="h-3 w-3 mt-0.5 border border-[#00CFC1] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                              ) : (
-                                <span className="text-[#00CFC1] flex-shrink-0">✓</span>
-                              )}
-                              <span className="flex-1 leading-relaxed">{msg}</span>
-                              {isLast && stepAge !== null && stepAge > 2 && (
-                                <span className="text-gray-500 tabular-nums flex-shrink-0">{stepAge}s</span>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-300 leading-relaxed min-h-[2rem]">
-                        {loadingMessages[loadingMsgIdx]}
-                      </p>
-                    )}
+                    {/* Eine freundliche, wechselnde Botschaft statt technischer Einzelschritte */}
+                    <p className="text-sm text-slate-300 leading-relaxed min-h-[3rem]">
+                      {loadingMessages[loadingMsgIdx]}
+                    </p>
                   </div>
                 ) : (
                   <Button
