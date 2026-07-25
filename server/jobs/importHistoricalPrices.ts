@@ -170,12 +170,22 @@ async function getUniqueTickers(): Promise<string[]> {
   // Benchmark proxy tickers — always kept up-to-date so KPI header and chart are consistent
   const BENCHMARK_TICKERS = ['ACWI.US', 'CHSPI.SW', 'SPY', 'QQQ', 'FEZ'];
 
+  // Multi-Asset-Sleeve ETF tickers — always include so sleeve ETF prices stay fresh
+  // for the KI-Portfolio-Builder (applyMultiAssetSleeve needs current prices).
+  const { MULTI_ASSET_ETFS } = await import("../lib/multiAssetSleeve");
+  const sleeveTickers: string[] = [];
+  for (const list of Object.values(MULTI_ASSET_ETFS)) {
+    for (const etf of list) sleeveTickers.push(etf.ticker);
+  }
+  console.log(`[importHistoricalPrices] Including ${sleeveTickers.length} Multi-Asset-Sleeve ETF tickers`);
+
   // Combine all sources and deduplicate
   const allTickers = new Set<string>([
     ...transactionTickers.map((r) => r.ticker).filter((t): t is string => !!t),
     ...Array.from(portfolioTickers),
     ...watchlistTickers,
     ...BENCHMARK_TICKERS,
+    ...sleeveTickers,
   ]);
 
   return Array.from(allTickers);

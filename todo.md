@@ -479,3 +479,8 @@
 - [x] Frontend: Cache-Altersanzeige ("Aus Cache · vor 3h 12m") im Datenstreifen
 - [x] Frontend: "Aktualisieren"-Button löst `forceRefresh: true` aus (neues LLM-Briefing)
 - [x] feat/multi-asset-universe: 6 Feature-Dateien aus PR #174 via cherry-pick in main integriert (multiAssetSleeve.ts, multiAssetSleeve.test.ts, autoPortfolioShared.ts, autoPortfolioJobs.ts, autoPortfolioRouter.ts, PortfolioBuilderWizard.tsx) — tsc sauber, 11/11 Tests grün
+
+## Multi-Asset Follow-ups (Jul 2026)
+- [x] Allokations-Matrix admin-konfigurierbar: appSettings-Key "multi_asset_allocation", Admin-UI in AdminSettings, getMultiAssetAllocation() liest aus DB mit Fallback auf Konstanten
+- [x] FX-Enforcement für Sleeve-ETFs: Nach applyMultiAssetSleeve USD/GBP-ETFs auf CHF-Alternativen umschalten wenn FX-Limit überschritten
+- [x] Täglicher Cron für Sleeve-ETF-Preise: MULTI_ASSET_ETFS-Tickers immer in getUniqueTickers() inkludieren

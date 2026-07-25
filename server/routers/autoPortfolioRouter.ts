@@ -723,6 +723,8 @@ export const autoPortfolioRouter = router({
           riskProfile,
           stocksOnly,
           resolvePrice: createDbPriceResolver(),
+          maxFxPct: maxFxExposurePct,
+          referenceCurrency,
         });
         assetAllocation = sleeveResult.allocation;
         deviationFromProfile = sleeveResult.deviationNote;
