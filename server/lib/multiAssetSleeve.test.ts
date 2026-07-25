@@ -127,7 +127,7 @@ describe("applyMultiAssetSleeve — Krypto-Split (wachstum)", () => {
 describe("applyMultiAssetSleeve — Fallbacks", () => {
   it("Primär-ETF nicht auflösbar → Fallback-Ticker wird verwendet", async () => {
     // Bond-Primär AGGH.SW fällt aus, Rest verfügbar
-    const resolver = only(["AGG", "CSBGC0.SW", "BCOM.SW", "ZGLD.SW", "IWDP.L", "VBTC.SW", "ASOL.SW"]);
+    const resolver = only(["AGG", "CSBGC0.SW", "CMOD.SW", "ZGLD.SW", "IWDP.L", "VBTC.SW", "ASOL.SW"]);
     const result = await applyMultiAssetSleeve({
       equityPositions: equity([100]),
       riskProfile: "ausgewogen",
@@ -144,7 +144,7 @@ describe("applyMultiAssetSleeve — Fallbacks", () => {
 
   it("Totalfall: alle ETFs einer Klasse null → Klasse gestrichen, proportional umverteilt, Summe 100", async () => {
     // Alle Bond-ETFs nicht auflösbar (konservativ: bond 50%)
-    const resolver = only(["BCOM.SW", "ZGLD.SW", "IWDP.L"]);
+    const resolver = only(["CMOD.SW", "ZGLD.SW", "IWDP.L"]);
     const result = await applyMultiAssetSleeve({
       equityPositions: equity([100]),
       riskProfile: "konservativ",
@@ -165,7 +165,7 @@ describe("applyMultiAssetSleeve — Fallbacks", () => {
 
   it("ein Krypto-Bein fällt aus → anderes Bein bleibt, Anteil umverteilt", async () => {
     // SOL-ETPs nicht auflösbar, Rest verfügbar (wachstum: crypto 4%)
-    const resolver = only(["AGGH.SW", "BCOM.SW", "ZGLD.SW", "IWDP.L", "VBTC.SW"]);
+    const resolver = only(["AGGH.SW", "CMOD.SW", "ZGLD.SW", "IWDP.L", "VBTC.SW"]);
     const result = await applyMultiAssetSleeve({
       equityPositions: equity([100]),
       riskProfile: "wachstum",

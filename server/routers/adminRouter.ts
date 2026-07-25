@@ -1574,16 +1574,25 @@ export const adminRouter = router({
         }));
 
         // 3) portfolioData im Format der portfolios.create-Mutation aufbauen
+        // R-CHF-PRICE: avgBuyPriceCHF = currentPrice × exchangeRateToChf (Kaufzeitpunkt = jetzt)
+        // Damit ist die Tag-1-Rendite exakt 0% — keine Verzerrung durch veraltete DB-Kurse.
         const portfolioData = {
-          stocks: normalizedPositions.map(p => ({
-            ticker: p.ticker,
-            companyName: p.companyName,
-            sector: p.sector ?? 'Andere',
-            currency: p.currency,
-            currentPrice: p.currentPrice,
-            exchangeRateToChf: p.exchangeRateToChf,
-            weight: p.weightPct,
-          })),
+          stocks: normalizedPositions.map(p => {
+            const fxRate = p.exchangeRateToChf ?? 1;
+            const priceCHF = (p.currentPrice ?? 0) * fxRate;
+            return {
+              ticker: p.ticker,
+              companyName: p.companyName,
+              sector: p.sector ?? 'Andere',
+              currency: p.currency,
+              currentPrice: p.currentPrice,
+              exchangeRateToChf: fxRate,
+              weight: p.weightPct,
+              // Kaufpreis in CHF explizit setzen → Tag-1-Rendite = 0%
+              avgBuyPrice: priceCHF,
+              avgBuyPriceCHF: priceCHF,
+            };
+          }),
         };
 
         // 4) Portfolio über den bestehenden DB-Helper anlegen

@@ -484,3 +484,5 @@
 - [x] Allokations-Matrix admin-konfigurierbar: appSettings-Key "multi_asset_allocation", Admin-UI in AdminSettings, getMultiAssetAllocation() liest aus DB mit Fallback auf Konstanten
 - [x] FX-Enforcement für Sleeve-ETFs: Nach applyMultiAssetSleeve USD/GBP-ETFs auf CHF-Alternativen umschalten wenn FX-Limit überschritten
 - [x] Täglicher Cron für Sleeve-ETF-Preise: MULTI_ASSET_ETFS-Tickers immer in getUniqueTickers() inkludieren
+- [x] bug: Tag-1-Rendite -14% bei Multi-Asset-Portfolios — avgBuyPrice/avgBuyPriceCHF beim Portfolio-Erstellen aus Vorschlag explizit setzen (adminRouter.ts)
+- [x] bug: BCOM.SW kein EODHD-Endpunkt — durch CMOD.SW (iShares Diversified Commodity Swap, SIX) ersetzt

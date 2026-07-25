@@ -42,7 +42,8 @@ export const ASSET_CLASS_LABELS: Record<SleeveAssetKey, string> = {
  * - bond:        AGGH.SW ✓ (4.68 EUR, iShares Core Global Agg. Bond EUR Hedged;
  *                Achtung: Yahoo-Kurs auf SIX z.T. veraltet) · AGG ✓ (97.46 USD)
  *                · CSBGC0.SW ✓ (102.68 CHF, iShares Swiss Gov Bond 7-15)
- * - commodity:   BCOM.SW ✓ (19.34 USD, L&G All Commodities) · CMDY ✓ (59.83 USD)
+ * - commodity:   CMOD.SW ✓ (iShares Diversified Commodity Swap UCITS ETF, SIX) · CMDY ✓ (59.83 USD)
+ *                BCOM.SW entfernt: kein EODHD-EOD-Endpunkt (404)
  * - gold:        ZGLD.SW ✓ (985.30 CHF, Swisscanto Gold ETF) · CSGLDE.SW ✓
  *                (106.54 EUR, Yahoo-Kurs veraltet) · SGLN.L ✓ (5924 GBp)
  *                — SGLN.SW entfernt: auf Yahoo nicht auflösbar (404)
@@ -61,7 +62,7 @@ export const MULTI_ASSET_ETFS: Record<AssetClass, SleeveEtf[]> = {
     { ticker: "CSBGC0.SW", name: "iShares Swiss Domestic Government Bond 7-15 ETF", assetClass: "bond", currency: "CHF" },
   ],
   commodity: [
-    { ticker: "BCOM.SW", name: "L&G All Commodities UCITS ETF", assetClass: "commodity", currency: "USD" },
+    { ticker: "CMOD.SW", name: "iShares Diversified Commodity Swap UCITS ETF", assetClass: "commodity", currency: "USD" },
     { ticker: "CMDY", name: "iShares Bloomberg Roll Select Commodity Strategy ETF", assetClass: "commodity", currency: "USD" },
   ],
   gold: [
