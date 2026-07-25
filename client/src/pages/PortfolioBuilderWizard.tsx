@@ -133,7 +133,7 @@ const EXCLUDED_SECTORS = [
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function PortfolioBuilderWizard() {
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
 
   // ── Global state ──
   const [currentStep, setCurrentStep] = useState(0); // 0 = path picker, 1-5 = manual flow
@@ -209,9 +209,13 @@ export default function PortfolioBuilderWizard() {
     }
   );
 
-  // React to polling results
-  useEffect(() => {
-    if (!proposalStatus.data) return;
+  // React to polling results — beim Rendern statt im Effect (React: "adjusting state
+  // while rendering"). Der Rumpf läuft exakt einmal pro neuer Status-Antwort; react-query
+  // liefert bei unverändertem Inhalt dieselbe Referenz, also identische Trigger wie zuvor.
+  const [handledStatusData, setHandledStatusData] = useState<unknown>(null);
+  const [proposalError, setProposalError] = useState<string | null>(null);
+  if (proposalStatus.data && proposalStatus.data !== handledStatusData) {
+    setHandledStatusData(proposalStatus.data);
     const { status, progress, result, error } = proposalStatus.data;
     if (progress && progress.length > proposalProgress.length) {
       setProposalProgress(progress);
@@ -250,14 +254,21 @@ export default function PortfolioBuilderWizard() {
       setIsProposalRunning(false);
       setIsEnhancing(false);
       setProposalJobId(null);
-      toast.error('Vorschlag konnte nicht erstellt werden', { description: error ?? 'Unbekannter Fehler' });
+      setProposalError(error ?? 'Unbekannter Fehler');
     }
-  }, [proposalStatus.data]);
+  }
+
+  // Fehler-Toast als echter Seiteneffekt (nach dem Commit, nicht im Render).
+  // proposalError wird beim Start eines neuen Jobs via buildProposal.reset() geleert.
+  useEffect(() => {
+    if (proposalError == null) return;
+    toast.error('Vorschlag konnte nicht erstellt werden', { description: proposalError });
+  }, [proposalError]);
 
   // Compatibility shim: buildProposal.isPending is used in the JSX below
   const buildProposal = {
     isPending: isProposalRunning || startProposal.isPending,
-    reset: () => { setIsProposalRunning(false); setIsEnhancing(false); setProposalJobId(null); setProposalProgress([]); setLoadingMsgIdx(0); startProposal.reset(); },
+    reset: () => { setIsProposalRunning(false); setIsEnhancing(false); setProposalJobId(null); setProposalProgress([]); setLoadingMsgIdx(0); setProposalError(null); startProposal.reset(); },
   };
 
   // Freundliche, wechselnde Lade-Botschaften (statt technischer Einzelschritte).
@@ -279,33 +290,19 @@ export default function PortfolioBuilderWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildProposal.isPending]);
 
-  // Reset all wizard state whenever the user navigates (back) to /portfolio-builder.
-  // Using location as dependency ensures the reset fires on every visit, not just on first mount.
-  useEffect(() => {
-    if (location === "/portfolio-builder") {
-      setCurrentStep(0);
-      setPath(null);
-      setAutoStep(1);
-      setAutoGoal("balanced");
-      setAutoRisk("ausgewogen");
-      setAutoHorizon(10);
-      setAutoExcluded([]);
-      setAutoProposal(null);
-      setStocksOnly(false);
-      setPortfolioType(null);
-      setPortfolioName("");
-      setPortfolioDescription("");
-      setCurrency("CHF");
-      setInitialCapital("");
-      setSelectedStocks([]);
-      setSearchQuery("");
-      setPerStockInputs({});
-      setIsLive(false);
-    }
-  }, [location]); // fires on every navigation to this route
+  // Der Wizard-Reset bei jedem Besuch von /portfolio-builder passiert strukturell:
+  // <Switch> in App.tsx matcht den Pfad exakt, d. h. die Komponente wird beim Verlassen
+  // der Route unmountet und beim Zurückkommen neu gemountet — die useState-Initialwerte
+  // oben sind identisch mit den Werten, die der frühere Reset-Effect gesetzt hat.
 
-  // Pre-fill auto wizard from saved profile when user selects auto path
-  useEffect(() => {
+  // Pre-fill auto wizard from saved profile when user selects auto path.
+  // Beim Rendern statt im Effect — der Rumpf läuft wie zuvor bei jeder Änderung von
+  // savedProfile oder path, also insbesondere auch beim erneuten Betreten des Auto-Pfads.
+  // Der Startwert entspricht den Initialwerten (savedProfile lädt noch, path === null),
+  // damit beim ersten Render — wie beim früheren Effect — nichts gesetzt wird.
+  const [profileSeed, setProfileSeed] = useState<{ profile: unknown; path: BuilderPath | null }>({ profile: undefined, path: null });
+  if (profileSeed.profile !== savedProfile || profileSeed.path !== path) {
+    setProfileSeed({ profile: savedProfile, path });
     if (savedProfile && path === "auto") {
       if (savedProfile.investmentGoal) setAutoGoal(savedProfile.investmentGoal);
       if (savedProfile.riskProfile) setAutoRisk(savedProfile.riskProfile);
@@ -317,7 +314,7 @@ export default function PortfolioBuilderWizard() {
         setAutoExcluded(savedProfile.excludedSectors);
       }
     }
-  }, [savedProfile, path]);
+  }
 
   // ── Derived ──
   const totalSteps = 5;
@@ -610,9 +607,10 @@ export default function PortfolioBuilderWizard() {
     })() },
     { enabled: typeof window !== 'undefined' && !!new URLSearchParams(window.location.search).get('reviewedProposalId') }
   );
-  useEffect(() => {
-    if (!getReviewedProposal.data) return;
-    const proposal = getReviewedProposal.data;
+  // Übernahme eines admin-geprüften Vorschlags — beim Rendern statt im Effect.
+  // Der Rumpf läuft wie zuvor genau einmal pro neuer Query-Antwort.
+  const [handledReviewedProposal, setHandledReviewedProposal] = useState<unknown>(null);
+  const applyReviewedProposal = (proposal: NonNullable<typeof getReviewedProposal.data>) => {
     const rawReviewed = (proposal.adminReviewedPositions as any[]) ?? (proposal.positions as any[]) ?? [];
     if (rawReviewed.length === 0) return;
     // Enrich adminReviewedPositions with currentPrice + exchangeRateToChf from the original positions
@@ -685,10 +683,20 @@ export default function PortfolioBuilderWizard() {
     setAutoStep(5);
     setInitialCapital(capital.toString());
     setIsAdminReviewed(true);
+  };
+  if (getReviewedProposal.data && getReviewedProposal.data !== handledReviewedProposal) {
+    setHandledReviewedProposal(getReviewedProposal.data);
+    applyReviewedProposal(getReviewedProposal.data);
+  }
+
+  // Seiteneffekte nach dem Übernehmen des geprüften Vorschlags (Toast + URL bereinigen).
+  // isAdminReviewed wird nur hier gesetzt und nie zurückgesetzt → feuert genau einmal.
+  useEffect(() => {
+    if (!isAdminReviewed) return;
     toast.success('Admin-geprüfter Vorschlag geladen — Sie können ihn jetzt übernehmen');
     // Clean up URL param
     window.history.replaceState({}, '', '/portfolio-builder');
-  }, [getReviewedProposal.data]);
+  }, [isAdminReviewed]);
 
   const toggleExcluded = (sector: string) => {
     setAutoExcluded((prev) => prev.includes(sector) ? prev.filter((s) => s !== sector) : [...prev, sector]);
