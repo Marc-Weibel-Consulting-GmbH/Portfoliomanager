@@ -16,6 +16,7 @@ export default function AdminDashboard() {
   const [sectorStatus, setSectorStatus] = useState<{ success: boolean; message: string } | null>(null);
   const [metricsSnapshotStatus, setMetricsSnapshotStatus] = useState<string | null>(null);
   const [historicalPricesStatus, setHistoricalPricesStatus] = useState<string | null>(null);
+  const [deepDiveCacheStatus, setDeepDiveCacheStatus] = useState<string | null>(null);
   const importHistoricalPrices = trpc.admin.importHistoricalPrices.useMutation({
     onSuccess: (data: any) => {
       const msg = data?.message ?? (data?.success ? 'Import gestartet — läuft im Hintergrund' : 'Fehler beim Import');
@@ -28,6 +29,17 @@ export default function AdminDashboard() {
     },
     onError: (err: any) => {
       setHistoricalPricesStatus('Fehler: ' + err.message);
+      toast.error('Fehler', { description: err.message });
+    },
+  });
+  const clearDeepDiveCache = trpc.copilot.clearDeepDiveCache.useMutation({
+    onSuccess: (data) => {
+      const msg = `${data.cleared} Einträge geleert`;
+      setDeepDiveCacheStatus(msg);
+      toast.success('Deep-Dive-Cache geleert', { description: msg });
+    },
+    onError: (err) => {
+      setDeepDiveCacheStatus('Fehler: ' + err.message);
       toast.error('Fehler', { description: err.message });
     },
   });
@@ -263,6 +275,22 @@ export default function AdminDashboard() {
             </Button>
             {historicalPricesStatus && (
               <span className="text-xs text-emerald-400 max-w-xs">{historicalPricesStatus}</span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setDeepDiveCacheStatus(null);
+                clearDeepDiveCache.mutate();
+              }}
+              disabled={clearDeepDiveCache.isPending}
+              className="gap-2 border-cyan-500/50 text-cyan-400 hover:text-cyan-300"
+            >
+              <RefreshCw className={`h-4 w-4 ${clearDeepDiveCache.isPending ? 'animate-spin' : ''}`} />
+              {clearDeepDiveCache.isPending ? 'Lösche...' : 'Deep-Dive-Cache leeren'}
+            </Button>
+            {deepDiveCacheStatus && (
+              <span className="text-xs text-cyan-400 max-w-xs">{deepDiveCacheStatus}</span>
             )}
             <Button
               variant="outline"

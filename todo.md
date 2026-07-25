@@ -489,3 +489,6 @@
 - [x] fix: KI-Briefing array-content von Gemini/invokeLLM-Fallback (contentToString)
 - [x] fix: KI-Briefing vollständige Fallback-Kaskade (kimi→gemini→claude→omniroute→groq→perplexity)
 - [x] fix: Deep-Dive erkennt Multi-Asset-Sleeve-ETFs korrekt (Sektor-Label + LLM-Prompt)
+- [x] Deep-Dive Cache-Clear Button im Admin-Dashboard
+- [x] Sleeve-ETF-Icons in Positionen-Tabelle (Deep-Dive)
+- [x] Asset-Allokations-Donut-Chart im Deep-Dive

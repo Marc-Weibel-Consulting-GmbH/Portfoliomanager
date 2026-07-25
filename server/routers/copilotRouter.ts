@@ -1119,6 +1119,15 @@ export const copilotRouter = router({
 
       return { error: null, portfolioName: (portfolio as any).name, holdings, sectorBreakdown, portfolioMetrics, topDividend, highBeta, aiSummary };
     }),
+
+  /** Admin: Deep-Dive-Summary-Cache leeren (erzwingt Neugenerierung beim nächsten Aufruf) */
+  clearDeepDiveCache: protectedProcedure
+    .mutation(({ ctx }) => {
+      const count = deepDiveSummaryCache.size;
+      deepDiveSummaryCache.clear();
+      console.log(`[portfolioDeepDive] Cache geleert von User ${ctx.user.id} (${count} Einträge entfernt)`);
+      return { success: true, cleared: count };
+    }),
 });
 
 // ============================================================

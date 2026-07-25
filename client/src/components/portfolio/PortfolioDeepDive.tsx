@@ -27,6 +27,8 @@ import {
   ChevronsUpDown,
 } from 'lucide-react';
 import { KpiTooltip } from '@/components/ui/KpiTooltip';
+import { SLEEVE_LABEL_CONFIG, SLEEVE_TICKER_LABEL } from '@shared/const';
+import { PieChart as RechartsPieChart, Pie, Cell, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 
 const SECTOR_COLORS: Record<string, string> = {
   'Technology': '#00CFC1',
@@ -269,7 +271,15 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
                         <span className="text-gray-600 ml-1 hidden md:inline">{h.name}</span>
                       </td>
                       <td className="py-1.5 pr-3">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: `${sectorColor(h.sector)}20`, color: sectorColor(h.sector) }}>{h.sector}</span>
+                        {(() => {
+                          const cfg = SLEEVE_LABEL_CONFIG[h.sector];
+                          if (cfg) return (
+                            <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: cfg.bg, color: cfg.color }}>
+                              <span>{cfg.icon}</span><span>{h.sector}</span>
+                            </span>
+                          );
+                          return <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: `${sectorColor(h.sector)}20`, color: sectorColor(h.sector) }}>{h.sector}</span>;
+                        })()}
                       </td>
                       <td className="py-1.5 pr-3 text-right text-gray-300">{h.weight.toFixed(1)}%</td>
                       <td className="py-1.5 pr-3 text-right text-gray-300">{h.peRatio !== null ? h.peRatio : '–'}</td>
@@ -285,6 +295,68 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
             </div>
           </div>
 
+          {/* Asset-Allokations-Donut-Chart */}
+          {(() => {
+            const holdings = data.holdings as any[];
+            if (!holdings || holdings.length === 0) return null;
+            // Aggregate by asset class: sleeve ETFs get their label, rest = Aktien
+            const assetMap: Record<string, number> = {};
+            for (const h of holdings) {
+              const label = SLEEVE_TICKER_LABEL[h.ticker?.toUpperCase()] ?? 'Aktien';
+              assetMap[label] = (assetMap[label] || 0) + (h.weight || 0);
+            }
+            const assetData = Object.entries(assetMap)
+              .map(([name, value]) => ({ name, value: parseFloat(value.toFixed(1)) }))
+              .sort((a, b) => b.value - a.value);
+            // Only show if there are non-equity sleeves
+            const hasSleeves = assetData.some(d => d.name !== 'Aktien');
+            if (!hasSleeves) return null;
+            const getColor = (name: string) => SLEEVE_LABEL_CONFIG[name]?.color ?? '#00CFC1';
+            return (
+              <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-white/10 rounded-lg p-4">
+                <h4 className="text-xs font-semibold text-white mb-3 flex items-center gap-2">
+                  <RechartsPieChart className="w-3.5 h-3.5 text-[#00CFC1]" /> Asset-Allokation
+                  <span className="text-[10px] text-gray-600 font-normal">Aktien vs. Alternative Anlageklassen</span>
+                </h4>
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                  <div style={{ width: 160, height: 160 }} className="flex-shrink-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsPieChart>
+                        <Pie data={assetData} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={2} dataKey="value">
+                          {assetData.map((entry) => (
+                            <Cell key={entry.name} fill={getColor(entry.name)} />
+                          ))}
+                        </Pie>
+                        <RechartsTooltip
+                          contentStyle={{ backgroundColor: '#1a1f2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 11 }}
+                          formatter={(value: any) => [`${value.toFixed(1)}%`, '']}
+                        />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    {assetData.map((d) => {
+                      const cfg = SLEEVE_LABEL_CONFIG[d.name];
+                      return (
+                        <div key={d.name} className="flex items-center gap-2">
+                          <span className="text-sm">{cfg?.icon ?? '🟢'}</span>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-xs text-gray-300">{d.name}</span>
+                              <span className="text-xs font-medium" style={{ color: getColor(d.name) }}>{d.value.toFixed(1)}%</span>
+                            </div>
+                            <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${Math.min(d.value, 100)}%`, backgroundColor: getColor(d.name) }} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
           {/* KI-Qualitätserklärung (InsightPanel) */}
           {(() => {
             const m = data.portfolioMetrics;
