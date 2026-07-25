@@ -806,10 +806,12 @@ export default function AdminProposalAnalysis() {
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
 
-  // Auto-expand and open review panel when proposalId is in URL
-  const autoExpandDone = useRef(false);
-  useEffect(() => {
-    if (!urlProposalId || autoExpandDone.current || rows.length === 0) return;
+  // Auto-expand and open review panel when proposalId is in URL. Einmalig beim
+  // ersten Render mit geladenen Zeilen angewendet (statt in einem Effect), damit
+  // die Zeile ohne Zwischen-Commit aufgeklappt erscheint. Danach ist der Zustand
+  // ganz normal vom Nutzer änderbar (Zu-/Aufklappen, Kommentare bearbeiten).
+  const [autoExpandDone, setAutoExpandDone] = useState(false);
+  if (urlProposalId && !autoExpandDone && rows.length > 0) {
     const row = rows.find(r => r.id === urlProposalId);
     if (row) {
       setExpandedId(urlProposalId);
@@ -817,16 +819,23 @@ export default function AdminProposalAnalysis() {
       // Pre-fill existing adminComments if this proposal was already reviewed
       const existing = row.adminComments as Record<string, string> | null;
       setAdminComments(existing && typeof existing === 'object' ? existing : {});
-      autoExpandDone.current = true;
-      // Scroll to the row after a short delay
-      setTimeout(() => {
-        document.getElementById(`proposal-row-${urlProposalId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 300);
+      setAutoExpandDone(true);
     } else if (offset === 0) {
       // Proposal not on first page — search by fetching it directly
-      autoExpandDone.current = true;
+      setAutoExpandDone(true);
     }
-  }, [rows, urlProposalId, offset]);
+  }
+
+  // Scroll to the auto-expanded row after a short delay (nur einmal, direkt
+  // nachdem die Zeile durch den URL-Parameter aufgeklappt wurde).
+  const autoScrollDone = useRef(false);
+  useEffect(() => {
+    if (autoScrollDone.current || !urlProposalId || expandedId !== urlProposalId) return;
+    autoScrollDone.current = true;
+    setTimeout(() => {
+      document.getElementById(`proposal-row-${urlProposalId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+  }, [expandedId, urlProposalId]);
 
   return (
     <DashboardLayout>

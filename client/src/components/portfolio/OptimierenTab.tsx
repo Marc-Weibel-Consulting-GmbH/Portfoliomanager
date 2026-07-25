@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
 import {
@@ -257,10 +257,12 @@ export default function OptimierenTab({
   // Upgrade-Vorschläge: Per-Item-Auswahl
   // deselectedReplacements: Set of weakTicker strings that are unchecked
   const [deselectedReplacements, setDeselectedReplacements] = useState<Set<string>>(new Set());
-  // deselectedAdditions: Set of candidate tickers that are unchecked
-  // Default: ALL candidates are deselected (user must explicitly opt-in)
-  const [deselectedAdditions, setDeselectedAdditions] = useState<Set<string>>(new Set());
-  const [additionsInitialized, setAdditionsInitialized] = useState<string | null>(null); // tracks which upgradeData was used to init
+  // additionsChoice: die Abweichung des Nutzers von der Vorgabe, zusammen mit dem
+  // Kandidaten-Schlüssel (Ticker-Liste), für den sie gilt.
+  // Vorgabe: ALLE Kandidaten sind abgewählt (der Nutzer muss aktiv zustimmen).
+  // Passt der Schlüssel nicht zu den aktuell geladenen Kandidaten, gilt wieder die
+  // Vorgabe — dadurch starten neu eintreffende Kandidaten ohne Effect abgewählt.
+  const [additionsChoice, setAdditionsChoice] = useState<{ key: string; deselected: Set<string> } | null>(null);
   // overrideReplacementTicker: map weakTicker → chosen replacement ticker (overrides suggestions[0])
   const [overrideReplacementTicker, setOverrideReplacementTicker] = useState<Record<string, string>>({});
   // openReplacementPicker: weakTicker of the row whose picker is open
@@ -474,16 +476,25 @@ export default function OptimierenTab({
     }
   );
 
-  // When upgradeData loads (or reloads), initialize ALL candidates as deselected
-  // so the user must explicitly opt-in to each new candidate
-  useEffect(() => {
-    if (!upgradeData?.additionSuggestions?.length) return;
-    const key = upgradeData.additionSuggestions.map((c: any) => c.ticker).join(',');
-    if (additionsInitialized === key) return; // already initialized for this exact set
-    const allTickers = new Set<string>(upgradeData.additionSuggestions.map((c: any) => c.ticker));
-    setDeselectedAdditions(allTickers);
-    setAdditionsInitialized(key);
-  }, [upgradeData?.additionSuggestions]);
+  // Ergänzungs-Kandidaten: Auswahl wird abgeleitet statt per Effect gesetzt.
+  // Der Schlüssel ist — wie bisher — die Ticker-Liste der geladenen Kandidaten:
+  // ein Hintergrund-Refetch mit derselben Liste lässt die Auswahl des Nutzers
+  // stehen, eine andere Liste (z. B. nach Methodenwechsel) fällt auf die Vorgabe
+  // "alles abgewählt" zurück.
+  const additionCandidateTickers = useMemo(
+    () => ((upgradeData?.additionSuggestions ?? []) as any[]).map((c: any) => c.ticker as string),
+    [upgradeData?.additionSuggestions]
+  );
+  const additionsKey = useMemo(() => additionCandidateTickers.join(','), [additionCandidateTickers]);
+  const deselectedAdditions = useMemo(
+    () => (additionsChoice && additionsChoice.key === additionsKey
+      ? additionsChoice.deselected
+      : new Set<string>(additionCandidateTickers)),
+    [additionsChoice, additionsKey, additionCandidateTickers]
+  );
+  // Schreibt die Abwahl-Liste immer zusammen mit dem Schlüssel, für den sie gilt.
+  const setDeselectedAdditions = (next: Set<string>) =>
+    setAdditionsChoice({ key: additionsKey, deselected: next });
 
   const frontierData = useMemo(() => {
     if (!result?.efficientFrontier) return [];
@@ -1157,11 +1168,11 @@ export default function OptimierenTab({
                           <div key={c.ticker} className={`bg-white/[0.02] rounded px-3 py-2 transition-opacity ${!isAddChecked ? 'opacity-40' : ''}`}>
                             <div className="flex items-center gap-2 text-xs">
                               <button
-                                onClick={() => setDeselectedAdditions(prev => {
-                                  const next = new Set(prev);
+                                onClick={() => {
+                                  const next = new Set(deselectedAdditions);
                                   if (next.has(c.ticker)) next.delete(c.ticker); else next.add(c.ticker);
-                                  return next;
-                                })}
+                                  setDeselectedAdditions(next);
+                                }}
                                 className="flex-shrink-0 text-gray-400 hover:text-white transition-colors"
                                 title={isAddChecked ? 'Abwählen' : 'Auswählen'}
                               >
@@ -1239,11 +1250,9 @@ export default function OptimierenTab({
                                 onClick={() => {
                                   // Add to additionSuggestions as a custom entry by removing from deselected if present
                                   // and storing as a custom addition
-                                  setDeselectedAdditions(prev => {
-                                    const next = new Set(prev);
-                                    next.delete(s.ticker);
-                                    return next;
-                                  });
+                                  const next = new Set(deselectedAdditions);
+                                  next.delete(s.ticker);
+                                  setDeselectedAdditions(next);
                                   // Store as custom addition override
                                   setOverrideReplacementTicker(prev => ({ ...prev, [`__add__${s.ticker}`]: s.ticker }));
                                   setOpenAdditionPicker(false);

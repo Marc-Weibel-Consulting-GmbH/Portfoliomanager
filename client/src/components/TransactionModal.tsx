@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,9 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
   const [transactionType, setTransactionType] = useState<TransactionType>("buy");
   const [ticker, setTicker] = useState("");
   const [shares, setShares] = useState("");
-  const [pricePerShare, setPricePerShare] = useState("");
+  // Manuell eingegebener Kurs. `null` = der Nutzer hat nichts getippt, dann
+  // gilt der automatisch gefüllte Kurs (siehe `pricePerShare` unten).
+  const [manualPrice, setManualPrice] = useState<string | null>(null);
   const [totalAmount, setTotalAmount] = useState("");
   const [fees, setFees] = useState("0");
   const [notes, setNotes] = useState("");
@@ -91,18 +93,18 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
     stockData.currency !== "CHF";
   const fxRateMissing = needsFx && fxData !== undefined && !(fxData.rate > 0);
 
-  // Auto-fill price when buying or selling
-  useEffect(() => {
-    if ((transactionType === "buy" || transactionType === "sell") && stockData?.currentPrice) {
-      setPricePerShare(stockData.currentPrice.toString());
-    }
-  }, [transactionType, stockData]);
+  // Auto-fill price when buying or selling: der angezeigte Kurs ist abgeleitet —
+  // solange der Nutzer nichts getippt hat, gilt der aktuelle Kurs der gewählten
+  // Aktie. `setManualPrice(null)` beim Wechsel von Aktie/Transaktionstyp sorgt
+  // dafür, dass dann wieder automatisch gefüllt wird.
+  const autoPrice = stockData?.currentPrice ? stockData.currentPrice.toString() : "";
+  const pricePerShare = manualPrice ?? autoPrice;
 
   const resetForm = () => {
     setTransactionType("buy");
     setTicker("");
     setShares("");
-    setPricePerShare("");
+    setManualPrice(null);
     setTotalAmount("");
     setFees("0");
     setNotes("");
@@ -243,7 +245,7 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
           {/* Transaction Type */}
           <div>
             <Label htmlFor="transactionType">Transaktionstyp</Label>
-            <Select value={transactionType} onValueChange={(value) => setTransactionType(value as TransactionType)}>
+            <Select value={transactionType} onValueChange={(value) => { setTransactionType(value as TransactionType); setManualPrice(null); }}>
               <SelectTrigger className="bg-slate-700 border-slate-600">
                 <SelectValue />
               </SelectTrigger>
@@ -261,7 +263,7 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
           {requiresTicker && (
             <div>
               <Label htmlFor="ticker">Aktie *</Label>
-              <Select value={ticker} onValueChange={setTicker}>
+              <Select value={ticker} onValueChange={(value) => { setTicker(value); setManualPrice(null); }}>
                 <SelectTrigger className="bg-slate-700 border-slate-600">
                   <SelectValue placeholder="Aktie auswählen..." />
                 </SelectTrigger>
@@ -313,7 +315,7 @@ export function TransactionModal({ open, onClose, portfolioId, portfolioStocks, 
                 type="number"
                 step="0.01"
                 value={pricePerShare}
-                onChange={(e) => setPricePerShare(e.target.value)}
+                onChange={(e) => setManualPrice(e.target.value)}
                 className="bg-slate-700 border-slate-600"
                 placeholder="z.B. 150.50"
               />

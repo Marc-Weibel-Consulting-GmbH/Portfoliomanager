@@ -947,12 +947,28 @@ export default function PortfolioDetailsPage() {
 
   // Wechselt der Nutzer auf «einfach», während ein fortgeschrittener Tab aktiv
   // ist (oder ruft er einen solchen Tab per URL auf), auf die Übersicht zurück.
+  // Der angezeigte Tab wird dafür beim Rendern abgeleitet (ein gesperrter Tab
+  // wird also nie gezeigt); der Effect korrigiert nur noch die URL, damit ein
+  // geteilter Link ebenfalls auf der Übersicht landet.
+  const tabBlocked = !detailed && ADVANCED_TABS.includes(activeTab);
+  const effectiveTab = tabBlocked ? 'uebersicht' : activeTab;
   useEffect(() => {
-    if (!detailed && ADVANCED_TABS.includes(activeTab)) {
-      handleTabChange('uebersicht');
+    if (tabBlocked) {
+      navigate(`/portfolios/${portfolioId}`, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detailed, activeTab]);
+
+  // Zurück auf «detailliert»: der zwischenzeitlich gesperrte Tab bleibt nicht
+  // hängen, sondern die Übersicht bleibt aktiv (wie zuvor beim Zurücksetzen im
+  // Effect) — beim Rendern angepasst, damit kein zusätzlicher Commit nötig ist.
+  const [prevDetailed, setPrevDetailed] = useState(detailed);
+  if (prevDetailed !== detailed) {
+    setPrevDetailed(detailed);
+    if (detailed && ADVANCED_TABS.includes(activeTab)) {
+      setActiveTab('uebersicht');
+    }
+  }
 
   // State for transactions filter
   const [txFilter, setTxFilter] = useState<string>('alle');
@@ -1768,7 +1784,7 @@ export default function PortfolioDetailsPage() {
           );
         })()}
         {/* Tabs Section — matches design PDF, with URL persistence */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+        <Tabs value={effectiveTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="flex flex-wrap gap-0 bg-transparent border-b border-white/10 p-0 h-auto rounded-none">
             {[
               { value: 'uebersicht', label: 'Übersicht' },
