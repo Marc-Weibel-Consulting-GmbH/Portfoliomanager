@@ -723,6 +723,8 @@ export const autoPortfolioRouter = router({
           riskProfile,
           stocksOnly,
           resolvePrice: createDbPriceResolver(),
+          maxFxPct: maxFxExposurePct,
+          referenceCurrency,
         });
         assetAllocation = sleeveResult.allocation;
         deviationFromProfile = sleeveResult.deviationNote;
@@ -871,6 +873,12 @@ export const autoPortfolioRouter = router({
           `Risikoprofil: ${riskProfile}, Ziel: ${goal}, Referenzwährung: ${referenceCurrency}, FX-Limit: ${maxFxExposurePct}%` +
           (esgOnly ? ", ESG-Wunsch: ja (Filter noch NICHT verfügbar — Vorschlag ist nicht ESG-gefiltert)" : "") +
           `\nZiel-Allokation (Anlegerprofil): ${formatSleeveAllocation(assetAllocation)}`;
+        // Multi-Asset-Sleeve-Positionen sind fixe Bausteine der Strategie —
+        // die Agenten sollen sie weder nach Aktien-Kriterien bewerten noch austauschen.
+        const sleevePosList = positions.filter((p: any) => p.assetClass && p.assetClass !== 'equity');
+        const sleeveNotice = sleevePosList.length > 0
+          ? `\n\nWICHTIG — Multi-Asset-Bausteine: Die Positionen ${sleevePosList.map((p: any) => `${p.ticker} (${SLEEVE_CLASS_LABELS[(p as any).assetClass] ?? (p as any).assetClass})`).join(', ')} sind ETF-/ETP-Bausteine der strategischen Anlageklassen-Allokation gemäss Anlegerprofil. Sie sind FIXER Bestandteil der Strategie: bewerte sie nicht nach Moat/Dividende, empfehle für sie KEINE Anpassungen (keep) und tausche sie NIEMALS gegen Aktien aus. Die Gesamt-Allokation über Anlageklassen ist: ${formatSleeveAllocation(assetAllocation)}.`
+          : '';
         // Echte Bilanz-Fakten für die grössten US-Positionen (Financial
         // Datasets) — der Challenger prüft damit gegen Zahlen statt
         // Modellwissen. Non-fatal; ohne Konfiguration bleibt die Liste leer.
@@ -917,7 +925,7 @@ Vorgeschlagene Positionen:
 ${JSON.stringify(positionSummary, null, 2)}
 
 Verfügbare Alternativen (nicht ausgewählt; NUR diese Ticker dürfen als Alternativen vorgeschlagen werden):
-${JSON.stringify(candidatePool, null, 2)}${marktHubContextBlock}
+${JSON.stringify(candidatePool, null, 2)}${marktHubContextBlock}${sleeveNotice}
 
 Identifiziere:
 1. Welche 1-3 Titel würdest du NICHT nehmen? (mit konkreter Begründung, berücksichtige auch die Markt-Hub-Signale)
@@ -1048,7 +1056,7 @@ Gesamteinschätzung: ${challengerResult.critique}
 Abgelehnte Titel: ${JSON.stringify(challengerResult.rejected)}
 Alternativen: ${JSON.stringify(challengerResult.alternatives)}
 
-Anlegerprofil: ${profileSummary}${adminFeedbackContext}${marktHubContextBlock}
+Anlegerprofil: ${profileSummary}${adminFeedbackContext}${marktHubContextBlock}${sleeveNotice}
 
 Erstelle:
 1. Dein Gesamturteil (2-3 Sätze): Ist der Vorschlag gut? Was sind die wichtigsten Stärken/Schwächen? Berücksichtige dabei das aktuelle Marktregime und die Makro-Signale.
@@ -1251,11 +1259,14 @@ Antworte im JSON-Format.`,
         adjustedPositions: (() => {
           if (!challengeReport?.finalAdjustments?.length) return null;
           const adj = challengeReport.finalAdjustments;
+          // Multi-Asset-Sleeve-Positionen (assetClass != 'equity') sind fixe,
+          // profilbedingte Bausteine — KI-Anpassungen greifen dort NICHT.
+          const isSleevePos = (p: any) => !!(p?.assetClass && p.assetClass !== 'equity');
           let adjusted = positions.map(p => ({ ...p }));
           // Schritt 1: reduce / increase anwenden
           for (const a of adj) {
             const pos = adjusted.find(p => p.ticker.toUpperCase() === a.ticker.toUpperCase());
-            if (!pos) continue;
+            if (!pos || isSleevePos(pos)) continue;
             if (a.action === 'reduce') pos.weightPct = Math.max(pos.weightPct * 0.65, 3);
             if (a.action === 'increase') pos.weightPct = Math.min(pos.weightPct * 1.35, 15);
           }
@@ -1268,7 +1279,7 @@ Antworte im JSON-Format.`,
               .sort((a, b) => b.combinedScore - a.combinedScore);
             for (const ra of replaceAdj) {
               const idx = adjusted.findIndex(p => p.ticker.toUpperCase() === ra.ticker.toUpperCase());
-              if (idx < 0) continue;
+              if (idx < 0 || isSleevePos(adjusted[idx])) continue;
               const replacement = candidates.shift();
               if (!replacement) continue;
               usedTickers.add(replacement.stock.ticker.toUpperCase());
@@ -1283,6 +1294,8 @@ Antworte im JSON-Format.`,
                 combinedScore: replacement.combinedScore,
                 signal: replacement.signal,
                 reason: `Ersetzt ${ra.ticker} gemäss KI-Empfehlung`,
+                assetType: 'stock',
+                assetClass: undefined,
               };
             }
           }
