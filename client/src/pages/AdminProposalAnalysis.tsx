@@ -638,6 +638,25 @@ function ApprovePanel({
  * zurück. Kimi ist stark als Challenger, aber schwach bei deutscher Prosa —
  * für die Titel-Texte daher ein sprachlich starkes Modell wählen.
  */
+// Auf Modul-Ebene definiert: eine im Render erzeugte Komponente bekommt bei jedem
+// Render eine neue Identität und würde von React unnötig neu gemountet.
+function ModelDropdown({ label, hint, value, onChange, providers, labels }: {
+  label: string; hint: string; value: string; onChange: (v: string) => void;
+  providers: string[]; labels: Record<string, string>;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="text-sm text-slate-300">{label} <span className="text-slate-500">{hint}</span></label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
+        <SelectContent className="bg-slate-800 border-slate-700">
+          {providers.map((p) => <SelectItem key={p} value={p}>{labels[p]}</SelectItem>)}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 function ProposalModelSettings() {
   const { data, refetch } = trpc.admin.getProposalModels.useQuery();
   const [ensemble, setEnsemble] = useState<boolean | null>(null);
@@ -663,18 +682,6 @@ function ProposalModelSettings() {
   const t = text ?? cfg.text;
   const auto = autoApply ?? cfg.autoApply;
   const dirty = ens !== cfg.ensemble || a !== cfg.analysis || b !== cfg.challengerB || s !== cfg.synthesis || t !== cfg.text || auto !== cfg.autoApply;
-
-  const Dropdown = ({ label, hint, value, onChange }: { label: string; hint: string; value: string; onChange: (v: string) => void }) => (
-    <div className="space-y-1">
-      <label className="text-sm text-slate-300">{label} <span className="text-slate-500">{hint}</span></label>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="bg-slate-900 border-slate-700 text-white"><SelectValue /></SelectTrigger>
-        <SelectContent className="bg-slate-800 border-slate-700">
-          {providers.map((p) => <SelectItem key={p} value={p}>{labels[p]}</SelectItem>)}
-        </SelectContent>
-      </Select>
-    </div>
-  );
 
   return (
     <Card className="bg-slate-800/50 border-slate-700">
@@ -707,15 +714,15 @@ function ProposalModelSettings() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {ens ? (
             <>
-              <Dropdown label="Challenger A" hint="(kritische Prüfung)" value={a} onChange={setAnalysis} />
-              <Dropdown label="Challenger B" hint="(2. Sicht, andere Familie)" value={b} onChange={setChallengerB} />
-              <Dropdown label="Synthese" hint="(wägt beide Kritiken ab)" value={s} onChange={setSynthesis} />
-              <Dropdown label="Titel-Texte" hint="(einfache Begründungen)" value={t} onChange={setText} />
+              <ModelDropdown label="Challenger A" hint="(kritische Prüfung)" value={a} onChange={setAnalysis} providers={providers} labels={labels} />
+              <ModelDropdown label="Challenger B" hint="(2. Sicht, andere Familie)" value={b} onChange={setChallengerB} providers={providers} labels={labels} />
+              <ModelDropdown label="Synthese" hint="(wägt beide Kritiken ab)" value={s} onChange={setSynthesis} providers={providers} labels={labels} />
+              <ModelDropdown label="Titel-Texte" hint="(einfache Begründungen)" value={t} onChange={setText} providers={providers} labels={labels} />
             </>
           ) : (
             <>
-              <Dropdown label="Analyse" hint="(Challenger + Synthese)" value={a} onChange={setAnalysis} />
-              <Dropdown label="Titel-Texte" hint="(einfache Begründungen)" value={t} onChange={setText} />
+              <ModelDropdown label="Analyse" hint="(Challenger + Synthese)" value={a} onChange={setAnalysis} providers={providers} labels={labels} />
+              <ModelDropdown label="Titel-Texte" hint="(einfache Begründungen)" value={t} onChange={setText} providers={providers} labels={labels} />
             </>
           )}
         </div>

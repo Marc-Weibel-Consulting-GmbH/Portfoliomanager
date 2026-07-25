@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo, createContext, useContext } from "react";
 import { toast } from "sonner";
 import { Bell, Save, RotateCcw, Info } from "lucide-react";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -30,6 +30,42 @@ const DEFAULT_CONFIG = {
 };
 
 type Config = typeof DEFAULT_CONFIG;
+
+const inputCls = "bg-[#1a2332] border-[#2a3a4e] text-white h-8 text-sm";
+const labelCls = "text-gray-300 text-xs";
+const hintCls = "text-xs text-gray-500 mt-0.5";
+
+// NumField liest Wert + Setter aus dem Kontext, damit es auf Modul-Ebene definiert
+// sein kann: eine im Render erzeugte Komponente bekommt bei jedem Render eine neue
+// Identität — React mountete die Eingabefelder dadurch bei jedem Tastendruck neu
+// (Fokusverlust). Die Aufrufstellen bleiben unverändert.
+const ConfigCtx = createContext<{
+  config: Config;
+  set: (field: keyof Config, value: number) => void;
+} | null>(null);
+
+function NumField({ label, field, step = 1, hint, min, max }: {
+  label: string; field: keyof Config; step?: number; hint?: string; min?: number; max?: number;
+}) {
+  const ctx = useContext(ConfigCtx);
+  if (!ctx) return null;
+  const { config, set } = ctx;
+  return (
+    <div>
+      <Label className={labelCls}>{label}</Label>
+      <Input
+        type="number"
+        step={step}
+        min={min}
+        max={max}
+        value={config[field]}
+        onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) set(field, v); }}
+        className={inputCls}
+      />
+      {hint && <p className={hintCls}>{hint}</p>}
+    </div>
+  );
+}
 
 function ScorePreview({ config }: { config: Config }) {
   // Simulate a few example stocks
@@ -122,10 +158,12 @@ export default function AdminAlertConfig() {
     }
   }, [data]);
 
-  function set(field: keyof Config, value: number) {
+  const set = useCallback((field: keyof Config, value: number) => {
     setConfig(prev => ({ ...prev, [field]: value }));
     setIsDirty(true);
-  }
+  }, []);
+
+  const ctxValue = useMemo(() => ({ config, set }), [config, set]);
 
   async function save() {
     try {
@@ -143,30 +181,6 @@ export default function AdminAlertConfig() {
     setIsDirty(true);
   }
 
-  const inputCls = "bg-[#1a2332] border-[#2a3a4e] text-white h-8 text-sm";
-  const labelCls = "text-gray-300 text-xs";
-  const hintCls = "text-xs text-gray-500 mt-0.5";
-
-  function NumField({ label, field, step = 1, hint, min, max }: {
-    label: string; field: keyof Config; step?: number; hint?: string; min?: number; max?: number;
-  }) {
-    return (
-      <div>
-        <Label className={labelCls}>{label}</Label>
-        <Input
-          type="number"
-          step={step}
-          min={min}
-          max={max}
-          value={config[field]}
-          onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) set(field, v); }}
-          className={inputCls}
-        />
-        {hint && <p className={hintCls}>{hint}</p>}
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
       <DashboardLayout>
@@ -178,6 +192,7 @@ export default function AdminAlertConfig() {
   }
 
   return (
+    <ConfigCtx.Provider value={ctxValue}>
     <DashboardLayout>
       <div className="space-y-6 max-w-4xl">
       <Breadcrumb
@@ -378,5 +393,6 @@ export default function AdminAlertConfig() {
         </div>
       </div>
     </DashboardLayout>
+    </ConfigCtx.Provider>
   );
 }
