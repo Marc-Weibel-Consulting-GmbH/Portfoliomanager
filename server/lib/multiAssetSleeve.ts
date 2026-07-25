@@ -85,6 +85,37 @@ export const MULTI_ASSET_ETFS: Record<AssetClass, SleeveEtf[]> = {
 export const CRYPTO_BTC_SHARE = 0.7;
 export const CRYPTO_SOL_SHARE = 0.3;
 
+/** DB-Settings-Key für die admin-konfigurierbare Allokations-Matrix. */
+export const MULTI_ASSET_ALLOCATION_SETTINGS_KEY = "multi_asset_allocation";
+
+/**
+ * Liest die Allokations-Matrix aus der DB (appSettings) mit Fallback auf
+ * die hartcodierten MULTI_ASSET_ALLOCATION-Konstanten. Fehlertolerant.
+ */
+export async function getMultiAssetAllocation(): Promise<Record<RiskProfile, Record<SleeveAssetKey, number>>> {
+  try {
+    const { getDb } = await import("../db");
+    const db = await getDb();
+    if (!db) return MULTI_ASSET_ALLOCATION;
+    const { appSettings } = await import("../../drizzle/schema");
+    const { eq } = await import("drizzle-orm");
+    const rows = await db.select().from(appSettings).where(eq(appSettings.key, MULTI_ASSET_ALLOCATION_SETTINGS_KEY)).limit(1);
+    if (!rows.length || !rows[0].value) return MULTI_ASSET_ALLOCATION;
+    const stored = rows[0].value as Record<string, Record<string, number>>;
+    // Validate: all 4 risk profiles present, each sums to ~100
+    const profiles: RiskProfile[] = ["konservativ", "ausgewogen", "wachstum", "aggressiv"];
+    const keys: SleeveAssetKey[] = ["equity", "bond", "commodity", "gold", "realestate", "crypto"];
+    for (const p of profiles) {
+      if (!stored[p]) return MULTI_ASSET_ALLOCATION;
+      const sum = keys.reduce((s, k) => s + (Number(stored[p][k]) || 0), 0);
+      if (Math.abs(sum - 100) > 2) return MULTI_ASSET_ALLOCATION; // invalid — fallback
+    }
+    return stored as Record<RiskProfile, Record<SleeveAssetKey, number>>;
+  } catch {
+    return MULTI_ASSET_ALLOCATION;
+  }
+}
+
 /**
  * Ziel-Quoten in % des investierten Kapitals (vor Cash-Quote), Summe je
  * Profil = 100. Ergänzt STRATEGIC_ALLOCATIONS (investorProfileScoring) um die
@@ -149,6 +180,10 @@ export interface ApplyMultiAssetSleeveOptions {
   riskProfile: RiskProfile;
   stocksOnly: boolean;
   resolvePrice: ResolvePriceFn;
+  /** Max. Fremdwährungsanteil in % (0–100). Default: kein Limit. */
+  maxFxPct?: number;
+  /** Referenzwährung des Anlegers (z.B. 'CHF'). Default: 'CHF'. */
+  referenceCurrency?: string;
 }
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
@@ -210,8 +245,9 @@ async function resolveFirstAvailable(
 export async function applyMultiAssetSleeve(
   opts: ApplyMultiAssetSleeveOptions,
 ): Promise<MultiAssetSleeveResult> {
-  const { equityPositions, riskProfile, stocksOnly, resolvePrice } = opts;
-  const matrix = MULTI_ASSET_ALLOCATION[riskProfile];
+  const { equityPositions, riskProfile, stocksOnly, resolvePrice, maxFxPct, referenceCurrency = 'CHF' } = opts;
+  const allocationMatrix = await getMultiAssetAllocation();
+  const matrix = allocationMatrix[riskProfile];
 
   const emptyAllocation = (): Record<SleeveAssetKey, number> => ({
     equity: 0, bond: 0, commodity: 0, gold: 0, realestate: 0, crypto: 0,
@@ -308,7 +344,43 @@ export async function applyMultiAssetSleeve(
     }
   }
 
-  // 3) Totalfall-Umverteilung: bei gestrichenen Klassen Summe wieder auf
+  // 3) FX-Enforcement für Sleeve-ETFs: Falls ein ETF in USD/GBP ist und das
+  //    FX-Limit überschreiten würde, auf den nächsten CHF/EUR-Kandidaten umschalten.
+  if (maxFxPct !== undefined && maxFxPct < 100) {
+    // Berechne aktuellen FX-Anteil (Aktien-Sleeve + ETF-Sleeve)
+    const normCur = (c: string) => (c === 'GBp' || c === 'GBP') ? 'GBP' : c;
+    const etfFxPositions = positions.filter(
+      (p) => p.assetType === 'etf' && normCur(p.currency ?? referenceCurrency) !== referenceCurrency
+    );
+    const equityFxWeight = positions
+      .filter((p) => p.assetType === 'stock' && normCur(p.currency ?? referenceCurrency) !== referenceCurrency)
+      .reduce((s, p) => s + p.weight, 0);
+    const etfFxWeight = etfFxPositions.reduce((s, p) => s + p.weight, 0);
+    const totalFxWeight = equityFxWeight + etfFxWeight;
+    const totalWeight = positions.reduce((s, p) => s + p.weight, 0) || 100;
+    const fxPct = (totalFxWeight / totalWeight) * 100;
+    if (fxPct > maxFxPct + 0.5) {
+      // Versuche FX-Sleeve-ETFs durch CHF-Alternativen zu ersetzen
+      for (const pos of etfFxPositions) {
+        const cls = pos.assetClass as AssetClass;
+        const candidates = MULTI_ASSET_ETFS[cls];
+        const chfCandidates = candidates.filter((c) => normCur(c.currency) === referenceCurrency);
+        if (!chfCandidates.length) continue;
+        const resolved = await resolveFirstAvailable(chfCandidates, resolvePrice);
+        if (resolved) {
+          pos.ticker = resolved.etf.ticker;
+          pos.name = resolved.name;
+          pos.currency = resolved.currency;
+          pos.price = resolved.price;
+          notes.push(
+            `FX-Enforcement: ${ASSET_CLASS_LABELS[cls]}-ETF auf CHF-Alternative ${resolved.etf.ticker} umgestellt (FX-Limit ${maxFxPct}% wäre sonst überschritten).`
+          );
+        }
+      }
+    }
+  }
+
+  // 4) Totalfall-Umverteilung: bei gestrichenen Klassen Summe wieder auf
   //    100 % normieren (proportional über alle Sleeves).
   const total = positions.reduce((s, p) => s + p.weight, 0);
   if (total > 0 && Math.abs(total - 100) > 0.5) {
