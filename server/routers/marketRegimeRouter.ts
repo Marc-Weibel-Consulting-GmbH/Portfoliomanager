@@ -371,6 +371,13 @@ async function fetchSectorPerformance(): Promise<Array<{
 }
 
 export const marketRegimeRouter = router({
+  // Kapitalströme: Sektor-Flow-Proxy (EODHD-Volumen) + CFTC-COT-Positionierung.
+  // Cache liegt in der Lib (6h); nur Anzeige, kein Einfluss auf Tilts.
+  getCapitalFlows: publicProcedure.query(async () => {
+    const { getCapitalFlows } = await import("../lib/capitalFlows");
+    return await getCapitalFlows();
+  }),
+
   sectorPerformance: publicProcedure.query(async () => {
     const cacheKey = "marketRegime:sectorPerformance";
     const cached = apiCache.get<Awaited<ReturnType<typeof fetchSectorPerformance>>>(cacheKey);
