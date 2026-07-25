@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,19 +9,13 @@ import { ArrowLeft, Lock, CheckCircle2, AlertCircle } from "lucide-react";
 
 export default function ResetPassword() {
   const [, setLocation] = useLocation();
-  const [token, setToken] = useState("");
+  const [token] = useState(
+    () => new URLSearchParams(window.location.search).get("token") ?? ""
+  );
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tokenParam = params.get("token");
-    if (tokenParam) {
-      setToken(tokenParam);
-    }
-  }, []);
 
   const verifyToken = trpc.auth.verifyResetToken.useQuery(
     { token },

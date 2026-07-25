@@ -44,7 +44,6 @@ export function PortfolioSettingsModal({
       return "";
     }
   });
-  const [hasChanges, setHasChanges] = useState(false);
   const utils = trpc.useUtils();
 
   // Initialize form when modal opens
@@ -61,22 +60,18 @@ export function PortfolioSettingsModal({
           return "";
         }
       });
-      setHasChanges(false);
     }
   }, [open, initialName, initialDescription, initialInvestmentAmount, initialInceptionDate]);
 
-  // Track changes
-  useEffect(() => {
-    const initialDateStr = initialInceptionDate
-      ? (() => { try { return new Date(initialInceptionDate).toISOString().split('T')[0]; } catch { return ""; } })()
-      : "";
-    const changed =
-      name !== initialName ||
-      description !== (initialDescription || "") ||
-      investmentAmount !== initialInvestmentAmount ||
-      inceptionDate !== initialDateStr;
-    setHasChanges(changed);
-  }, [name, description, investmentAmount, inceptionDate, initialName, initialDescription, initialInvestmentAmount, initialInceptionDate]);
+  // Track changes (derived during render)
+  const initialDateStr = initialInceptionDate
+    ? (() => { try { return new Date(initialInceptionDate).toISOString().split('T')[0]; } catch { return ""; } })()
+    : "";
+  const hasChanges =
+    name !== initialName ||
+    description !== (initialDescription || "") ||
+    investmentAmount !== initialInvestmentAmount ||
+    inceptionDate !== initialDateStr;
 
   // Update portfolio mutation with optimistic update for instant sidebar rename
   const updatePortfolio = trpc.portfolios.update.useMutation({

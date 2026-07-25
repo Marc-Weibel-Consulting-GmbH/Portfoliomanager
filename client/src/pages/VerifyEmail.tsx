@@ -7,18 +7,12 @@ import { CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 
 export default function VerifyEmail() {
   const [, setLocation] = useLocation();
-  const [token, setToken] = useState("");
-  const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tokenParam = params.get("token");
-    if (tokenParam) {
-      setToken(tokenParam);
-    } else {
-      setStatus("error");
-    }
-  }, []);
+  const [token] = useState(
+    () => new URLSearchParams(window.location.search).get("token") ?? ""
+  );
+  const [status, setStatus] = useState<"loading" | "success" | "error">(
+    () => (token ? "loading" : "error")
+  );
 
   const verifyEmail = trpc.auth.verifyEmail.useMutation({
     onSuccess: () => {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearch } from "wouter";
 import { trpc } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -56,20 +56,21 @@ function MetricCard({ label, valueA, valueB, nameA, nameB, format = "num", highe
   );
 }
 
-export default function PortfolioComparison() {
-  const [selectedA, setSelectedA] = useState<number | null>(null);
-  const [selectedB, setSelectedB] = useState<number | null>(null);
-  const search = useSearch();
+function initialSelection(search: string): [number | null, number | null] {
+  const params = new URLSearchParams(search);
+  const a = params.get("a");
+  const b = params.get("b");
+  if (a && b) {
+    const idA = parseInt(a), idB = parseInt(b);
+    if (!isNaN(idA) && !isNaN(idB)) return [idA, idB];
+  }
+  return [null, null];
+}
 
-  useEffect(() => {
-    const params = new URLSearchParams(search);
-    const a = params.get("a");
-    const b = params.get("b");
-    if (a && b) {
-      const idA = parseInt(a), idB = parseInt(b);
-      if (!isNaN(idA) && !isNaN(idB)) { setSelectedA(idA); setSelectedB(idB); }
-    }
-  }, [search]);
+export default function PortfolioComparison() {
+  const search = useSearch();
+  const [selectedA, setSelectedA] = useState<number | null>(() => initialSelection(search)[0]);
+  const [selectedB, setSelectedB] = useState<number | null>(() => initialSelection(search)[1]);
 
   const { data: portfolios = [], isLoading } = trpc.portfolios.list.useQuery();
 

@@ -9,7 +9,7 @@
  * Uses non-blocking backend pattern with polling for progress updates.
  */
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { trpc } from '@/lib/trpc';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,28 +46,21 @@ export default function WalkForwardValidation() {
   const [minScore, setMinScore] = useState('70');
   const [targetSharpe, setTargetSharpe] = useState('');
   const [maxTickers, setMaxTickers] = useState('100');
-  const [pollingEnabled, setPollingEnabled] = useState(false);
+
+  const { data: status, refetch: refetchStatus } = trpc.copilot.getWalkForwardStatus.useQuery(undefined, {
+    // Polling is derived from the job status: poll while running, stop when finished
+    refetchInterval: (query) => (query.state.data?.isRunning ? 2500 : false),
+  });
 
   const startMutation = trpc.copilot.startWalkForward.useMutation({
     onSuccess: (data) => {
       if (data.started) {
-        setPollingEnabled(true);
+        refetchStatus();
       }
     },
   });
 
-  const { data: status, refetch: refetchStatus } = trpc.copilot.getWalkForwardStatus.useQuery(undefined, {
-    refetchInterval: pollingEnabled ? 2500 : false,
-  });
-
   const { data: history } = trpc.copilot.getWalkForwardHistory.useQuery();
-
-  // Stop polling when walk-forward finishes
-  useEffect(() => {
-    if (status && !status.isRunning && pollingEnabled) {
-      setPollingEnabled(false);
-    }
-  }, [status, pollingEnabled]);
 
   const handleRun = () => {
     startMutation.mutate({
@@ -88,7 +81,7 @@ export default function WalkForwardValidation() {
     });
   };
 
-  const isRunning = status?.isRunning || pollingEnabled;
+  const isRunning = status?.isRunning ?? false;
   const result = status?.result;
   const apiError = status?.error;
 

@@ -5,7 +5,7 @@
  * Zeigt die 3 wichtigsten Features und einen CTA zum KI-Builder.
  * Kann mit "Schliessen" dauerhaft ausgeblendet werden (localStorage).
  */
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { X, Sparkles, BarChart2, Bell, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,12 +19,9 @@ interface WelcomeBannerProps {
 
 export default function WelcomeBanner({ userName, hasPortfolios }: WelcomeBannerProps) {
   const [, navigate] = useLocation();
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === "1") setDismissed(true);
-  }, []);
+  const [dismissed, setDismissed] = useState(
+    () => localStorage.getItem(STORAGE_KEY) === "1"
+  );
 
   // Only show for users without portfolios who haven't dismissed
   if (dismissed || hasPortfolios) return null;

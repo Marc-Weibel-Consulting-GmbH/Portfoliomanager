@@ -257,7 +257,7 @@ export default function PortfolioBuilderWizard() {
   // Compatibility shim: buildProposal.isPending is used in the JSX below
   const buildProposal = {
     isPending: isProposalRunning || startProposal.isPending,
-    reset: () => { setIsProposalRunning(false); setIsEnhancing(false); setProposalJobId(null); setProposalProgress([]); startProposal.reset(); },
+    reset: () => { setIsProposalRunning(false); setIsEnhancing(false); setProposalJobId(null); setProposalProgress([]); setLoadingMsgIdx(0); startProposal.reset(); },
   };
 
   // Freundliche, wechselnde Lade-Botschaften (statt technischer Einzelschritte).
@@ -273,7 +273,7 @@ export default function PortfolioBuilderWizard() {
     `Fast geschafft — ich berechne noch die erwartete Rendite, das Risiko und die wichtigsten Kennzahlen.`,
   ];
   useEffect(() => {
-    if (!buildProposal.isPending) { setLoadingMsgIdx(0); return; }
+    if (!buildProposal.isPending) return;
     const id = setInterval(() => setLoadingMsgIdx((i) => (i + 1) % loadingMessages.length), 5000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
