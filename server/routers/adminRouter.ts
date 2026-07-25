@@ -1,4 +1,5 @@
 import { adminProcedure, router } from "../_core/trpc";
+import { MULTI_ASSET_ETFS } from "../lib/multiAssetSleeve";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { importHistoricalPrices, importHistoricalPricesForTicker } from "../jobs/importHistoricalPrices";
@@ -370,8 +371,28 @@ export const adminRouter = router({
       }),
 
     /**
-     * Import historical prices for a specific ticker
+     * Trigger immediate backfill for all sleeve ETF tickers (AGGH.SW, ZGLD.SW, CMOD.SW, VBTC.SW, IWDP.L)
      */
+    backfillSleeveEtfs: adminProcedure
+      .mutation(async () => {
+        const allTickers = Object.values(MULTI_ASSET_ETFS).flat().map(e => e.ticker);
+        const results: { ticker: string; success: boolean; pricesImported: number; error?: string }[] = [];
+        for (const ticker of allTickers) {
+          try {
+            const result = await importHistoricalPricesForTicker(ticker);
+            results.push({ ticker, success: result.success, pricesImported: result.pricesImported });
+          } catch (err: any) {
+            results.push({ ticker, success: false, pricesImported: 0, error: err?.message });
+          }
+        }
+        return {
+          success: true,
+          tickers: allTickers,
+          results,
+          totalPricesImported: results.reduce((s, r) => s + r.pricesImported, 0),
+        };
+      }),
+
     importHistoricalPricesForTicker: adminProcedure
       .input(
         z.object({

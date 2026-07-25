@@ -2116,6 +2116,19 @@ export default function PortfolioDetailsPage() {
                     {holdings
                       .slice()
                       .sort((a: any, b: any) => {
+                        // Asset-class order: Aktien(0) → Immobilien(1) → Obligationen(2) → Gold(3) → Rohstoffe(4) → Krypto(5) → Cash(6) → Other(7)
+                        const ASSET_CLASS_ORDER: Record<string, number> = {
+                          'Aktien': 0, 'Immobilien': 1, 'Obligationen': 2, 'Gold': 3, 'Rohstoffe': 4, 'Krypto': 5, 'Cash': 6,
+                        };
+                        const getAssetOrder = (h: any) => {
+                          const label = SLEEVE_TICKER_LABEL[(h.ticker || '').toUpperCase()];
+                          if (label) return ASSET_CLASS_ORDER[label] ?? 7;
+                          if (h.assetType === 'cash') return 6;
+                          return 0; // Aktien
+                        };
+                        const aClass = getAssetOrder(a);
+                        const bClass = getAssetOrder(b);
+                        if (sortKey === 'weight' && aClass !== bClass) return aClass - bClass;
                         let aVal: number, bVal: number;
                         if (sortKey === 'weight') {
                           aVal = parseFloat(a.weight || '0');

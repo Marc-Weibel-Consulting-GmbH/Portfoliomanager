@@ -494,3 +494,5 @@
 - [x] Asset-Allokations-Donut-Chart im Deep-Dive
 - [x] Sleeve-ETF-Icons in Positionen-Tabelle (PortfolioDetailsPage)
 - [x] Asset-Allokations-Zeile unter KPI-Karten (PortfolioDetailsPage)
+- [x] Positionen-Tabelle nach Anlageklassen sortiert (Aktien → Immobilien → Obligationen → Gold → Krypto → Cash)
+- [x] Sleeve-ETF-Backfill-Button im Admin-Dashboard (backfillSleeveEtfs)

@@ -17,6 +17,7 @@ export default function AdminDashboard() {
   const [metricsSnapshotStatus, setMetricsSnapshotStatus] = useState<string | null>(null);
   const [historicalPricesStatus, setHistoricalPricesStatus] = useState<string | null>(null);
   const [deepDiveCacheStatus, setDeepDiveCacheStatus] = useState<string | null>(null);
+  const [sleeveBackfillStatus, setSleeveBackfillStatus] = useState<string | null>(null);
   const importHistoricalPrices = trpc.admin.importHistoricalPrices.useMutation({
     onSuccess: (data: any) => {
       const msg = data?.message ?? (data?.success ? 'Import gestartet — läuft im Hintergrund' : 'Fehler beim Import');
@@ -41,6 +42,17 @@ export default function AdminDashboard() {
     onError: (err) => {
       setDeepDiveCacheStatus('Fehler: ' + err.message);
       toast.error('Fehler', { description: err.message });
+    },
+  });
+  const backfillSleeveEtfs = trpc.admin.backfillSleeveEtfs.useMutation({
+    onSuccess: (data) => {
+      const msg = `${data.totalPricesImported} Kurse importiert für: ${data.tickers.join(', ')}`;
+      setSleeveBackfillStatus(msg);
+      toast.success('Sleeve-ETF-Backfill abgeschlossen', { description: msg });
+    },
+    onError: (err: any) => {
+      setSleeveBackfillStatus('Fehler: ' + err.message);
+      toast.error('Sleeve-ETF-Backfill fehlgeschlagen', { description: err.message });
     },
   });
   const clearQualityCache = trpc.admin.clearQualityMetricsCache.useMutation({
@@ -291,6 +303,22 @@ export default function AdminDashboard() {
             </Button>
             {deepDiveCacheStatus && (
               <span className="text-xs text-cyan-400 max-w-xs">{deepDiveCacheStatus}</span>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSleeveBackfillStatus(null);
+                backfillSleeveEtfs.mutate();
+              }}
+              disabled={backfillSleeveEtfs.isPending}
+              className="gap-2 border-yellow-500/50 text-yellow-400 hover:text-yellow-300"
+            >
+              <Database className={`h-4 w-4 ${backfillSleeveEtfs.isPending ? 'animate-spin' : ''}`} />
+              {backfillSleeveEtfs.isPending ? 'Lädt...' : 'Sleeve-ETF-Kurse laden'}
+            </Button>
+            {sleeveBackfillStatus && (
+              <span className="text-xs text-yellow-400 max-w-xs">{sleeveBackfillStatus}</span>
             )}
             <Button
               variant="outline"
