@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { trpc } from "@/lib/trpc";
-import { useState, useEffect, useCallback, useMemo, createContext, useContext } from "react";
+import { trpc, type RouterOutputs } from "@/lib/trpc";
+import { useState, useCallback, useMemo, createContext, useContext } from "react";
 import { toast } from "sonner";
 import { Bell, Save, RotateCcw, Info } from "lucide-react";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -30,6 +30,7 @@ const DEFAULT_CONFIG = {
 };
 
 type Config = typeof DEFAULT_CONFIG;
+type AlertConfigData = RouterOutputs["alertConfig"]["get"];
 
 const inputCls = "bg-[#1a2332] border-[#2a3a4e] text-white h-8 text-sm";
 const labelCls = "text-gray-300 text-xs";
@@ -126,37 +127,53 @@ function ScorePreview({ config }: { config: Config }) {
   );
 }
 
+function configFromData(data: AlertConfigData): Config {
+  return {
+    peLow: data.peLow, peMedium: data.peMedium, peHigh: data.peHigh, peVeryHigh: data.peVeryHigh,
+    peLowPoints: data.peLowPoints, peMediumPoints: data.peMediumPoints,
+    peHighPoints: data.peHighPoints, peVeryHighPoints: data.peVeryHighPoints,
+    divHigh: data.divHigh, divMedium: data.divMedium,
+    divHighPoints: data.divHighPoints, divMediumPoints: data.divMediumPoints,
+    week52NearLow: data.week52NearLow, week52BelowMid: data.week52BelowMid, week52NearHigh: data.week52NearHigh,
+    week52NearLowPoints: data.week52NearLowPoints, week52BelowMidPoints: data.week52BelowMidPoints,
+    week52NearHighPoints: data.week52NearHighPoints,
+    pegVeryLow: data.pegVeryLow, pegModerate: data.pegModerate, pegHigh: data.pegHigh,
+    pegVeryLowPoints: data.pegVeryLowPoints, pegModeratePoints: data.pegModeratePoints,
+    pegHighPoints: data.pegHighPoints,
+    buyTriggerScore: data.buyTriggerScore, sellTriggerScore: data.sellTriggerScore,
+    buyPreviousScoreThreshold: data.buyPreviousScoreThreshold,
+    sellPreviousScoreThreshold: data.sellPreviousScoreThreshold,
+    scoreChangeTrigger: data.scoreChangeTrigger,
+    alertCooldownDays: (data as any).alertCooldownDays ?? 7,
+  };
+}
+
 export default function AdminAlertConfig() {
   const { data, isLoading } = trpc.alertConfig.get.useQuery();
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin h-8 w-8 border-2 border-[#00CFC1] border-t-transparent rounded-full" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Das Formular seedet seinen State aus den Props (kein Effect). Die Query
+  // liefert keine stabile Zeilen-ID, deshalb wird ausschliesslich auf das
+  // Vorhandensein der Daten gekeyt — ein Hintergrund-Refetch derselben
+  // Konfiguration ändert den Key nicht und verwirft keine offenen Eingaben.
+  return <AlertConfigForm key={data ? "geladen" : "leer"} data={data ?? null} />;
+}
+
+function AlertConfigForm({ data }: { data: AlertConfigData | null }) {
   const updateMutation = trpc.alertConfig.update.useMutation();
   const utils = trpc.useUtils();
 
-  const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<Config>(() => (data ? configFromData(data) : DEFAULT_CONFIG));
   const [isDirty, setIsDirty] = useState(false);
-
-  useEffect(() => {
-    if (data) {
-      setConfig({
-        peLow: data.peLow, peMedium: data.peMedium, peHigh: data.peHigh, peVeryHigh: data.peVeryHigh,
-        peLowPoints: data.peLowPoints, peMediumPoints: data.peMediumPoints,
-        peHighPoints: data.peHighPoints, peVeryHighPoints: data.peVeryHighPoints,
-        divHigh: data.divHigh, divMedium: data.divMedium,
-        divHighPoints: data.divHighPoints, divMediumPoints: data.divMediumPoints,
-        week52NearLow: data.week52NearLow, week52BelowMid: data.week52BelowMid, week52NearHigh: data.week52NearHigh,
-        week52NearLowPoints: data.week52NearLowPoints, week52BelowMidPoints: data.week52BelowMidPoints,
-        week52NearHighPoints: data.week52NearHighPoints,
-        pegVeryLow: data.pegVeryLow, pegModerate: data.pegModerate, pegHigh: data.pegHigh,
-        pegVeryLowPoints: data.pegVeryLowPoints, pegModeratePoints: data.pegModeratePoints,
-        pegHighPoints: data.pegHighPoints,
-        buyTriggerScore: data.buyTriggerScore, sellTriggerScore: data.sellTriggerScore,
-        buyPreviousScoreThreshold: data.buyPreviousScoreThreshold,
-        sellPreviousScoreThreshold: data.sellPreviousScoreThreshold,
-        scoreChangeTrigger: data.scoreChangeTrigger,
-        alertCooldownDays: (data as any).alertCooldownDays ?? 7,
-      });
-      setIsDirty(false);
-    }
-  }, [data]);
 
   const set = useCallback((field: keyof Config, value: number) => {
     setConfig(prev => ({ ...prev, [field]: value }));
@@ -179,16 +196,6 @@ export default function AdminAlertConfig() {
   function reset() {
     setConfig(DEFAULT_CONFIG);
     setIsDirty(true);
-  }
-
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin h-8 w-8 border-2 border-[#00CFC1] border-t-transparent rounded-full" />
-        </div>
-      </DashboardLayout>
-    );
   }
 
   return (

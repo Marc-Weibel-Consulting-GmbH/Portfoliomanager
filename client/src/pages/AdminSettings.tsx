@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { trpc } from "@/lib/trpc";
-import { useState, useEffect } from "react";
+import { trpc, type RouterOutputs } from "@/lib/trpc";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Settings, Save, RotateCcw, PieChart } from "lucide-react";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -74,35 +74,79 @@ const DEFAULT_MULTI_ASSET: MultiAssetAllocation = {
   aggressiv:   { equity: 80, bond: 5,  commodity: 3, gold: 4, realestate: 2, crypto: 6 },
 };
 
+type AppSettingsData = RouterOutputs["admin"]["getAppSettings"];
+
+// Seed-Funktionen: identische Merge-über-Defaults-Semantik wie zuvor im Effect —
+// fehlt die Zeile oder ist ihr value leer, bleibt es beim jeweiligen Default.
+function seedDiversification(settings: AppSettingsData | null): DiversificationRules {
+  const divSetting = settings?.find((s) => s.key === 'diversification_rules');
+  if (!divSetting?.value) return DEFAULT_DIVERSIFICATION;
+  return { ...DEFAULT_DIVERSIFICATION, ...(divSetting.value as Partial<DiversificationRules>) };
+}
+
+function seedFees(settings: AppSettingsData | null): FeeStructure {
+  const feeSetting = settings?.find((s) => s.key === 'fee_structure');
+  if (!feeSetting?.value) return DEFAULT_FEES;
+  return { ...DEFAULT_FEES, ...(feeSetting.value as Partial<FeeStructure>) };
+}
+
+function seedMultiAsset(settings: AppSettingsData | null): MultiAssetAllocation {
+  const maSetting = settings?.find((s) => s.key === 'multi_asset_allocation');
+  if (!maSetting?.value) return DEFAULT_MULTI_ASSET;
+  const stored = maSetting.value as Partial<MultiAssetAllocation>;
+  const merged: MultiAssetAllocation = { ...DEFAULT_MULTI_ASSET };
+  for (const p of Object.keys(DEFAULT_MULTI_ASSET) as RiskProfile[]) {
+    if (stored[p]) merged[p] = { ...DEFAULT_MULTI_ASSET[p], ...stored[p] };
+  }
+  return merged;
+}
+
 export default function AdminSettings() {
   const { data: settings, isLoading } = trpc.admin.getAppSettings.useQuery();
+
+  if (isLoading) {
+    return (
+      <DashboardLayout>
+      <Breadcrumb
+        items={[
+          { label: "Admin", href: "/admin" },
+          { label: "Einstellungen", icon: <Settings className="h-4 w-4" /> },
+        ]}
+      />
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin h-8 w-8 border-2 border-[#00CFC1] border-t-transparent rounded-full" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Settings className="h-6 w-6 text-[#00CFC1]" />
+          <h1 className="text-2xl font-bold text-white">App-Einstellungen</h1>
+        </div>
+
+        {/*
+          Die Query liefert drei Zeilen ohne gemeinsame stabile ID, deshalb wird das
+          Formular genau einmal gemountet, sobald Daten da sind — gekeyt auf das
+          Vorhandensein der Daten, nicht auf deren Inhalt. Ein Hintergrund-Refetch
+          derselben Einstellungen ändert den Key nicht und verwirft keine offenen
+          Eingaben.
+        */}
+        <AppSettingsForm key={settings ? "geladen" : "leer"} settings={settings ?? null} />
+      </div>
+    </DashboardLayout>
+  );
+}
+
+function AppSettingsForm({ settings }: { settings: AppSettingsData | null }) {
   const updateSetting = trpc.admin.updateAppSetting.useMutation();
 
-  const [divRules, setDivRules] = useState<DiversificationRules>(DEFAULT_DIVERSIFICATION);
-  const [fees, setFees] = useState<FeeStructure>(DEFAULT_FEES);
-  const [multiAsset, setMultiAsset] = useState<MultiAssetAllocation>(DEFAULT_MULTI_ASSET);
-
-  useEffect(() => {
-    if (settings) {
-      const divSetting = settings.find((s: any) => s.key === 'diversification_rules');
-      const feeSetting = settings.find((s: any) => s.key === 'fee_structure');
-      const maSetting = settings.find((s: any) => s.key === 'multi_asset_allocation');
-      if (divSetting?.value) {
-        setDivRules({ ...DEFAULT_DIVERSIFICATION, ...(divSetting.value as any) });
-      }
-      if (feeSetting?.value) {
-        setFees({ ...DEFAULT_FEES, ...(feeSetting.value as any) });
-      }
-      if (maSetting?.value) {
-        const stored = maSetting.value as any;
-        const merged: MultiAssetAllocation = { ...DEFAULT_MULTI_ASSET };
-        for (const p of Object.keys(DEFAULT_MULTI_ASSET) as RiskProfile[]) {
-          if (stored[p]) merged[p] = { ...DEFAULT_MULTI_ASSET[p], ...stored[p] };
-        }
-        setMultiAsset(merged);
-      }
-    }
-  }, [settings]);
+  const [divRules, setDivRules] = useState<DiversificationRules>(() => seedDiversification(settings));
+  const [fees, setFees] = useState<FeeStructure>(() => seedFees(settings));
+  const [multiAsset, setMultiAsset] = useState<MultiAssetAllocation>(() => seedMultiAsset(settings));
 
   const updateSleeveValue = (profile: RiskProfile, key: SleeveKey, val: number) => {
     setMultiAsset(prev => ({
@@ -161,30 +205,8 @@ export default function AdminSettings() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <DashboardLayout>
-      <Breadcrumb
-        items={[
-          { label: "Admin", href: "/admin" },
-          { label: "Einstellungen", icon: <Settings className="h-4 w-4" /> },
-        ]}
-      />
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin h-8 w-8 border-2 border-[#00CFC1] border-t-transparent rounded-full" />
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   return (
-    <DashboardLayout>
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Settings className="h-6 w-6 text-[#00CFC1]" />
-          <h1 className="text-2xl font-bold text-white">App-Einstellungen</h1>
-        </div>
-
+    <>
         {/* Diversifikationsregeln */}
         <Card className="bg-[#0d1220] border-[#1e2840]">
           <CardHeader>
@@ -423,7 +445,6 @@ export default function AdminSettings() {
             </div>
           </CardContent>
         </Card>
-      </div>
-    </DashboardLayout>
+    </>
   );
 }
