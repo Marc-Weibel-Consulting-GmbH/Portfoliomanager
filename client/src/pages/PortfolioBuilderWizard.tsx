@@ -1300,109 +1300,30 @@ export default function PortfolioBuilderWizard() {
                       </div>
                     )}
 
-                    {/* Admin-geprüft Badge — erscheint nach Rückkehr vom Admin-Review */}
-                    {isAdminReviewed && (
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-                        <CheckCircle className="h-4 w-4 text-emerald-400 shrink-0" />
-                        <div>
-                          <span className="text-xs font-semibold text-emerald-400">Admin-geprüft</span>
-                          <p className="text-xs text-emerald-400/70">Dieser Vorschlag wurde vom Admin überprüft und angepasst. Sie können ihn jetzt direkt übernehmen.</p>
-                        </div>
-                      </div>
-                    )}
-
                     <p className="text-xs text-gray-600">
                       ⚠️ Automatischer Vorschlag auf Basis historischer Daten — keine Anlageberatung.
                     </p>
-                    <div className="flex flex-col gap-2">
-                      {/* Admin-Review Toggle + Button (nur für Admins sichtbar, nicht wenn bereits geprüft) */}
-                      {isAdmin && !isAdminReviewed && (
-                        <div className="border border-amber-500/30 rounded-lg p-3 bg-amber-500/5 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <ShieldCheck className="h-4 w-4 text-amber-400" />
-                              <span className="text-xs font-semibold text-amber-400">Admin-Review</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-400">{skipAdminReview ? 'Direkt erstellen' : 'Mit Admin-Review'}</span>
-                              <Switch
-                                checked={!skipAdminReview}
-                                onCheckedChange={(checked) => setSkipAdminReview(!checked)}
-                                className="data-[state=checked]:bg-amber-500"
-                              />
-                            </div>
-                          </div>
-                          {!skipAdminReview ? (
-                            <>
-                              <p className="text-xs text-gray-400">Vorschlag im Admin-Bereich prüfen und genehmigen, bevor das Portfolio erstellt wird.</p>
-                              <Button
-                                variant="outline"
-                                className="w-full border-amber-500/40 text-amber-400 hover:bg-amber-500/10 text-sm"
-                                onClick={handleSendToAdminReview}
-                              >
-                                <ShieldCheck className="h-4 w-4 mr-2" />
-                                Im Admin-Bereich prüfen &amp; genehmigen
-                              </Button>
-                            </>
-                          ) : (
-                            <p className="text-xs text-gray-400">Portfolio wird direkt ohne Admin-Review erstellt. Verwenden Sie die Schaltflächen unten.</p>
-                          )}
-                        </div>
-                      )}
-                      <div className="flex flex-wrap justify-between gap-3">
-                        <Button variant="outline" className="border-white/10 text-gray-300"
-                          onClick={() => setAutoProposal(null)} disabled={buildProposal.isPending}>
-                          Neu erstellen
-                        </Button>
-                        {/* After admin review: show green accept button */}
-                        {isAdmin && isAdminReviewed && (
+                    {/* Direkte Übernahme-Buttons — Admin-Review entfernt, Challenger/Synthesizer-Anpassungen werden automatisch eingearbeitet */}
+                    <div className="flex flex-wrap justify-between gap-3">
+                      <Button variant="outline" className="border-white/10 text-gray-300"
+                        onClick={() => setAutoProposal(null)} disabled={buildProposal.isPending}>
+                        Neu erstellen
+                      </Button>
+                      <div className="flex gap-2 flex-wrap">
+                        {(autoProposal as any).adjustedPositions && (
                           <Button
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
-                            onClick={() => handleAcceptProposal(true)}
+                            variant="outline"
+                            className="border-white/20 text-gray-300 hover:bg-white/5 text-sm"
+                            onClick={() => handleAcceptProposal(false)}
+                            title="Roher Algorithmus-Vorschlag ohne KI-Anpassungen"
                           >
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                            Admin-geprüften Vorschlag übernehmen
-                            <ChevronRight className="h-4 w-4 ml-1" />
+                            Ohne KI-Anpassungen
                           </Button>
                         )}
-                        {/* Admin without review: show direct-create buttons when skipAdminReview is true */}
-                        {isAdmin && !isAdminReviewed && skipAdminReview && (
-                          <div className="flex gap-2 flex-wrap">
-                            {(autoProposal as any).adjustedPositions && (
-                              <Button
-                                variant="outline"
-                                className="border-white/20 text-gray-300 hover:bg-white/5 text-sm"
-                                onClick={() => handleAcceptProposal(false)}
-                                title="Roher Algorithmus-Vorschlag ohne KI-Anpassungen"
-                              >
-                                Ohne KI-Anpassungen
-                              </Button>
-                            )}
-                            <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
-                              {(autoProposal as any).adjustedPositions ? 'KI-Angepasst übernehmen' : 'Direkt erstellen'}
-                              <ChevronRight className="h-4 w-4 ml-1" />
-                            </Button>
-                          </div>
-                        )}
-                        {/* Non-admins: show standard accept buttons */}
-                        {!isAdmin && (
-                          <div className="flex gap-2 flex-wrap">
-                            {(autoProposal as any).adjustedPositions && (
-                              <Button
-                                variant="outline"
-                                className="border-white/20 text-gray-300 hover:bg-white/5 text-sm"
-                                onClick={() => handleAcceptProposal(false)}
-                                title="Roher Algorithmus-Vorschlag ohne KI-Anpassungen"
-                              >
-                                Ohne KI-Anpassungen
-                              </Button>
-                            )}
-                            <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
-                              {(autoProposal as any).adjustedPositions ? 'KI-Angepasst übernehmen' : 'In den Builder übernehmen'}
-                              <ChevronRight className="h-4 w-4 ml-1" />
-                            </Button>
-                          </div>
-                        )}
+                        <Button className="bg-[#00CFC1] text-[#0a0f1a] hover:bg-[#00CFC1]/90 font-semibold" onClick={() => handleAcceptProposal(true)}>
+                          {(autoProposal as any).adjustedPositions ? 'KI-Optimiert übernehmen' : 'Vorschlag übernehmen'}
+                          <ChevronRight className="h-4 w-4 ml-1" />
+                        </Button>
                       </div>
                     </div>
                   </div>

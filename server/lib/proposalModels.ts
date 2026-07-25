@@ -40,7 +40,7 @@ export const DEFAULT_PROPOSAL_MODELS: ProposalModelConfig = {
   challengerB: "gemini",
   synthesis: "omniroute",
   text: "gemini",
-  autoApply: false,
+  autoApply: true, // Challenger-/Synthese-Anpassungen immer automatisch übernehmen
 };
 
 export const PROVIDER_LABELS: Record<ProposalProvider, string> = {
@@ -72,7 +72,7 @@ export async function getProposalModelConfig(): Promise<ProposalModelConfig> {
       challengerB: pick(cfg?.challengerB, DEFAULT_PROPOSAL_MODELS.challengerB),
       synthesis: pick(cfg?.synthesis, DEFAULT_PROPOSAL_MODELS.synthesis),
       text: pick(cfg?.text, DEFAULT_PROPOSAL_MODELS.text),
-      autoApply: cfg?.autoApply === true,
+      autoApply: true, // Immer automatisch übernehmen — unabhängig von DB-Einstellung
     };
   } catch {
     return { ...DEFAULT_PROPOSAL_MODELS };
