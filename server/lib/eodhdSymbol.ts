@@ -103,6 +103,58 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
 };
 
 /**
+ * Proxy-Symbol → Währung des historischen Preises.
+ *
+ * Wenn ein DB-Ticker über ein Proxy-Symbol abgerufen wird (z.B. 6856.T → 01H.F in EUR),
+ * werden die historischen Preise in der Proxy-Währung gespeichert, NICHT in der nativen
+ * Währung des Tickers. Diese Map gibt die korrekte Währung für die gespeicherten
+ * historicalPrices zurück, damit toChfPriceMap die richtige FX-Konvertierung anwendet.
+ *
+ * Regel: .F = EUR, .US/.OTC = USD, .LSE = GBp, .SW = CHF, .AU = AUD, .WAR = PLN
+ */
+const PROXY_CURRENCY: Record<string, string> = {
+  // Italian stocks → Frankfurt (EUR)
+  'ADB.MI': 'EUR',
+  'EQUI.MI': 'EUR',
+  'IG.MI': 'EUR',
+  'PST.MI': 'EUR',
+  'MONC.MI': 'USD',  // MONRY is a US ADR
+  'PRY.MI': 'USD',   // PRYMY.US
+  'SRG.MI': 'USD',   // SNMRF.US
+  // Singapore → US ADR (USD)
+  'D05.SI': 'USD',   // DBSDY.US
+  // Japanese stocks → Frankfurt (EUR) or US ADR (USD)
+  '6856.T': 'EUR',   // 01H.F Frankfurt
+  '7735.T': 'USD',   // SCRNY.US
+  '9962.T': 'USD',   // MSSMY.US
+  '7203.T': 'USD',   // TM (US ADR)
+  '6758.T': 'USD',   // SONY (US ADR)
+  '9984.T': 'USD',   // SFTBY.US
+  '6861.T': 'USD',   // KYCCF.US
+  '4519.T': 'USD',   // CHGCY.US
+  '8306.T': 'USD',   // MUFG (US ADR)
+  '6954.T': 'USD',   // FANUY.US
+  '7267.T': 'USD',   // HMC (US ADR)
+  '6501.T': 'USD',   // HTHIY.US
+};
+
+/**
+ * Gibt die Währung zurück, in der die historischen Preise für diesen DB-Ticker
+ * in der historicalPrices-Tabelle gespeichert sind.
+ *
+ * Für die meisten Ticker ist das die native Währung (aus stocks.currency).
+ * Für Proxy-Ticker (z.B. japanische Aktien über Frankfurt/US-ADR) ist es die
+ * Proxy-Währung (EUR/USD), weil EODHD die Preise in dieser Währung liefert.
+ *
+ * @param dbTicker  Der DB-Ticker (z.B. '6856.T')
+ * @param nativeCurrency  Die native Währung aus der stocks-Tabelle (z.B. 'JPY')
+ * @returns Die korrekte Währung für die historicalPrices-Einträge
+ */
+export function getHistoricalPriceCurrency(dbTicker: string, nativeCurrency: string): string {
+  return PROXY_CURRENCY[dbTicker] ?? nativeCurrency;
+}
+
+/**
  * Alias-Auflösung: liefert das EODHD-Symbol für einen DB-Ticker. Ist keine Sonderregel
  * hinterlegt, wird der Ticker unverändert zurückgegeben (der Aufrufer behält seine
  * bestehende Suffix-Logik). Endpunkt-agnostisch (gilt für /eod, /div, /real-time).

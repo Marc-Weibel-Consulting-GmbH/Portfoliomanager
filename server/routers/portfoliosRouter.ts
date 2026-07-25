@@ -227,16 +227,17 @@ export const portfoliosRouter = router({
               for (const [ticker, shares] of Object.entries(holdings)) {
                 if (shares <= 0) continue;
                 const stock = stocksMap.get(ticker);
-                if (!stock) continue;
-                
-                const currency = stock.currency || 'CHF';
+                                if (!stock) continue;
+                const nativeCurrency = stock.currency || 'CHF';
+                // FX-Bug-Fix (UX2-5): use proxy currency for historicalPrices
+                const { getHistoricalPriceCurrency } = await import('../lib/eodhdSymbol');
+                const historicalCurrency = getHistoricalPriceCurrency(ticker, nativeCurrency);
                 const currentPrice = safeParseFloat(stock.currentPrice);
                 const ytdStartPrice = ytdPricesMap.get(ticker);
-                
                 if (ytdStartPrice) {
                   hasHistoricalData = true;
-                  const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
-                  const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+                  const currentPriceCHF = await convertToCHF(currentPrice, nativeCurrency, todayStr);
+                  const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, historicalCurrency, ytdStartDate);
                   currentValueForPerf += shares * currentPriceCHF;
                   ytdStartValueCHF += shares * ytdStartPriceCHF;
                 }
@@ -259,32 +260,33 @@ export const portfoliosRouter = router({
             let currentValueForPerf = 0;
             let hasHistoricalData = false;
             
+                        const { getHistoricalPriceCurrency: getHistCurr } = await import('../lib/eodhdSymbol');
             for (const stock of stocks) {
               const ticker = stock.ticker;
               if (!ticker) continue;
               const stockData = stocksMap.get(ticker) as any;
               if (!stockData) continue;
               const currentPrice = safeParseFloat(stockData.currentPrice);
-              const currency = stockData.currency || 'CHF';
+              const nativeCurrency = stockData.currency || 'CHF';
+              // FX-Bug-Fix (UX2-5): proxy tickers store historicalPrices in proxy currency
+              const historicalCurrency = getHistCurr(ticker, nativeCurrency);
               const weight = parseFloat(stock.weight || '0') / 100;
               const ytdStartPrice = ytdPricesMap.get(ticker);
-              
               let shares = parseFloat(stock.shares || '0');
               if (shares === 0 && weight > 0) {
                 if (ytdStartPrice) {
-                  const ytdPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+                  const ytdPriceCHF = await convertToCHF(ytdStartPrice, historicalCurrency, ytdStartDate);
                   const allocationCHF = investmentAmount > 0 ? investmentAmount * weight : 100000 * weight;
                   shares = ytdPriceCHF > 0 ? allocationCHF / ytdPriceCHF : 0;
                 } else if (investmentAmount > 0) {
-                  const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
+                  const priceCHF = await convertToCHF(currentPrice, nativeCurrency, todayStr);
                   shares = priceCHF > 0 ? (investmentAmount * weight) / priceCHF : 0;
                 }
               }
-              
               if (ytdStartPrice && shares > 0) {
                 hasHistoricalData = true;
-                const currentPriceCHF = await convertToCHF(currentPrice, currency, todayStr);
-                const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, currency, ytdStartDate);
+                const currentPriceCHF = await convertToCHF(currentPrice, nativeCurrency, todayStr);
+                const ytdStartPriceCHF = await convertToCHF(ytdStartPrice, historicalCurrency, ytdStartDate);
                 currentValueForPerf += shares * currentPriceCHF;
                 ytdStartValueCHF += shares * ytdStartPriceCHF;
               }
@@ -1415,10 +1417,14 @@ export const portfoliosRouter = router({
           const stock = await getStockByTicker(ticker);
           if (!stock) continue;
           
-          const currency = stock.currency || 'CHF';
+          const nativeCurrency = stock.currency || 'CHF';
+          // FX-Bug-Fix (UX2-5): proxy tickers store historicalPrices in proxy currency
+          const { getHistoricalPriceCurrency: getHistCurrHoldings } = await import('../lib/eodhdSymbol');
+          const historicalCurrency = getHistCurrHoldings(ticker, nativeCurrency);
+          const currency = nativeCurrency; // native currency for currentPrice
           const currentPrice = safeParseFloat(stock.currentPrice);
           // FIN-4 (Audit 2026-07): fehlender Jahresanfangskurs wird NICHT mehr
-          // still durch currentPrice ersetzt (das zeigte YTD = 0 % statt «n/a»
+          // still durch currentPrice ersetzt (das zeigte YTD = 0 % statt «na»
           // und verzerrte Aggregate) — stattdessen geflaggt und YTD auf 0 mit Flag.
           const ytdStartPriceRaw = await getHistoricalPrice(ticker, ytdStartDate);
           const ytdStartMissing = !(ytdStartPriceRaw && ytdStartPriceRaw > 0);
@@ -1427,7 +1433,8 @@ export const portfoliosRouter = router({
           // U-13: fehlender Kurs/FX-Kurs → Wert 0 (wie bisher), aber geflaggt.
           const priceMissing = !(currentPrice > 0);
           const currentPriceCHFOrNull = await tryConvertToCHF(currentPrice, currency, todayStr);
-          const ytdStartPriceCHFOrNull = ytdStartMissing ? null : await tryConvertToCHF(ytdStartPrice, currency, ytdStartDate);
+          // Use historicalCurrency for ytdStartPrice (proxy currency for proxy tickers)
+          const ytdStartPriceCHFOrNull = ytdStartMissing ? null : await tryConvertToCHF(ytdStartPrice, historicalCurrency, ytdStartDate);
           const fxMissing = currentPriceCHFOrNull === null || (!ytdStartMissing && ytdStartPriceCHFOrNull === null);
           const currentPriceCHF = currentPriceCHFOrNull ?? 0;
           const ytdStartPriceCHF = ytdStartPriceCHFOrNull ?? 0;
@@ -3447,8 +3454,15 @@ export const portfoliosRouter = router({
               const weight = totalWeight > 0 ? parseFloat(stock.weight || '0') / totalWeight : 0;
               
               const stockInfo = await getStockByTicker(ticker);
+              const nativeCurrency = stockInfo?.currency || 'CHF';
+              // FX-Bug-Fix (UX2-5): Proxy-Ticker (z.B. 6856.T → 01H.F Frankfurt in EUR)
+              // speichern historicalPrices in der Proxy-Währung (EUR/USD), nicht in der
+              // nativen Währung (JPY/SGD). getHistoricalPriceCurrency gibt die korrekte
+              // Währung für die gespeicherten Preise zurück.
+              const { getHistoricalPriceCurrency } = await import('../lib/eodhdSymbol');
+              const historicalCurrency = getHistoricalPriceCurrency(ticker, nativeCurrency);
               stockData[ticker] = {
-                currency: stockInfo?.currency || 'CHF',
+                currency: historicalCurrency,
                 weight: weight
               };
               
@@ -3470,7 +3484,9 @@ export const portfoliosRouter = router({
                 localPrices[p.date] = parseFloat(p.close || '0');
               }
               // Convert to CHF so the weighted return is a true CHF return (incl. FX).
-              stockPrices[ticker] = await toChfPriceMap(localPrices, stockData[ticker].currency);
+              // historicalCurrency is the currency of the stored prices (may differ from
+              // nativeCurrency for proxy tickers like Japanese stocks via Frankfurt).
+              stockPrices[ticker] = await toChfPriceMap(localPrices, historicalCurrency);
             }
 
             // Current CHF stock value (for the optional cash-drag figure).
