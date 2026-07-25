@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { trpc } from "@/lib/trpc";
+import { trpc, type RouterOutputs } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,36 +11,13 @@ import { useLocation } from "wouter";
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { toast } from "sonner";
 
+type NotificationSettingsData = RouterOutputs["notificationSettings"]["getSettings"];
+
 export default function NotificationSettings() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
-  const [whatsappAlerts, setWhatsappAlerts] = useState(false);
-  const [mobile, setMobile] = useState("");
 
   const { data: settings, isLoading } = trpc.notificationSettings.getSettings.useQuery();
-  const updateSettingsMutation = trpc.notificationSettings.updateSettings.useMutation({
-    onSuccess: () => {
-      toast.success("Einstellungen erfolgreich gespeichert!");
-    },
-    onError: (error) => {
-      toast.error(`Fehler: ${error.message}`);
-    },
-  });
-
-  // Load settings when available
-  useEffect(() => {
-    if (settings) {
-      setWhatsappAlerts(settings.whatsappAlerts);
-      setMobile(settings.mobile || "");
-    }
-  }, [settings]);
-
-  const handleSave = () => {
-    updateSettingsMutation.mutate({
-      whatsappAlerts,
-      mobile,
-    });
-  };
 
   // A2 (Audit N-A1): Erst nach abgeschlossenem Auth-Laden umleiten — vorher
   // schlug der Redirect im transienten Ladezustand zu (isAuthenticated
@@ -87,119 +64,149 @@ export default function NotificationSettings() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-6">
-          {/* WhatsApp Alerts */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                WhatsApp-Benachrichtigungen
-              </CardTitle>
-              <CardDescription>
-                Erhalten Sie Echtzeit-Updates zu Ihren Portfolio-Transaktionen per WhatsApp
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="whatsapp-alerts">WhatsApp-Benachrichtigungen aktivieren</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Sie erhalten Nachrichten bei Käufen, Verkäufen und Gewichtsänderungen
-                  </p>
-                </div>
-                <Switch
-                  id="whatsapp-alerts"
-                  checked={whatsappAlerts}
-                  onCheckedChange={setWhatsappAlerts}
-                />
-              </div>
+        // Die Query liefert keine stabile ID (nur die Werte selbst), deshalb wird
+        // das Formular genau einmal gemountet, sobald Daten da sind — gekeyt auf
+        // das Vorhandensein der Daten, nicht auf deren Inhalt. Ein Refetch
+        // derselben Einstellungen ändert den Key nicht und überschreibt keine
+        // offenen Eingaben.
+        <NotificationSettingsForm key={settings ? "geladen" : "leer"} settings={settings ?? null} />
+      )}
+    </div>
+  );
+}
 
-              {whatsappAlerts && (
-                <div className="space-y-2 pt-4 border-t">
-                  <Label htmlFor="mobile">Telefonnummer (mit Ländercode)</Label>
-                  <Input
-                    id="mobile"
-                    type="tel"
-                    placeholder="+41791234567"
-                    value={mobile}
-                    onChange={(e) => setMobile(e.target.value)}
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Format: +[Ländercode][Nummer] (z.B. +41 für Schweiz, +49 für Deutschland)
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+function NotificationSettingsForm({ settings }: { settings: NotificationSettingsData | null }) {
+  const [whatsappAlerts, setWhatsappAlerts] = useState(settings?.whatsappAlerts ?? false);
+  const [mobile, setMobile] = useState(settings?.mobile || "");
 
-          {/* Email Notifications (Placeholder) */}
-          <Card className="opacity-60">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bell className="h-5 w-5" />
-                E-Mail-Benachrichtigungen
-              </CardTitle>
-              <CardDescription>
-                Erhalten Sie wöchentliche Portfolio-Zusammenfassungen per E-Mail
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="email-notifications">E-Mail-Benachrichtigungen aktivieren</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Wöchentliche Performance-Berichte und Dividenden-Erinnerungen
-                  </p>
-                </div>
-                <Switch id="email-notifications" disabled />
-              </div>
-              <p className="text-sm text-yellow-600 mt-4">
-                ⚠️ Diese Funktion ist noch in Entwicklung
+  const updateSettingsMutation = trpc.notificationSettings.updateSettings.useMutation({
+    onSuccess: () => {
+      toast.success("Einstellungen erfolgreich gespeichert!");
+    },
+    onError: (error) => {
+      toast.error(`Fehler: ${error.message}`);
+    },
+  });
+
+  const handleSave = () => {
+    updateSettingsMutation.mutate({
+      whatsappAlerts,
+      mobile,
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* WhatsApp Alerts */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            WhatsApp-Benachrichtigungen
+          </CardTitle>
+          <CardDescription>
+            Erhalten Sie Echtzeit-Updates zu Ihren Portfolio-Transaktionen per WhatsApp
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="whatsapp-alerts">WhatsApp-Benachrichtigungen aktivieren</Label>
+              <p className="text-sm text-muted-foreground">
+                Sie erhalten Nachrichten bei Käufen, Verkäufen und Gewichtsänderungen
               </p>
-            </CardContent>
-          </Card>
-
-          {/* Save Button */}
-          <div className="flex justify-end">
-            <Button
-              onClick={handleSave}
-              disabled={updateSettingsMutation.isPending}
-              size="lg"
-            >
-              {updateSettingsMutation.isPending ? (
-                <>Speichere...</>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Einstellungen speichern
-                </>
-              )}
-            </Button>
+            </div>
+            <Switch
+              id="whatsapp-alerts"
+              checked={whatsappAlerts}
+              onCheckedChange={setWhatsappAlerts}
+            />
           </div>
 
-          {/* Info Card */}
-          <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-            <CardHeader>
-              <CardTitle className="text-blue-900 dark:text-blue-100">
-                💡 Über Benachrichtigungen
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-blue-800 dark:text-blue-200 space-y-2">
-              <p><strong>WhatsApp-Benachrichtigungen umfassen:</strong></p>
-              <ul className="list-disc list-inside space-y-1 ml-2">
-                <li>Bestätigung beim Hinzufügen neuer Aktien</li>
-                <li>Benachrichtigung beim Verkauf von Positionen</li>
-                <li>Updates bei Gewichtsänderungen im Portfolio</li>
-                <li>Wichtige Marktbewegungen (in Entwicklung)</li>
-              </ul>
-              <p className="mt-4 text-sm">
-                Hinweis: Für WhatsApp-Benachrichtigungen muss Twilio konfiguriert sein.
-                Administratoren können dies unter <a href="/admin/secrets" className="underline font-medium">/admin/secrets</a> einrichten.
+          {whatsappAlerts && (
+            <div className="space-y-2 pt-4 border-t">
+              <Label htmlFor="mobile">Telefonnummer (mit Ländercode)</Label>
+              <Input
+                id="mobile"
+                type="tel"
+                placeholder="+41791234567"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+              />
+              <p className="text-sm text-muted-foreground">
+                Format: +[Ländercode][Nummer] (z.B. +41 für Schweiz, +49 für Deutschland)
               </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Email Notifications (Placeholder) */}
+      <Card className="opacity-60">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            E-Mail-Benachrichtigungen
+          </CardTitle>
+          <CardDescription>
+            Erhalten Sie wöchentliche Portfolio-Zusammenfassungen per E-Mail
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <Label htmlFor="email-notifications">E-Mail-Benachrichtigungen aktivieren</Label>
+              <p className="text-sm text-muted-foreground">
+                Wöchentliche Performance-Berichte und Dividenden-Erinnerungen
+              </p>
+            </div>
+            <Switch id="email-notifications" disabled />
+          </div>
+          <p className="text-sm text-yellow-600 mt-4">
+            ⚠️ Diese Funktion ist noch in Entwicklung
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <Button
+          onClick={handleSave}
+          disabled={updateSettingsMutation.isPending}
+          size="lg"
+        >
+          {updateSettingsMutation.isPending ? (
+            <>Speichere...</>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Einstellungen speichern
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Info Card */}
+      <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+        <CardHeader>
+          <CardTitle className="text-blue-900 dark:text-blue-100">
+            💡 Über Benachrichtigungen
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-blue-800 dark:text-blue-200 space-y-2">
+          <p><strong>WhatsApp-Benachrichtigungen umfassen:</strong></p>
+          <ul className="list-disc list-inside space-y-1 ml-2">
+            <li>Bestätigung beim Hinzufügen neuer Aktien</li>
+            <li>Benachrichtigung beim Verkauf von Positionen</li>
+            <li>Updates bei Gewichtsänderungen im Portfolio</li>
+            <li>Wichtige Marktbewegungen (in Entwicklung)</li>
+          </ul>
+          <p className="mt-4 text-sm">
+            Hinweis: Für WhatsApp-Benachrichtigungen muss Twilio konfiguriert sein.
+            Administratoren können dies unter <a href="/admin/secrets" className="underline font-medium">/admin/secrets</a> einrichten.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
