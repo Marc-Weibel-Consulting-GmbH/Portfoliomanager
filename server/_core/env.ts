@@ -9,6 +9,10 @@ export const ENV = {
   get isProduction() { return process.env.NODE_ENV === "production"; },
   get forgeApiUrl() { return process.env.BUILT_IN_FORGE_API_URL ?? ""; },
   get forgeApiKey() { return process.env.BUILT_IN_FORGE_API_KEY ?? ""; },
+  // Basis-LLM provider-agnostisch: Modell + Ausgabe-Limit per Env überschreibbar,
+  // damit forgeApiUrl auf jeden OpenAI-kompatiblen Anbieter zeigen kann (Manus-frei).
+  get forgeModel() { return process.env.BUILT_IN_FORGE_MODEL || "gemini-2.5-flash"; },
+  get forgeMaxTokens() { const n = parseInt(process.env.BUILT_IN_FORGE_MAX_TOKENS ?? "", 10); return Number.isFinite(n) && n > 0 ? n : 32768; },
   get eodhdApiKey() { return process.env.EODHD_API_KEY ?? ""; },
   get stripeSecretKey() { return process.env.STRIPE_SECRET_KEY ?? ""; },
   get stripeWebhookSecret() { return process.env.STRIPE_WEBHOOK_SECRET ?? ""; },
