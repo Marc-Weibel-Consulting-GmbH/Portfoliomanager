@@ -106,12 +106,13 @@ import { SLEEVE_LABEL_CONFIG, SLEEVE_TICKER_LABEL } from '@shared/const';
 
 // ─── Performance Tab with Attribution Waterfall ───
 function PerformanceTab({
-  portfolioId, holdings, multiPeriod, totalValueCHF, investmentAmount, realizedGains, transactions
+  portfolioId, holdings, multiPeriod, totalValueCHF, cashBalance = 0, investmentAmount, realizedGains, transactions
 }: {
   portfolioId: number;
   holdings: any[];
   multiPeriod: any;
   totalValueCHF: number;
+  cashBalance?: number;
   investmentAmount: number;
   realizedGains: any[];
   transactions: any[];
@@ -130,8 +131,14 @@ function PerformanceTab({
   });
   const entry = (multiPeriod as any[] | undefined)?.find((p: any) => p.portfolioId === portfolioId);
   const ytd = entry?.performance?.YTD ?? null;
-  const seitKauf = investmentAmount > 0 ? ((totalValueCHF - investmentAmount) / investmentAmount) * 100 : null;
-  const gv = totalValueCHF - investmentAmount;
+  // «Seit Kauf» misst das eingesetzte Kapital gegen den heutigen Gesamtwert —
+  // und der besteht aus Positionen UND der nicht investierten Liquidität.
+  // Ohne die Cash-Seite erschien die Liquiditätsquote aus dem Anlegerprofil als
+  // Verlust: ein am selben Tag erstelltes Portfolio mit 24 % Cash startete bei
+  // −24 %, obwohl noch kein Kurs sich bewegt hatte.
+  const gesamtwertCHF = totalValueCHF + cashBalance;
+  const seitKauf = investmentAmount > 0 ? ((gesamtwertCHF - investmentAmount) / investmentAmount) * 100 : null;
+  const gv = gesamtwertCHF - investmentAmount;
 
   // Build sector attribution from holdings (supports YTD and since-buy toggle)
   const sectorAttribution = useMemo(() => {
@@ -1719,8 +1726,11 @@ export default function PortfolioDetailsPage() {
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">SEIT KAUF</p>
             {(() => {
+              // Gesamtwert = Positionen + nicht investierte Liquidität. Ohne die
+              // Cash-Seite zählte die Liquiditätsquote aus dem Anlegerprofil als
+              // Verlust (frisch erstelltes Portfolio startete bei −23.8 %).
               const invested = Number(portfolio?.investmentAmount || 0);
-              const gain = totalValueCHF - invested;
+              const gain = totalValueCHF + cashBalance - invested;
               const pct = invested > 0 ? (gain / invested) * 100 : 0;
               return (
                 <>
@@ -3050,6 +3060,7 @@ export default function PortfolioDetailsPage() {
               holdings={holdings}
               multiPeriod={multiPeriod}
               totalValueCHF={totalValueCHF}
+              cashBalance={cashBalance}
               investmentAmount={Number(portfolio?.investmentAmount || 0)}
               realizedGains={realizedGains}
               transactions={transactions}
