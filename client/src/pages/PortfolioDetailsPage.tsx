@@ -839,6 +839,11 @@ function PortfolioQualityHistoryWithTrigger({ portfolioId }: { portfolioId: numb
 // ─── Letzte Aktivität ───
 function LetzteAktivitaet({ transactions }: { transactions: any[] }) {
   const [aktivExpanded, setAktivExpanded] = useState(false);
+  // "Heute"/"Gestern" gegen einen beim Mounten festgehaltenen Zeitpunkt prüfen —
+  // Date.now() direkt im Render ist unrein (anderer Wert bei jedem Re-Render).
+  const [nowMs] = useState(() => Date.now());
+  const todayStr = new Date(nowMs).toDateString();
+  const yesterdayStr = new Date(nowMs - 86400000).toDateString();
   const sortedTx = [...transactions].sort((a: any, b: any) =>
     new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
   );
@@ -861,8 +866,8 @@ function LetzteAktivitaet({ transactions }: { transactions: any[] }) {
       <div className="space-y-2">
         {visibleTx.map((tx: any) => {
           const txDate = new Date(tx.transactionDate);
-          const isToday = txDate.toDateString() === new Date().toDateString();
-          const isYesterday = txDate.toDateString() === new Date(Date.now() - 86400000).toDateString();
+          const isToday = txDate.toDateString() === todayStr;
+          const isYesterday = txDate.toDateString() === yesterdayStr;
           const dateLabel = isToday ? 'Heute' : isYesterday ? 'Gestern' : txDate.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' });
           const isBuy = tx.transactionType === 'buy';
           const isDividend = tx.transactionType === 'dividend';

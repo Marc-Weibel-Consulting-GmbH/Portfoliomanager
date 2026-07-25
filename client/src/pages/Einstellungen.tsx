@@ -652,7 +652,9 @@ export default function Einstellungen() {
                   <div className="flex items-center justify-between py-2 border-b">
                     <div>
                       <div className="text-sm font-medium">Letzte Anmeldung</div>
-                      <div className="text-xs text-muted-foreground">{user ? new Date((user as any).lastSignedIn || Date.now()).toLocaleString("de-CH") : "—"}</div>
+                      {/* Ohne bekannten Zeitstempel "—" statt der aktuellen Zeit: Date.now()
+                          als Fallback ist unrein UND zeigte fälschlich "jetzt" als letzte Anmeldung. */}
+                      <div className="text-xs text-muted-foreground">{(user as any)?.lastSignedIn ? new Date((user as any).lastSignedIn).toLocaleString("de-CH") : "—"}</div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between py-2">

@@ -15,20 +15,25 @@ export default function AdminLogs() {
   const [, setLocation] = useLocation();
   const [selectedLevel, setSelectedLevel] = useState<"error" | "warn" | "info" | "all">("all");
   const [autoRefresh, setAutoRefresh] = useState(false);
+  // U-08: Löschbestätigung über AlertDialog statt Browser-confirm()
+  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
 
-  // Redirect if not admin
-  if (isAuthenticated && user?.role !== "admin") {
-    setLocation("/");
-    return null;
-  }
+  // Nicht-Admins umleiten. Die Umleitung MUSS in einem Effect passieren und der
+  // Abbruch NACH allen Hooks: ein early return zwischen den Hooks überspringt die
+  // nachfolgenden und verletzt die Hook-Reihenfolge (React-Fehler bei Re-Renders).
+  const isDenied = isAuthenticated && user?.role !== "admin";
+  useEffect(() => {
+    if (isDenied) setLocation("/");
+  }, [isDenied, setLocation]);
 
   const utils = trpc.useUtils();
   const { data: logs = [], isLoading, refetch } = trpc.logs.list.useQuery(
     selectedLevel === "all" ? {} : { level: selectedLevel },
-    { refetchInterval: autoRefresh ? 5000 : false }
+    { refetchInterval: autoRefresh ? 5000 : false, enabled: !isDenied }
   );
   const { data: stats } = trpc.logs.stats.useQuery(undefined, {
     refetchInterval: autoRefresh ? 5000 : false,
+    enabled: !isDenied,
   });
   const clearLogsMutation = trpc.logs.clear.useMutation({
     onSuccess: () => {
@@ -43,8 +48,8 @@ export default function AdminLogs() {
     },
   });
 
-  // U-08: Löschbestätigung über AlertDialog statt Browser-confirm()
-  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
+  // Abbruch erst NACH allen Hooks (siehe Kommentar oben).
+  if (isDenied) return null;
 
   const handleClearLogs = () => {
     setIsClearDialogOpen(true);

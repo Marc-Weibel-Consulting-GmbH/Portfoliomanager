@@ -83,9 +83,13 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
     }
   }
 
+  // Holdings vorab herausziehen: mit `data?.holdings` in den Deps, aber `data.holdings`
+  // im Rumpf wich die vom React-Compiler abgeleitete Abhängigkeit von der deklarierten
+  // ab — die Memoisierung liess sich dadurch nicht erhalten.
+  const holdings = data?.holdings;
   const sortedHoldings = useMemo(() => {
-    if (!data?.holdings) return [];
-    const rows = [...data.holdings];
+    if (!holdings) return [];
+    const rows = [...holdings];
     rows.sort((a: any, b: any) => {
       const av = a[sortKey];
       const bv = b[sortKey];
@@ -101,7 +105,7 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
       return sortDir === 'asc' ? av - bv : bv - av;
     });
     return rows;
-  }, [data?.holdings, sortKey, sortDir]);
+  }, [holdings, sortKey, sortDir]);
 
   const thClass = (col: SortKey, align: 'left' | 'right' = 'right') =>
     `${align === 'left' ? 'text-left' : 'text-right'} text-gray-500 pb-2 pr-3 cursor-pointer select-none hover:text-gray-300 transition-colors whitespace-nowrap`;
