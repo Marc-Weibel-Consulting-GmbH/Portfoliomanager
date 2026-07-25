@@ -238,11 +238,13 @@ export default function OptimierenTab({
   profileMismatch?: { reasons: string[]; severity: "low" | "medium" | "high"; aiSuggestion: string | null } | null;
 }) {
   // P-ALIGN: Frisch erstelltes KI-Portfolio (demo, < 7 Tage)?
+  // "Jetzt" einmalig beim Mounten festhalten — Date.now() im Render ist unrein.
+  const [nowMs] = useState(() => Date.now());
   const isFreshDemoPortfolio = useMemo(() => {
     if (!portfolioCreatedAt || portfolioType !== 'demo') return false;
-    const ageDays = (Date.now() - new Date(portfolioCreatedAt).getTime()) / (1000 * 60 * 60 * 24);
+    const ageDays = (nowMs - new Date(portfolioCreatedAt).getTime()) / (1000 * 60 * 60 * 24);
     return ageDays < 7;
-  }, [portfolioCreatedAt, portfolioType]);
+  }, [portfolioCreatedAt, portfolioType, nowMs]);
   const [showDivRules, setShowDivRules] = useState(true);
   const [showUpgrades, setShowUpgrades] = useState(true);
   const [showAllWeak, setShowAllWeak] = useState(false);

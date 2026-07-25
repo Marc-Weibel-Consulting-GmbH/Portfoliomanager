@@ -3,6 +3,7 @@
  * Risiko-Tacho, Musterallokation, Klartext-Bandbreite und Zielkonflikt-Hinweise
  * aus der gespeicherten Bewertung. Reine Anzeige (keine Server-Änderung).
  */
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, AlertTriangle, Clock } from "lucide-react";
@@ -81,7 +82,10 @@ export default function AnlageprofilResult({
     },
     onError: (e) => toast.error(`Fehler: ${e.message}`),
   });
-  const reviewDue = assessment.nextReviewDueAt ? new Date(assessment.nextReviewDueAt).getTime() < Date.now() : false;
+  // "Jetzt" einmalig beim Mounten festhalten — Date.now() direkt im Render ist
+  // unrein und liefert bei jedem Re-Render einen anderen Wert.
+  const [nowMs] = useState(() => Date.now());
+  const reviewDue = assessment.nextReviewDueAt ? new Date(assessment.nextReviewDueAt).getTime() < nowMs : false;
   const lastReviewed = fmtDate(assessment.lastReviewedAt);
 
   const R = 60; // donut radius
