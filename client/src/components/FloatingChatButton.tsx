@@ -56,9 +56,10 @@ export function FloatingChatButton() {
   // Jedes Öffnen startet einen FRISCHEN Chat (vorher wurde automatisch die
   // letzte Konversation samt alter Antwort geladen). Die Konversation wird
   // erst beim ersten Senden angelegt; der Verlauf bleibt im Copilot-Hub.
-  useEffect(() => {
-    if (isOpen) setSelectedConversationId(null);
-  }, [isOpen]);
+  const handleOpenChat = () => {
+    setSelectedConversationId(null);
+    setIsOpen(true);
+  };
 
   const handleSendMessage = async () => {
     const text = message.trim();
@@ -99,7 +100,7 @@ export function FloatingChatButton() {
         
         {/* Avatar Button */}
         <button
-          onClick={() => setIsOpen(true)}
+          onClick={handleOpenChat}
           className="relative bg-primary hover:bg-primary/90 text-primary-foreground rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
         >
           <MessageSquare className="h-6 w-6" />

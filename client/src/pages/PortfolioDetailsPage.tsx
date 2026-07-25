@@ -967,6 +967,26 @@ export default function PortfolioDetailsPage() {
   const [editFieldsHolding, setEditFieldsHolding] = useState<any>(null);
   const [isEditFieldsOpen, setIsEditFieldsOpen] = useState(false);
 
+  // Zählt jedes Öffnen und dient den Modals als `key`: so werden sie bei jedem
+  // Öffnen frisch montiert und seeden ihr Formular aus den aktuellen Props.
+  // Beim Schliessen bleibt der key stabil, damit die Exit-Animation läuft.
+  const [editModalOpenSeq, setEditModalOpenSeq] = useState(0);
+  const [settingsModalOpenSeq, setSettingsModalOpenSeq] = useState(0);
+  const [editFieldsOpenSeq, setEditFieldsOpenSeq] = useState(0);
+
+  const openEditModal = () => {
+    setEditModalOpenSeq((n) => n + 1);
+    setIsEditModalOpen(true);
+  };
+  const openSettingsModal = () => {
+    setSettingsModalOpenSeq((n) => n + 1);
+    setIsSettingsModalOpen(true);
+  };
+  const openEditFieldsModal = () => {
+    setEditFieldsOpenSeq((n) => n + 1);
+    setIsEditFieldsOpen(true);
+  };
+
   // State for share
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
 
@@ -1559,10 +1579,10 @@ export default function PortfolioDetailsPage() {
                   </Button>
                 </>
               )}
-              <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
+              <Button variant="outline" size="sm" onClick={openEditModal}>
                 + Position
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setIsSettingsModalOpen(true)}>
+              <Button variant="outline" size="sm" onClick={openSettingsModal}>
                 <Edit className="h-4 w-4 mr-1" />
                 Bearbeiten
               </Button>
@@ -2077,7 +2097,7 @@ export default function PortfolioDetailsPage() {
                       Scores neu berechnen
                     </button>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)} className="border-white/20 text-white hover:bg-white/5 text-xs h-8 gap-1">
+                  <Button variant="outline" size="sm" onClick={openEditModal} className="border-white/20 text-white hover:bg-white/5 text-xs h-8 gap-1">
                     + Position
                   </Button>
                 </div>
@@ -2341,7 +2361,7 @@ export default function PortfolioDetailsPage() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setEditFieldsHolding(h);
-                                    setIsEditFieldsOpen(true);
+                                    openEditFieldsModal();
                                   }}
                                   aria-label={`Position ${h.ticker} bearbeiten`}
                                   title="Position bearbeiten (Ticker, ISIN, Stück, Preis, Währung)"
@@ -3065,7 +3085,7 @@ export default function PortfolioDetailsPage() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => setIsEditModalOpen(true)}
+                onClick={openEditModal}
                 className="border-cyan-400/50 text-cyan-400 hover:bg-cyan-400/10"
               >
                 <Edit className="h-4 w-4 mr-2" />
@@ -3082,6 +3102,7 @@ export default function PortfolioDetailsPage() {
       
       {/* Settings Modal */}
       <PortfolioSettingsModal
+        key={`settings-${settingsModalOpenSeq}`}
         open={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         portfolioId={portfolioId}
@@ -3095,6 +3116,7 @@ export default function PortfolioDetailsPage() {
       
       {/* Edit Modal */}
       <PortfolioEditModal
+        key={`edit-${editModalOpenSeq}`}
         open={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         portfolioId={portfolioId}
@@ -3117,6 +3139,7 @@ export default function PortfolioDetailsPage() {
       />
 
       <EditPositionFieldsModal
+        key={`edit-fields-${editFieldsOpenSeq}`}
         open={isEditFieldsOpen}
         onClose={() => setIsEditFieldsOpen(false)}
         portfolioId={portfolioId}
