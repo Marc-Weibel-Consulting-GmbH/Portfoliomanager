@@ -496,3 +496,8 @@
 - [x] Asset-Allokations-Zeile unter KPI-Karten (PortfolioDetailsPage)
 - [x] Positionen-Tabelle nach Anlageklassen sortiert (Aktien → Immobilien → Obligationen → Gold → Krypto → Cash)
 - [x] Sleeve-ETF-Backfill-Button im Admin-Dashboard (backfillSleeveEtfs)
+
+## Assetklassen-Verbesserungen (Jul 2026)
+- [ ] Admin Dashboard: Manual signal cache refill trigger ("Scores neu berechnen" button)
+- [ ] Admin Settings: Configurable scoring weights for non-equity asset classes (DB-backed, sliders per class: Obligationen, Gold, Rohstoffe, Krypto, Immobilien)
+- [ ] Watchlist table: Asset-class-specific column values (Rendite instead of P/E, YTD instead of PEG for non-equity)

@@ -1293,8 +1293,71 @@ export const adminRouter = router({
       return getAnalyticsServiceStatus();
     }),
 
+    // ─── Asset-Class Scoring Weights ─────────────────────────────────────────
+
     /**
-     * Manueller Trigger für den täglichen signalScore-Refresh + Preishistorie-Backfill.
+     * Get asset-class scoring weights from appSettings.
+     * Returns defaults if not yet configured.
+     */
+    getAssetClassWeights: adminProcedure.query(async () => {
+      const { getDb } = await import("../db");
+      const db = await getDb();
+      if (!db) return { success: false, weights: null };
+      try {
+        const { appSettings } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const rows = await db
+          .select()
+          .from(appSettings)
+          .where(eq(appSettings.key, "asset_class_weights"))
+          .limit(1);
+        if (rows.length > 0) {
+          return { success: true, weights: JSON.parse(rows[0].value as string) };
+        }
+        // Return built-in defaults
+        const defaults = {
+          bond:      { rsiWeight: 0.3, rangeWeight: 0.2, yieldWeight: 0.5 },
+          gold:      { rsiWeight: 0.4, rangeWeight: 0.4, ytdWeight: 0.2 },
+          commodity: { rsiWeight: 0.4, rangeWeight: 0.4, ytdWeight: 0.2 },
+          crypto:    { rsiWeight: 0.35, rangeWeight: 0.35, ytdWeight: 0.3 },
+          realestate:{ rsiWeight: 0.3, rangeWeight: 0.2, yieldWeight: 0.5 },
+        };
+        return { success: true, weights: defaults };
+      } catch (err: any) {
+        return { success: false, weights: null };
+      }
+    }),
+
+    /**
+     * Persist asset-class scoring weights to appSettings.
+     */
+    updateAssetClassWeights: adminProcedure
+      .input(
+        z.object({
+          bond:       z.object({ rsiWeight: z.number(), rangeWeight: z.number(), yieldWeight: z.number() }),
+          gold:       z.object({ rsiWeight: z.number(), rangeWeight: z.number(), ytdWeight: z.number() }),
+          commodity:  z.object({ rsiWeight: z.number(), rangeWeight: z.number(), ytdWeight: z.number() }),
+          crypto:     z.object({ rsiWeight: z.number(), rangeWeight: z.number(), ytdWeight: z.number() }),
+          realestate: z.object({ rsiWeight: z.number(), rangeWeight: z.number(), yieldWeight: z.number() }),
+        })
+      )
+      .mutation(async ({ input }) => {
+        const { getDb } = await import("../db");
+        const db = await getDb();
+        if (!db) return { success: false, message: "DB nicht verfügbar" };
+        try {
+          const { appSettings } = await import("../../drizzle/schema");
+          await db
+            .insert(appSettings)
+            .values({ key: "asset_class_weights", value: JSON.stringify(input) })
+            .onDuplicateKeyUpdate({ set: { value: JSON.stringify(input) } });
+          return { success: true, message: "Gewichte gespeichert" };
+        } catch (err: any) {
+          return { success: false, message: err?.message ?? "Unbekannter Fehler" };
+        }
+      }),
+
+    /**
      * Ruft den internen /api/scheduled/signalScoreRefresh Endpoint auf.
      * Nützlich um nicht auf 07:00 UTC warten zu müssen.
      */

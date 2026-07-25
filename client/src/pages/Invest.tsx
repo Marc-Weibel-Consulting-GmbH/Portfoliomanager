@@ -437,8 +437,9 @@ export default function Invest() {
                       <th
                         className="text-right p-3 font-medium cursor-pointer hover:text-foreground select-none"
                         onClick={() => toggleSort('pe')}
+                        title="P/E Ratio (Aktien) · Rendite/Yield (Obligationen, Immobilien) · — (Gold, Rohstoffe, Krypto)"
                       >
-                        P/E {sortBy === 'pe' ? (sortDir === 'desc' ? '↓' : '↑') : <span className="text-muted-foreground/40">↕</span>}
+                        P/E · Rendite {sortBy === 'pe' ? (sortDir === 'desc' ? '↓' : '↑') : <span className="text-muted-foreground/40">↕</span>}
                       </th>
                       <th
                         className="text-right p-3 font-medium cursor-pointer hover:text-foreground select-none"
@@ -455,7 +456,7 @@ export default function Invest() {
                       >
                         Signal-Score {sortBy === 'score' ? (sortDir === 'desc' ? '↓' : '↑') : <span className="text-muted-foreground/40">↕</span>}
                       </th>
-                      <th className="text-right p-3 font-medium" title="PEG Ratio">PEG</th>
+                      <th className="text-right p-3 font-medium" title="PEG Ratio (Aktien) · YTD-Performance (Gold, Rohstoffe, Krypto, Immobilien)">PEG · YTD</th>
                       <th className="text-right p-3 font-medium"></th>
                     </tr>
                   </thead>
@@ -474,7 +475,20 @@ export default function Invest() {
                           {stock.currentPrice ? `${parseFloat(stock.currentPrice).toFixed(2)}` : "—"}
                           {stock.currency && <span className="text-xs text-muted-foreground ml-1">{stock.currency}</span>}
                         </td>
-                        <td className="p-3 text-right font-mono">{stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : "—"}</td>
+                        <td className="p-3 text-right font-mono">
+                          {(() => {
+                            const cat = stock.category ?? '';
+                            const isNonEquity = ['Obligationen','Gold','Rohstoffe','Krypto','Immobilien'].includes(cat);
+                            if (isNonEquity) {
+                              // Show dividend yield as "Rendite" for bonds/real estate; "—" for gold/commodity/crypto
+                              if (cat === 'Obligationen' || cat === 'Immobilien') {
+                                return stock.dividendYield ? <span className="text-emerald-400">{parseFloat(stock.dividendYield).toFixed(1)}%</span> : '—';
+                              }
+                              return <span className="text-muted-foreground text-xs">n/a</span>;
+                            }
+                            return stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : '—';
+                          })()}
+                        </td>
                         <td className="p-3 text-right font-mono">{stock.dividendYield ? `${parseFloat(stock.dividendYield).toFixed(1)}%` : "—"}</td>
                         <td className="p-3 text-center">{getSignalBadge(stock.signalType)}</td>
                         <td className="p-3 text-center">
@@ -488,13 +502,24 @@ export default function Invest() {
                           )}
                         </td>
                         <td className="p-3 text-right font-mono">
-                          {(stock as any).pegRatio ? (() => {
-                            const peg = parseFloat((stock as any).pegRatio);
-                            const q = getPegQuadrant(peg, null);
-                            const color = q === 'value_growth' ? 'text-emerald-400' : q === 'growth_premium' ? 'text-yellow-400' : q === 'value_slow' ? 'text-blue-400' : q === 'expensive_slow' ? 'text-red-400' : 'text-gray-400';
-                            const label = q === 'value_growth' ? 'Value + Wachstum' : q === 'growth_premium' ? 'Wachstumsprämie' : q === 'value_slow' ? 'Value / Langsam' : 'Teuer / Langsam';
-                            return <span className={color} title={label}>{peg.toFixed(2)}</span>;
-                          })() : "—"}
+                          {(() => {
+                            const cat = stock.category ?? '';
+                            const isNonEquity = ['Obligationen','Gold','Rohstoffe','Krypto','Immobilien'].includes(cat);
+                            if (isNonEquity) {
+                              // Show YTD performance instead of PEG for non-equity assets
+                              const ytd = stock.ytdPerformance ? parseFloat(stock.ytdPerformance) : null;
+                              if (ytd == null || isNaN(ytd)) return <span className="text-muted-foreground">—</span>;
+                              const color = ytd > 0 ? 'text-emerald-400' : ytd < 0 ? 'text-red-400' : 'text-muted-foreground';
+                              return <span className={color} title="YTD-Performance">{ytd > 0 ? '+' : ''}{ytd.toFixed(1)}%</span>;
+                            }
+                            return (stock as any).pegRatio ? (() => {
+                              const peg = parseFloat((stock as any).pegRatio);
+                              const q = getPegQuadrant(peg, null);
+                              const color = q === 'value_growth' ? 'text-emerald-400' : q === 'growth_premium' ? 'text-yellow-400' : q === 'value_slow' ? 'text-blue-400' : q === 'expensive_slow' ? 'text-red-400' : 'text-gray-400';
+                              const label = q === 'value_growth' ? 'Value + Wachstum' : q === 'growth_premium' ? 'Wachstumsprämie' : q === 'value_slow' ? 'Value / Langsam' : 'Teuer / Langsam';
+                              return <span className={color} title={label}>{peg.toFixed(2)}</span>;
+                            })() : '—';
+                          })()}
                         </td>
                         <td className="p-3 text-right">
                           <ArrowRight className="w-4 h-4 text-muted-foreground" />

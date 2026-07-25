@@ -8,6 +8,124 @@ import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import {ChevronDown, ChevronRight, Eye, RotateCcw, Save, Settings, SlidersHorizontal} from "lucide-react";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { Slider } from "@/components/ui/slider";
+
+// ─── Asset-Class Weights Section ─────────────────────────────────────────────
+
+interface AssetClassWeights {
+  bond:       { rsiWeight: number; rangeWeight: number; yieldWeight: number };
+  gold:       { rsiWeight: number; rangeWeight: number; ytdWeight: number };
+  commodity:  { rsiWeight: number; rangeWeight: number; ytdWeight: number };
+  crypto:     { rsiWeight: number; rangeWeight: number; ytdWeight: number };
+  realestate: { rsiWeight: number; rangeWeight: number; yieldWeight: number };
+}
+
+const DEFAULT_WEIGHTS: AssetClassWeights = {
+  bond:       { rsiWeight: 0.3,  rangeWeight: 0.2,  yieldWeight: 0.5 },
+  gold:       { rsiWeight: 0.4,  rangeWeight: 0.4,  ytdWeight: 0.2 },
+  commodity:  { rsiWeight: 0.4,  rangeWeight: 0.4,  ytdWeight: 0.2 },
+  crypto:     { rsiWeight: 0.35, rangeWeight: 0.35, ytdWeight: 0.3 },
+  realestate: { rsiWeight: 0.3,  rangeWeight: 0.2,  yieldWeight: 0.5 },
+};
+
+const CLASS_LABELS: Record<keyof AssetClassWeights, string> = {
+  bond:       "Obligationen",
+  gold:       "Gold",
+  commodity:  "Rohstoffe",
+  crypto:     "Krypto",
+  realestate: "Immobilien",
+};
+
+function AssetClassWeightsSection() {
+  const { data, isLoading } = trpc.admin.getAssetClassWeights.useQuery();
+  const updateMutation = trpc.admin.updateAssetClassWeights.useMutation();
+  const [weights, setWeights] = useState<AssetClassWeights>(DEFAULT_WEIGHTS);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (data?.weights) {
+      setWeights(data.weights as AssetClassWeights);
+    }
+  }, [data]);
+
+  function setW<K extends keyof AssetClassWeights>(
+    cls: K,
+    field: keyof AssetClassWeights[K],
+    val: number
+  ) {
+    setWeights(prev => ({ ...prev, [cls]: { ...prev[cls], [field]: val } }));
+    setDirty(true);
+  }
+
+  async function handleSave() {
+    const res = await updateMutation.mutateAsync(weights);
+    if (res.success) {
+      toast.success("Gewichte gespeichert");
+      setDirty(false);
+    } else {
+      toast.error(res.message ?? "Fehler beim Speichern");
+    }
+  }
+
+  function renderSlider(
+    label: string,
+    value: number,
+    onChange: (v: number) => void
+  ) {
+    return (
+      <div className="space-y-1">
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>{label}</span>
+          <span className="font-mono">{(value * 100).toFixed(0)}%</span>
+        </div>
+        <Slider
+          min={0} max={1} step={0.05}
+          value={[value]}
+          onValueChange={([v]) => onChange(v)}
+          className="w-full"
+        />
+      </div>
+    );
+  }
+
+  if (isLoading) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">Assetklassen-Gewichte</CardTitle>
+          <Button size="sm" onClick={handleSave} disabled={!dirty || updateMutation.isPending}>
+            <Save className="h-4 w-4 mr-1" /> Speichern
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Gewichtung der Signal-Komponenten pro Assetklasse (RSI-Momentum · 52W-Range · Rendite/YTD). Summe sollte 1.0 ergeben.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {(Object.keys(weights) as (keyof AssetClassWeights)[]).map(cls => {
+            const w = weights[cls];
+            const thirdKey = "yieldWeight" in w ? "yieldWeight" : "ytdWeight";
+            const thirdLabel = "yieldWeight" in w ? "Rendite/Yield" : "YTD-Performance";
+            return (
+              <div key={cls} className="space-y-3 p-3 rounded-lg bg-muted/30">
+                <p className="text-sm font-medium">{CLASS_LABELS[cls]}</p>
+                {renderSlider("RSI-Momentum", w.rsiWeight, v => setW(cls, "rsiWeight" as any, v))}
+                {renderSlider("52W-Range", w.rangeWeight, v => setW(cls, "rangeWeight" as any, v))}
+                {renderSlider(thirdLabel, (w as any)[thirdKey], v => setW(cls, thirdKey as any, v))}
+                <p className="text-xs text-right text-muted-foreground">
+                  Σ = {(w.rsiWeight + w.rangeWeight + (w as any)[thirdKey]).toFixed(2)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -483,6 +601,7 @@ export default function AdminScoreConfig() {
           );
         })}
       </div>
+      <AssetClassWeightsSection />
     </DashboardLayout>
   );
 }
