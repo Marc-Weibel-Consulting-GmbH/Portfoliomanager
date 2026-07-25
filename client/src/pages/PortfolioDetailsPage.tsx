@@ -2154,6 +2154,27 @@ export default function PortfolioDetailsPage() {
                         const isBond = h.assetType === 'bond';
                         const isCommodity = h.assetType === 'commodity';
                         const isCrypto = h.assetType === 'crypto';
+                        // ACS-1: Detect asset class from category for display purposes
+                        const cat = (h.category || '').toLowerCase();
+                        const isGold = cat.includes('gold');
+                        const isRealEstate = cat.includes('immobilien') || cat.includes('reit');
+                        const isCommodityByCategory = cat.includes('rohstoff') || cat.includes('commodity');
+                        const isCryptoByCategory = cat.includes('krypto') || cat.includes('crypto');
+                        const isBondByCategory = cat.includes('obligation') || cat.includes('bond') || isBond;
+                        const isNonEquity = isGold || isRealEstate || isCommodityByCategory || isCryptoByCategory || isBondByCategory;
+                        // Score/signal description labels per asset class
+                        const scoreDesc = isBondByCategory ? 'Yield · RSI · 52W-Range · Volatilität'
+                          : isGold ? 'Momentum · RSI · 52W-Range · Volatilität'
+                          : isCommodityByCategory ? 'Momentum · RSI · 52W-Range · Volatilität'
+                          : isCryptoByCategory ? 'Momentum · RSI · 52W-Range'
+                          : isRealEstate ? 'Yield · RSI · 52W-Range · Volatilität'
+                          : 'P/E · PEG · Beta · Volatilität · Sharpe';
+                        const signalDesc = isBondByCategory ? 'Yield-Trend + Momentum'
+                          : isGold ? 'Momentum + Trend'
+                          : isCommodityByCategory ? 'Momentum + Trend'
+                          : isCryptoByCategory ? 'Momentum + Trend'
+                          : isRealEstate ? 'Yield + Momentum'
+                          : 'Momentum + Qualität + LPPL-Risiko';
                         const ytd = parseFloat(h.ytdPerformance || '0');
                         const today = parseFloat(h.dailyChangePercent || h.changePercent || '0');
                         const weight = parseFloat(h.weight || '0');
@@ -2348,7 +2369,7 @@ export default function PortfolioDetailsPage() {
                                       <div className="bg-[#0a0f1a] rounded-md p-2.5">
                                         <div className="flex items-center gap-1.5 mb-1">
                                           <ShieldCheck className="h-3.5 w-3.5 text-[#00CFC1]" />
-                                          <p className="text-xs text-gray-400">Bewertungs-Score</p>
+                                          <p className="text-xs text-gray-400">{isNonEquity ? 'Technischer Score' : 'Bewertungs-Score'}</p>
                                           <UiTooltip>
                                             <TooltipTrigger asChild>
                                               <button type="button" aria-label="Was ist der Bewertungs-Score?" className="text-gray-600 hover:text-gray-300">
@@ -2356,13 +2377,11 @@ export default function PortfolioDetailsPage() {
                                               </button>
                                             </TooltipTrigger>
                                             <TooltipContent side="top" className="bg-[#1a1f2e] border-white/20 text-white max-w-[260px] p-3">
-                                              <p className="text-xs font-semibold mb-1">Bewertungs-Score (0–100)</p>
+                                              <p className="text-xs font-semibold mb-1">{isNonEquity ? 'Technischer Score (0–100)' : 'Bewertungs-Score (0–100)'}</p>
                                               <p className="text-xs text-gray-300">
-                                                Wie attraktiv ist die Aktie preislich/risikoseitig bewertet — aus
-                                                P/E, PEG, Beta, Volatilität und Sharpe. Höher = günstiger/robuster.
-                                                <br /><br />
-                                                Nicht verwechseln mit der «Qualität (Fund.)» im Signal-Score: die misst
-                                                die <em>fundamentale</em> Unternehmensqualität (ROE, Verschuldung, FCF, Marge).
+                                                {isNonEquity
+                                                  ? `Technische Attraktivität basierend auf ${scoreDesc}. Höher = bessere Einstiegssituation.`
+                                                  : 'Wie attraktiv ist die Aktie preislich/risikoseitig bewertet — aus P/E, PEG, Beta, Volatilität und Sharpe. Höher = günstiger/robuster.'}
                                               </p>
                                             </TooltipContent>
                                           </UiTooltip>
@@ -2370,7 +2389,7 @@ export default function PortfolioDetailsPage() {
                                         <p className={`text-xl font-bold font-mono ${qualColor}`}>
                                           {qualScore !== null ? qualScore : '—'}<span className="text-xs text-gray-500">/100</span>
                                         </p>
-                                        <p className="text-[10px] text-gray-500 mt-0.5">P/E · PEG · Beta · Volatilität · Sharpe</p>
+                                        <p className="text-[10px] text-gray-500 mt-0.5">{scoreDesc}</p>
                                       </div>
                                       <div className="bg-[#0a0f1a] rounded-md p-2.5">
                                         <div className="flex items-center gap-1.5 mb-1">
@@ -2385,9 +2404,9 @@ export default function PortfolioDetailsPage() {
                                             <TooltipContent side="top" className="bg-[#1a1f2e] border-white/20 text-white max-w-[260px] p-3">
                                               <p className="text-xs font-semibold mb-1">Signal-Score (0–100)</p>
                                               <p className="text-xs text-gray-300">
-                                                Kauf-/Verkaufssignal aus Momentum, fundamentaler Qualität und
-                                                LPPL-Bubble-Risiko. Höher = stärkeres Kaufsignal. Die Einzelteile
-                                                sehen Sie unter «Score-Komponenten».
+                                                {isNonEquity
+                                                  ? `Signal basierend auf ${signalDesc}. Höher = stärkeres Kaufsignal.`
+                                                  : 'Kauf-/Verkaufssignal aus Momentum, fundamentaler Qualität und LPPL-Bubble-Risiko. Höher = stärkeres Kaufsignal. Die Einzelteile sehen Sie unter «Score-Komponenten».'}
                                               </p>
                                             </TooltipContent>
                                           </UiTooltip>
@@ -2395,7 +2414,7 @@ export default function PortfolioDetailsPage() {
                                         <p className={`text-xl font-bold font-mono ${sigColor}`}>
                                           {signalScore !== null ? Math.round(signalScore) : '—'}<span className="text-xs text-gray-500">/100</span>
                                         </p>
-                                        <p className="text-[10px] text-gray-500 mt-0.5">Momentum + Qualität + LPPL-Risiko</p>
+                                        <p className="text-[10px] text-gray-500 mt-0.5">{signalDesc}</p>
                                       </div>
                                     </div>
 
@@ -2490,48 +2509,87 @@ export default function PortfolioDetailsPage() {
                                       </div>
                                     )}
                                   </div>
-                                  {/* Fundamentals Panel */}
+                                  {/* Fundamentals Panel — ACS-1: asset-class-aware metrics */}
                                   <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
-                                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Fundamentaldaten</h4>
+                                    <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                                      {isBondByCategory ? 'Obligationen-Kennzahlen'
+                                        : isGold ? 'Gold-Kennzahlen'
+                                        : isCommodityByCategory ? 'Rohstoff-Kennzahlen'
+                                        : isCryptoByCategory ? 'Krypto-Kennzahlen'
+                                        : isRealEstate ? 'Immobilien-Kennzahlen'
+                                        : 'Fundamentaldaten'}
+                                    </h4>
                                     <div className="grid grid-cols-3 gap-x-4 gap-y-2">
-                                      <div>
-                                        <p className="text-xs text-gray-400">P/E Ratio</p>
-                                        <p className="text-sm font-semibold text-white">{sig?.peRatio?.toFixed(1) ?? (h.peRatio ? parseFloat(h.peRatio).toFixed(1) : '—')}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-gray-400">PEG Ratio</p>
-                                        <p className="text-sm font-semibold text-white">{sig?.pegRatio?.toFixed(2) ?? (h.pegRatio ? parseFloat(h.pegRatio).toFixed(2) : '—')}</p>
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-gray-400">Div. Rendite</p>
-                                         <p className="text-sm font-semibold text-white">{sig?.dividendYield?.toFixed(1) ?? (h.dividendYield ? parseFloat(h.dividendYield).toFixed(1) : '—')}%</p>
-                                      </div>
+                                      {/* Equity-only: P/E and PEG */}
+                                      {!isNonEquity && (
+                                        <>
+                                          <div>
+                                            <p className="text-xs text-gray-400">P/E Ratio</p>
+                                            <p className="text-sm font-semibold text-white">{sig?.peRatio?.toFixed(1) ?? (h.peRatio ? parseFloat(h.peRatio).toFixed(1) : '—')}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-xs text-gray-400">PEG Ratio</p>
+                                            <p className="text-sm font-semibold text-white">{sig?.pegRatio?.toFixed(2) ?? (h.pegRatio ? parseFloat(h.pegRatio).toFixed(2) : '—')}</p>
+                                          </div>
+                                        </>
+                                      )}
+                                      {/* Bonds & REITs: Yield/Coupon */}
+                                      {(isBondByCategory || isRealEstate) && (
+                                        <div>
+                                          <p className="text-xs text-gray-400">{isBondByCategory ? 'Rendite (Coupon)' : 'Ausschüttungsrendite'}</p>
+                                          <p className="text-sm font-semibold text-emerald-400">{sig?.dividendYield?.toFixed(2) ?? (h.dividendYield ? parseFloat(h.dividendYield).toFixed(2) : '—')}%</p>
+                                        </div>
+                                      )}
+                                      {/* Equity: Div. Rendite */}
+                                      {!isNonEquity && (
+                                        <div>
+                                          <p className="text-xs text-gray-400">Div. Rendite</p>
+                                          <p className="text-sm font-semibold text-white">{sig?.dividendYield?.toFixed(1) ?? (h.dividendYield ? parseFloat(h.dividendYield).toFixed(1) : '—')}%</p>
+                                        </div>
+                                      )}
+                                      {/* RSI — universal */}
                                       <div>
                                         <p className="text-xs text-gray-400">RSI (14)</p>
                                         <p className={`text-sm font-semibold ${
                                           sig?.rsi14 ? (sig.rsi14 < 30 ? 'text-emerald-400' : sig.rsi14 > 70 ? 'text-red-400' : 'text-white') : 'text-white'
                                         }`}>{sig?.rsi14?.toFixed(0) ?? '—'}</p>
                                       </div>
+                                      {/* Zielkurs — universal */}
                                       <div>
                                         <p className="text-xs text-gray-400">Zielkurs</p>
                                         <p className="text-sm font-semibold text-white">{sig?.targetPrice?.toFixed(2) ?? '—'}</p>
                                       </div>
+                                      {/* 52W Hoch — universal */}
                                       <div>
                                         <p className="text-xs text-gray-400">52W Hoch</p>
                                         <p className="text-sm font-semibold text-white">{sig?.fiftyTwoWeekHigh?.toFixed(2) ?? '—'}</p>
                                       </div>
+                                      {/* 52W Tief — universal */}
                                       <div>
                                         <p className="text-xs text-gray-400">52W Tief</p>
                                         <p className="text-sm font-semibold text-white">{sig?.fiftyTwoWeekLow?.toFixed(2) ?? '—'}</p>
                                       </div>
-                                      <div>
-                                        <p className="text-xs text-gray-400">Beta</p>
-                                        <p className="text-sm font-semibold text-white">{h.beta ? parseFloat(h.beta).toFixed(2) : '—'}</p>
-                                      </div>
+                                      {/* Beta — equity only (non-equity: not meaningful) */}
+                                      {!isNonEquity && (
+                                        <div>
+                                          <p className="text-xs text-gray-400">Beta</p>
+                                          <p className="text-sm font-semibold text-white">{h.beta ? parseFloat(h.beta).toFixed(2) : '—'}</p>
+                                        </div>
+                                      )}
+                                      {/* Volatilität — universal */}
                                       <div>
                                         <p className="text-xs text-gray-400">Volatilität</p>
                                         <p className="text-sm font-semibold text-white">{h.volatility ? parseFloat(h.volatility).toFixed(1) + '%' : '—'}</p>
                                       </div>
+                                      {/* YTD Performance — non-equity highlight */}
+                                      {isNonEquity && (
+                                        <div>
+                                          <p className="text-xs text-gray-400">YTD</p>
+                                          <p className={`text-sm font-semibold ${
+                                            parseFloat(h.ytdPerformance || '0') >= 0 ? 'text-emerald-400' : 'text-red-400'
+                                          }`}>{parseFloat(h.ytdPerformance || '0') >= 0 ? '+' : ''}{parseFloat(h.ytdPerformance || '0').toFixed(1)}%</p>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 </div>

@@ -12,6 +12,7 @@ import { eq, inArray } from "drizzle-orm";
 import { getDb } from "../db";
 import { stockSignalCache, stocks } from "../../drizzle/schema";
 import { activeCurated } from "../lib/stockUniverse";
+import { detectAssetClass, generateAssetClassSignal } from "../lib/assetClassSignal";
 
 let isRunning = false;
 
@@ -131,6 +132,10 @@ export async function refreshSignalCache(): Promise<void> {
             // 1. Get fundamental data from stocks table (fast, no external API)
             const { stocks: stocksTable } = await import("../../drizzle/schema");
             const [stockRow] = await db.select().from(stocksTable).where(eq(stocksTable.ticker, ticker)).limit(1);
+            // ACS-1: Detect asset class from category/assetType
+            const stockCategory = stockRow?.category ?? null;
+            const stockAssetType = (stockRow as any)?.assetType ?? null;
+            const assetClass = detectAssetClass(stockCategory, stockAssetType);
 
             const num = (v: string | null | undefined): number | null => {
               if (v == null) return null;
@@ -179,22 +184,37 @@ export async function refreshSignalCache(): Promise<void> {
               if (prices.length >= 15) rsi14 = calcRSI(prices, 14);
             }
 
-            // 3. Generate base signal — SIG-4 (Audit 2026-07): dieselbe GEWICHTETE
-            // Basis-Scoring-Funktion wie der Live-Pfad (generateSignal mit den
-            // optimierten Gewichten). Vorher wurden die Gewichte zwar geladen
-            // (getActiveWeights), aber eine ungewichtete Inline-Kopie gerechnet.
-            const base = generateSignal({
-              ticker,
-              companyName,
-              peRatio,
-              pegRatio,
-              dividendYield,
-              currentPrice,
-              fiftyTwoWeekHigh,
-              fiftyTwoWeekLow,
-              ytdPerformance,
-              rsi14,
-            }, optimizedWeights);
+            // 3. Generate base signal
+            // ACS-1: Non-equity assets use asset-class-aware signal instead of P/E-based equity signal
+            let base;
+            if (assetClass !== 'equity') {
+              base = generateAssetClassSignal({
+                ticker,
+                companyName,
+                assetClass,
+                dividendYield,
+                currentPrice,
+                fiftyTwoWeekHigh,
+                fiftyTwoWeekLow,
+                ytdPerformance,
+                rsi14,
+                volatility: null,
+              });
+            } else {
+              // SIG-4 (Audit 2026-07): dieselbe GEWICHTETE Basis-Scoring-Funktion
+              base = generateSignal({
+                ticker,
+                companyName,
+                peRatio,
+                pegRatio,
+                dividendYield,
+                currentPrice,
+                fiftyTwoWeekHigh,
+                fiftyTwoWeekLow,
+                ytdPerformance,
+                rsi14,
+              }, optimizedWeights);
+            }
             let signalType: "buy" | "sell" | "hold" = base.type;
             let signalStrength: "strong" | "moderate" | "weak" = base.strength;
             let reason = base.reason;
