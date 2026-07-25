@@ -65,7 +65,7 @@ function ReviewStatusBadge({ status, reviewedAt }: { status: string | null; revi
 function actionMeta(action: string) {
   switch (action) {
     case "reduce":   return { icon: <ArrowDown className="w-3.5 h-3.5" />, label: "Reduzieren",  cls: "bg-amber-500/15 text-amber-400 border-amber-500/30" };
-    case "increase": return { icon: <ArrowUp className="w-3.5 h-3.5" />,   label: "Aufstocken", cls: "bg-emerald-500/15 text-emerald-500/30" };
+    case "increase": return { icon: <ArrowUp className="w-3.5 h-3.5" />,   label: "Aufstocken", cls: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" };
     case "replace":  return { icon: <ArrowLeftRight className="w-3.5 h-3.5" />, label: "Austauschen", cls: "bg-violet-500/15 text-violet-400 border-violet-500/30" };
     default:         return { icon: <Check className="w-3.5 h-3.5" />,     label: "Behalten",   cls: "bg-slate-500/15 text-slate-400 border-slate-500/30" };
   }
@@ -851,7 +851,7 @@ export default function AdminProposalAnalysis() {
         <div className="flex gap-3 flex-wrap">
           <Select value={confidence} onValueChange={(v) => { setConfidence(v); setOffset(0); }}>
             <SelectTrigger className="w-44 bg-slate-800 border-slate-700 text-white">
-              <SelectTrigger placeholder="Vertrauen" />
+              <SelectValue placeholder="Vertrauen" />
             </SelectTrigger>
             <SelectContent className="bg-slate-800 border-slate-700">
               <SelectItem value="all">Alle Vertrauensstufen</SelectItem>
