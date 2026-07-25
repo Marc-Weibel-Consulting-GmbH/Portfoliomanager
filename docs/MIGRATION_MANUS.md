@@ -57,3 +57,82 @@ Repo liegt auf GitHub, Deploy läuft über Railway. Nötige Bausteine:
 
 > Hinweis: „Done" heisst weiterhin verifiziert live — nach jeder Änderung die
 > betroffenen Seiten auf der Live-URL ohne Konsolenfehler gegenprüfen.
+
+## 3. Secrets-Vollliste zum Abhaken (Railway)
+
+Alle Werte werden am einfachsten als **Railway-Umgebungsvariablen** gesetzt
+(gleiche Namen). Grund: `getSecret()` liest zuerst `process.env`, dann erst die
+DB — Env deckt damit auch die im Code über `getSecret` gelesenen Keys ab.
+
+### A. Kritisch — App läuft ohne diese nicht
+
+| ✔ | Variable | Zweck | Achtung |
+|---|---|---|---|
+| ☐ | `DATABASE_URL` | MySQL-Verbindung | **Railway-eigene** URL, nicht Manus' |
+| ☐ | `JWT_SECRET` | Login/Sessions | muss gesetzt sein |
+| ☐ | `SECRETS_ENCRYPTION_KEY` | Entschlüsselt DB-Secrets | bei DB-Übernahme **identisch** zu Manus, sonst egal |
+| ☐ | `EODHD_API_KEY` | Kurse/Fundamentaldaten | Kernquelle |
+
+### B. LLM — Manus ersetzen (sonst bleibt die Abhängigkeit)
+
+| ✔ | Variable | Zweck | Wert |
+|---|---|---|---|
+| ☐ | `BUILT_IN_FORGE_API_URL` | Basis-LLM Endpoint | **nicht** forge.manus.im → Groq/OmniRoute/OpenAI |
+| ☐ | `BUILT_IN_FORGE_API_KEY` | Basis-LLM Key | Key des gewählten Anbieters |
+| ☐ | `BUILT_IN_FORGE_MODEL` | Basis-LLM Modell | z.B. `llama-3.3-70b-versatile` |
+| ☐ | `BUILT_IN_FORGE_MAX_TOKENS` | (optional) Ausgabe-Limit | z.B. `8192` |
+| ☐ | `KIMI_API_KEY` | Kimi (Moonshot) | Rollen-Modell/Fallback |
+| ☐ | `ANTHROPIC_API_KEY` | Claude | via getSecret/Env |
+| ☐ | `GROQ_API_KEY` | Groq (gratis) | Fallback-Kaskade |
+| ☐ | `PERPLEXITY_API_KEY` | Perplexity | optionales Rollen-Modell |
+| ☐ | `OMNIROUTE_URL` / `OMNIROUTE_API_KEY` / `OMNIROUTE_MODEL` | OmniRoute-Gateway | falls genutzt |
+| ☐ | `ANTHROPIC_MODEL` | (optional) Claude-Modell | überschreibt Default |
+| ☐ | `VITE_FRONTEND_FORGE_API_URL` | Frontend-LLM-URL (Build-Zeit) | **nicht** Manus |
+
+### C. Infrastruktur — Railway/Upstash stellen eigene Werte
+
+| ✔ | Variable | Zweck | Achtung |
+|---|---|---|---|
+| ☐ | `REDIS_URL` | Cache/Queue | Railway-Redis oder Upstash |
+| ☐ | `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Upstash REST | falls Upstash genutzt |
+
+### D. Frontend (VITE_*) — müssen zur BUILD-Zeit gesetzt sein
+
+| ✔ | Variable |
+|---|---|
+| ☐ | `VITE_APP_URL` |
+| ☐ | `VITE_APP_TITLE` / `VITE_APP_ID` |
+| ☐ | `VITE_STRIPE_PUBLISHABLE_KEY` |
+| ☐ | `VITE_WHATSAPP_NUMBER` |
+
+### E. Bezahlung / E-Mail — nötig, wenn Feature aktiv
+
+| ✔ | Variable | Zweck |
+|---|---|---|
+| ☐ | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Abo/Bezahlung |
+| ☐ | `RESEND_API_KEY` / `EMAIL_FROM` | E-Mail-Versand (Resend) |
+| ☐ | `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASS`/`SMTP_SECURE`/`SMTP_FROM` | E-Mail (SMTP-Alternative) |
+| ☐ | `OWNER_OPEN_ID` / `OWNER_NAME` | Admin-/Owner-Zuordnung |
+
+### F. Optional — nur für einzelne Features
+
+| ✔ | Variable | Feature |
+|---|---|---|
+| ☐ | `FINNHUB_API_KEY` | Finnhub-Datenquelle |
+| ☐ | `FISCAL_API_KEY` | Fiscal.ai (P/E-Historie) |
+| ☐ | `FINANCIAL_DATASETS_MCP_URL` | US-Fundamentaldaten im Vorschlag |
+| ☐ | `MARKET_REPORT_API_KEY` | Markt-Report-Quelle |
+| ☐ | `TRADINGVIEW_MCP_URL` | TradingView-Screener |
+| ☐ | `ANALYTICS_SERVICE_URL` | Analytics-Service |
+| ☐ | `SORNETTE_USERNAME` / `SORNETTE_PASSWORD` | Blasen-/Sornette-Signal |
+| ☐ | `WIKIFOLIO_EMAIL` / `WIKIFOLIO_PASSWORD` | Wikifolio-Import |
+| ☐ | `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WHATSAPP_NUMBER` | WhatsApp-Alerts |
+| ☐ | `NEWSAPI_KEY` | Newsroom |
+| ☐ | `ENFORCE_PAYWALL` / `ML_TRAIN_YEARS` / `RUN_NETWORK_TESTS` | Verhaltens-Flags |
+
+> Nicht mehr nötig (Manus-spezifisch): den ursprünglichen `forge.manus.im`-Wert
+> **nicht** übernehmen. `FINNHUB_WEBHOOK_SECRET` wird vom aktuellen Code nicht
+> gelesen — nur setzen, falls ein Webhook aktiv genutzt wird.
+>
+> Nach dem Setzen: Railway neu deployen, dann `pnpm db:push` (falls frische DB)
+> und die Live-URL gegenprüfen (Login, ein KI-Vorschlag, eine Kursseite).
