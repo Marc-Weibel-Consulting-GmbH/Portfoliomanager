@@ -199,13 +199,13 @@ describe('Realized Gains and Cost Tracking Features', () => {
       const currency = 'USD';
       
       // Simulate FX conversion failure - should fallback to 1:1
-      let priceCHF = currentPrice;
+      const priceCHF = currentPrice;
       try {
         // Simulated conversion that fails
         throw new Error('FX service unavailable');
       } catch (error) {
         console.log('FX conversion failed, using 1:1 rate');
-        priceCHF = currentPrice; // Fallback
+        // Fallback: priceCHF already initialized to the 1:1 value above
       }
 
       expect(priceCHF).toBe(currentPrice);

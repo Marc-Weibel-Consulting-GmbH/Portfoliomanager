@@ -189,8 +189,8 @@ function MarketReportSection() {
 
   // Strip any embedded dates from the title (LLM sometimes hallucinates wrong dates)
   const cleanTitle = (displayReport?.title ?? "")
-    .replace(/[\u2013\-]?\s*\d{1,2}\.\s*(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}/gi, "")
-    .replace(/[\u2013\-]?\s*\d{1,2}\.\d{2}\.\d{4}/g, "")
+    .replace(/[\u2013-]?\s*\d{1,2}\.\s*(?:Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\s+\d{4}/gi, "")
+    .replace(/[\u2013-]?\s*\d{1,2}\.\d{2}\.\d{4}/g, "")
     .replace(/\s{2,}/g, " ")
     .trim();
 

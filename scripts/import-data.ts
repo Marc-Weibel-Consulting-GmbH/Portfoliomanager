@@ -2,6 +2,7 @@ import { getDb } from '../server/db';
 import { stocks, research, transactions } from '../drizzle/schema';
 import * as fs from 'fs';
 import * as path from 'path';
+import { createInterface } from 'readline';
 
 async function importData() {
   console.log('🔄 Starting data import...\n');
@@ -43,7 +44,7 @@ async function importData() {
     console.log(`   - Transactions: ${transactionsData.length}\n`);
     
     // Ask for confirmation
-    const readline = require('readline').createInterface({
+    const readline = createInterface({
       input: process.stdin,
       output: process.stdout,
     });

@@ -1337,7 +1337,7 @@ function MultiAgentTab() {
                   <h4 className="font-medium text-sm text-muted-foreground">Einzelantworten der Modelle</h4>
                   {(viewSession.responses as any[]).map((r: any, i: number) => {
                     const isExpanded = expandedResponse === i;
-                    const preview = r.response.replace(/[\*#]/g, "").substring(0, 280);
+                    const preview = r.response.replace(/[*#]/g, "").substring(0, 280);
                     return (
                       <div key={i} className="border border-zinc-800 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-1">

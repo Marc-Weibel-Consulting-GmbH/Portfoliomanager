@@ -329,27 +329,21 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
 
   // ── Quality Score (0–100) ─────────────────────────────────────────────────
   let qualityScore = 50;
-  let qualityFactors = 0;
 
   if (roic !== null) {
     qualityScore += roic > 20 ? 15 : roic > 12 ? 8 : roic > 6 ? 2 : -8;
-    qualityFactors++;
   }
   if (returnOnEquity !== null) {
     qualityScore += returnOnEquity > 25 ? 12 : returnOnEquity > 15 ? 6 : returnOnEquity > 8 ? 2 : -5;
-    qualityFactors++;
   }
   if (grossMargin !== null) {
     qualityScore += grossMargin > 60 ? 10 : grossMargin > 40 ? 5 : grossMargin > 20 ? 1 : -3;
-    qualityFactors++;
   }
   if (operatingMargin !== null) {
     qualityScore += operatingMargin > 25 ? 8 : operatingMargin > 15 ? 4 : operatingMargin > 5 ? 1 : -5;
-    qualityFactors++;
   }
   if (surpriseRate !== null) {
     qualityScore += surpriseRate > 80 ? 5 : surpriseRate > 60 ? 2 : surpriseRate < 40 ? -3 : 0;
-    qualityFactors++;
   }
   qualityScore = Math.max(0, Math.min(100, qualityScore));
 

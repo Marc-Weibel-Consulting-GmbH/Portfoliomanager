@@ -211,7 +211,7 @@ export const portfolioPerformanceRouter = router({
           };
         } catch (error: any) {
           console.error('[portfolioPerformance] Error:', error);
-          throw new Error(error.message || "Failed to fetch historical data");
+          throw new Error(error.message || "Failed to fetch historical data", { cause: error });
         }
       }),
 

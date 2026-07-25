@@ -113,13 +113,14 @@ function evaluateRule(rule: any, change: MetricChange): boolean {
     case 'below':
       return newVal < threshold;
     
-    case 'change':
+    case 'change': {
       if (!change.oldValue) return false;
       const oldVal = parseFloat(change.oldValue);
       if (isNaN(oldVal)) return false;
       const changePercent = Math.abs(((newVal - oldVal) / oldVal) * 100);
       return changePercent >= threshold;
-    
+    }
+
     default:
       return false;
   }
@@ -147,11 +148,12 @@ function generateAlertMessage(rule: any, change: MetricChange): string {
     case 'below':
       return `${change.ticker}: ${metricLabel} ist unter ${rule.threshold} gefallen (aktuell: ${newVal.toFixed(2)})`;
     
-    case 'change':
+    case 'change': {
       const oldVal = change.oldValue ? parseFloat(change.oldValue) : 0;
       const changePercent = oldVal !== 0 ? ((newVal - oldVal) / oldVal) * 100 : 0;
       return `${change.ticker}: ${metricLabel} hat sich um ${changePercent.toFixed(1)}% geändert (${oldVal.toFixed(2)} → ${newVal.toFixed(2)})`;
-    
+    }
+
     default:
       return `${change.ticker}: ${metricLabel} Alert ausgelöst`;
   }

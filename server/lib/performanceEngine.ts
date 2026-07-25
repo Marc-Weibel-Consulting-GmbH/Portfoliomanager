@@ -393,7 +393,6 @@ function bisectionIRR(
 
     if (fMid * fLo < 0) {
       hi = mid;
-      fHi = fMid;
     } else {
       lo = mid;
       fLo = fMid;

@@ -172,7 +172,7 @@ Wenn eine Aktie KEINE wichtigen Ereignisse hatte, lasse sie weg.`;
         return { overview: result.stocks };
       } catch (error: any) {
         console.error("[WeeklyOverview] LLM error:", error);
-        throw new Error(`Failed to generate overview: ${error.message}`);
+        throw new Error(`Failed to generate overview: ${error.message}`, { cause: error });
       }
     }),
 });

@@ -225,7 +225,7 @@ export const copilotRouter = router({
       }
 
       // Parse portfolioData from JSON string
-      let stocks: any[] = [];
+      let stocks: any[];
       try {
         const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
         stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
@@ -325,7 +325,7 @@ export const copilotRouter = router({
       }).filter(s => s.action !== 'hold'); // hold-Einträge aus Liste entfernen
 
       // Generate LLM explanation
-      let explanation: string | null = null;
+      let explanation: string | null;
       try {
         explanation = await generateCopilotExplanation(analysis, (portfolio as any).name || 'Portfolio');
       } catch (err) {
@@ -370,7 +370,7 @@ export const copilotRouter = router({
       }
 
       // Parse portfolioData from JSON string
-      let stocks: any[] = [];
+      let stocks: any[];
       try {
         const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
         stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
@@ -406,7 +406,7 @@ export const copilotRouter = router({
       }
 
       // Parse portfolio stocks
-      let stocks: any[] = [];
+      let stocks: any[];
       try {
         const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
         stocks = Array.isArray(portfolioData) ? portfolioData : (portfolioData.stocks || []);
@@ -956,7 +956,7 @@ export const copilotRouter = router({
 
       // Use the same enriched stocks as the Positionen tab (portfolios.getWithCurrency)
       // This ensures weights, deduplication, and positions are always consistent.
-      let liveStocks: any[] = [];
+      let liveStocks: any[];
       try {
         const { getEnrichedPortfolioStocks } = await import('../helpers/portfolioEnrichment');
         liveStocks = await getEnrichedPortfolioStocks(input.portfolioId, ctx.user.id);

@@ -273,7 +273,7 @@ export async function setRegimeBlend(regime: string, quality: number, trading: n
     }
   } catch (e) {
     console.error("[regimeSignalMemory] setRegimeBlend failed:", (e as Error).message);
-    throw new Error("Konfiguration konnte nicht gespeichert werden — Tabelle regime_signal_config fehlt/veraltet (Migration nötig: pnpm db:push).");
+    throw new Error("Konfiguration konnte nicht gespeichert werden — Tabelle regime_signal_config fehlt/veraltet (Migration nötig: pnpm db:push).", { cause: e });
   }
   invalidateBlendConfigCache();
 }

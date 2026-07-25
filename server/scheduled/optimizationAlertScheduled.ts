@@ -51,7 +51,9 @@ export async function handleOptimizationAlert(req: Request, res: Response) {
     let portfolioData: { stocks?: any[] } = {};
     try {
       portfolioData = JSON.parse(portfolio.portfolioData || "{}");
-    } catch {}
+    } catch {
+      // Malformed JSON — keep default empty portfolioData
+    }
 
     const stocks = (portfolioData.stocks || []).filter((s: any) => s.ticker && s.ticker !== "CASH");
     if (stocks.length === 0) {

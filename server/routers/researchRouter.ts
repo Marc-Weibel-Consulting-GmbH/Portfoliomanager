@@ -636,8 +636,8 @@ Gib NUR valides JSON zurück (kein Markdown, keine Erklärungen):
           recommendation: lines.slice(0, 3).join(" "),
           verdict: "NEUTRAL",
           verdictColor: "#8b949e",
-          insights: lines.slice(3, 7).map(l => l.replace(/^[\*\-•]\s*/, "").substring(0, 120)),
-          risks: lines.slice(7, 10).map(l => l.replace(/^[\*\-•]\s*/, "").substring(0, 100)),
+          insights: lines.slice(3, 7).map(l => l.replace(/^[*\-•]\s*/, "").substring(0, 120)),
+          risks: lines.slice(7, 10).map(l => l.replace(/^[*\-•]\s*/, "").substring(0, 100)),
           conclusion: lines.slice(-2).join(" "),
           tags: ["Multi-Agent", "KI-Analyse", "Best Practice"]
         };
@@ -758,7 +758,7 @@ Gib NUR valides JSON zurück (kein Markdown, keine Erklärungen):
           <div style="color: ${col}; font-weight: 700; font-size: 15px; margin-bottom: 6px">${r.provider}</div>
           <div style="color: #666; font-size: 11px; margin-bottom: 12px">${r.model}</div>
           <div style="color: #8b949e; font-size: 12px; margin-bottom: 10px">${r.tokens.toLocaleString()} Tokens • ${(r.durationMs / 1000).toFixed(1)}s</div>
-          <p style="font-size: 12px; color: #8b949e; line-height: 1.5">${r.response.replace(/[\*#]/g, "").substring(0, 200)}...</p>
+          <p style="font-size: 12px; color: #8b949e; line-height: 1.5">${r.response.replace(/[*#]/g, "").substring(0, 200)}...</p>
         </div>`;
       }).join("")}
     </div>
@@ -830,10 +830,10 @@ Gib NUR valides JSON zurück (kein Markdown, keine Erklärungen):
       const risikoLines: string[] = [];
       let section = "";
       for (const line of lines) {
-        if (line.includes("Kernempfehlung") || line.match(/^1[.\)]/)) { section = "kern"; continue; }
-        if (line.includes("Erkenntnisse") || line.match(/^2[.\)]/)) { section = "erkenntnis"; continue; }
-        if (line.includes("Risiken") || line.includes("Vorbehalt") || line.match(/^3[.\)]/)) { section = "risiko"; continue; }
-        const clean = line.replace(/^[\*\-•]\s*/, "").trim();
+        if (line.includes("Kernempfehlung") || line.match(/^1[.)]/)) { section = "kern"; continue; }
+        if (line.includes("Erkenntnisse") || line.match(/^2[.)]/)) { section = "erkenntnis"; continue; }
+        if (line.includes("Risiken") || line.includes("Vorbehalt") || line.match(/^3[.)]/)) { section = "risiko"; continue; }
+        const clean = line.replace(/^[*\-•]\s*/, "").trim();
         if (!clean) continue;
         if (section === "kern") kernLines.push(clean);
         else if (section === "erkenntnis") erkenntnisLines.push(clean);
@@ -842,9 +842,9 @@ Gib NUR valides JSON zurück (kein Markdown, keine Erklärungen):
       }
       // Fallback: if no sections detected, split evenly
       if (kernLines.length === 0 && erkenntnisLines.length === 0) {
-        kernLines.push(...lines.slice(0, 3).map(l => l.replace(/^[\*\-•]\s*/, "").trim()));
-        erkenntnisLines.push(...lines.slice(3, 7).map(l => l.replace(/^[\*\-•]\s*/, "").trim()));
-        risikoLines.push(...lines.slice(7, 9).map(l => l.replace(/^[\*\-•]\s*/, "").trim()));
+        kernLines.push(...lines.slice(0, 3).map(l => l.replace(/^[*\-•]\s*/, "").trim()));
+        erkenntnisLines.push(...lines.slice(3, 7).map(l => l.replace(/^[*\-•]\s*/, "").trim()));
+        risikoLines.push(...lines.slice(7, 9).map(l => l.replace(/^[*\-•]\s*/, "").trim()));
       }
 
       // Build PPTX
@@ -921,7 +921,7 @@ Gib NUR valides JSON zurück (kein Markdown, keine Erklärungen):
         s5.addText(`${r.tokens.toLocaleString()} Tokens • ${(r.durationMs / 1000).toFixed(1)}s`, {
           x: x + 0.1, y: 2.5, w: 3.8, h: 0.35, fontSize: 10, color: GRAY, fontFace: "Calibri"
         });
-        const preview = r.response.substring(0, 150).replace(/[\*#]/g, "");
+        const preview = r.response.substring(0, 150).replace(/[*#]/g, "");
         s5.addText(preview + (r.response.length > 150 ? "..." : ""), {
           x: x + 0.1, y: 2.9, w: 3.8, h: 1.6, fontSize: 9, color: WHITE, fontFace: "Calibri", wrap: true
         });

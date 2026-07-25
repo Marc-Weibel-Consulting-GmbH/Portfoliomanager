@@ -160,9 +160,11 @@ export const portfoliosRouter = router({
           const pd = JSON.parse(portfolio.portfolioData || '{}');
           const stocks = pd.stocks || pd.positions || [];
           stocks.forEach((s: any) => { if (s.ticker) allTickers.add(s.ticker); });
-        } catch {}
+        } catch {
+          // Ignore unparseable demo portfolio data; skip its tickers.
+        }
       }
-      
+
       if (allTickers.size === 0) {
         return portfolios;
       }
@@ -1275,7 +1277,7 @@ export const portfoliosRouter = router({
           } catch (error) {
             console.error('[toggleLive] Error creating initial transactions:', error);
             const errorMessage = error instanceof Error ? error.message : 'Failed to create initial transactions for live tracking';
-            throw new Error(errorMessage);
+            throw new Error(errorMessage, { cause: error });
           }
         }
         
@@ -1294,7 +1296,7 @@ export const portfoliosRouter = router({
             const holdings = aggregateHoldingsFromTransactions(transactions);
 
             // Snapshot der Stückzahlen in portfolioData (Format {stocks:[]} bzw. Array beibehalten)
-            let raw: any = {};
+            let raw: any;
             try {
               raw = JSON.parse(portfolio.portfolioData || "{}");
             } catch {
@@ -1684,7 +1686,7 @@ export const portfoliosRouter = router({
         // weight-based 25%). Until the TWR engine is reliable, ALL portfolios use
         // the weight-based historical series so the chart matches the YTD number
         // (getMultiPeriodPerformanceV2). See chart==Zahl consistency work.
-        const useLiveRealPerformance = false && isLivePortfolio && transactions.length > 0;
+        const useLiveRealPerformance = false;
         
         // For live portfolios, start from creation date (not before)
         if (useLiveRealPerformance && creationDate && startDate < creationDate) {
@@ -2168,7 +2170,7 @@ export const portfoliosRouter = router({
         const ytdStartDate = startDate.toISOString().split('T')[0];
         
         // Get all unique tickers - different logic for live vs test portfolios
-        let tickers: string[] = [];
+        let tickers: string[];
         const holdingsAtYtdStart: Record<string, { shares: number; avgCost: number; weight: number }> = {};
         
         if (isLivePortfolio) {
@@ -2525,7 +2527,7 @@ export const portfoliosRouter = router({
           }
           
           // Calculate portfolio performance on this date
-          let portfolioPerformance = 0;
+          let portfolioPerformance: number;
           let missingPriceCount = 0;
           let totalHoldingsCount = 0;
           

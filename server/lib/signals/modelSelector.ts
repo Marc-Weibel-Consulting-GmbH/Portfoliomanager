@@ -211,8 +211,8 @@ function evaluateEngine(
     : 0.5;
 
   // Walk-Forward (nur wenn genug Daten)
-  let walkForwardScore = 0.5;
-  let stabilityScore = 0.5;
+  let walkForwardScore: number;
+  let stabilityScore: number;
 
   if (hasEnoughData) {
     const wf = runWalkForward(prices, signal);

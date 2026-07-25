@@ -403,17 +403,19 @@ export const tradingviewRouter = router({
             modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail'],
           });
           qualityMetrics = extractQualityFromYahoo(summary);
-        } catch (_) {}
+        } catch (_) {
+          // Fundamentals optional; keep empty metrics on failure
+        }
 
         // 3. Momentum Score
         let momentumResult: any = { score: 0, grade: 'C', trend: 'neutral', components: {} };
         if (prices.length >= 60) {
-          try { momentumResult = calculateMomentumScore({ prices }); } catch (_) {}
+          try { momentumResult = calculateMomentumScore({ prices }); } catch (_) { /* keep default momentum */ }
         }
 
         // 4. Quality Score
         let qualityResult: any = { score: 0, grade: 'C', components: {} };
-        try { qualityResult = calculateQualityScore(qualityMetrics); } catch (_) {}
+        try { qualityResult = calculateQualityScore(qualityMetrics); } catch (_) { /* keep default quality */ }
 
                 // 5. LPPL Bubble Score — Sornette API first, fallback to local engine
         let bubbleScore = 0;
@@ -429,20 +431,24 @@ export const tradingviewRouter = router({
             bubbleScore = sornetteRisk;
             bubbleRegime = sornetteResult.score >= 65 ? 'bubble' : sornetteResult.score <= 35 ? 'anti-bubble' : 'normal';
           }
-        } catch (_) {}
+        } catch (_) {
+          // Sornette API optional; fall back to local engine below
+        }
         if (!sornetteData && prices.length >= 60) {
           try {
             const bubble = detectBubble({ prices });
             bubbleScore = bubble.bubbleScore ?? 0;
             bubbleRegime = bubble.regime ?? 'normal';
-          } catch (_) {}
+          } catch (_) {
+            // Keep default bubble score on failure
+          }
         }
         // 6. Combined Score — SIG-1 (Audit 2026-07): zentrale Formel blendCombinedScore
         // statt der alten Inline-0.8-Formel (neutral → 40/SELL statt 50/HOLD), damit
         // StockDetail-Widget, Dashboard-Watchlist und Signale-&-Scores identisch urteilen.
         const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
         let regimeKey = 'default';
-        if (prices.length >= 60) { try { regimeKey = computeRegime(prices).regime; } catch (_) {} }
+        if (prices.length >= 60) { try { regimeKey = computeRegime(prices).regime; } catch (_) { /* keep default regime */ } }
         const blended = blendCombinedScore(
           { momentumScore: momentumResult.score ?? 0, qualityScore: qualityResult.score ?? 0, regime: regimeKey, lpplPenalty },
           await getRegimeBlendConfig()
@@ -498,17 +504,19 @@ export const tradingviewRouter = router({
           try {
             const summary: any = await yahooFinance.quoteSummary(ticker, { modules: ['financialData', 'defaultKeyStatistics', 'summaryDetail'] });
             qualityMetrics = extractQualityFromYahoo(summary);
-          } catch (_) {}
+          } catch (_) {
+            // Fundamentals optional; keep empty metrics on failure
+          }
           let momentumResult: any = { score: 0, grade: 'C', trend: 'neutral' };
-          if (prices.length >= 60) { try { momentumResult = calculateMomentumScore({ prices }); } catch (_) {} }
+          if (prices.length >= 60) { try { momentumResult = calculateMomentumScore({ prices }); } catch (_) { /* keep default momentum */ } }
           let qualityResult: any = { score: 0, grade: 'C' };
-          try { qualityResult = calculateQualityScore(qualityMetrics); } catch (_) {}
+          try { qualityResult = calculateQualityScore(qualityMetrics); } catch (_) { /* keep default quality */ }
           let bubbleScore = 0, bubbleRegime = 'normal';
-          if (prices.length >= 60) { try { const b = detectBubble({ prices }); bubbleScore = b.bubbleScore ?? 0; bubbleRegime = b.regime ?? 'normal'; } catch (_) {} }
+          if (prices.length >= 60) { try { const b = detectBubble({ prices }); bubbleScore = b.bubbleScore ?? 0; bubbleRegime = b.regime ?? 'normal'; } catch (_) { /* keep default bubble score */ } }
           // SIG-1: zentrale Kombiscore-Formel (identisch zu stockScoring/Signale-&-Scores).
           const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
           let regimeKey = 'default';
-          if (prices.length >= 60) { try { regimeKey = computeRegime(prices).regime; } catch (_) {} }
+          if (prices.length >= 60) { try { regimeKey = computeRegime(prices).regime; } catch (_) { /* keep default regime */ } }
           const blended = blendCombinedScore(
             { momentumScore: momentumResult.score ?? 0, qualityScore: qualityResult.score ?? 0, regime: regimeKey, lpplPenalty },
             await getRegimeBlendConfig()

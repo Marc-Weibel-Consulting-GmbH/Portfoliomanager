@@ -481,7 +481,7 @@ export async function searchWikifolios(params: {
     response = resp.body;
   } catch (err: any) {
     console.error('[wikifolioService] Trader search failed:', err?.message || err);
-    throw new Error('Wikifolio-Suche fehlgeschlagen — bitte später erneut versuchen.');
+    throw new Error('Wikifolio-Suche fehlgeschlagen — bitte später erneut versuchen.', { cause: err });
   }
 
   const wikis: any[] = response?.wikifolios || [];

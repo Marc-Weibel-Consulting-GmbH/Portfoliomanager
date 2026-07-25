@@ -457,7 +457,7 @@ export const stocksRouter = router({
           };
         } catch (error: any) {
           console.error("[fetchStockData] Error:", error);
-          throw new Error(error.message || "Failed to fetch stock data");
+          throw new Error(error.message || "Failed to fetch stock data", { cause: error });
         }
       }),
     list: publicProcedure.query(async () => {
@@ -1232,7 +1232,7 @@ export const stocksRouter = router({
           return { success: true, message: `${ticker} erfolgreich aktualisiert` };
         } catch (error: any) {
           console.error(`[RefreshStockData] Failed to update ${ticker}:`, error);
-          throw new Error(`Failed to refresh ${ticker}: ${error.message}`);
+          throw new Error(`Failed to refresh ${ticker}: ${error.message}`, { cause: error });
         }
       }),
     portfolioPerformance: publicProcedure.query(async () => {
@@ -1354,7 +1354,7 @@ export const stocksRouter = router({
             }).filter((item: any) => item.ticker && item.price);
           }
         } catch (error: any) {
-          throw new Error(`Fehler beim Parsen der Datei: ${error.message}`);
+          throw new Error(`Fehler beim Parsen der Datei: ${error.message}`, { cause: error });
         }
         
         const results: any[] = [];

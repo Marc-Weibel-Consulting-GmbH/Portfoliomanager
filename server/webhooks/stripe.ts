@@ -58,7 +58,7 @@ export async function handleStripeWebhook(req: Request, res: Response) {
     try {
       const { invalidatePlanCache } = await import("../lib/entitlements");
       if (numeric !== null) invalidatePlanCache(numeric); else invalidatePlanCache();
-    } catch {}
+    } catch { /* bewusst ignoriert: Cache-Invalidierung best effort */ }
   }
 
   const PLAN_FROM_META = (m: Stripe.Metadata | null | undefined): "plus" | "pro" =>

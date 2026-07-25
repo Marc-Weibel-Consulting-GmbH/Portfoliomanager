@@ -45,7 +45,9 @@ export async function handleSignalAlerts(req: Request, res: Response) {
         for (const s of data.stocks ?? []) {
           if (s.ticker) allTickers.add(s.ticker);
         }
-      } catch {}
+      } catch {
+        // Skip portfolios with unparseable data
+      }
     }
 
     if (allTickers.size === 0) {

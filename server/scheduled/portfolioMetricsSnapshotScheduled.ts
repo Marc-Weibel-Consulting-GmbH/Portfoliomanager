@@ -220,7 +220,7 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
               }
             }
           }
-        } catch {}
+        } catch { /* bewusst ignoriert: optionale Gewichtsberechnung */ }
 
         // For each pending date, compute rolling metrics from the returns series
         for (const dateStr of pendingDates) {

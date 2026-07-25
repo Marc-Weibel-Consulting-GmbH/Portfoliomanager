@@ -398,7 +398,7 @@ export function calculateRebalancingSuggestions(
     else if (delta < -config.rebalanceThreshold) action = 'decrease';
     
     // Generate reason
-    let reason = '';
+    let reason: string;
     if (action === 'increase' && rank) {
       reason = `Ranking-Score ${rank.rankScore}/100 (${rank.outperformProbability * 100}% Outperformance-Wahrscheinlichkeit). ${rank.drivers[0] || ''}`;
     } else if (action === 'decrease' && rank) {
@@ -520,11 +520,13 @@ export function calculateWarnings(
                 corr,
               });
             }
-          } catch {}
+          } catch {
+            // Ignore pairs where correlation cannot be computed
+          }
         }
       }
     }
-    
+
     if (correlatedPairs.length > 0) {
       const affectedTickers = [...new Set(correlatedPairs.flatMap(p => [p.t1, p.t2]))];
       const topPair = correlatedPairs.sort((a, b) => b.corr - a.corr)[0];
@@ -625,7 +627,9 @@ export function calculateDiversificationScore(holdings: PortfolioHolding[]): Div
             avgCorrelation += corr;
             corrCount++;
           }
-        } catch {}
+        } catch {
+          // Ignore pairs where correlation cannot be computed
+        }
       }
     }
   }

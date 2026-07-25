@@ -543,7 +543,7 @@ export async function createSavedPortfolio(portfolio: InsertSavedPortfolio) {
   } catch (error: any) {
     console.error("[Database] Failed to create saved portfolio:", error);
     console.error("[Database] Error stack:", error.stack);
-    throw new Error(`Database error: ${error.message || 'Unknown error'}`);
+    throw new Error(`Database error: ${error.message || 'Unknown error'}`, { cause: error });
   }
 }
 
@@ -938,7 +938,7 @@ export async function createPortfolioTransaction(transaction: any) {
         }
       } catch (fxError) {
         console.error(`[Validation] Failed to auto-fetch FX rate:`, fxError);
-        throw new Error(`Missing FX rate for ${transaction.currency} transaction. Please ensure exchange rates are available.`);
+        throw new Error(`Missing FX rate for ${transaction.currency} transaction. Please ensure exchange rates are available.`, { cause: fxError });
       }
     }
     
@@ -1213,7 +1213,7 @@ export async function createPortfolioTransaction(transaction: any) {
     console.error("[Database] Error message:", error.message);
     console.error("[Database] Error stack:", error.stack);
     console.error("[Database] Full error:", JSON.stringify(error, null, 2));
-    throw new Error(`Failed to create transaction: ${error.message}`);
+    throw new Error(`Failed to create transaction: ${error.message}`, { cause: error });
   }
 }
 

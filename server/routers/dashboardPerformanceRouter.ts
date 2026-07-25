@@ -62,7 +62,7 @@ export const dashboardPerformanceRouter = router({
         case 'YTD':
           startDate = new Date(`${today.getFullYear()}-01-01`);
           break;
-        case 'All':
+        case 'All': {
           // Find earliest transaction date
           const portfolioIds = livePortfolios.map(p => p.id);
           const transactionsByPortfolio = await batchGetPortfolioTransactions(portfolioIds);
@@ -77,6 +77,7 @@ export const dashboardPerformanceRouter = router({
           }
           startDate = earliestDate;
           break;
+        }
       }
       
       const startDateStr = startDate.toISOString().split('T')[0];

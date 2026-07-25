@@ -74,7 +74,7 @@ function calcVolatility(vix: { date: string; close: number }[]): number {
   const closes = vix.map(p => p.close);
   const currentVix = closes[closes.length - 1];
   const avg20 = closes.slice(-20).reduce((a, b) => a + b, 0) / 20;
-  let levelSignal = 0;
+  let levelSignal: number;
   if (currentVix < 15) levelSignal = 0.5;
   else if (currentVix < 20) levelSignal = 0.2;
   else if (currentVix < 25) levelSignal = -0.1;

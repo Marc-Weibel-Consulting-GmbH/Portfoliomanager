@@ -255,7 +255,6 @@ function fitAndFilter(prices: number[]): FitResult {
     : 0;
 
   // Relative error: mean(|Y - Yfit| / |Yfit|)
-  let relativeError = 0;
   const meanLogPrice = logPrices.reduce((a, b) => a + b, 0) / n;
   const totalVariance = logPrices.reduce((sum, p) => sum + (p - meanLogPrice) ** 2, 0);
   const rSquared = totalVariance > 0 ? Math.max(0, 1 - (residual / totalVariance)) : 0;
@@ -274,7 +273,7 @@ function fitAndFilter(prices: number[]): FitResult {
       relErrCount++;
     }
   }
-  relativeError = relErrCount > 0 ? relErrSum / relErrCount : 1;
+  const relativeError = relErrCount > 0 ? relErrSum / relErrCount : 1;
 
   // ─── Apply Sornette Filter Conditions ───
   const tcRatio = tc / n;

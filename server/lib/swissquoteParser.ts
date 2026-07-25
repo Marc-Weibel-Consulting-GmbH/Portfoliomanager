@@ -157,7 +157,7 @@ function parseBlock(block: string): ParsedSwissquoteTransaction {
   let fxCurrencyTo: string | null = null;
   let fees = 0;
   let taxes = 0;
-  let confidence: 'HIGH' | 'MEDIUM' | 'LOW' = 'MEDIUM';
+  let confidence: 'HIGH' | 'MEDIUM' | 'LOW';
 
   // ── Step 1: Detect transaction type ──────────────────────────────────────
   const headerLine = lines[0] || '';
@@ -354,8 +354,8 @@ function parseBlock(block: string): ParsedSwissquoteTransaction {
  */
 export async function parseSwissquotePDF(pdfBuffer: Buffer): Promise<SwissquoteParseResult> {
   const parseErrors: string[] = [];
-  let rawText = '';
-  let pageCount = 0;
+  let rawText: string;
+  let pageCount: number;
 
   try {
     // Dynamic import to avoid issues with pdf-parse's test file check
@@ -430,8 +430,8 @@ export interface DepotauszugParseResult {
  */
 export async function parseSwissquoteDepotauszug(pdfBuffer: Buffer): Promise<DepotauszugParseResult> {
   const parseErrors: string[] = [];
-  let rawText = '';
-  let pageCount = 0;
+  let rawText: string;
+  let pageCount: number;
 
   try {
     // Use pdf-parse (pure Node.js, no system binary required — works in all environments)
