@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Trash2, Search, X } from "lucide-react";
+import { PlusCircle, Trash2, Search, X, Info } from "lucide-react";
 
 // Editierbare Vorschlags-Position. Spiegelt die gleichnamige Struktur im
 // Admin-Protokoll (AdminProposalAnalysis.tsx). TODO: perspektivisch konsolidieren,
@@ -20,6 +20,23 @@ export type EditablePosition = {
   assetClass?: string; // 'equity' | 'bond' | 'commodity' | 'gold' | 'realestate' | 'crypto'
   combinedScore?: number | null;
   signal?: string;
+  /** Titel aus der Universums-Erweiterung (ausserhalb der Kern-Watchlist). */
+  isUniverseExpansion?: boolean;
+};
+
+/** Note aus dem Signal-Score — gleiche Schwellen wie in der Vorschlags-Übersicht. */
+function scoreGrade(score: number): string {
+  if (score >= 75) return "A";
+  if (score >= 60) return "B";
+  if (score >= 45) return "C";
+  if (score >= 30) return "D";
+  return "F";
+}
+
+const SIGNAL_LABELS: Record<string, { label: string; className: string }> = {
+  BUY: { label: "↑ Kaufsignal", className: "bg-emerald-500/15 text-emerald-400" },
+  HOLD: { label: "→ Halten", className: "bg-slate-500/15 text-slate-400" },
+  SELL: { label: "↓ Verkaufen", className: "bg-red-500/15 text-red-400" },
 };
 
 /** Multi-Asset-Sleeve-Position? (fixer Baustein — keine KI-Aktien-Anpassungen) */
@@ -102,14 +119,18 @@ export function ProposalPositionEditor({
   positions,
   allStocks,
   onChange,
+  cashReservePct,
 }: {
   positions: EditablePosition[];
   allStocks: any[];
   onChange: (updated: EditablePosition[]) => void;
+  /** Liquiditätsquote laut Anlegerprofil — als eigene Zeile am Ende, nicht editierbar. */
+  cashReservePct?: number;
 }) {
   const totalWeight = positions.reduce((s, p) => s + (p.weightPct || 0), 0);
   const [searchOpenIdx, setSearchOpenIdx] = useState<number | null>(null);
   const [addSearchOpen, setAddSearchOpen] = useState(false);
+  const [reasonOpenIdx, setReasonOpenIdx] = useState<number | null>(null);
 
   const update = (idx: number, field: keyof EditablePosition, value: any) => {
     onChange(positions.map((p, i) => i === idx ? { ...p, [field]: value } : p));
@@ -153,12 +174,13 @@ export function ProposalPositionEditor({
         </span>
       </div>
 
-      <div className="grid grid-cols-[1fr_2fr_80px_80px_24px] gap-2 px-2 mb-1">
-        <span className="text-xs text-slate-600">Ticker</span>
-        <span className="text-xs text-slate-600">Name</span>
-        <span className="text-xs text-slate-600 text-right">Original</span>
-        <span className="text-xs text-slate-600 text-right">Neu</span>
-        <span></span>
+      <div className="flex items-center gap-2 px-2 mb-1">
+        <span className="text-xs text-slate-600 w-20 shrink-0">Ticker</span>
+        <span className="text-xs text-slate-600 flex-1">Name</span>
+        <span className="text-xs text-slate-600 w-24 text-right shrink-0">Kurs</span>
+        <span className="text-xs text-slate-600 w-20 text-right shrink-0">Original</span>
+        <span className="text-xs text-slate-600 w-[104px] text-right shrink-0">Neu</span>
+        <span className="w-[30px] shrink-0" />
       </div>
 
       {positions.map((p, idx) => {
@@ -179,16 +201,49 @@ export function ProposalPositionEditor({
                 </button>
               </div>
 
-              <span className="text-xs text-slate-300 flex-1 truncate">{p.companyName}</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-xs text-slate-300 block truncate">{p.companyName}</span>
+                {p.sector && <span className="text-[10px] text-slate-600 block truncate">{p.sector}</span>}
+              </div>
+
+              {p.isUniverseExpansion && (
+                <span
+                  className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30"
+                  title="Titel ausserhalb der Kern-Watchlist"
+                >
+                  ✨ Universum
+                </span>
+              )}
 
               {isSleevePosition(p) && (
                 <span
                   className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30"
-                  title="Multi-Asset-Baustein"
+                  title="Multi-Asset-Baustein — Gewicht kommt aus dem Anlegerprofil"
                 >
                   {SLEEVE_CLASS_LABELS[p.assetClass!] ?? p.assetClass}
                 </span>
               )}
+
+              {/* Signal und Note nur für Aktien — Sleeve-Bausteine haben keinen Aktien-Score. */}
+              {!isSleevePosition(p) && p.signal && SIGNAL_LABELS[p.signal] && (
+                <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${SIGNAL_LABELS[p.signal].className}`}>
+                  {SIGNAL_LABELS[p.signal].label}
+                </span>
+              )}
+              {!isSleevePosition(p) && p.combinedScore != null && (
+                <span
+                  className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-teal-500/15 text-teal-300"
+                  title="Signal-Score aus Risiko, Bewertung, Qualität und Momentum"
+                >
+                  Note {scoreGrade(p.combinedScore)} · {p.combinedScore.toFixed(1)}
+                </span>
+              )}
+
+              <span className="shrink-0 w-24 text-right text-[11px] text-slate-400 font-mono">
+                {p.currentPrice != null && p.currentPrice > 0
+                  ? `${p.currency ?? "CHF"} ${p.currentPrice.toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : "—"}
+              </span>
 
               <div className="w-20 shrink-0 text-right">
                 {origWeight !== undefined ? (
@@ -217,6 +272,18 @@ export function ProposalPositionEditor({
               </div>
 
               <button
+                onClick={() => setReasonOpenIdx(reasonOpenIdx === idx ? null : idx)}
+                className={`shrink-0 transition-colors ${
+                  p.aiReason ? "text-slate-400 hover:text-teal-300" : "text-slate-700 cursor-default"
+                }`}
+                title={p.aiReason ? "Begründung der KI anzeigen" : "Für diesen Titel liegt keine Begründung vor"}
+                aria-label="Begründung der KI"
+                disabled={!p.aiReason}
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
+
+              <button
                 onClick={() => remove(idx)}
                 className="text-slate-600 hover:text-red-400 transition-colors"
                 title="Position entfernen"
@@ -224,6 +291,12 @@ export function ProposalPositionEditor({
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
+
+            {reasonOpenIdx === idx && p.aiReason && (
+              <div className="mx-2 mb-1 px-3 py-2 bg-slate-900/40 border-l-2 border-teal-500/40 rounded-r">
+                <p className="text-xs text-slate-300 leading-relaxed">{p.aiReason}</p>
+              </div>
+            )}
 
             {searchOpenIdx === idx && (
               <StockSearchDropdown
@@ -235,6 +308,19 @@ export function ProposalPositionEditor({
           </div>
         );
       })}
+
+      {cashReservePct !== undefined && cashReservePct > 0 && (
+        <div className="flex items-center gap-2 bg-slate-900/30 rounded px-2 py-1.5 border border-emerald-500/20">
+          <span className="font-mono text-xs text-emerald-400 w-20 shrink-0">CASH</span>
+          <div className="flex-1 min-w-0">
+            <span className="text-xs text-slate-300 block">Liquiditätsreserve</span>
+            <span className="text-[10px] text-slate-600 block">Gemäss Anlegerprofil — nicht investiert</span>
+          </div>
+          <span className="text-xs font-mono font-semibold text-emerald-400 shrink-0">
+            {cashReservePct.toFixed(1)}%
+          </span>
+        </div>
+      )}
 
       <div className="relative mt-2">
         <Button

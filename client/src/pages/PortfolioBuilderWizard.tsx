@@ -12,7 +12,7 @@ import {
   ChevronLeft, ChevronRight, Check, Search, Plus, X,
   TrendingUp, DollarSign, Scale, PieChart, PencilRuler,
   Upload, Shield, Flame, Sparkles, Clock, Ban, Leaf,
-  ArrowDownCircle, ArrowUpCircle, RefreshCw, CheckCircle, ShieldCheck, Info
+  ArrowDownCircle, ArrowUpCircle, RefreshCw, CheckCircle, ShieldCheck
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -157,6 +157,7 @@ function toEditablePositions(src: any[]): EditablePosition[] {
       assetClass: p.assetClass,
       combinedScore: p.combinedScore ?? null,
       signal: p.signal,
+      isUniverseExpansion: p.isUniverseExpansion,
     } as EditablePosition;
   });
 }
@@ -1156,172 +1157,10 @@ export default function PortfolioBuilderWizard() {
                         />
                       );
                     })()}
-                    <div className="divide-y divide-white/5 border border-white/10 rounded-xl overflow-hidden">
-                      {autoProposal.positions.map((p: any) => {
-                        const score = p.combinedScore ?? 0;
-                        const signal = p.signal ?? 'HOLD';
-                        const scoreGrade = score >= 75 ? 'A' : score >= 60 ? 'B' : score >= 45 ? 'C' : score >= 30 ? 'D' : 'F';
-                        // ytdPerf is the field name in proposal result (not ytdPerformance)
-                        const ytdNum = p.ytdPerf != null ? parseFloat(String(p.ytdPerf)) : (p.ytdPerformance ? parseFloat(p.ytdPerformance) : null);
-                        const divYield = p.dividendYield ? parseFloat(p.dividendYield) : null;
-                        const priceNum = p.currentPrice ? parseFloat(String(p.currentPrice)) : null;
-
-                        // Multi-Asset-Sleeve-/ETF-Position? Strategischer Baustein —
-                        // kein Aktien-Score, kein Kauf-/Verkaufssignal, eigener Text.
-                        const isEtfPos = p.signal === 'ETF' || p.assetType === 'etf' || (!!p.assetClass && p.assetClass !== 'equity');
-
-                        // Einfache, nicht-technische Begründung in 2–3 Sätzen: WARUM
-                        // dieser Titel vorgeschlagen wird (statt roher Score-Fachbegriffe).
-                        const isBuy = signal === 'BUY' || signal === 'STRONG_BUY';
-                        const isSell = signal === 'SELL' || signal === 'STRONG_SELL';
-                        const gradeWord = score >= 75 ? 'sehr gut' : score >= 60 ? 'gut' : score >= 45 ? 'solide' : 'eher zurückhaltend';
-                        const whyParts: string[] = [];
-                        whyParts.push(`${p.companyName} ist ein Wert aus dem Bereich ${p.sector}.`);
-                        if (isBuy) whyParts.push(`Unsere Analyse bewertet ihn aktuell als ${gradeWord} und sieht einen guten Einstiegszeitpunkt.`);
-                        else if (isSell) whyParts.push(`Unsere Analyse bewertet ihn als ${gradeWord}, rät derzeit aber eher zur Zurückhaltung.`);
-                        else whyParts.push(`Unsere Analyse bewertet ihn als ${gradeWord} und empfiehlt, ihn ruhig zu halten.`);
-                        let whyThird = `Deshalb schlagen wir dafür ${p.weightPct.toFixed(1)} % Ihres Kapitals vor.`;
-                        if (divYield && divYield > 0.5) whyThird += ` Er zahlt zudem eine Dividende von rund ${divYield.toFixed(1)} %.`;
-                        whyParts.push(whyThird);
-                        if ((p.reason ?? '').includes('Watchlist')) whyParts.push('Dieser Titel stammt aus Ihrer Merkliste.');
-                        // Bevorzugt die individuelle KI-Begründung (nach dem Enhancing-
-                        // Schritt vorhanden); vorher/als Fallback das einfache Template.
-                        // ETF-/Sleeve-Positionen bekommen einen rollenbasierten eigenen
-                        // Text (nie das Aktien-Template mit «eher zurückhaltend»).
-                        const whyText = (typeof p.aiReason === 'string' && p.aiReason.trim())
-                          ? p.aiReason.trim()
-                          : isEtfPos
-                            ? (() => {
-                                const clsLabel = ASSET_CLASS_LABELS[p.assetClass ?? ''] ?? p.sector ?? 'ETF';
-                                const roleText: Record<string, string> = {
-                                  bond: 'er dämpft Schwankungen und stabilisiert das Portfolio',
-                                  commodity: 'er diversifiziert und dient als Inflationsschutz',
-                                  gold: 'er dient als Absicherung in Krisenzeiten',
-                                  realestate: 'er bildet den Immobilienmarkt ab und diversifiziert',
-                                  crypto: 'er ist eine kleine, chancenorientierte Beimischung mit höherem Risiko',
-                                };
-                                const role = roleText[p.assetClass ?? ''] ?? 'er ergänzt die Aktienquote um eine weitere Anlageklasse';
-                                return `${p.companyName} bildet den Baustein «${clsLabel}» Ihrer Anlagestrategie ab — ${role}. Die Gewichtung von ${p.weightPct.toFixed(1)} % folgt Ihrem Anlegerprofil.`;
-                              })()
-                            : whyParts.join(' ');
-
-                        // Erklärung des Scores für den Info-Button (einfach gehalten).
-                        const scoreInfo = 'Der Signal-Score (0–100) fasst Bewertung, Kursverlauf und Markttrend zu einer Empfehlung zusammen. Note A = sehr gut, F = schwach. Er ist ein Anhaltspunkt, keine Garantie.';
-
-                        // 3 key facts — ETF-/Sleeve-Positionen haben keinen Aktien-Score;
-                        // statt «Halten»/«Note F · 0/100» zeigen wir die Anlageklasse.
-                        const keyFacts = isEtfPos
-                          ? [
-                              {
-                                label: `ETF · ${ASSET_CLASS_LABELS[p.assetClass ?? ''] ?? p.sector ?? 'Baustein'}`,
-                                color: 'text-violet-300 bg-violet-500/10',
-                              },
-                              {
-                                label: 'Baustein des Anlegerprofils',
-                                color: 'text-slate-300 bg-slate-500/10',
-                              },
-                              {
-                                label: ytdNum !== null ? `YTD ${ytdNum > 0 ? '+' : ''}${ytdNum.toFixed(1)}%` : `${p.weightPct.toFixed(1)} % Gewicht`,
-                                color: ytdNum !== null && ytdNum > 0 ? 'text-emerald-300 bg-emerald-500/10' : ytdNum !== null && ytdNum < -5 ? 'text-red-300 bg-red-500/10' : 'text-slate-300 bg-slate-500/10',
-                              },
-                            ]
-                          : [
-                              {
-                                label: signal === 'BUY' || signal === 'STRONG_BUY' ? '↑ Kaufsignal' : signal === 'SELL' || signal === 'STRONG_SELL' ? '↓ Verkaufssignal' : '→ Halten',
-                                color: signal === 'BUY' || signal === 'STRONG_BUY' ? 'text-emerald-400 bg-emerald-500/10' : signal === 'SELL' || signal === 'STRONG_SELL' ? 'text-red-400 bg-red-500/10' : 'text-slate-400 bg-slate-500/10',
-                              },
-                              {
-                                label: `Note ${scoreGrade} · ${score}/100`,
-                                color: score >= 70 ? 'text-emerald-300 bg-emerald-500/10' : score >= 50 ? 'text-teal-300 bg-teal-500/10' : 'text-amber-300 bg-amber-500/10',
-                              },
-                              {
-                                label: p.isUniverseExpansion ? '✨ Universum' : ytdNum !== null ? `YTD ${ytdNum > 0 ? '+' : ''}${ytdNum.toFixed(1)}%` : divYield && divYield > 0.5 ? `Div. ${divYield.toFixed(1)}%` : p.sector,
-                                color: p.isUniverseExpansion ? 'text-violet-300 bg-violet-500/10' : ytdNum !== null && ytdNum > 0 ? 'text-emerald-300 bg-emerald-500/10' : ytdNum !== null && ytdNum < -5 ? 'text-red-300 bg-red-500/10' : 'text-slate-300 bg-slate-500/10',
-                              },
-                            ];
-
-                        return (
-                          <div key={p.ticker} className="px-4 py-3 bg-[#0f1420]">
-                            <div className="flex items-start gap-4">
-                              {/* Left: ticker + company + sector + price */}
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-mono text-xs text-[#00CFC1]">{p.ticker}</span>
-                                  <span className="text-sm text-white">{p.companyName}</span>
-                                  {p.isUniverseExpansion && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-violet-500/20 text-violet-300 border border-violet-500/30">
-                                      ✨ Universum
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <p className="text-xs text-gray-500">{p.sector}</p>
-                                  {priceNum != null && priceNum > 0 && (
-                                    <p className="text-xs text-slate-400">
-                                      {p.currency || 'CHF'} {priceNum.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Right: einfache Begründung (WARUM) + Score-Info-Button */}
-                              <div className="hidden md:flex flex-col items-end gap-1.5 shrink-0 max-w-[340px]">
-                                {isEnhancing && !(typeof p.aiReason === 'string' && p.aiReason.trim()) ? (
-                                  <p className="text-sm text-slate-500 text-right leading-relaxed italic">Die KI formuliert gerade die Begründung für diesen Titel…</p>
-                                ) : (
-                                  <p className="text-sm text-slate-300 text-right leading-relaxed">{whyText}</p>
-                                )}
-                                <div className="flex flex-wrap gap-1 justify-end items-center">
-                                  {keyFacts.map((f, i) => (
-                                    <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
-                                  ))}
-                                  {!isEtfPos && (
-                                    <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
-                                      <Info className="h-4 w-4" />
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-
-                              {/* Weight always visible */}
-                              <span className="text-sm font-mono font-semibold text-white shrink-0">{p.weightPct.toFixed(1)}%</span>
-                            </div>
-
-                            {/* Mobile: Begründung + Badges + Score-Info */}
-                            <div className="flex md:hidden flex-col gap-2 mt-2">
-                              {isEnhancing && !(typeof p.aiReason === 'string' && p.aiReason.trim()) ? (
-                                <p className="text-sm text-slate-500 leading-relaxed italic">Die KI formuliert gerade die Begründung für diesen Titel…</p>
-                              ) : (
-                                <p className="text-sm text-slate-300 leading-relaxed">{whyText}</p>
-                              )}
-                              <div className="flex flex-wrap gap-1 items-center">
-                                {keyFacts.map((f, i) => (
-                                  <span key={i} className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium ${f.color}`}>{f.label}</span>
-                                ))}
-                                {!isEtfPos && (
-                                  <button type="button" title={scoreInfo} aria-label="Erklärung des Signal-Scores" className="ml-0.5 text-slate-400 hover:text-[#00CFC1] cursor-help">
-                                    <Info className="h-4 w-4" />
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {/* Cash-Reserve Position anzeigen wenn Cash-Quote > 0 */}
-                      {(autoProposal as any).profile?.liquidityNeedPct > 0 && (
-                        <div className="flex items-center justify-between px-4 py-3 bg-[#0f1420]">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs text-emerald-400">CASH</span>
-                              <span className="text-sm text-white">Liquiditätsreserve</span>
-                            </div>
-                            <p className="text-xs text-gray-500">Gemäss Anlegerprofil — nicht investiert</p>
-                          </div>
-                          <span className="text-sm font-mono font-semibold text-emerald-400 ml-3 shrink-0">{(autoProposal as any).profile.liquidityNeedPct.toFixed(1)}%</span>
-                        </div>
-                      )}
-                    </div>
+                    {/* Die frühere schreibgeschützte Positionsliste ist entfallen —
+                        sie führte dieselben Titel ein zweites Mal auf. Kurs, Note,
+                        Signal und die KI-Begründung stehen jetzt direkt im
+                        Bearbeiten-Bereich weiter unten. */}
                     {/* KI-Empfehlungen des Synthesizers (finalAdjustments) — für Admins
                         ausgeblendet; bei Auto-Übernahme ebenfalls (bereits eingearbeitet,
                         der Nutzer sieht direkt das fertige Portfolio). */}
@@ -1381,6 +1220,7 @@ export default function PortfolioBuilderWizard() {
                           positions={reviewPositions}
                           allStocks={allStocks}
                           onChange={setReviewPositions}
+                          cashReservePct={(autoProposal as any).profile?.liquidityNeedPct}
                         />
                         <p className="text-xs text-gray-500 mt-3">
                           Gewichte anpassen, Titel austauschen (Ticker anklicken), entfernen oder
