@@ -74,7 +74,7 @@ const adminMenuItems = [
   { icon: Eye, label: "Watchlist", path: "/admin/watchlist" },
   { icon: Zap, label: "Signal-Optimizer", path: "/admin/optimizer" },
   { icon: Brain, label: "Research & Multi-Agent", path: "/admin/research" },
-  { icon: FlaskConical, label: "KI-Vorschläge prüfen", path: "/admin/proposal-analysis" },
+  { icon: FlaskConical, label: "KI-Vorschläge Archiv", path: "/admin/proposal-analysis" },
   { icon: LayoutDashboard, label: "Feedback-Dashboard", path: "/admin/feedback-dashboard" },
   { icon: Settings, label: "Einstellungen", path: "/admin/settings" },
   { icon: Calculator, label: "Berechnungen", path: "/admin/berechnungen" },

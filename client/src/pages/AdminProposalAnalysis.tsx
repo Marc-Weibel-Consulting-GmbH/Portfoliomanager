@@ -681,7 +681,7 @@ function ProposalModelSettings() {
   const s = synthesis ?? cfg.synthesis;
   const t = text ?? cfg.text;
   const auto = autoApply ?? cfg.autoApply;
-  const dirty = ens !== cfg.ensemble || a !== cfg.analysis || b !== cfg.challengerB || s !== cfg.synthesis || t !== cfg.text || auto !== cfg.autoApply;
+  const dirty = ens !== cfg.ensemble || a !== cfg.analysis || b !== cfg.challengerB || s !== cfg.synthesis || t !== cfg.text; // autoApply ist immer true (hardcoded)
 
   return (
     <Card className="bg-slate-800/50 border-slate-700">
@@ -703,12 +703,15 @@ function ProposalModelSettings() {
           <Switch checked={ens} onCheckedChange={(v) => setEnsemble(v)} />
         </div>
 
-        <div className="flex items-center justify-between rounded-md bg-slate-900/60 px-3 py-2">
+        <div className="flex items-center justify-between rounded-md bg-emerald-900/30 border border-emerald-500/30 px-3 py-2">
           <div>
-            <div className="text-sm text-slate-200">Verbesserungen automatisch übernehmen</div>
-            <div className="text-xs text-slate-500">Challenger-/Synthese-Anpassungen fliessen direkt in den Vorschlag — der Nutzer erhält das fertige, optimierte Portfolio in einem Schritt.</div>
+            <div className="text-sm text-emerald-300 flex items-center gap-2">
+              Verbesserungen automatisch übernehmen
+              <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-medium">Immer aktiv</span>
+            </div>
+            <div className="text-xs text-slate-500">Challenger-/Synthese-Anpassungen fliessen immer direkt in den Vorschlag — diese Einstellung ist fest aktiviert und kann nicht deaktiviert werden.</div>
           </div>
-          <Switch checked={auto} onCheckedChange={(v) => setAutoApply(v)} />
+          <Switch checked={true} disabled className="opacity-50 cursor-not-allowed" />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -973,26 +976,28 @@ export default function AdminProposalAnalysis() {
                         ))}
                       </div>
 
-                      {/* Synthesizer Verdict */}
+                      {/* Synthesizer Verdict — collapsible */}
                       {row.synthesizerVerdict && (
-                        <div className="bg-violet-900/20 border border-violet-500/20 rounded p-3">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Brain className="w-4 h-4 text-violet-400" />
-                            <span className="text-xs font-medium text-violet-400">Synthesizer-Urteil</span>
-                          </div>
-                          <p className="text-sm text-slate-300">{row.synthesizerVerdict}</p>
-                        </div>
+                        <CollapsibleVerdictBlock
+                          title="Synthesizer-Urteil"
+                          icon={<Brain className="w-4 h-4 text-violet-400" />}
+                          borderCls="border-violet-500/20"
+                          bgCls="bg-violet-900/20"
+                          titleCls="text-violet-400"
+                          text={row.synthesizerVerdict}
+                        />
                       )}
 
-                      {/* Challenger Critique */}
+                      {/* Challenger Critique — collapsible */}
                       {row.challengerCritique && (
-                        <div className="bg-amber-900/20 border border-amber-500/20 rounded p-3">
-                          <div className="flex items-center gap-2 mb-1">
-                            <AlertTriangle className="w-4 h-4 text-amber-400" />
-                            <span className="text-xs font-medium text-amber-400">Challenger-Kritik</span>
-                          </div>
-                          <p className="text-sm text-slate-300">{row.challengerCritique}</p>
-                        </div>
+                        <CollapsibleVerdictBlock
+                          title="Challenger-Kritik"
+                          icon={<AlertTriangle className="w-4 h-4 text-amber-400" />}
+                          borderCls="border-amber-500/20"
+                          bgCls="bg-amber-900/20"
+                          titleCls="text-amber-400"
+                          text={row.challengerCritique}
+                        />
                       )}
 
                       {/* Kennzahlen Filter Reason */}
@@ -1135,6 +1140,16 @@ export default function AdminProposalAnalysis() {
 
                         return (
                           <div className="space-y-3">
+                            {/* Auto-Applied Banner */}
+                            {adjustmentsAlreadyApplied && (
+                              <div className="flex items-start gap-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3">
+                                <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="text-sm font-semibold text-emerald-300">Challenger-/Synthesizer-Anpassungen automatisch eingearbeitet</p>
+                                  <p className="text-xs text-emerald-400/80 mt-0.5">Die KI-Empfehlungen wurden beim Erstellen direkt in den Vorschlag übernommen. Der Nutzer hat das fertige, optimierte Portfolio erhalten — kein manueller Review-Schritt war nötig. Die Empfehlungen unten dienen nur zur Dokumentation.</p>
+                                </div>
+                              </div>
+                            )}
                             {/* Header bar */}
                             <div className="flex items-center gap-2 flex-wrap">
                               <Columns2 className="w-4 h-4 text-teal-400" />
