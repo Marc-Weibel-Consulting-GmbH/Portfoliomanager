@@ -71,8 +71,51 @@ export const startProposalProcedure = protectedProcedure
           job.progress.push('Diversifikationsregeln laden...');
           const { getDiversificationRules } = await import('../lib/diversificationRules');
           const rules = await getDiversificationRules();
+
+          const stocksOnly = input?.stocksOnly ?? false;
+          const notes: string[] = [];
+
+          // Die Positionsgrenzen gelten fuer das GESAMTPORTFOLIO, nicht nur fuer
+          // den Aktienteil. Der Optimizer sieht aber nur die Aktien, deren
+          // Gewichte sich auf 100 summieren; danach werden sie zweimal
+          // herunterskaliert — auf die Aktienquote des Profils und um die
+          // Liquiditaetsquote. Eine im Optimizer eingehaltene Untergrenze von
+          // 3 % landete so bei 55 % Aktienquote real bei 1.65 %.
+          // Deshalb werden die Grenzen VOR der Optimierung hochgerechnet.
+          const { getMultiAssetAllocation } = await import('../lib/multiAssetSleeve');
+          const allocMatrix = await getMultiAssetAllocation();
+          const equitySharePct = stocksOnly ? 100 : (allocMatrix[riskProfile]?.equity ?? 100);
+          const cashFactor = liquidityNeedPct > 0 && liquidityNeedPct < 100 ? 1 - liquidityNeedPct / 100 : 1;
+          const equityScale = (equitySharePct / 100) * cashFactor;
+
+          const scaledRules = equityScale > 0 ? {
+            ...rules,
+            minPositionPercent: Math.min(rules.minPositionPercent / equityScale, 100),
+            maxPositionPercent: Math.min(rules.maxPositionPercent / equityScale, 100),
+          } : rules;
+
+          // Aus der hochgerechneten Untergrenze folgt zwingend eine Obergrenze
+          // fuer die Titelzahl: mehr Titel liessen sich nicht mehr ueber der
+          // Grenze gewichten. Ohne diesen Deckel wuerde effectiveBounds() die
+          // Untergrenze still auf 1/n absenken und die Regel wieder aushebeln.
+          const maxTitlesByFloor = Math.max(1, Math.floor(100 / scaledRules.minPositionPercent));
+          const effectiveMaxTitles = Math.min(rules.maxTitles, maxTitlesByFloor);
+          if (effectiveMaxTitles < rules.maxTitles) {
+            notes.push(
+              `Titelzahl auf ${effectiveMaxTitles} begrenzt: Bei einer Aktienquote von ${equitySharePct}%` +
+              (cashFactor < 1 ? ` und ${liquidityNeedPct}% Liquiditaet` : '') +
+              ` lassen sich mehr Titel nicht mehr mit mindestens ${rules.minPositionPercent}% des Gesamtportfolios gewichten.`
+            );
+          }
+          if (rules.minTitles > effectiveMaxTitles) {
+            notes.push(
+              `Regelkonflikt: Die geforderten mindestens ${rules.minTitles} Titel lassen sich bei ${rules.minPositionPercent}% Mindestgewicht ` +
+              `und ${equitySharePct}% Aktienquote nicht einhalten — es wurden ${effectiveMaxTitles} Titel gewaehlt.`
+            );
+          }
+
           const { optimizerParamsForProfile } = await import('../lib/profileOptimizerParams');
-          const params = optimizerParamsForProfile({ riskProfile, maxDrawdownTolerancePct: profile.maxDrawdownTolerancePct, investmentHorizonYears: profile.investmentHorizonYears }, rules);
+          const params = optimizerParamsForProfile({ riskProfile, maxDrawdownTolerancePct: profile.maxDrawdownTolerancePct, investmentHorizonYears: profile.investmentHorizonYears }, scaledRules);
 
           job.progress.push('Markt-Hub-Signale laden...');
           let marktHubSignals: MarktHubSignals;
@@ -89,7 +132,6 @@ export const startProposalProcedure = protectedProcedure
           const { eq: eqOp } = await import('drizzle-orm');
           const watchlistRecs = await db.select({ ticker: stocksTable.ticker }).from(stocksTable).where(eqOp(stocksTable.listType, 'empfehlung'));
           const watchlistRecTickers = new Set(watchlistRecs.map((r: any) => r.ticker.toUpperCase()));
-          const notes: string[] = [];
           if (esgOnly) notes.push('Ihr ESG-Wunsch ist hinterlegt, kann aber noch nicht angewendet werden — für die Titel liegen keine ESG-Daten vor. Der Vorschlag ist NICHT ESG-gefiltert.');
 
           const allStocks = await db.select().from(stocksTable);
@@ -228,7 +270,7 @@ export const startProposalProcedure = protectedProcedure
           try {
             const { analyzeGaps, findExternalCandidates, storeExternalCandidates } = await import('../lib/universeExpansion');
             const existingTickers = new Set(scored.map((x: any) => x.stock.ticker.toUpperCase()));
-            const gaps = analyzeGaps(scored.map((x: any) => ({ ticker: x.stock.ticker, sector: x.stock.sector, dividendYield: x.dividendYield, sharpeRatio: null, ytdPerformance: x.stock.ytdPerformance?.toString() ?? null, peRatio: x.stock.peRatio })), rules.maxTitles, excludedSectors, goal ?? 'balanced');
+            const gaps = analyzeGaps(scored.map((x: any) => ({ ticker: x.stock.ticker, sector: x.stock.sector, dividendYield: x.dividendYield, sharpeRatio: null, ytdPerformance: x.stock.ytdPerformance?.toString() ?? null, peRatio: x.stock.peRatio })), effectiveMaxTitles, excludedSectors, goal ?? 'balanced');
             if (gaps.totalGaps > 0) {
               const externalCandidates = await findExternalCandidates(gaps, existingTickers, referenceCurrency);
               if (externalCandidates.length > 0) {
@@ -250,7 +292,7 @@ export const startProposalProcedure = protectedProcedure
           if (ranked.length < rules.minTitles) { qualityTier = 'erweitert'; ranked = stableSort(allCandidates.filter((x) => x.signal !== 'SELL' && x.scoreGrade !== 'F' && x.combinedScore >= 45)); }
           if (ranked.length < rules.minTitles) { qualityTier = 'basis'; ranked = stableSort(allCandidates.filter((x) => x.signal !== 'SELL')); }
           if (qualityTier !== 'kaufkandidaten') notes.push(qualityTier === 'erweitert' ? 'Zu wenige klare Kaufkandidaten (Score ≥ 55) — die Auswahl enthält auch neutrale Titel mit Score ≥ 45.' : 'Sehr wenige geeignete Kandidaten — die Auswahl umfasst alle Titel ohne Verkaufssignal, unabhängig vom Score.');
-          const target = Math.min(rules.maxTitles, ranked.length);
+          const target = Math.min(effectiveMaxTitles, ranked.length);
           const maxPerSector = Math.max(1, Math.floor((rules.maxSectorPercent / 100) * target));
           // Heimatmarkt-Korrelations-Cap: max. 3 Titel aus demselben Land+Sektor
           // (verhindert z.B. 5x CH-Finanz mit hoher impliziter Korrelation)
@@ -260,7 +302,7 @@ export const startProposalProcedure = protectedProcedure
           const countrySectorCount: Record<string, number> = {};
           let currentFxWeightPct = 0;
           for (const c of ranked) {
-            if (selected.length >= rules.maxTitles) break;
+            if (selected.length >= effectiveMaxTitles) break;
             const estimatedWeight = 100 / Math.max(1, target);
             const stockCur = (c.stock.currency || 'CHF') === 'GBp' ? 'GBP' : (c.stock.currency || 'CHF');
             const isFx = stockCur !== referenceCurrency;
@@ -395,7 +437,6 @@ export const startProposalProcedure = protectedProcedure
           // === MULTI-ASSET-SLEEVE: je nach Anlegerprofil ETF-Bausteine zumischen ===
           // Läuft NACH dem FX-Enforcement (Aktien-Sleeve ist final) und VOR der
           // Cash-Quote (die Cash-Reserve skaliert danach alle Positionen proportional).
-          const stocksOnly = input?.stocksOnly ?? false;
           let assetAllocation: Record<string, number> | null = null;
           let deviationFromProfile: string | null = null;
           try {
@@ -406,6 +447,7 @@ export const startProposalProcedure = protectedProcedure
               resolvePrice: createDbPriceResolver(),
               maxFxPct: maxFxExposurePct,
               referenceCurrency,
+              assetClassTolerancePct: rules.assetClassTolerancePct,
             });
             assetAllocation = sleeveResult.allocation;
             deviationFromProfile = sleeveResult.deviationNote;

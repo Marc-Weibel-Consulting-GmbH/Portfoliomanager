@@ -161,10 +161,19 @@ function checkDiversificationRules(
   // spielt für die Strategie keine Rolle.
   if (assetClassTargets) {
     const { targets, tolerancePct, isDefaultProfile } = assetClassTargets;
+    // Bezugsgrösse ist das INVESTIERTE Vermögen, nicht der Gesamtwert inkl. Cash:
+    // die Quoten der Allokations-Matrix summieren sich auf 100 % und kennen die
+    // Liquiditätsquote nicht — die ist eine eigene Dimension des Anlegerprofils.
+    // Ohne diese Normierung läse bei 24 % Cash jede Klasse rund ein Viertel zu
+    // tief und selbst eine exakt getroffene Aktienquote fiele aus dem Band.
+    const investiertPct = nonCash.reduce((s: number, h: any) => s + parseFloat(h.weight || "0"), 0);
     const istByClass: Record<string, number> = {};
     for (const h of nonCash) {
       const label = SLEEVE_TICKER_LABEL[String(h.ticker ?? "").toUpperCase()] ?? "Aktien";
-      istByClass[label] = (istByClass[label] || 0) + parseFloat(h.weight || "0");
+      const anteil = investiertPct > 0
+        ? (parseFloat(h.weight || "0") / investiertPct) * 100
+        : 0;
+      istByClass[label] = (istByClass[label] || 0) + anteil;
     }
     // Klassen aus dem Profil-Ziel UND aus dem Bestand — sonst bliebe eine
     // Klasse unbemerkt, die gehalten wird, aber laut Profil gar nicht vorkommt.
