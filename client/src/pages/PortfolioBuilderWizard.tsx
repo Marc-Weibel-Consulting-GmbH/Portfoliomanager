@@ -559,10 +559,19 @@ export default function PortfolioBuilderWizard() {
       ? (autoProposal as any).adjustedPositions
       : autoProposal.positions;
     const source: any[] = (useAdjusted && reviewPositions.length) ? reviewPositions : rawSource;
-    // Gewichte auf 100 % normieren — der Editor lässt beliebige Summen zu.
+    // Gewichte normieren — der Editor lässt beliebige Summen zu.
+    //
+    // Zielsumme ist NICHT 100 %, sondern der investierte Anteil: Die
+    // Liquiditätsquote aus dem Anlegerprofil wird beim Anlegen als eigener
+    // Cash-Betrag auf das Kapital gerechnet (portfoliosRouter, cashPercentage).
+    // Eine Normierung auf 100 % hätte die Positionen also auf das volle Kapital
+    // dimensioniert und die Reserve obendrauf gelegt — das Portfolio wäre mit
+    // 110 % des Einsatzes gestartet und «Seit Kauf» am ersten Tag bei +10 %.
+    const cashPct = parseFloat(String((autoProposal as any)?.profile?.liquidityNeedPct ?? 0)) || 0;
+    const zielSumme = cashPct > 0 && cashPct < 100 ? 100 - cashPct : 100;
     const totalW = source.reduce((s: number, p: any) => s + (parseFloat(String(p.weightPct ?? p.weight ?? '0')) || 0), 0);
     const positionsToUse: any[] = totalW > 0
-      ? source.map((p: any) => ({ ...p, weightPct: (parseFloat(String(p.weightPct ?? p.weight ?? '0')) || 0) / totalW * 100 }))
+      ? source.map((p: any) => ({ ...p, weightPct: (parseFloat(String(p.weightPct ?? p.weight ?? '0')) || 0) / totalW * zielSumme }))
       : source;
     // Track whether KI adjustments were applied
     setIsAiOptimized(useAdjusted && !!(autoProposal as any).adjustedPositions?.length);

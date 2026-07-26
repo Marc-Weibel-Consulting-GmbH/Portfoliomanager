@@ -128,6 +128,9 @@ export function ProposalPositionEditor({
   cashReservePct?: number;
 }) {
   const totalWeight = positions.reduce((s, p) => s + (p.weightPct || 0), 0);
+  const zielSumme = cashReservePct !== undefined && cashReservePct > 0 && cashReservePct < 100
+    ? 100 - cashReservePct
+    : 100;
   const [searchOpenIdx, setSearchOpenIdx] = useState<number | null>(null);
   const [addSearchOpen, setAddSearchOpen] = useState(false);
   const [reasonOpenIdx, setReasonOpenIdx] = useState<number | null>(null);
@@ -169,8 +172,11 @@ export function ProposalPositionEditor({
     <div className="space-y-1">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-slate-400">Positionen bearbeiten</span>
-        <span className={`text-xs font-mono ${Math.abs(totalWeight - 100) < 0.5 ? "text-emerald-400" : "text-amber-400"}`}>
-          Summe: {totalWeight.toFixed(1)}% {Math.abs(totalWeight - 100) < 0.5 ? "✓" : "(wird auf 100% normiert)"}
+        {/* Zielsumme ist der investierte Anteil, nicht 100 %: die Liquiditäts-
+            reserve wird beim Anlegen separat als Cash gebucht. */}
+        <span className={`text-xs font-mono ${Math.abs(totalWeight - zielSumme) < 0.5 ? "text-emerald-400" : "text-amber-400"}`}>
+          Summe: {totalWeight.toFixed(1)}%{" "}
+          {Math.abs(totalWeight - zielSumme) < 0.5 ? "✓" : `(wird auf ${zielSumme.toFixed(0)}% normiert)`}
         </span>
       </div>
 

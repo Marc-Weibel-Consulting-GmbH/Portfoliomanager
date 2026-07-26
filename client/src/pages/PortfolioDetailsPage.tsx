@@ -131,14 +131,13 @@ function PerformanceTab({
   });
   const entry = (multiPeriod as any[] | undefined)?.find((p: any) => p.portfolioId === portfolioId);
   const ytd = entry?.performance?.YTD ?? null;
-  // «Seit Kauf» misst das eingesetzte Kapital gegen den heutigen Gesamtwert —
-  // und der besteht aus Positionen UND der nicht investierten Liquidität.
-  // Ohne die Cash-Seite erschien die Liquiditätsquote aus dem Anlegerprofil als
-  // Verlust: ein am selben Tag erstelltes Portfolio mit 24 % Cash startete bei
-  // −24 %, obwohl noch kein Kurs sich bewegt hatte.
-  const gesamtwertCHF = totalValueCHF + cashBalance;
-  const seitKauf = investmentAmount > 0 ? ((gesamtwertCHF - investmentAmount) / investmentAmount) * 100 : null;
-  const gv = gesamtwertCHF - investmentAmount;
+  // «Seit Kauf» misst das eingesetzte Kapital gegen den heutigen Gesamtwert.
+  // `totalValueCHF` enthält die Liquidität BEREITS (portfoliosRouter addiert
+  // cashBalance, bevor der Wert geliefert wird) — sie hier nochmals zu addieren
+  // zählte sie doppelt und liess ein frisch erstelltes Portfolio mit 10 % Cash
+  // bei +18 % starten.
+  const seitKauf = investmentAmount > 0 ? ((totalValueCHF - investmentAmount) / investmentAmount) * 100 : null;
+  const gv = totalValueCHF - investmentAmount;
 
   // Build sector attribution from holdings (supports YTD and since-buy toggle)
   const sectorAttribution = useMemo(() => {
@@ -1726,11 +1725,11 @@ export default function PortfolioDetailsPage() {
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">SEIT KAUF</p>
             {(() => {
-              // Gesamtwert = Positionen + nicht investierte Liquidität. Ohne die
-              // Cash-Seite zählte die Liquiditätsquote aus dem Anlegerprofil als
-              // Verlust (frisch erstelltes Portfolio startete bei −23.8 %).
+              // `totalValueCHF` enthält die Liquidität bereits (siehe
+              // portfoliosRouter) — nicht nochmals addieren, sonst zählt die
+              // Cash-Quote doppelt.
               const invested = Number(portfolio?.investmentAmount || 0);
-              const gain = totalValueCHF + cashBalance - invested;
+              const gain = totalValueCHF - invested;
               const pct = invested > 0 ? (gain / invested) * 100 : 0;
               return (
                 <>
