@@ -182,6 +182,12 @@ export interface ApplyMultiAssetSleeveOptions {
   maxFxPct?: number;
   /** Referenzwährung des Anlegers (z.B. 'CHF'). Default: 'CHF'. */
   referenceCurrency?: string;
+  /**
+   * Zulässige Abweichung je Anlageklasse in Prozentpunkten (Admin-Regel
+   * `assetClassTolerancePct`). Begrenzt, wie weit der Anteil einer nicht
+   * abbildbaren Klasse auf die übrigen umverteilt werden darf.
+   */
+  assetClassTolerancePct?: number;
 }
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
@@ -243,7 +249,7 @@ async function resolveFirstAvailable(
 export async function applyMultiAssetSleeve(
   opts: ApplyMultiAssetSleeveOptions,
 ): Promise<MultiAssetSleeveResult> {
-  const { equityPositions, riskProfile, stocksOnly, resolvePrice, maxFxPct, referenceCurrency = 'CHF' } = opts;
+  const { equityPositions, riskProfile, stocksOnly, resolvePrice, maxFxPct, referenceCurrency = 'CHF', assetClassTolerancePct: tolerancePct = 3 } = opts;
   const allocationMatrix = await getMultiAssetAllocation();
   const matrix = allocationMatrix[riskProfile];
 
@@ -378,15 +384,17 @@ export async function applyMultiAssetSleeve(
     }
   }
 
-  // 4) Totalfall-Umverteilung: bei gestrichenen Klassen Summe wieder auf
-  //    100 % normieren (proportional über alle Sleeves).
-  const total = positions.reduce((s, p) => s + p.weight, 0);
-  if (total > 0 && Math.abs(total - 100) > 0.5) {
-    const factor = 100 / total;
-    positions.forEach((p) => {
-      p.weight = round2(p.weight * factor);
-    });
-  }
+  // 4) Umverteilung gestrichener Klassen — mit Deckelung an der Bandobergrenze.
+  //
+  // Vorher wurde einfach proportional auf 100 % hochskaliert. Fiel eine grosse
+  // Klasse aus (z. B. Obligationen mit 25 %), zog das ALLE übrigen Klassen um
+  // denselben Faktor mit: die Aktienquote sprang von 55 % auf 73 % und lag
+  // damit weit ausserhalb ihrer Bandbreite — ohne dass es irgendwo auffiel.
+  // Neu wird der frei gewordene Anteil nur bis zur jeweiligen Bandobergrenze
+  // verteilt; was nicht platziert werden kann, bleibt als Liquidität stehen
+  // und wird ausgewiesen statt still auf die übrigen Klassen geschoben.
+  const bandCorrections = enforceAssetClassBands(positions, matrix, tolerancePct);
+  notes.push(...bandCorrections);
 
   // 4) Effektive Allokation nachrechnen
   const allocation = emptyAllocation();
@@ -474,4 +482,82 @@ export function createDbPriceResolver(): ResolvePriceFn {
     if (!etf) return null;
     return ensureSleeveStock(etf);
   };
+}
+
+/**
+ * Bandbreiten je Anlageklasse durchsetzen.
+ *
+ * Führungsgrösse ist die Allokations-Matrix des Anlegerprofils: jede vorhandene
+ * Klasse wird exakt auf ihre Soll-Quote gesetzt. Der Anteil von Klassen, die
+ * nicht bepreist werden konnten, wird auf die übrigen verteilt — aber nur bis
+ * zu deren Bandobergrenze (Soll + Toleranz). Was übrig bleibt, wird NICHT
+ * stillschweigend auf die anderen Klassen geschoben, sondern als nicht
+ * investierter Rest gemeldet; die Summe der Positionen liegt dann bewusst
+ * unter 100 %.
+ *
+ * Mutiert `positions` und gibt die Meldungen zurück.
+ */
+export function enforceAssetClassBands(
+  positions: SleevePosition[],
+  targets: Record<SleeveAssetKey, number>,
+  tolerancePct: number,
+): string[] {
+  const meldungen: string[] = [];
+  const summe = positions.reduce((s, p) => s + p.weight, 0);
+  if (summe <= 0) return meldungen;
+
+  const klassenMit = (cls: SleeveAssetKey) => positions.filter((p) => p.assetClass === cls);
+  const gewichtVon = (cls: SleeveAssetKey) => klassenMit(cls).reduce((s, p) => s + p.weight, 0);
+  const setzeKlasse = (cls: SleeveAssetKey, ziel: number) => {
+    const aktuell = gewichtVon(cls);
+    if (aktuell <= 0) return;
+    const f = ziel / aktuell;
+    klassenMit(cls).forEach((p) => { p.weight = p.weight * f; });
+  };
+
+  const alleKlassen = Object.keys(targets) as SleeveAssetKey[];
+  const vorhanden = alleKlassen.filter((c) => gewichtVon(c) > 0);
+
+  // 1) Jede vorhandene Klasse exakt auf ihre Soll-Quote.
+  let unplatziert = 0;
+  for (const cls of alleKlassen) {
+    const ziel = targets[cls] ?? 0;
+    if (ziel <= 0) continue;
+    if (gewichtVon(cls) > 0) {
+      setzeKlasse(cls, ziel);
+    } else {
+      unplatziert += ziel;
+      meldungen.push(
+        `Anlageklasse ${ASSET_CLASS_LABELS[cls]} (Soll ${ziel}%) konnte nicht abgebildet werden — kein handelbarer Baustein verfügbar.`
+      );
+    }
+  }
+
+  // 2) Freigewordenen Anteil verteilen, gedeckelt an der Bandobergrenze.
+  if (unplatziert > 0.01 && vorhanden.length > 0) {
+    let rest = unplatziert;
+    // Mehrere Runden, weil Klassen nacheinander ihre Obergrenze erreichen.
+    for (let runde = 0; runde < alleKlassen.length && rest > 0.01; runde++) {
+      const aufnahmefaehig = vorhanden
+        .map((cls) => ({ cls, luft: Math.max(0, (targets[cls] ?? 0) + tolerancePct - gewichtVon(cls)) }))
+        .filter((x) => x.luft > 0.01);
+      const luftGesamt = aufnahmefaehig.reduce((s, x) => s + x.luft, 0);
+      if (luftGesamt <= 0.01) break;
+      const verteilbar = Math.min(rest, luftGesamt);
+      for (const { cls, luft } of aufnahmefaehig) {
+        const anteil = (luft / luftGesamt) * verteilbar;
+        setzeKlasse(cls, gewichtVon(cls) + anteil);
+      }
+      rest -= verteilbar;
+    }
+    if (rest > 0.01) {
+      meldungen.push(
+        `${rest.toFixed(1)}% des Kapitals bleiben als Liquidität stehen: Der Anteil der fehlenden Anlageklassen ` +
+        `liesse sich nur unterbringen, indem die übrigen Klassen ihre Bandbreite (±${tolerancePct} Prozentpunkte) verlassen.`
+      );
+    }
+  }
+
+  positions.forEach((p) => { p.weight = round2(p.weight); });
+  return meldungen;
 }

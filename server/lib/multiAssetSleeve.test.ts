@@ -142,25 +142,39 @@ describe("applyMultiAssetSleeve — Fallbacks", () => {
     expect(result.allocation.bond).toBeCloseTo(25, 1);
   });
 
-  it("Totalfall: alle ETFs einer Klasse null → Klasse gestrichen, proportional umverteilt, Summe 100", async () => {
-    // Alle Bond-ETFs nicht auflösbar (konservativ: bond 50%)
+  it("Totalfall: alle ETFs einer Klasse null → Rest bleibt Liquidität, Bandbreiten halten", async () => {
+    // Alle Bond-ETFs nicht auflösbar (konservativ: bond 50%).
+    //
+    // Bis Juli 2026 wurde der frei gewordene Anteil proportional auf die
+    // übrigen Klassen verteilt und die Summe wieder auf 100 % gebracht. Das
+    // verdoppelte hier die Aktienquote von 30 % auf 60 % — aus einem
+    // konservativen Profil wurde stillschweigend ein offensives. Neu ist die
+    // Bandbreite je Anlageklasse bindend: verteilt wird nur bis Soll +
+    // Toleranz, der Rest bleibt als Liquidität stehen und wird gemeldet.
     const resolver = only(["CMDY", "ZGLD.SW", "REET"]);
     const result = await applyMultiAssetSleeve({
       equityPositions: equity([100]),
       riskProfile: "konservativ",
       stocksOnly: false,
       resolvePrice: resolver,
+      assetClassTolerancePct: 3,
     });
     expect(result.positions.filter((p) => p.assetClass === "bond")).toHaveLength(0);
     expect(result.notes.some((n) => n.includes("Obligationen"))).toBe(true);
     expect(result.allocation.bond).toBe(0);
-    expect(sumWeights(result.positions)).toBeCloseTo(100, 1);
-    // Proportional: Aktien 30 / Gold 8 / Rohstoffe 4 / Immobilien 8 → Summe 50 → verdoppelt
+
+    // Aktien: Soll 30 %, Obergrenze 33 % — NICHT mehr 60 %.
     const stocks = result.positions.filter((p) => p.assetClass === "equity");
-    expect(stocks[0].weight).toBeCloseTo(60, 1);
+    expect(stocks[0].weight).toBeCloseTo(33, 1);
+    expect(result.allocation.equity).toBeCloseTo(33, 1);
+    // Gold: Soll 8 %, Obergrenze 11 % — NICHT mehr 16 %.
     const gold = result.positions.find((p) => p.assetClass === "gold");
-    expect(gold?.weight).toBeCloseTo(16, 1);
-    expect(result.allocation.equity).toBeCloseTo(60, 1);
+    expect(gold?.weight).toBeCloseTo(11, 1);
+
+    // 30+4+8+8 = 50 investiert, je Klasse +3 aufnahmefähig = 62 %.
+    // Die fehlenden 38 % bleiben liquide statt die Bänder zu sprengen.
+    expect(sumWeights(result.positions)).toBeCloseTo(62, 1);
+    expect(result.notes.some((n) => n.includes("Liquidität"))).toBe(true);
   });
 
   it("ein Krypto-Bein fällt aus → anderes Bein bleibt, Anteil umverteilt", async () => {
