@@ -22,6 +22,51 @@ import { Breadcrumb } from "@/components/Breadcrumb";
 
 // ─── Badges ──────────────────────────────────────────────────────────────────
 
+/**
+ * Ein- und ausklappbarer Urteilsblock (Synthesizer-Urteil, Challenger-Kritik).
+ *
+ * Wiederhergestellt: Commit 2d0eb39 stellte die beiden Blöcke auf diese
+ * Komponente um, die Definition selbst ging beim dortigen «git pull + lokale
+ * Änderungen reapplied» verloren — `pnpm check` brach seither mit
+ * TS2304 «Cannot find name 'CollapsibleVerdictBlock'» ab.
+ *
+ * Markup und Farbgebung entsprechen den vorherigen statischen Blöcken; neu ist
+ * allein der Umschalter. Standard ist AUFGEKLAPPT, damit nichts verschwindet,
+ * was vorher sichtbar war — für zugeklappt als Standard genügt ein `useState(false)`.
+ */
+function CollapsibleVerdictBlock({
+  title,
+  icon,
+  borderCls,
+  bgCls,
+  titleCls,
+  text,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  borderCls: string;
+  bgCls: string;
+  titleCls: string;
+  text: string;
+}) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className={`${bgCls} border ${borderCls} rounded p-3`}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-2 mb-1 w-full text-left"
+        aria-expanded={open}
+      >
+        {icon}
+        <span className={`text-xs font-medium ${titleCls}`}>{title}</span>
+        <span className="ml-auto text-xs text-slate-500">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && <p className="text-sm text-slate-300">{text}</p>}
+    </div>
+  );
+}
+
 function ConfidenceBadge({ value }: { value: string | null }) {
   if (!value) return <Badge variant="outline">—</Badge>;
   const map: Record<string, string> = {
