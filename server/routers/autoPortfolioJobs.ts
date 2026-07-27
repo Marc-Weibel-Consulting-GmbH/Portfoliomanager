@@ -7,6 +7,7 @@
 import { protectedProcedure } from "../_core/trpc";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import { fxRateForStock } from "../lib/fxRateGuard";
 import { getProposalModelConfig, invokeProposalAgent } from "../lib/proposalModels";
 import {
   getMarktHubSignals,
@@ -432,7 +433,7 @@ export const startProposalProcedure = protectedProcedure
           job.progress.push('Positionen aufbauen...');
           const kept = selected.map((c) => ({ c, w: weights[c.stock.ticker] ?? 0 })).filter((x) => x.w > 0);
           const wSum = kept.reduce((s, x) => s + x.w, 0) || 1;
-          let positions = kept.map(({ c, w }) => { const s = c.stock; return { ticker: s.ticker, companyName: s.companyName, sector: s.sector || 'Andere', currency: s.currency || 'CHF', currentPrice: parseFloat(s.currentPrice ?? '0'), exchangeRateToChf: s.exchangeRateToChf ? parseFloat(s.exchangeRateToChf) : 1, weightPct: parseFloat(((w / wSum) * 100).toFixed(2)), combinedScore: c.combinedScore, signal: c.signal, assetType: 'stock' as string | undefined, assetClass: undefined as string | undefined, reason: `${c.signal} · Score-Note ${c.scoreGrade}` + (c.ytdPerf !== 0 && c.ytdPerf !== null ? ` · YTD ${c.ytdPerf > 0 ? '+' : ''}${c.ytdPerf.toFixed(1)}%` : '') + (watchlistRecTickers.has(s.ticker.toUpperCase()) ? ' · Watchlist-Empfehlung' : '') + (c.regime === 'bubble' ? ' · LPPL-Warnung' : '') }; }).sort((a, b) => b.weightPct - a.weightPct);
+          let positions = kept.map(({ c, w }) => { const s = c.stock; return { ticker: s.ticker, companyName: s.companyName, sector: s.sector || 'Andere', currency: s.currency || 'CHF', currentPrice: parseFloat(s.currentPrice ?? '0'), exchangeRateToChf: fxRateForStock(s.currency, s.exchangeRateToChf, referenceCurrency), weightPct: parseFloat(((w / wSum) * 100).toFixed(2)), combinedScore: c.combinedScore, signal: c.signal, assetType: 'stock' as string | undefined, assetClass: undefined as string | undefined, reason: `${c.signal} · Score-Note ${c.scoreGrade}` + (c.ytdPerf !== 0 && c.ytdPerf !== null ? ` · YTD ${c.ytdPerf > 0 ? '+' : ''}${c.ytdPerf.toFixed(1)}%` : '') + (watchlistRecTickers.has(s.ticker.toUpperCase()) ? ' · Watchlist-Empfehlung' : '') + (c.regime === 'bubble' ? ' · LPPL-Warnung' : '') }; }).sort((a, b) => b.weightPct - a.weightPct);
 
           // Post-optimization sector/FX checks
           const sectorWeightMap: Record<string, number> = {};
@@ -513,7 +514,7 @@ export const startProposalProcedure = protectedProcedure
               const { stocks: stocksTbl } = await import('../../drizzle/schema');
               const dbPriceRows = await db.select({ ticker: stocksTbl.ticker, currentPrice: stocksTbl.currentPrice, exchangeRateToChf: stocksTbl.exchangeRateToChf }).from(stocksTbl);
               const dbPrices = new Map(dbPriceRows.map((r: any) => [String(r.ticker).toUpperCase(), r]));
-              for (const p of positions) { if (!p.currentPrice || p.currentPrice === 0) { const dbRow = dbPrices.get(p.ticker.toUpperCase()); if (dbRow?.currentPrice) { p.currentPrice = parseFloat(String(dbRow.currentPrice)); if (dbRow.exchangeRateToChf) p.exchangeRateToChf = parseFloat(String(dbRow.exchangeRateToChf)); } } }
+              for (const p of positions) { if (!p.currentPrice || p.currentPrice === 0) { const dbRow = dbPrices.get(p.ticker.toUpperCase()); if (dbRow?.currentPrice) { p.currentPrice = parseFloat(String(dbRow.currentPrice)); p.exchangeRateToChf = fxRateForStock(p.currency, dbRow.exchangeRateToChf, referenceCurrency); } } }
             } catch (e) { console.warn('[startProposal] Price enrichment failed (non-fatal):', e); }
           }
 
@@ -545,7 +546,7 @@ export const startProposalProcedure = protectedProcedure
             if (replaceAdj.length > 0) {
               const usedTickers = new Set(adjusted.map(p => p.ticker.toUpperCase()));
               const candidates = scored.filter(x => !usedTickers.has(x.stock.ticker.toUpperCase()) && isBuyable(x) && x.combinedScore >= 45).sort((a, b) => b.combinedScore - a.combinedScore);
-              for (const ra of replaceAdj) { const idx = adjusted.findIndex(p => p.ticker.toUpperCase() === ra.ticker.toUpperCase()); if (idx < 0 || isSleevePos(adjusted[idx])) continue; const replacement = candidates.shift(); if (!replacement) continue; usedTickers.add(replacement.stock.ticker.toUpperCase()); adjusted[idx] = { ...adjusted[idx], ticker: replacement.stock.ticker, companyName: replacement.stock.companyName, sector: replacement.stock.sector, currency: replacement.stock.currency, currentPrice: parseFloat(String(replacement.stock.currentPrice ?? '0')) || 0, exchangeRateToChf: parseFloat(String(replacement.stock.exchangeRateToChf ?? '1')) || 1, combinedScore: replacement.combinedScore, signal: replacement.signal, reason: `Ersetzt ${ra.ticker} gemäss KI-Empfehlung`, assetType: 'stock' as const, assetClass: undefined }; (adjusted[idx] as any).aiReason = undefined; }
+              for (const ra of replaceAdj) { const idx = adjusted.findIndex(p => p.ticker.toUpperCase() === ra.ticker.toUpperCase()); if (idx < 0 || isSleevePos(adjusted[idx])) continue; const replacement = candidates.shift(); if (!replacement) continue; usedTickers.add(replacement.stock.ticker.toUpperCase()); adjusted[idx] = { ...adjusted[idx], ticker: replacement.stock.ticker, companyName: replacement.stock.companyName, sector: replacement.stock.sector, currency: replacement.stock.currency, currentPrice: parseFloat(String(replacement.stock.currentPrice ?? '0')) || 0, exchangeRateToChf: fxRateForStock(replacement.stock.currency, replacement.stock.exchangeRateToChf, referenceCurrency), combinedScore: replacement.combinedScore, signal: replacement.signal, reason: `Ersetzt ${ra.ticker} gemäss KI-Empfehlung`, assetType: 'stock' as const, assetClass: undefined }; (adjusted[idx] as any).aiReason = undefined; }
             }
             const total = adjusted.reduce((s, p) => s + p.weightPct, 0);
             if (total > 0) adjusted = adjusted.map(p => ({ ...p, weightPct: Math.round((p.weightPct / total) * 1000) / 10 }));
