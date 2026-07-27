@@ -2190,8 +2190,11 @@ export default function PortfolioDetailsPage() {
                           aVal = parseFloat(a.ytdPerformance || '0');
                           bVal = parseFloat(b.ytdPerformance || '0');
                         } else if (sortKey === 'today') {
-                          aVal = parseFloat(a.dailyChangePercent || a.changePercent || '0');
-                          bVal = parseFloat(b.dailyChangePercent || b.changePercent || '0');
+                          // Ohne Basis (null) ans Ende sortieren statt als 0 dazwischen.
+                          aVal = parseFloat(a.dailyChangePercent ?? a.changePercent ?? 'NaN');
+                          bVal = parseFloat(b.dailyChangePercent ?? b.changePercent ?? 'NaN');
+                          if (!Number.isFinite(aVal)) aVal = sortDir === 'desc' ? -Infinity : Infinity;
+                          if (!Number.isFinite(bVal)) bVal = sortDir === 'desc' ? -Infinity : Infinity;
                         } else if (sortKey === 'qualityScore') {
                           aVal = a.qualityScore ?? -1;
                           bVal = b.qualityScore ?? -1;
@@ -2229,7 +2232,12 @@ export default function PortfolioDetailsPage() {
                           : isRealEstate ? 'Yield + Momentum'
                           : 'Momentum + Qualität + LPPL-Risiko';
                         const ytd = parseFloat(h.ytdPerformance || '0');
-                        const today = parseFloat(h.dailyChangePercent || h.changePercent || '0');
+                        // null/undefined heisst «keine Vergleichsbasis» — nicht 0 %.
+                        // Vorher wurde beides zu '0' und die Spalte stand fuer jeden
+                        // Titel auf +0.00 %, weil das Feld serverseitig gar nicht kam.
+                        const todayRaw = h.dailyChangePercent ?? h.changePercent ?? null;
+                        const todayNum = todayRaw != null ? parseFloat(String(todayRaw)) : NaN;
+                        const today = Number.isFinite(todayNum) ? todayNum : null;
                         const weight = parseFloat(h.weight || '0');
                         // Bonds: value = nominalValue × pricePercent / 100 (already computed server-side as valueCHF)
                         const value = isBond
@@ -2363,8 +2371,9 @@ export default function PortfolioDetailsPage() {
                               )}
                             </td>
                             <td className="px-3 py-3.5 text-right">
-                              <span className={`text-sm font-mono ${today >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>
-                                {today >= 0 ? '+' : ''}{today.toFixed(2)}%
+                              <span className={`text-sm font-mono ${today == null ? 'text-gray-600' : today >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}
+                                    title={today == null ? 'Kein Schlusskurs des Vortags verfügbar' : undefined}>
+                                {today == null ? '—' : `${today >= 0 ? '+' : ''}${today.toFixed(2)}%`}
                               </span>
                             </td>
                             <td className="px-3 py-3.5 text-right">

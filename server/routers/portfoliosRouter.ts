@@ -392,7 +392,49 @@ export const portfoliosRouter = router({
         // PERF: Batch-fetch all stocks in a single DB query instead of N+1 individual queries
         const allTickers = stocksWithoutCash.map((s: any) => s.ticker);
         const dbStockMap = await getStocksByTickers(allTickers);
-        
+
+        // Tagesveraenderung: letzter Schlusskurs VOR heute je Ticker. Eine
+        // Abfrage fuer alle Titel statt N+1. `.US`-Varianten werden
+        // mitgelesen, weil historicalPrices sie teils unter beiden Symbolen
+        // fuehrt (gleiche Normalisierung wie im Tageswechsel-Block).
+        const schlusskurseNachTicker = new Map<string, Array<{ date: string; close: number }>>();
+        try {
+          const { historicalPrices } = await import("../../drizzle/schema");
+          const { inArray, gte, and: andOp } = await import("drizzle-orm");
+          const { getDb } = await import("../db");
+          const dbConn = await getDb();
+          if (!dbConn) throw new Error("Datenbank nicht verfuegbar");
+          const varianten = new Set<string>();
+          for (const t of allTickers) {
+            varianten.add(t);
+            if (String(t).endsWith('.US')) varianten.add(String(t).slice(0, -3));
+            else varianten.add(`${t}.US`);
+          }
+          // Zehn Kalendertage genuegen, um ueber Wochenenden und Feiertage
+          // hinweg den letzten Handelstag zu finden.
+          const seit = new Date(Date.now() - 10 * 86_400_000).toISOString().split('T')[0];
+          const rows = await dbConn
+            .select({ ticker: historicalPrices.ticker, date: historicalPrices.date, close: historicalPrices.close })
+            .from(historicalPrices)
+            .where(andOp(inArray(historicalPrices.ticker, Array.from(varianten)), gte(historicalPrices.date, seit)));
+          for (const r of rows as any[]) {
+            const basis = String(r.ticker).endsWith('.US') ? String(r.ticker).slice(0, -3) : String(r.ticker);
+            const close = parseFloat(String(r.close));
+            if (!Number.isFinite(close) || close <= 0) continue;
+            const eintrag = { date: String(r.date).split('T')[0], close };
+            for (const key of [String(r.ticker), basis, `${basis}.US`]) {
+              if (!schlusskurseNachTicker.has(key)) schlusskurseNachTicker.set(key, []);
+              schlusskurseNachTicker.get(key)!.push(eintrag);
+            }
+          }
+        } catch (e) {
+          // Ohne Kurshistorie bleibt die Tagesveraenderung null («—»), statt
+          // die ganze Portfolio-Abfrage scheitern zu lassen.
+          console.warn('[portfolios] Tagesveraenderung nicht berechenbar:', (e as Error).message);
+        }
+        const heuteIso = new Date().toISOString().split('T')[0];
+        const { berechneTagesveraenderung } = await import("../lib/dailyChange");
+
         // Enrich stocks with currency and FX data
         const enrichedStocks = await Promise.all(
           stocksWithoutCash.map(async (stock: any) => {
@@ -640,6 +682,17 @@ export const portfoliosRouter = router({
               }, undefined, dbStock?.category).totalScore,
               // hasBuyPrice: true only when a real purchase price exists (not the 0%-fallback)
               hasBuyPrice,
+              // Tagesveraenderung gegen den letzten Schlusskurs. null = keine
+              // Basis vorhanden; die Ansicht zeigt dann «—» statt eines
+              // erfundenen 0.00 %.
+              dailyChangePercent: (() => {
+                const tv = berechneTagesveraenderung(
+                  parseNum(dbStock?.currentPrice),
+                  schlusskurseNachTicker.get(ticker) ?? [],
+                  heuteIso,
+                );
+                return tv.percent != null ? tv.percent.toFixed(2) : null;
+              })(),
             };
           })
         );
