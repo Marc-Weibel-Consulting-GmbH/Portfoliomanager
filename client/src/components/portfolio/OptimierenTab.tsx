@@ -448,8 +448,14 @@ export default function OptimierenTab({
     staleTime: 10 * 60 * 1000,
   });
 
+  // Auch die Gewichts-Empfehlungen (analytics.optimize) rechnen nur mit dem
+  // Aktienteil — sonst setzt die Mean-Variance-Optimierung die Sleeve-ETFs
+  // ebenfalls auf 0 % bzw. auf die Einzeltitel-Obergrenze.
   const tickers = useMemo(
-    () => holdings.filter((h: any) => h.ticker && h.ticker !== "CASH").map((h: any) => h.ticker),
+    () => holdings
+      .filter((h: any) => h.ticker && h.ticker !== "CASH")
+      .filter((h: any) => SLEEVE_TICKER_LABEL[String(h.ticker).toUpperCase()] == null)
+      .map((h: any) => h.ticker),
     [holdings]
   );
 
@@ -474,10 +480,19 @@ export default function OptimierenTab({
     return map;
   }, [signalsData]);
 
-  // Holdings mit Signal-Scores angereichert (für upgradeProposals)
+  // Holdings mit Signal-Scores angereichert (für upgradeProposals).
+  //
+  // Multi-Asset-Bausteine bleiben AUSSEN VOR. Der Optimizer rechnet mit den
+  // Einzeltitel-Bandbreiten (min./max. Gewicht, Mindestbetrag CHF 3'000) und
+  // kennt die Anlageklassen nicht — angewandt auf die Sleeve-ETFs empfahl er
+  // deshalb, die Obligationenquote zu vierteln und Gold, Immobilien und Krypto
+  // auf 0 % zu setzen. Genau die Struktur also, die der Builder zuvor aus dem
+  // Anlegerprofil aufgebaut hat. Ihre Gewichtung steuert das Profil, nicht die
+  // Mean-Variance-Optimierung.
   const holdingsWithScores = useMemo(() =>
     holdings
       .filter((h: any) => h.ticker && h.ticker !== "CASH")
+      .filter((h: any) => SLEEVE_TICKER_LABEL[String(h.ticker).toUpperCase()] == null)
       .map((h: any) => ({
         ticker: h.ticker,
         weight: parseFloat(h.weight || "0") / 100,
@@ -2006,7 +2021,12 @@ export default function OptimierenTab({
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mb-4">Re-Allocation für maximale risikoadjustierte Rendite · Bandbreite {rules.minPositionPercent}–{rules.maxPositionPercent}%</p>
+              <p className="text-xs text-gray-500 mb-4">
+                Re-Allocation für maximale risikoadjustierte Rendite · Bandbreite {rules.minPositionPercent}–{rules.maxPositionPercent}%
+                {holdings.some((h: any) => SLEEVE_TICKER_LABEL[String(h.ticker ?? "").toUpperCase()] != null) && (
+                  <> · Nur Aktienteil — Obligationen, Gold, Rohstoffe, Immobilien und Krypto steuert das Anlegerprofil</>
+                )}
+              </p>
               {/* P-ALIGN: Hinweis für frisch erstellte KI-Portfolios */}
               {isFreshDemoPortfolio && (
                 <div className="flex items-start gap-2 bg-[#00CFC1]/5 border border-[#00CFC1]/20 rounded-lg px-3 py-2.5 mb-4">
