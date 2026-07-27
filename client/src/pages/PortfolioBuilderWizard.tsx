@@ -606,7 +606,13 @@ export default function PortfolioBuilderWizard() {
     setPortfolioType(goalToType[autoGoal] ?? "balanced");
     if (!portfolioName.trim()) setPortfolioName("KI-Portfolio");
     setPath("auto");
-    setCurrentStep(1);
+    // Direkt zum Abschluss: Strategie, Name, Anlagebetrag und die Titelauswahl
+    // sind aus dem KI-Vorschlag bereits gesetzt. Bis Juli 2026 landete man hier
+    // in Schritt 1 und wurde dieselben vier Dinge nochmals gefragt — inklusive
+    // einer Aktien- und Anleihen-Auswahl, die der Vorschlag längst getroffen
+    // hatte. Über «Zurück» bleiben die früheren Schritte erreichbar, falls doch
+    // etwas angepasst werden soll.
+    setCurrentStep(5);
   };
 
   const handleSendToAdminReview = () => {
