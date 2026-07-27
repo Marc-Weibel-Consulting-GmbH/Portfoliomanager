@@ -373,7 +373,14 @@ export const startProposalProcedure = protectedProcedure
           let proposalMetrics: { expectedReturnPct: number; volatilityPct: number; sharpe: number } | null = null;
           try {
             const { optimizePortfolio } = await import('../analytics/engine');
-            const opt = await optimizePortfolio({ tickers: selectedTickers, method, minPositionWeight: params.minPositionWeight, maxPositionWeight: params.maxPositionWeight, riskFreeRate: dynamicRiskFreeRate, sectorByTicker: Object.fromEntries(selected.map((c) => [c.stock.ticker, c.stock.sector || 'Andere'])), maxSectorWeightPct: rules.maxSectorPercent });
+            // 10 Jahre statt des Default-Jahres: Aus zwoelf guten Monaten annualisiert
+            // ergaben sich ~28 % p.a. — eine Zahl, die eine Zukunftserwartung
+            // suggeriert, aber nur einen Ausschnitt beschreibt. Wie viel davon
+            // wirklich genutzt wird, begrenzt der juengste Titel: die Engine
+            // schneidet die gemeinsame Datums-Schnittmenge aller Titel. Der
+            // tatsaechliche Zeitraum wird deshalb unten ausgewiesen.
+            const LOOKBACK_10J = 2520;
+            const opt = await optimizePortfolio({ tickers: selectedTickers, method, lookbackDays: LOOKBACK_10J, minPositionWeight: params.minPositionWeight, maxPositionWeight: params.maxPositionWeight, riskFreeRate: dynamicRiskFreeRate, sectorByTicker: Object.fromEntries(selected.map((c) => [c.stock.ticker, c.stock.sector || 'Andere'])), maxSectorWeightPct: rules.maxSectorPercent });
             weights = { ...opt.weights };
             weightingEngine = opt.optimizerEngine ?? 'random_search';
             const rawReturn = opt.optimalPortfolio.expectedReturn;
@@ -381,6 +388,16 @@ export const startProposalProcedure = protectedProcedure
             const rawSharpe = opt.optimalPortfolio.sharpe;
             if (Number.isFinite(rawReturn) && Number.isFinite(rawVol) && Number.isFinite(rawSharpe)) {
               proposalMetrics = { expectedReturnPct: Math.round(rawReturn * 1000) / 10, volatilityPct: Math.round(rawVol * 1000) / 10, sharpe: rawSharpe };
+              // Effektiven Zeitraum ausweisen — er ist regelmaessig kuerzer als
+              // die angeforderten 10 Jahre, sobald ein junger Titel dabei ist.
+              const beobachteteTage = (opt as any).observedDays;
+              if (Number.isFinite(beobachteteTage)) {
+                const jahre = beobachteteTage / 252;
+                const zeitraum = jahre >= 1 ? `${jahre.toFixed(1)} Jahre` : `${Math.round(beobachteteTage)} Handelstage`;
+                weightingNote = (weightingNote ? weightingNote + ' ' : '')
+                  + `Rendite und Schwankung sind ueber ${zeitraum} gemeinsamer Kurshistorie gerechnet`
+                  + (jahre < 9 ? ' — kuerzer als die angestrebten 10 Jahre, weil der juengste Titel den gemeinsamen Zeitraum begrenzt.' : '.');
+              }
             } else {
               proposalMetrics = null;
               const nanTickers = backfillFailedTickers.length > 0
@@ -840,7 +857,9 @@ export const startProposalProcedure = protectedProcedure
               const divOk = goal === 'dividends' ? proposalDivYield >= 2 : true;
               meetsKennzahlenFilter = (sharpeOk && divOk) ? 'ja' : 'nein';
               if (!sharpeOk) kennzahlenFilterReason += `Sharpe ${proposalSharpe.toFixed(2)} < 0.3. `;
-              if (!divOk) kennzahlenFilterReason += `Dividendenrendite ${proposalDivYield.toFixed(1)}% < 2%. `;
+              // Zwei Nachkommastellen: mit einer las sich 1.995 % als «2.0% < 2%»
+              // und die Meldung widersprach sich selbst.
+              if (!divOk) kennzahlenFilterReason += `Dividendenrendite ${proposalDivYield.toFixed(2)}% < 2%. `;
               if (meetsKennzahlenFilter === 'ja') kennzahlenFilterReason = `Sharpe ${proposalSharpe.toFixed(2)}, Div-Rendite ${proposalDivYield.toFixed(1)}% — Kennzahlen erfüllt.`;
               if (meetsKennzahlenFilter === 'nein') notes.push(`⚠️ Kennzahlen-Filter: ${kennzahlenFilterReason.trim()}`);
             }

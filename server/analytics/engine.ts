@@ -1279,6 +1279,9 @@ export async function optimizePortfolio(input: OptimizeInput) {
       droppedPositions: droppedHrp,
       // OPT-7: Titel, die mangels Kurshistorie NICHT optimiert wurden.
       excludedShortHistory,
+      // Effektiv genutzte gemeinsame Handelstage (Schnittmenge aller Titel) —
+      // die Basis, ueber die Rendite/Volatilitaet annualisiert wurden.
+      observedDays: alignedDates.length,
       // HRP ist ein deterministisches Cluster-Verfahren ohne Zufallssuche.
       optimizerEngine: "analytic" as const,
       minPositionChf: MIN_POSITION_CHF_HRP,
