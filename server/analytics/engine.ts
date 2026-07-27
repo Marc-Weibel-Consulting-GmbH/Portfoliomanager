@@ -52,7 +52,7 @@ async function fetchPricesFromDB(
   const db = await getDb();
   if (!db) return {};
   const { historicalPrices: hpTable } = await import("../../drizzle/schema");
-  const { inArray, gte, asc } = await import("drizzle-orm");
+  const { inArray, gte, asc, and } = await import("drizzle-orm");
   const startDate = new Date(Date.now() - lookbackDays * 1.5 * 24 * 60 * 60 * 1000)
     .toISOString()
     .split("T")[0];
@@ -60,13 +60,17 @@ async function fetchPricesFromDB(
   const normalizedMap: Record<string, string> = {};
   for (const t of tickers) normalizedMap[t] = normalizeTicker(t);
   const uniqueNorm = Array.from(new Set(Object.values(normalizedMap)));
+  // Datumsfilter gehoert in die Abfrage. Vorher wurde die KOMPLETTE Historie
+  // aller Titel geladen und erst in JavaScript beschnitten — bei Dutzenden
+  // Titeln mit jahrelanger Historie zehntausende Zeilen, von denen die meisten
+  // sofort verworfen wurden. Die Spalte ist ein String im Format YYYY-MM-DD,
+  // ein lexikalischer Vergleich entspricht dort dem chronologischen.
   const rows = await db
     .select({ ticker: hpTable.ticker, date: hpTable.date, close: hpTable.close, adj: hpTable.adjustedClose })
     .from(hpTable)
-    .where((inArray(hpTable.ticker, uniqueNorm) as any))
+    .where(and(inArray(hpTable.ticker, uniqueNorm), gte(hpTable.date, startDate)) as any)
     .orderBy(asc(hpTable.date));
-  // Filter by date (date column is a string 'YYYY-MM-DD')
-  const filtered = rows.filter((r: any) => String(r.date).slice(0, 10) >= startDate);
+  const filtered = rows;
   // Deduplizieren: pro Ticker+Datum nur den letzten Eintrag behalten.
   // Duplikate in historicalPrices (z.B. durch mehrfache Backfill-Läufe) führen
   // sonst zu return = (price - price) / price = 0 oder NaN in der Equity-Kurve.

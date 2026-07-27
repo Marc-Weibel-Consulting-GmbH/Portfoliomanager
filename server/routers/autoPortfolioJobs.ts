@@ -380,8 +380,15 @@ export const startProposalProcedure = protectedProcedure
             // wirklich genutzt wird, begrenzt der juengste Titel: die Engine
             // schneidet die gemeinsame Datums-Schnittmenge aller Titel. Der
             // tatsaechliche Zeitraum wird deshalb unten ausgewiesen.
-            const LOOKBACK_10J = 2520;
-            const opt = await optimizePortfolio({ tickers: selectedTickers, method, lookbackDays: LOOKBACK_10J, minPositionWeight: params.minPositionWeight, maxPositionWeight: params.maxPositionWeight, riskFreeRate: dynamicRiskFreeRate, sectorByTicker: Object.fromEntries(selected.map((c) => [c.stock.ticker, c.stock.sector || 'Andere'])), maxSectorWeightPct: rules.maxSectorPercent });
+            // Zurueck auf fuenf Jahre. Mit 2520 Tagen blieb die Erstellung
+            // haengen: die Datenmenge, die durch Alignment, Kovarianz und
+            // Effizienzgrenze laeuft, waechst linear mit dem Zeitraum.
+            // Fuenf Jahre umfassen einen vollen Zyklus und sind damit weit
+            // aussagekraeftiger als die frueheren zwoelf Monate, ohne die
+            // Optimierung zu ueberlasten. Zusammen mit dem jetzt in SQL
+            // gefilterten Kursabruf ist das schneller als der alte Zustand.
+            const LOOKBACK_5J = 1260;
+            const opt = await optimizePortfolio({ tickers: selectedTickers, method, lookbackDays: LOOKBACK_5J, minPositionWeight: params.minPositionWeight, maxPositionWeight: params.maxPositionWeight, riskFreeRate: dynamicRiskFreeRate, sectorByTicker: Object.fromEntries(selected.map((c) => [c.stock.ticker, c.stock.sector || 'Andere'])), maxSectorWeightPct: rules.maxSectorPercent });
             weights = { ...opt.weights };
             weightingEngine = opt.optimizerEngine ?? 'random_search';
             const rawReturn = opt.optimalPortfolio.expectedReturn;
@@ -397,7 +404,7 @@ export const startProposalProcedure = protectedProcedure
                 const zeitraum = jahre >= 1 ? `${jahre.toFixed(1)} Jahre` : `${Math.round(beobachteteTage)} Handelstage`;
                 weightingNote = (weightingNote ? weightingNote + ' ' : '')
                   + `Rendite und Schwankung sind ueber ${zeitraum} gemeinsamer Kurshistorie gerechnet`
-                  + (jahre < 9 ? ' — kuerzer als die angestrebten 10 Jahre, weil der juengste Titel den gemeinsamen Zeitraum begrenzt.' : '.');
+                  + (jahre < 4.5 ? ' — kuerzer als die angestrebten 5 Jahre, weil der juengste Titel den gemeinsamen Zeitraum begrenzt.' : '.');
               }
             } else {
               proposalMetrics = null;
