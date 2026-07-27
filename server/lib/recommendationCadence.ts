@@ -19,8 +19,12 @@ export function cadenceDays(cadence: Cadence): number {
 /** Nächster Fälligkeitszeitpunkt (ms) oder null bei "off". */
 export function nextDueMs(cadence: Cadence, lastGeneratedAtMs: number | null): number | null {
   if (cadence === "off") return null;
-  const base = lastGeneratedAtMs ?? 0; // nie generiert → sofort fällig
-  return base + cadenceDays(cadence) * 86_400_000;
+  // Nie generiert → sofort fällig, aber es gibt keinen sinnvollen Termin dafür.
+  // Vorher lief hier 0 als Basis mit, was 0 + 7 Tage = 08.01.1970 ergab und in
+  // der Ansicht als «Nächste Aktualisierung fällig: 08.01.1970» erschien.
+  // `isDue()` prüft den Null-Fall ohnehin separat und bleibt unberührt.
+  if (lastGeneratedAtMs == null) return null;
+  return lastGeneratedAtMs + cadenceDays(cadence) * 86_400_000;
 }
 
 /** Ist die nächste Empfehlungsliste fällig? */

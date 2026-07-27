@@ -492,8 +492,10 @@ function EmpfehlungenTab({ portfolioId }: { portfolioId: number }) {
             <h3 className="text-sm font-semibold text-white">Wiederkehrende Empfehlungen</h3>
             <p className="text-xs text-gray-400 mt-1">
               Wie oft möchten Sie eine Empfehlungsliste für Transaktionen erhalten?
-              {config?.nextDueAt && cadence !== 'off' && (
-                <> · Nächste Aktualisierung fällig: {formatDate(config.nextDueAt)}</>
+              {cadence !== 'off' && (
+                config?.nextDueAt
+                  ? <> · Nächste Aktualisierung fällig: {formatDate(config.nextDueAt)}</>
+                  : <> · Noch keine Liste erstellt — sofort fällig</>
               )}
             </p>
           </div>
