@@ -263,11 +263,15 @@ export default function PortfolioBuilderWizard() {
       // Editierbare Positionen aus dem FINALEN Vorschlag (inkl. Austausch-Titel) seeden.
       const src = ((result as any).adjustedPositions?.length ? (result as any).adjustedPositions : (result as any).positions) || [];
       setReviewPositions(toEditablePositions(src));
-    } else if (status === 'error') {
+    } else if (status === 'error' || status === 'not_found') {
       setIsProposalRunning(false);
       setIsEnhancing(false);
       setProposalJobId(null);
-      setProposalError(error ?? 'Unbekannter Fehler');
+      setProposalError(
+        status === 'not_found'
+          ? 'Der Vorschlag-Job wurde nicht gefunden (Server-Neustart?). Bitte erneut versuchen.'
+          : (error ?? 'Unbekannter Fehler')
+      );
     }
   }
 

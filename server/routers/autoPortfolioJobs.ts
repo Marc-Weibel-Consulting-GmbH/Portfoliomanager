@@ -41,6 +41,15 @@ export const startProposalProcedure = protectedProcedure
       proposalJobs.set(jobId, job);
 
       // Launch the full buildProposal logic in background (non-blocking)
+      // Timeout-Guard: Job nach 5 Minuten automatisch auf 'error' setzen
+      const jobTimeoutHandle = setTimeout(() => {
+        if (job.status === 'running' || job.status === 'enhancing') {
+          job.status = 'error';
+          job.error = 'Zeitüberschreitung: Der Vorschlag konnte nicht innerhalb von 5 Minuten erstellt werden. Bitte erneut versuchen.';
+          job.progress.push('❌ Zeitüberschreitung nach 5 Minuten.');
+          console.warn(`[startProposal] Job ${jobId} timed out after 5 minutes`);
+        }
+      }, 5 * 60 * 1000);
       (async () => {
         try {
           job.progress.push('Berechtigungen prüfen...');
@@ -889,8 +898,10 @@ export const startProposalProcedure = protectedProcedure
           job.result = buildResultObject(challengeReport, autoAppliedPositions ? { primaryPositions: autoAppliedPositions, originalPositions: originalPositionsSnapshot } : undefined);
           job.status = 'done';
           job.progress.push('✅ Vorschlag fertig!');
+          clearTimeout(jobTimeoutHandle);
           console.log(`[startProposal] Job ${jobId} completed for user ${ctx.user.id}`);
         } catch (err: any) {
+          clearTimeout(jobTimeoutHandle);
           job.status = 'error';
           job.error = err.message || 'Unbekannter Fehler';
           job.progress.push(`❌ Fehler: ${err.message}`);
