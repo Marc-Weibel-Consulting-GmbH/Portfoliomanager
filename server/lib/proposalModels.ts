@@ -248,10 +248,10 @@ export interface ProposalAgentOutcome {
 }
 
 /** Maximale Wartezeit pro Provider-Aufruf. Verhindert, dass ein hängender
- * Provider die gesamte Fallback-Kaskade blockiert. 45 s reichen für 4096-Token-
- * Antworten bei allen unterstützten Anbietern; Groq ist meist < 5 s.
+ * Provider die gesamte Fallback-Kaskade blockiert. 90 s für Kimi/Gemini bei
+ * langen Reasoning-Antworten (4096+ Token); Groq ist meist < 5 s.
  */
-const PROVIDER_TIMEOUT_MS = 45_000;
+const PROVIDER_TIMEOUT_MS = 90_000;
 
 /**
  * Führt einen Rollen-Aufruf beim gewählten Anbieter aus und liefert das
