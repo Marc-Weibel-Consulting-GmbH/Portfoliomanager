@@ -1682,3 +1682,33 @@ export const stockBriefingCache = mysqlTable("stock_briefing_cache", {
 });
 export type StockBriefingCache = typeof stockBriefingCache.$inferSelect;
 export type InsertStockBriefingCache = typeof stockBriefingCache.$inferInsert;
+
+/**
+ * Cache für die "Research Observatory"-Signale einer externen n8n-Instanz.
+ * Read-only Research-FILTERUNG (keine Anlageberatung). Analog zum
+ * stockBriefingCache: ~24h-Cache, um redundante n8n-Fetches zu vermeiden.
+ * `signalId` ist der fachliche Upsert-Key (n8n `signal_id`).
+ */
+export const researchSignals = mysqlTable("research_signals", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Fachlicher Schlüssel aus n8n (`signal_id`) — Upsert-Key */
+  signalId: varchar("signalId", { length: 128 }).notNull().unique(),
+  title: text("title").notNull(),
+  url: varchar("url", { length: 1024 }),
+  sourceName: varchar("sourceName", { length: 255 }),
+  sourceCategory: varchar("sourceCategory", { length: 128 }),
+  contentType: varchar("contentType", { length: 64 }),
+  evidenceType: varchar("evidenceType", { length: 64 }),
+  /** Relevanz 1–10 */
+  relevanceScore: int("relevanceScore"),
+  /** Themen-Tags als JSON-Array */
+  topics: json("topics"),
+  /** Signal ist vorläufig / benötigt Nachprüfung */
+  followUpRequired: tinyint("followUpRequired").notNull().default(0),
+  publishedAt: timestamp("publishedAt"),
+  classifiedAt: timestamp("classifiedAt"),
+  /** Zeitstempel des letzten n8n-Fetch/Upsert (für den 24h-Cache) */
+  fetchedAt: timestamp("fetchedAt").defaultNow().notNull(),
+});
+export type ResearchSignal = typeof researchSignals.$inferSelect;
+export type InsertResearchSignal = typeof researchSignals.$inferInsert;

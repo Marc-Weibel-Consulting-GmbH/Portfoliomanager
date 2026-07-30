@@ -32,6 +32,7 @@ import { initWikifolioSyncCron } from "../cron/wikifolioSyncCron";
 import { initMarketAnalysisCron } from "../cron/marketAnalysisCron";
 import { initKiBoomHistoryCron } from "../cron/kiBoomHistoryCron";
 import { initKiBoomDynamicCron } from "../cron/kiBoomDynamicCron";
+import { initResearchSignalsCron } from "../cron/researchSignalsCron";
 import { initRecommendationCron } from "../cron/recommendationCron";
 import { initGapFillingCron } from "../cron/gapFillingCron";
 import { initLearningCron } from "../cron/learningCron";
@@ -241,6 +242,8 @@ async function startServer() {
     initKiBoomHistoryCron();
     // Start KI-Boom dynamic metrics cron (daily Perplexity fetch of OpenAI, CapEx, VC, ROI data)
     initKiBoomDynamicCron();
+    // Start research-signals cron (daily n8n fetch → research_signals cache)
+    initResearchSignalsCron();
     initGapFillingCron();
     // Learning-Koordination: wöchentliche Lernschleifen (Regime-Priors + Signal-
     // Weight-Optimizer) — vorher nur per Admin-Klick, Defaults blieben sonst ewig.

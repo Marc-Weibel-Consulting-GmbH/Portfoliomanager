@@ -41,6 +41,7 @@ const StockDetail = lazy(() => import("./pages/StockDetail"));
 const Invest = lazy(() => import("./pages/Invest"));
 const Signals = lazy(() => import("./pages/Signals"));
 const MarktHub = lazy(() => import("./pages/MarktHub"));
+const ResearchObservatory = lazy(() => import("./pages/ResearchObservatory"));
 const CopilotHub = lazy(() => import("./pages/CopilotHub"));
 
 // ─── Tools (lazy) ───
@@ -140,6 +141,7 @@ function Router() {
 
         {/* ═══ 4. MARKT ═══ */}
         <Route path="/markt" component={MarktHub} />
+        <Route path="/research" component={ResearchObservatory} />
 
         {/* ═══ 5. COPILOT ═══ */}
         <Route path="/copilot" component={CopilotHub} />

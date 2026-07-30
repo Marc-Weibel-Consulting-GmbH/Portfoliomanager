@@ -25,7 +25,7 @@ import {
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { needsOnboardingRedirect } from "@/lib/onboarding";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wrench, Eye, Zap, FlaskConical, Camera, Search, Gauge } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wrench, Eye, Zap, FlaskConical, Camera, Search, Gauge, Telescope } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -46,6 +46,7 @@ const topLevelItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: TrendingUp, label: "Aktien", path: "/aktien" },
   { icon: Globe, label: "Markt", path: "/markt" },
+  { icon: Telescope, label: "Research", path: "/research" },
   { icon: Brain, label: "Copilot", path: "/copilot" },
 ];
 
