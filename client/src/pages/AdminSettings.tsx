@@ -280,6 +280,20 @@ function AppSettingsForm({ settings }: { settings: AppSettingsData | null }) {
                 <p className="text-xs text-gray-500 mt-1">Klumpenrisiko je Währung — 100 = Regel inaktiv</p>
               </div>
               <div>
+                <Label className="text-gray-300">Max. Themen-Anteil (%)</Label>
+                <Input
+                  type="number"
+                  value={divRules.maxThemePercent}
+                  onChange={(e) => setDivRules({ ...divRules, maxThemePercent: parseFloat(e.target.value) || 0 })}
+                  className="bg-[#1a2332] border-[#2a3a4e] text-white"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Klumpenrisiko je Themen-Cluster (z.B. KI-Infrastruktur, Krypto-Proxy).
+                  Diese Titel schwanken gemeinsam, stehen aber in verschiedenen Sektoren —
+                  die Sektor-Obergrenze erfasst sie nicht. 100 = Regel inaktiv.
+                </p>
+              </div>
+              <div>
                 <Label className="text-gray-300">Toleranz Anlageklassen (±%-Punkte)</Label>
                 <Input
                   type="number"
