@@ -512,7 +512,8 @@ export const kiBoomRouter = router({
     .input(z.object({ days: z.number().min(7).max(365).default(90) }))
     .query(async ({ input }) => {
       const db = await getDb();
-      if (!db) return { history: [] };
+      // Gleiche Form wie im Erfolgsfall, damit der Client nicht zwei Varianten kennen muss.
+      if (!db) return { capexPhase: "unbestimmt" as const, capexBeschleunigungAktuellPp: null, history: [] };
 
       const since = new Date();
       since.setDate(since.getDate() - input.days);
@@ -523,9 +524,31 @@ export const kiBoomRouter = router({
         .where(gte(kiBoomMetricsHistory.recordedAt, since))
         .orderBy(kiBoomMetricsHistory.recordedAt);
 
+      // Zweite Ableitung des Capex-Wachstums. Die Reihe liegt ohnehin vor —
+      // erfasst wurde bisher nur die Rate selbst, nicht ob sie steigt oder
+      // faellt. Genau dort liegt aber das Fenster, in dem Niveau und Wachstum
+      // noch unauffaellig aussehen.
+      const { berechneBeschleunigung, aktuellePhase } = await import("../lib/capexAcceleration");
+      const capexReihe = berechneBeschleunigung(
+        rows.map((r) => ({
+          recordedAt: r.recordedAt,
+          wachstumPct: r.hyperscalerCapexWachstum != null ? parseFloat(String(r.hyperscalerCapexWachstum)) : null,
+        })),
+      );
+      const capexBeschleunigungNachDatum = new Map(
+        capexReihe.map((p) => [p.recordedAt.split("T")[0], p.beschleunigungPp]),
+      );
+
       return {
+        // Bewusst ohne Warnschwelle: erst die Reihe beobachten, dann bewerten.
+        capexPhase: aktuellePhase(capexReihe),
+        capexBeschleunigungAktuellPp: capexReihe.length > 0
+          ? capexReihe[capexReihe.length - 1].beschleunigungPp
+          : null,
         history: rows.map((r) => ({
           date: r.recordedAt.toISOString().split("T")[0],
+          hyperscalerCapexBeschleunigungPp:
+            capexBeschleunigungNachDatum.get(r.recordedAt.toISOString().split("T")[0]) ?? null,
           nvidiaPrice: r.nvidiaPrice != null ? parseFloat(String(r.nvidiaPrice)) : null,
           mag7AvgYtd: r.mag7AvgYtd != null ? parseFloat(String(r.mag7AvgYtd)) : null,
           openAiVerlustquote: r.openAiVerlustquote != null ? parseFloat(String(r.openAiVerlustquote)) : null,

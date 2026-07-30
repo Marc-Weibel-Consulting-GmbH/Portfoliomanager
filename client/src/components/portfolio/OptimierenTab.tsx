@@ -11,6 +11,7 @@ import { InsightExpandable } from "@/components/InsightPanel";
 import { toast } from "sonner";
 import { getUserErrorMessage } from "@/lib/errorMessages";
 import { SLEEVE_TICKER_LABEL } from "@shared/const";
+import { THEME_LABELS, themeOfTicker } from "@shared/themes";
 import { DEFAULT_DIVERSIFICATION_RULES } from "@shared/diversificationRules";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
@@ -34,6 +35,8 @@ export interface DiversificationRulesLocal {
   maxSectorPercent: number;
   maxCurrencyPercent: number;
   upgradeScoreThreshold: number;
+  assetClassTolerancePct: number;
+  maxThemePercent: number;
 }
 
 // Fallback, falls die Konfig noch lädt oder nicht verfügbar ist. Kommt aus
@@ -200,6 +203,41 @@ function checkDiversificationRules(
           : ist < min
             ? `${ist.toFixed(1)}% — ${(min - ist).toFixed(1)} Prozentpunkte unter der Bandbreite`
             : `${ist.toFixed(1)}% — ${(ist - max).toFixed(1)} Prozentpunkte über der Bandbreite`,
+      });
+    }
+  }
+
+  // Regel: Themen-Obergrenze.
+  //
+  // Ergaenzt die Sektor-Regel um die Dimension, entlang derer Titel wirklich
+  // gemeinsam schwanken. Ein Depot mit NVDA, AVGO, MRVL, ARM und IREN verteilt
+  // sich ueber mehrere GICS-Sektoren und bleibt damit unter jeder Sektor-
+  // Obergrenze — haengt aber an einer einzigen Nachfragequelle. Bezugsgroesse
+  // ist wie bei den Anlageklassen das investierte Vermoegen.
+  if (rules.maxThemePercent > 0 && rules.maxThemePercent < 100) {
+    const investiert = nonCash.reduce((s: number, h: any) => s + parseFloat(h.weight || "0"), 0);
+    const byTheme: Record<string, { pct: number; ticker: string[] }> = {};
+    for (const h of nonCash) {
+      const key = themeOfTicker(h.ticker);
+      if (!key) continue;
+      const label = THEME_LABELS[key];
+      const anteil = investiert > 0 ? (parseFloat(h.weight || "0") / investiert) * 100 : 0;
+      if (!byTheme[label]) byTheme[label] = { pct: 0, ticker: [] };
+      byTheme[label].pct += anteil;
+      byTheme[label].ticker.push(h.ticker);
+    }
+    for (const [label, { pct, ticker }] of Object.entries(byTheme)) {
+      const passed = pct <= rules.maxThemePercent;
+      out.push({
+        id: `theme_${label}`,
+        label: `Max. ${rules.maxThemePercent}% Thema ${label}`,
+        description:
+          `Diese Titel schwanken gemeinsam, obwohl sie in verschiedenen Sektoren stehen — ` +
+          `die Sektor-Obergrenze erfasst das nicht. Beteiligt: ${ticker.join(", ")}.`,
+        passed,
+        detail: passed
+          ? `${pct.toFixed(1)}% — innerhalb der Obergrenze (${ticker.length} Titel)`
+          : `${pct.toFixed(1)}% über ${ticker.length} Titel — ${(pct - rules.maxThemePercent).toFixed(1)} Prozentpunkte über der Grenze`,
       });
     }
   }

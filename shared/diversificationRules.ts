@@ -42,6 +42,16 @@ export interface DiversificationRules {
    * z.B. Gold 4–10 %, Krypto 0–6 %, Obligationen 22–28 %.
    */
   assetClassTolerancePct: number;
+  /**
+   * Obergrenze je Themen-Cluster in % des investierten Vermögens.
+   *
+   * Ergänzt die Sektor-Obergrenze um die Dimension, entlang derer Titel
+   * tatsächlich gemeinsam schwanken. Die Sektor-Regel greift hier nicht:
+   * Chip-Hersteller, Netzwerkausrüster und Rechenzentrums-Betreiber stehen in
+   * verschiedenen GICS-Sektoren und hängen doch an derselben Nachfrage.
+   * 100 = Regel inaktiv.
+   */
+  maxThemePercent: number;
 }
 
 export const DEFAULT_DIVERSIFICATION_RULES: DiversificationRules = {
@@ -55,6 +65,7 @@ export const DEFAULT_DIVERSIFICATION_RULES: DiversificationRules = {
   maxCurrencyPercent: 100,
   upgradeScoreThreshold: 55,
   assetClassTolerancePct: 3,
+  maxThemePercent: 25,
 };
 
 /**
