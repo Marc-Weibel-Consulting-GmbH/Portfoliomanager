@@ -32,7 +32,7 @@ import { initWikifolioSyncCron } from "../cron/wikifolioSyncCron";
 import { initMarketAnalysisCron } from "../cron/marketAnalysisCron";
 import { initKiBoomHistoryCron } from "../cron/kiBoomHistoryCron";
 import { initKiBoomDynamicCron } from "../cron/kiBoomDynamicCron";
-import { initResearchSignalsCron } from "../cron/researchSignalsCron";
+import { handleResearchSignalsRefresh } from "../scheduled/researchSignalsScheduled";
 import { initRecommendationCron } from "../cron/recommendationCron";
 import { initGapFillingCron } from "../cron/gapFillingCron";
 import { initLearningCron } from "../cron/learningCron";
@@ -168,6 +168,7 @@ async function startServer() {
   app.post("/api/scheduled/signalScoreRefresh", handleSignalScoreRefresh);
   app.post("/api/scheduled/portfolioMetricsSnapshot", handlePortfolioMetricsSnapshot);
   app.post("/api/scheduled/algoBacktest", handleAlgoBacktest);
+  app.post("/api/scheduled/researchSignalsRefresh", handleResearchSignalsRefresh);
 
   // Market Report Webhook (empfängt tägliche Berichte von Manus-Tasks)
   app.post("/api/market-report", handleMarketReportWebhook);
@@ -242,8 +243,7 @@ async function startServer() {
     initKiBoomHistoryCron();
     // Start KI-Boom dynamic metrics cron (daily Perplexity fetch of OpenAI, CapEx, VC, ROI data)
     initKiBoomDynamicCron();
-    // Start research-signals cron (daily n8n fetch → research_signals cache)
-    initResearchSignalsCron();
+    // Research signals are refreshed via Heartbeat cron (see /api/scheduled/researchSignalsRefresh)
     initGapFillingCron();
     // Learning-Koordination: wöchentliche Lernschleifen (Regime-Priors + Signal-
     // Weight-Optimizer) — vorher nur per Admin-Klick, Defaults blieben sonst ewig.
