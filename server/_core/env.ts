@@ -25,6 +25,10 @@ export const ENV = {
   get emailFrom() { return process.env.EMAIL_FROM ?? ""; },
   get ownerName() { return process.env.OWNER_NAME ?? ""; },
   get kimiApiKey() { return process.env.KIMI_API_KEY ?? ""; },
+  // n8n Research-Observatory-Feed (read-only, öffentlich): liefert
+  // { generated_at, count, signals[] }. Optional — ist die Variable leer,
+  // bleibt die Research-Observatory-Sektion einfach ohne Daten.
+  get n8nSignalsUrl() { return process.env.N8N_SIGNALS_URL ?? ""; },
 };
 
 /** Get Stripe secret key — env first, then DB fallback. */

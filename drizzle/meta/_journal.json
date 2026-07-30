@@ -288,6 +288,13 @@
       "when": 1784928911440,
       "tag": "0040_numerous_bishop",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "5",
+      "when": 1785412925367,
+      "tag": "0041_fantastic_clea",
+      "breakpoints": true
     }
   ]
 }
