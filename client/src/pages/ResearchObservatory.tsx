@@ -24,7 +24,13 @@ function ResearchObservatoryInner() {
 
   const [onlyConfirmed, setOnlyConfirmed] = useState(false);
 
+  const visible = useMemo(
+    () => (onlyConfirmed ? signals.filter((s) => !s.followUpRequired) : signals),
+    [signals, onlyConfirmed],
+  );
+
   // Paywall: Server wirft FORBIDDEN, wenn der Plan das Feature nicht enthält.
+  // (Nach allen Hooks — react-hooks/rules-of-hooks.)
   if (error?.data?.code === "FORBIDDEN") {
     return (
       <Card className="bg-[#1a1f2e] border-white/10">
@@ -38,11 +44,6 @@ function ResearchObservatoryInner() {
       </Card>
     );
   }
-
-  const visible = useMemo(
-    () => (onlyConfirmed ? signals.filter((s) => !s.followUpRequired) : signals),
-    [signals, onlyConfirmed],
-  );
 
   if (isLoading) {
     return (
