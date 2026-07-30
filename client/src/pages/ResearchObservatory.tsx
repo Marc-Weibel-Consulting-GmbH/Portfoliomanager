@@ -16,12 +16,28 @@ function scoreColor(score: number | null): string {
 }
 
 function ResearchObservatoryInner() {
-  const { data: signals = [], isLoading } = trpc.researchObservatory.list.useQuery(undefined, {
+  const { data: signals = [], isLoading, error } = trpc.researchObservatory.list.useQuery(undefined, {
     // Der Server hält einen 24h-Cache; im Client nicht aggressiv nachladen.
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   const [onlyConfirmed, setOnlyConfirmed] = useState(false);
+
+  // Paywall: Server wirft FORBIDDEN, wenn der Plan das Feature nicht enthält.
+  if (error?.data?.code === "FORBIDDEN") {
+    return (
+      <Card className="bg-[#1a1f2e] border-white/10">
+        <CardContent className="pt-6 pb-6 text-center space-y-2">
+          <Telescope className="h-8 w-8 text-gray-600 mx-auto" />
+          <p className="text-gray-300 text-sm">{error.message}</p>
+          <a href="/einstellungen" className="text-[#00CFC1] text-sm hover:underline">
+            Zum Abo
+          </a>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const visible = useMemo(
     () => (onlyConfirmed ? signals.filter((s) => !s.followUpRequired) : signals),
