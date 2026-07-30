@@ -466,10 +466,25 @@ export async function recordKiBoomSnapshot(): Promise<{
     ? nvidia.numericValue / nvdaEpsTtm
     : null;
 
-  await db.insert(kiBoomMetricsHistory).values({
-    recordedAt: new Date(),
-    nvidiaPrice: nvidia?.numericValue != null ? String(nvidia.numericValue) : null,
-    mag7AvgYtd: mag7?.numericValue != null ? String(mag7.numericValue) : null,
+  // Hoechstens ein Snapshot pro Tag. Der Cron lief mehrmals taeglich und
+  // schrieb dabei identische Werte — 441 Zeilen auf 110 Tage. Das blaeht die
+  // Historie auf und gaukelt eine Messdichte vor, die es nicht gibt.
+  const tagesbeginn = new Date();
+  tagesbeginn.setHours(0, 0, 0, 0);
+  const [bereitsHeute] = await db
+    .select({ id: kiBoomMetricsHistory.id })
+    .from(kiBoomMetricsHistory)
+    .where(gte(kiBoomMetricsHistory.recordedAt, tagesbeginn))
+    .limit(1);
+
+  if (bereitsHeute) {
+    await db.update(kiBoomMetricsHistory).set({
+      recordedAt: new Date(),
+    // 0 bedeutet «keine Daten» (der Signal-Text sagt das auch: «Keine Daten»)
+    // und wird als null gespeichert. Vorher landete die 0 als Kurs in der
+    // Historie und war von einem echten Wert nicht mehr zu unterscheiden.
+    nvidiaPrice: nvidia?.numericValue != null && nvidia.numericValue > 0 ? String(nvidia.numericValue) : null,
+    mag7AvgYtd: mag7?.numericValue != null && mag7.numericValue !== 0 ? String(mag7.numericValue) : null,
     openAiVerlustquote: String(STATIC_METRICS.openAiVerlustquote),
     hyperscalerCapexWachstum: String(STATIC_METRICS.hyperscalerCapexWachstum),
     vcAnteilKI: String(STATIC_METRICS.vcAnteilKI),
@@ -486,7 +501,30 @@ export async function recordKiBoomSnapshot(): Promise<{
     scenarioSanfte: d.scenarioProbabilities.sanfteVerlangsamung,
     scenarioCrash: d.scenarioProbabilities.schnellerCrash,
     scenarioBoom: d.scenarioProbabilities.weiterhinBoom,
-  });
+    }).where(eq(kiBoomMetricsHistory.id, bereitsHeute.id));
+  } else {
+    await db.insert(kiBoomMetricsHistory).values({
+      recordedAt: new Date(),
+      nvidiaPrice: nvidia?.numericValue != null && nvidia.numericValue > 0 ? String(nvidia.numericValue) : null,
+      mag7AvgYtd: mag7?.numericValue != null && mag7.numericValue !== 0 ? String(mag7.numericValue) : null,
+      openAiVerlustquote: String(STATIC_METRICS.openAiVerlustquote),
+      hyperscalerCapexWachstum: String(STATIC_METRICS.hyperscalerCapexWachstum),
+      vcAnteilKI: String(STATIC_METRICS.vcAnteilKI),
+      pilotProjektROIQuote: String(STATIC_METRICS.pilotProjektROIQuote),
+      soxPrice: soxPrice != null ? String(soxPrice) : null,
+      arkkPrice: arkkPrice != null ? String(arkkPrice) : null,
+      nvdaPE: nvdaPE != null ? String(nvdaPE) : null,
+      vixLevel: vixLevel != null ? String(vixLevel) : null,
+      creditSpreadHY: creditSpreadHY != null ? String(creditSpreadHY) : null,
+      creditSpreadIG: creditSpreadIG != null ? String(creditSpreadIG) : null,
+      overallZone: d.overallZone,
+      activeWarnings: d.activeWarnings,
+      activeCritical: d.activeCritical,
+      scenarioSanfte: d.scenarioProbabilities.sanfteVerlangsamung,
+      scenarioCrash: d.scenarioProbabilities.schnellerCrash,
+      scenarioBoom: d.scenarioProbabilities.weiterhinBoom,
+    });
+  }
 
   return {
     overallZone: d.overallZone,
