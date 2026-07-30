@@ -53,3 +53,24 @@ describe("aktuellePhase", () => {
     expect(aktuellePhase([])).toBe("unbestimmt");
   });
 });
+
+describe("konstante Reihen", () => {
+  it("meldet «konstant» statt Beschleunigung 0", () => {
+    // Der Live-Fall: hyperscalerCapexWachstum steht seit Monaten auf 81,
+    // weil bei jedem Snapshot dieselbe Konstante mitgeschrieben wird.
+    const r = berechneBeschleunigung(
+      Array.from({ length: 6 }, (_, i) => ({ recordedAt: `2026-0${i + 1}-01T00:00:00Z`, wachstumPct: 81 })),
+    );
+    expect(r.every((p) => p.beschleunigungPp === null || p.beschleunigungPp === 0)).toBe(true);
+    expect(aktuellePhase(r)).toBe("konstant");
+  });
+
+  it("erkennt Variation, sobald sie auftritt", () => {
+    const r = berechneBeschleunigung([
+      { recordedAt: "2026-01-01T00:00:00Z", wachstumPct: 81 },
+      { recordedAt: "2026-02-01T00:00:00Z", wachstumPct: 81 },
+      { recordedAt: "2026-03-01T00:00:00Z", wachstumPct: 77 },
+    ]);
+    expect(aktuellePhase(r)).toBe("verlangsamt");
+  });
+});
