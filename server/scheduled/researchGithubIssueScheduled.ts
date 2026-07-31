@@ -2,28 +2,122 @@
  * Research → GitHub Issue Scheduled Handler
  *
  * Triggered daily via Heartbeat cron (09:00 UTC, after n8n research feed refresh).
- * Finds all research_signals with relevanceScore >= 7 and githubIssueNumber IS NULL,
- * creates a [Research] GitHub Issue for each, and stores the issue number back in the DB.
+ * Finds all research_signals with relevanceScore >= 8 and githubIssueNumber IS NULL,
+ * enriches each signal via LLM (hypothesis, expected effect, confidence, affected engine),
+ * creates a [Research] GitHub Issue, and stores the issue number back in the DB.
  *
  * Requires GITHUB_TOKEN env variable with repo scope.
  */
 import type { Request, Response } from "express";
 
 const GITHUB_REPO = "Marc-Weibel-Consulting-GmbH/Portfoliomanager";
-const SCORE_THRESHOLD = 7;
+const SCORE_THRESHOLD = 8;
 
-function buildIssueBody(signal: {
+interface LLMEnrichment {
+  affectedEngine: string;
+  hypothesis: string;
+  expectedEffect: string;
+  confidence: number;
+  preregisteredThreshold: string;
+}
+
+async function enrichWithLLM(signal: {
   title: string;
-  url: string | null;
   sourceName: string | null;
-  sourceCategory: string | null;
+  topics: unknown;
   contentType: string | null;
   evidenceType: string | null;
   relevanceScore: number | null;
-  topics: unknown;
-  signalId: string;
-  publishedAt: Date | null;
-}): string {
+}): Promise<LLMEnrichment> {
+  try {
+    const { invokeLLM } = await import("../_core/llm");
+    const topics = Array.isArray(signal.topics) ? (signal.topics as string[]).join(", ") : "–";
+
+    const systemPrompt = `Du bist ein quantitativer Analyst für einen Schweizer Aktien-Portfoliomanager.
+Der Algorithmus besteht aus diesen Engines:
+- qualityMomentumEngine: Momentum-Signale (12M, 6M, 3M), Qualitätsfaktoren (ROE, Marge, Wachstum)
+- algoBacktestEngine: Backtesting, Regime-Checks, OOS-Validierung
+- regimeEngine: Marktregime-Erkennung (Bull/Bear/Crisis/Recovery)
+- performanceEngine: Portfolio-Performance, Sharpe, Drawdown, Attribution
+- scoringEngine: Kombinierter Score aus Momentum + Qualität + Sentiment
+
+Antworte NUR mit einem JSON-Objekt, keine Erklärung.`;
+
+    const userPrompt = `Analysiere diesen Research-Artikel und erstelle eine konkrete Forschungshypothese:
+
+Titel: "${signal.title}"
+Quelle: ${signal.sourceName ?? "–"}
+Tags: ${topics}
+Typ: ${signal.contentType ?? "–"} / ${signal.evidenceType ?? "–"}
+Score: ${signal.relevanceScore}/10
+
+Erstelle ein JSON mit diesen Feldern:
+{
+  "affectedEngine": "Name der betroffenen Engine (eine der oben genannten)",
+  "hypothesis": "Konkrete, testbare Hypothese in 1-2 Sätzen (was genau soll implementiert/getestet werden?)",
+  "expectedEffect": "Erwarteter quantitativer Effekt (z.B. ΔSharpe +0.15, bessere Regime-Erkennung, etc.)",
+  "confidence": <Zahl 1-10, wie zuversichtlich bist du dass die Hypothese im Backtest bestätigt wird>,
+  "preregisteredThreshold": "Konkrete Akzeptanzschwelle (z.B. ΔSharpe_netto ≥ +0.1 OOS)"
+}`;
+
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "research_enrichment",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              affectedEngine: { type: "string" },
+              hypothesis: { type: "string" },
+              expectedEffect: { type: "string" },
+              confidence: { type: "number" },
+              preregisteredThreshold: { type: "string" },
+            },
+            required: ["affectedEngine", "hypothesis", "expectedEffect", "confidence", "preregisteredThreshold"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const content = response?.choices?.[0]?.message?.content;
+    if (!content) throw new Error("Empty LLM response");
+
+    const parsed = typeof content === "string" ? JSON.parse(content) : content;
+    return parsed as LLMEnrichment;
+  } catch (err: any) {
+    console.warn(`[researchGithubIssue] LLM enrichment failed: ${err?.message} — using defaults`);
+    return {
+      affectedEngine: "qualityMomentumEngine",
+      hypothesis: "Hypothese konnte nicht automatisch generiert werden. Bitte manuell ausfüllen.",
+      expectedEffect: "ΔSharpe_netto ≥ +0.1 (OOS 2020–2024)",
+      confidence: 5,
+      preregisteredThreshold: "ΔSharpe_netto ≥ +0.1 (OOS 2020–2024, netto 10 bps, robust über ≥ 4 Regime)",
+    };
+  }
+}
+
+function buildIssueBody(
+  signal: {
+    title: string;
+    url: string | null;
+    sourceName: string | null;
+    sourceCategory: string | null;
+    contentType: string | null;
+    evidenceType: string | null;
+    relevanceScore: number | null;
+    topics: unknown;
+    signalId: string;
+    publishedAt: Date | null;
+  },
+  enrichment: LLMEnrichment
+): string {
   const topics = Array.isArray(signal.topics) ? (signal.topics as string[]) : [];
   const topicsStr = topics.length > 0 ? topics.join(", ") : "–";
   const publishedStr = signal.publishedAt
@@ -32,7 +126,7 @@ function buildIssueBody(signal: {
 
   return `## Research-Hypothese
 
-> Dieser Issue wurde automatisch aus dem Research Observatory erstellt (Score ${signal.relevanceScore}/10).
+> Dieser Issue wurde automatisch aus dem Research Observatory erstellt (Score ${signal.relevanceScore}/10). Hypothese via LLM generiert — bitte vor dem Triage-Loop prüfen.
 
 ### Quelle
 - **Titel:** ${signal.title}
@@ -46,22 +140,22 @@ function buildIssueBody(signal: {
 ${topicsStr}
 
 ### Relevanz für unseren Algorithmus
-<!-- Bitte ausfüllen: Welche Engine ist betroffen? qualityMomentumEngine / algoBacktestEngine / regimeEngine / performanceEngine? -->
+**Betroffene Engine:** \`${enrichment.affectedEngine}\`
 
 ### Hypothese (These)
-<!-- Bitte ausfüllen: Was genau soll getestet werden? -->
+${enrichment.hypothesis}
 
 ### Erwarteter Effekt
-<!-- Bitte ausfüllen: Welche Verbesserung wird erwartet? ΔSharpe ≥ ? -->
+${enrichment.expectedEffect}
 
 ### Pre-registrierte Schwelle
-- ΔSharpe_netto ≥ +0.1 (OOS 2020–2024, netto 10 bps, robust über ≥ 4 Regime)
+${enrichment.preregisteredThreshold}
 
 ### Konfidenz (1-10)
-<!-- Bitte ausfüllen: 1-10 -->
+**${enrichment.confidence}/10** *(LLM-Schätzung — bitte anpassen)*
 
 ---
-*Automatisch erstellt durch Research Observatory Heartbeat. Triage durch Manus erfolgt wöchentlich.*`;
+*Automatisch erstellt durch Research Observatory Heartbeat (Score ≥ 8). Triage durch Manus erfolgt wöchentlich.*`;
 }
 
 export async function handleResearchGithubIssue(req: Request, res: Response) {
@@ -80,7 +174,7 @@ export async function handleResearchGithubIssue(req: Request, res: Response) {
       return res.status(500).json({ error: "Database not available" });
     }
 
-    // Find all signals with score >= 7 and no GitHub issue yet
+    // Find all signals with score >= 8 and no GitHub issue yet
     const candidates = await db
       .select()
       .from(researchSignals)
@@ -105,6 +199,10 @@ export async function handleResearchGithubIssue(req: Request, res: Response) {
       try {
         const topics = Array.isArray(signal.topics) ? (signal.topics as string[]) : [];
 
+        // LLM enrichment: hypothesis, expected effect, confidence, affected engine
+        console.log(`[researchGithubIssue] Enriching "${signal.title}" via LLM...`);
+        const enrichment = await enrichWithLLM(signal);
+
         // Build label list: research, research:new + topic-based algo labels
         const labels = ["research", "research:new"];
         if (topics.some(t => ["momentum", "trend_following", "momentum_in_stocks"].includes(t))) {
@@ -122,9 +220,12 @@ export async function handleResearchGithubIssue(req: Request, res: Response) {
         if (topics.some(t => ["machine_learning", "ml", "ai"].includes(t))) {
           labels.push("algo:ml_feature");
         }
+        // Add label based on LLM-detected engine
+        if (enrichment.affectedEngine.includes("scoring")) labels.push("algo:scoring");
+        if (enrichment.affectedEngine.includes("optimizer")) labels.push("algo:optimizer");
 
         const issueTitle = `[Research] ${signal.title}`;
-        const issueBody = buildIssueBody(signal);
+        const issueBody = buildIssueBody(signal, enrichment);
 
         // Create GitHub issue via REST API
         const response = await fetch(
@@ -159,12 +260,12 @@ export async function handleResearchGithubIssue(req: Request, res: Response) {
           .set({ githubIssueNumber: issue.number })
           .where(eq(researchSignals.id, signal.id));
 
-        console.log(`[researchGithubIssue] Created issue #${issue.number} for "${signal.signalId}" (score ${signal.relevanceScore})`);
+        console.log(`[researchGithubIssue] Created issue #${issue.number} for "${signal.signalId}" (score ${signal.relevanceScore}, confidence ${enrichment.confidence})`);
         results.push({ signalId: signal.signalId, issueNumber: issue.number });
         created++;
 
-        // Rate limit: 1 issue per second to avoid GitHub secondary rate limits
-        await new Promise((r) => setTimeout(r, 1200));
+        // Rate limit: 1.5s between issues to avoid GitHub secondary rate limits
+        await new Promise((r) => setTimeout(r, 1500));
       } catch (err: any) {
         console.error(`[researchGithubIssue] Failed for "${signal.signalId}":`, err?.message);
         results.push({ signalId: signal.signalId, error: err?.message });
