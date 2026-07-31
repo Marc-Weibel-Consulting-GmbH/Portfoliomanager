@@ -33,6 +33,7 @@ import { initMarketAnalysisCron } from "../cron/marketAnalysisCron";
 import { initKiBoomHistoryCron } from "../cron/kiBoomHistoryCron";
 import { initKiBoomDynamicCron } from "../cron/kiBoomDynamicCron";
 import { handleResearchSignalsRefresh } from "../scheduled/researchSignalsScheduled";
+import { handleResearchGithubIssue } from "../scheduled/researchGithubIssueScheduled";
 import { initRecommendationCron } from "../cron/recommendationCron";
 import { initGapFillingCron } from "../cron/gapFillingCron";
 import { initLearningCron } from "../cron/learningCron";
@@ -171,6 +172,7 @@ async function startServer() {
   app.post("/api/scheduled/portfolioMetricsSnapshot", handlePortfolioMetricsSnapshot);
   app.post("/api/scheduled/algoBacktest", handleAlgoBacktest);
   app.post("/api/scheduled/researchSignalsRefresh", handleResearchSignalsRefresh);
+  app.post("/api/scheduled/researchGithubIssue", handleResearchGithubIssue);
 
   // Market Report Webhook (empfängt tägliche Berichte von Manus-Tasks)
   app.post("/api/market-report", handleMarketReportWebhook);

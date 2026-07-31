@@ -1709,6 +1709,8 @@ export const researchSignals = mysqlTable("research_signals", {
   classifiedAt: timestamp("classifiedAt"),
   /** Zeitstempel des letzten n8n-Fetch/Upsert (für den 24h-Cache) */
   fetchedAt: timestamp("fetchedAt").defaultNow().notNull(),
+  /** GitHub-Issue-Nummer, falls bereits als [Research]-Issue erstellt (NULL = noch nicht erstellt) */
+  githubIssueNumber: int("githubIssueNumber"),
 });
 export type ResearchSignal = typeof researchSignals.$inferSelect;
 export type InsertResearchSignal = typeof researchSignals.$inferInsert;

@@ -1,0 +1,1 @@
+ALTER TABLE `research_signals` ADD `githubIssueNumber` int;
