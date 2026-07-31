@@ -4,7 +4,21 @@
  * Layer 2 Signal Model extension:
  * - Quality Factor: ROE, Debt/Equity, FCF-Yield, Gross Margin
  * - Momentum Factor: Relative Strength vs Sector, 3M/6M/12M Momentum, Price Acceleration
+ *
+ * RESEARCH SPIKE — Issue #206: 12-1 Momentum Signal
+ * Feature flag: FEATURE_MOMENTUM_12_1 (default: false)
+ * When enabled, momentum12m uses the Jegadeesh & Titman (1993) 12-1 signal:
+ * 12-month return EXCLUDING the most recent month (skip-1-month reversal correction).
+ * This avoids the short-term reversal effect that contaminates raw 12M momentum.
+ * DO NOT activate in production without human review of backtest results.
  */
+
+/**
+ * FEATURE FLAG: 12-1 Momentum Signal (Jegadeesh & Titman 1993)
+ * Set via environment variable FEATURE_MOMENTUM_12_1=true to enable.
+ * Default: false (uses current 12M raw momentum as baseline).
+ */
+export const FEATURE_MOMENTUM_12_1 = process.env.FEATURE_MOMENTUM_12_1 === 'true';
 
 export interface QualityMetrics {
   roe: number | null;           // Return on Equity (%)
@@ -101,11 +115,16 @@ export function calculateQualityScore(metrics: QualityMetrics): QualityScore {
  */
 export function calculateMomentumScore(metrics: MomentumMetrics): MomentumScore {
   const { prices, sectorPrices } = metrics;
-
+  // FEATURE_MOMENTUM_12_1: Use 12-1 signal (Jegadeesh & Titman 1993) instead of raw 12M.
+  // 12-1 = 12-month return measured from t-252 to t-21 (skip last month to avoid reversal).
+  // Baseline: raw 12M = t-252 to t (current price).
+  const momentum12mCalc = FEATURE_MOMENTUM_12_1
+    ? calcMomentum121(prices)   // 12-1: skip last ~1 month (21 trading days)
+    : calcMomentum(prices, 252); // Baseline: raw 12M
   const components = {
     momentum3m: calcMomentum(prices, 63),    // ~3 months trading days
     momentum6m: calcMomentum(prices, 126),   // ~6 months
-    momentum12m: calcMomentum(prices, 252),  // ~12 months
+    momentum12m: momentum12mCalc,            // 12M (raw) or 12-1 (feature-flagged)
     relativeStrength: calcRelativeStrength(prices, sectorPrices, 126),
     acceleration: calcAcceleration(prices),
   };
@@ -200,6 +219,35 @@ function scoreGrossMargin(gm: number | null): { value: number | null; score: num
 }
 
 // ─── Momentum Component Calculators ──────────────────────────────────────────
+
+/**
+ * RESEARCH SPIKE (Issue #206): 12-1 Momentum Signal
+ * Measures 12-month return EXCLUDING the most recent month.
+ * Lookback: t-252 to t-21 (skips last ~21 trading days = 1 month).
+ * Academic basis: Jegadeesh & Titman (1993) — avoids short-term reversal.
+ * Only active when FEATURE_MOMENTUM_12_1=true.
+ */
+function calcMomentum121(prices: number[]): { value: number | null; score: number; label: string } {
+  const SKIP = 21;   // ~1 month trading days to skip
+  const LOOKBACK = 252; // ~12 months trading days
+  if (prices.length < LOOKBACK + SKIP + 1) return { value: null, score: 0, label: 'N/A (12-1)' };
+  // t-21 (one month ago) as "current" to skip reversal
+  const current = prices[prices.length - 1 - SKIP];
+  // t-252-21 = t-273 as "past" (12 months before the skip point)
+  const past = prices[prices.length - 1 - SKIP - LOOKBACK];
+  if (!current || !past || past === 0) return { value: null, score: 0, label: 'N/A (12-1)' };
+  const returnPct = ((current - past) / past) * 100;
+  let score: number;
+  let label: string;
+  if (returnPct >= 40) { score = 1; label = `+${returnPct.toFixed(1)}% 12-1 (Stark)`; }
+  else if (returnPct >= 20) { score = 0.7; label = `+${returnPct.toFixed(1)}% 12-1 (Gut)`; }
+  else if (returnPct >= 8) { score = 0.4; label = `+${returnPct.toFixed(1)}% 12-1`; }
+  else if (returnPct >= 0) { score = 0.1; label = `+${returnPct.toFixed(1)}% 12-1`; }
+  else if (returnPct >= -8) { score = -0.1; label = `${returnPct.toFixed(1)}% 12-1`; }
+  else if (returnPct >= -20) { score = -0.5; label = `${returnPct.toFixed(1)}% 12-1 (Schwach)`; }
+  else { score = -0.9; label = `${returnPct.toFixed(1)}% 12-1 (Crash)`; }
+  return { value: returnPct, score, label };
+}
 
 function calcMomentum(prices: number[], lookback: number): { value: number | null; score: number; label: string } {
   if (prices.length < lookback + 1) return { value: null, score: 0, label: 'N/A' };
