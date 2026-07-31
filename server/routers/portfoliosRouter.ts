@@ -1531,7 +1531,11 @@ export const portfoliosRouter = router({
         debug: z.boolean().optional().default(false), // Enable debug payload
       }))
       .query(async ({ input, ctx }) => {
-        const { portfolioId, period, benchmark, debug: debugEnabled } = input;
+        const { portfolioId, period, debug: debugEnabled } = input;
+        // Normalize benchmark ticker to DB format (e.g. SPY → SPY.US, QQQ → QQQ.US)
+        // The DB stores US ETFs with .US suffix (normalizeTickerForDb convention).
+        // Exception: tickers already containing a dot (e.g. CHSPI.SW) are kept as-is.
+        const benchmark = input.benchmark.includes('.') ? input.benchmark : `${input.benchmark}.US`;
         
         // --- perfCache: return cached result if available (skip for debug requests) ---
         const histCacheDateStr = new Date().toISOString().split('T')[0];
