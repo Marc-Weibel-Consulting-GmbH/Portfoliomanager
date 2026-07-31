@@ -1370,7 +1370,7 @@ export const adminRouter = router({
         runSignalScoreRefresh()
           .then((result) => {
             if (result.ok) {
-              console.log(`[triggerSignalScoreRefresh] Fertig: ${result.updated ?? 0} Scores, ${result.ytdRecalc?.updated ?? 0} YTD, ${result.backfill?.pricesImported ?? 0} Preise.`);
+              console.log(`[triggerSignalScoreRefresh] Fertig: ${result.updated ?? 0} Scores aktualisiert (EODHD).`);
             } else {
               console.error(`[triggerSignalScoreRefresh] Fehler: ${result.error ?? "unbekannt"}`);
             }

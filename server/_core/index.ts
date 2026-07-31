@@ -45,6 +45,7 @@ import { handleScoreSnapshot } from "../scheduled/scoreSnapshotScheduled";
 import { handleSignalAlerts } from "../scheduled/signalAlertsScheduled";
 import { handleOptimizationAlert } from "../scheduled/optimizationAlertScheduled";
 import { handleSignalScoreRefresh } from "../scheduled/signalScoreRefreshScheduled";
+import { handleYtdRecalc } from "../scheduled/ytdRecalcScheduled";
 import { handlePortfolioMetricsSnapshot } from "../scheduled/portfolioMetricsSnapshotScheduled";
 import { handleAlgoBacktest } from "../scheduled/algoBacktestScheduled";
 import { handleMarketReportWebhook } from "../routers/marketReportRouter";
@@ -166,6 +167,7 @@ async function startServer() {
   app.post("/api/scheduled/signalAlerts", handleSignalAlerts);
   app.post("/api/scheduled/optimizationAlert", handleOptimizationAlert);
   app.post("/api/scheduled/signalScoreRefresh", handleSignalScoreRefresh);
+  app.post("/api/scheduled/ytdRecalc", handleYtdRecalc);
   app.post("/api/scheduled/portfolioMetricsSnapshot", handlePortfolioMetricsSnapshot);
   app.post("/api/scheduled/algoBacktest", handleAlgoBacktest);
   app.post("/api/scheduled/researchSignalsRefresh", handleResearchSignalsRefresh);
