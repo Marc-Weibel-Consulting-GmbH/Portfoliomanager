@@ -63,7 +63,7 @@ export type PegQuadrant =
 // ─── Cache ────────────────────────────────────────────────────────────────────
 
 const cache = new Map<string, { data: QualityMetrics; expiresAt: number }>();
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 Stunden
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 Stunden (reduziert von 24h für frischere Daten)
 
 // ─── Hilfsfunktionen ─────────────────────────────────────────────────────────
 
@@ -125,7 +125,7 @@ export async function getQualityMetrics(ticker: string): Promise<QualityMetrics>
 
   try {
     const url = `https://eodhd.com/api/fundamentals/${eodhdTicker}?api_token=${apiKey}&fmt=json`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) }); // 8s Timeout (reduziert von 15s — schnellerer Fallback bei EODHD-Latenz)
 
     if (!res.ok) {
       console.warn(`[QualityMetrics] EODHD ${eodhdTicker} returned ${res.status}`);

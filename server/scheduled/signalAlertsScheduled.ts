@@ -1,12 +1,14 @@
 /**
  * Signal Alerts Scheduled Handler
  *
- * Triggered daily via Heartbeat cron (e.g. 07:30 UTC = 09:30 CET).
- * Checks all portfolio positions for strong buy/sell signals in stock_signal_cache
- * and sends Email + WhatsApp notifications to the admin.
+ * Triggered daily via Heartbeat cron (16:00 UTC = 18:00 CET).
  *
- * Deduplication: uses alertHistory table to avoid re-sending the same signal
- * within 24 hours for the same ticker + signalType.
+ * STATE-CHANGE FILTER: Only sends a notification when a ticker's signalType
+ * has changed since the last notification (e.g. buy→sell, hold→buy).
+ * A ticker that has been "buy" for 2 months will NOT trigger a daily alert.
+ *
+ * Includes portfolio assignment in the WhatsApp message so you know
+ * which portfolio holds the ticker.
  */
 import type { Request, Response } from "express";
 
@@ -20,13 +22,15 @@ interface SignalAlert {
   overallGrade: string | null;
   currentPrice: string | null;
   reason: string | null;
+  previousSignalType: string | null; // what it was before
+  portfolios: string[]; // which portfolios hold this ticker
 }
 
 export async function handleSignalAlerts(req: Request, res: Response) {
   try {
     const { getDb } = await import("../db");
     const { stockSignalCache, alertHistory, savedPortfolios } = await import("../../drizzle/schema");
-    const { eq, and, gte, or, inArray } = await import("drizzle-orm");
+    const { eq, and, gte, inArray, desc } = await import("drizzle-orm");
     const { sendEmail } = await import("../_core/email");
     const { sendWhatsAppMessage } = await import("../_core/whatsapp");
     const { ENV } = await import("../_core/env");
@@ -36,33 +40,39 @@ export async function handleSignalAlerts(req: Request, res: Response) {
       return res.status(500).json({ error: "Database not available" });
     }
 
-    // Collect all unique tickers from all active portfolios
+    // ─── 1. Collect all unique tickers from all active portfolios ───────────
     const portfolios = await db.select().from(savedPortfolios);
-    const allTickers = new Set<string>();
+
+    // Map: ticker → list of portfolio names that hold it
+    const tickerToPortfolios = new Map<string, string[]>();
     for (const p of portfolios) {
       try {
         const data = JSON.parse(p.portfolioData);
         for (const s of data.stocks ?? []) {
-          if (s.ticker) allTickers.add(s.ticker);
+          if (s.ticker) {
+            const existing = tickerToPortfolios.get(s.ticker) ?? [];
+            existing.push(p.name ?? "Portfolio");
+            tickerToPortfolios.set(s.ticker, existing);
+          }
         }
       } catch {
         // Skip portfolios with unparseable data
       }
     }
 
-    if (allTickers.size === 0) {
+    if (tickerToPortfolios.size === 0) {
       return res.json({ ok: true, alerts: 0, message: "No portfolio tickers found" });
     }
 
-    const tickerList = Array.from(allTickers);
+    const tickerList = Array.from(tickerToPortfolios.keys());
 
-    // Get signal cache for all portfolio tickers
+    // ─── 2. Get current signals for all portfolio tickers ───────────────────
     const signals = await db
       .select()
       .from(stockSignalCache)
       .where(inArray(stockSignalCache.ticker, tickerList));
 
-    // Filter for strong buy or strong sell signals
+    // Only care about strong buy or strong sell
     const strongSignals = signals.filter(
       (s) =>
         (s.signalType === "buy" || s.signalType === "sell") &&
@@ -74,76 +84,110 @@ export async function handleSignalAlerts(req: Request, res: Response) {
       return res.json({ ok: true, alerts: 0, message: "No strong signals" });
     }
 
-    // Deduplication: check alertHistory for signals sent in last 24h
-    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const recentAlerts = await db
-      .select({ ticker: alertHistory.ticker, metricName: alertHistory.metricName })
+    // ─── 3. STATE-CHANGE FILTER ─────────────────────────────────────────────
+    // For each ticker, look up the last notification we sent (most recent
+    // alertHistory row with metricName LIKE 'signal_%').
+    // Only alert if the current signalType differs from the last sent one.
+
+    // Fetch last sent signal per ticker from alertHistory
+    // We query all relevant rows and pick the latest per ticker in JS.
+    const lastAlerts = await db
+      .select({
+        ticker: alertHistory.ticker,
+        newValue: alertHistory.newValue,
+        triggeredAt: alertHistory.triggeredAt,
+      })
       .from(alertHistory)
-      .where(gte(alertHistory.triggeredAt, since24h));
+      .where(inArray(alertHistory.ticker, tickerList))
+      .orderBy(desc(alertHistory.triggeredAt));
 
-    const recentSet = new Set(recentAlerts.map((a) => `${a.ticker}:${a.metricName}`));
-
-    const newAlerts: SignalAlert[] = [];
-    for (const s of strongSignals) {
-      const key = `${s.ticker}:signal_${s.signalType}`;
-      if (!recentSet.has(key)) {
-        newAlerts.push({
-          ticker: s.ticker,
-          companyName: s.companyName,
-          signalType: s.signalType as "buy" | "sell" | "hold",
-          signalStrength: s.signalStrength as "strong" | "moderate" | "weak",
-          qualityScore: s.qualityScore ?? null,
-          combinedScore: s.combinedScore ? parseInt(s.combinedScore, 10) : null,
-          overallGrade: s.overallGrade ?? null,
-          currentPrice: s.currentPrice ?? null,
-          reason: s.reason ?? null,
-        });
+    // Build map: ticker → last sent signalType (extracted from newValue like "strong_buy")
+    const lastSignalMap = new Map<string, string>();
+    for (const row of lastAlerts) {
+      if (!lastSignalMap.has(row.ticker) && row.newValue) {
+        // newValue format: "strong_buy" | "moderate_sell" | etc.
+        const parts = row.newValue.split("_");
+        const signalType = parts[parts.length - 1]; // last part is the signal type
+        lastSignalMap.set(row.ticker, signalType);
       }
     }
 
-    if (newAlerts.length === 0) {
-      console.log("[signalAlertsCron] All strong signals already notified in last 24h");
-      return res.json({ ok: true, alerts: 0, message: "Already notified" });
+    const changedAlerts: SignalAlert[] = [];
+    for (const s of strongSignals) {
+      const lastSignalType = lastSignalMap.get(s.ticker) ?? null;
+      const currentSignalType = s.signalType;
+
+      // Only alert if signal type has CHANGED (or never been sent before)
+      if (lastSignalType === currentSignalType) {
+        console.log(`[signalAlertsCron] ${s.ticker}: signal unchanged (${currentSignalType}), skipping`);
+        continue;
+      }
+
+      changedAlerts.push({
+        ticker: s.ticker,
+        companyName: s.companyName,
+        signalType: s.signalType as "buy" | "sell" | "hold",
+        signalStrength: s.signalStrength as "strong" | "moderate" | "weak",
+        qualityScore: s.qualityScore ?? null,
+        combinedScore: s.combinedScore ? parseInt(s.combinedScore, 10) : null,
+        overallGrade: s.overallGrade ?? null,
+        currentPrice: s.currentPrice ?? null,
+        reason: s.reason ?? null,
+        previousSignalType: lastSignalType,
+        portfolios: tickerToPortfolios.get(s.ticker) ?? [],
+      });
     }
 
-    // Build notification content
-    const buyAlerts = newAlerts.filter((a) => a.signalType === "buy");
-    const sellAlerts = newAlerts.filter((a) => a.signalType === "sell");
+    if (changedAlerts.length === 0) {
+      console.log("[signalAlertsCron] All strong signals unchanged since last notification");
+      return res.json({ ok: true, alerts: 0, message: "No signal changes" });
+    }
 
-    const formatAlert = (a: SignalAlert) =>
-      `• ${a.ticker} (${a.companyName}) — Qualität: ${a.qualityScore ?? "–"}/100, Score: ${a.combinedScore ?? "–"}/100, Grade: ${a.overallGrade ?? "–"}, Preis: ${a.currentPrice ?? "–"}`;
+    // ─── 4. Build notification content ──────────────────────────────────────
+    const buyAlerts = changedAlerts.filter((a) => a.signalType === "buy");
+    const sellAlerts = changedAlerts.filter((a) => a.signalType === "sell");
+
+    const prevLabel = (prev: string | null) =>
+      prev ? ` _(war: ${prev})_` : " _(neu)_";
+
+    const formatAlertWA = (a: SignalAlert) => {
+      const portfolioStr = a.portfolios.length > 0 ? ` [${a.portfolios.join(", ")}]` : "";
+      return `• ${a.ticker}${portfolioStr} — Score: ${a.combinedScore ?? "–"}/100, Grade: ${a.overallGrade ?? "–"}, Preis: ${a.currentPrice ?? "–"}${prevLabel(a.previousSignalType)}`;
+    };
+
+    const formatAlertEmail = (a: SignalAlert) => {
+      const portfolioStr = a.portfolios.length > 0 ? ` <em>(${a.portfolios.join(", ")})</em>` : "";
+      const changeStr = a.previousSignalType
+        ? `<span style="color:#6b7280"> ← war: ${a.previousSignalType}</span>`
+        : `<span style="color:#6b7280"> (neu)</span>`;
+      return `<li><strong>${a.ticker}</strong>${portfolioStr} — ${a.companyName}${changeStr}<br>
+          Qualität: ${a.qualityScore ?? "–"}/100 | Score: ${a.combinedScore ?? "–"}/100 | Grade: ${a.overallGrade ?? "–"} | Preis: ${a.currentPrice ?? "–"}<br>
+          <em>${a.reason?.slice(0, 200) ?? ""}</em></li>`;
+    };
 
     const emailHtml = `
-      <h2>📊 Tägliche Signal-Alerts — Portfolio Manager</h2>
+      <h2>📊 Signal-Wechsel — Portfolio Manager</h2>
+      <p style="color:#6b7280">Nur Ticker mit geändertem Signal werden gemeldet.</p>
       ${buyAlerts.length > 0 ? `
-        <h3 style="color:#22c55e">🟢 Starke Kauf-Signale (${buyAlerts.length})</h3>
-        <ul>${buyAlerts.map((a) => `<li><strong>${a.ticker}</strong> — ${a.companyName}<br>
-          Qualität: ${a.qualityScore ?? "–"}/100 | Score: ${a.combinedScore ?? "–"}/100 | Grade: ${a.overallGrade ?? "–"} | Preis: ${a.currentPrice ?? "–"}<br>
-          <em>${a.reason?.slice(0, 200) ?? ""}</em></li>`).join("")}
-        </ul>` : ""}
+        <h3 style="color:#22c55e">🟢 Neu: Starke Kauf-Signale (${buyAlerts.length})</h3>
+        <ul>${buyAlerts.map(formatAlertEmail).join("")}</ul>` : ""}
       ${sellAlerts.length > 0 ? `
-        <h3 style="color:#ef4444">🔴 Starke Verkauf-Signale (${sellAlerts.length})</h3>
-        <ul>${sellAlerts.map((a) => `<li><strong>${a.ticker}</strong> — ${a.companyName}<br>
-          Qualität: ${a.qualityScore ?? "–"}/100 | Score: ${a.combinedScore ?? "–"}/100 | Grade: ${a.overallGrade ?? "–"} | Preis: ${a.currentPrice ?? "–"}<br>
-          <em>${a.reason?.slice(0, 200) ?? ""}</em></li>`).join("")}
-        </ul>` : ""}
+        <h3 style="color:#ef4444">🔴 Neu: Starke Verkauf-Signale (${sellAlerts.length})</h3>
+        <ul>${sellAlerts.map(formatAlertEmail).join("")}</ul>` : ""}
       <p style="color:#6b7280;font-size:12px">Generiert: ${new Date().toLocaleString("de-CH")}</p>
     `;
 
-    // WhatsApp Twilio limit: ~1600 chars per message.
-    // Show Top-5 per type sorted by combinedScore desc, note overflow → full list per Email.
-    const WA_TOP = 5;
-    const buyTop = [...buyAlerts].sort((a, b) => (b.combinedScore ?? 0) - (a.combinedScore ?? 0)).slice(0, WA_TOP);
-    const sellTop = [...sellAlerts].sort((a, b) => (b.combinedScore ?? 0) - (a.combinedScore ?? 0)).slice(0, WA_TOP);
-    const buyOverflow = buyAlerts.length > WA_TOP ? `\n  _(+${buyAlerts.length - WA_TOP} weitere — vollständige Liste per Email)_` : "";
-    const sellOverflow = sellAlerts.length > WA_TOP ? `\n  _(+${sellAlerts.length - WA_TOP} weitere — vollständige Liste per Email)_` : "";
     const whatsappMsg = [
-      `📊 *Portfolio Signal-Alerts* — ${new Date().toLocaleDateString("de-CH")}`,
-      buyTop.length > 0 ? `\n🟢 *Kauf-Signale (${buyAlerts.length}):*\n${buyTop.map(formatAlert).join("\n")}${buyOverflow}` : "",
-      sellTop.length > 0 ? `\n🔴 *Verkauf-Signale (${sellAlerts.length}):*\n${sellTop.map(formatAlert).join("\n")}${sellOverflow}` : "",
+      `📊 *Signal-Wechsel* — ${new Date().toLocaleDateString("de-CH")}`,
+      buyAlerts.length > 0
+        ? `\n🟢 *Neu Kauf (${buyAlerts.length}):*\n${buyAlerts.map(formatAlertWA).join("\n")}`
+        : "",
+      sellAlerts.length > 0
+        ? `\n🔴 *Neu Verkauf (${sellAlerts.length}):*\n${sellAlerts.map(formatAlertWA).join("\n")}`
+        : "",
     ].filter(Boolean).join("\n");
 
-    // Send notifications
+    // ─── 5. Send notifications ───────────────────────────────────────────────
     let emailSent = false;
     let whatsappSent = false;
 
@@ -151,7 +195,7 @@ export async function handleSignalAlerts(req: Request, res: Response) {
     if (adminEmail) {
       emailSent = await sendEmail({
         to: adminEmail,
-        subject: `📊 Portfolio Alerts: ${buyAlerts.length} Kauf, ${sellAlerts.length} Verkauf`,
+        subject: `📊 Signal-Wechsel: ${buyAlerts.length} Kauf, ${sellAlerts.length} Verkauf`,
         html: emailHtml,
       });
     }
@@ -161,24 +205,24 @@ export async function handleSignalAlerts(req: Request, res: Response) {
       whatsappSent = await sendWhatsAppMessage(adminWhatsApp, whatsappMsg);
     }
 
-    // Record in alertHistory to prevent duplicates
-    for (const a of newAlerts) {
+    // ─── 6. Record in alertHistory ───────────────────────────────────────────
+    for (const a of changedAlerts) {
       await db.insert(alertHistory).values({
-        alertRuleId: 0, // system-generated
+        alertRuleId: 0,
         ticker: a.ticker,
         metricName: `signal_${a.signalType}`,
-        oldValue: null,
+        oldValue: a.previousSignalType ?? null,
         newValue: `${a.signalStrength}_${a.signalType}`,
-        message: `Starkes ${a.signalType === "buy" ? "Kauf" : "Verkauf"}-Signal für ${a.ticker} (${a.companyName})`,
+        message: `Signal-Wechsel für ${a.ticker} (${a.companyName}): ${a.previousSignalType ?? "–"} → ${a.signalType}`,
         notificationSent: emailSent || whatsappSent ? 1 : 0,
         triggeredAt: new Date(),
       });
     }
 
-    console.log(`[signalAlertsCron] Sent ${newAlerts.length} alerts (email: ${emailSent}, whatsapp: ${whatsappSent})`);
+    console.log(`[signalAlertsCron] Sent ${changedAlerts.length} state-change alerts (email: ${emailSent}, whatsapp: ${whatsappSent})`);
     return res.json({
       ok: true,
-      alerts: newAlerts.length,
+      alerts: changedAlerts.length,
       buyAlerts: buyAlerts.length,
       sellAlerts: sellAlerts.length,
       emailSent,

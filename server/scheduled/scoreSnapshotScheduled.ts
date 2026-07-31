@@ -34,10 +34,19 @@ export async function handleScoreSnapshot(req: Request, res: Response) {
       .where(eq(stockScoreSnapshot.snapshotDate, today));
     const existingSet = new Set(existingToday.map((r) => r.ticker));
 
+    const startTime = Date.now();
+    const TIME_LIMIT_MS = 100_000; // 100s — Heartbeat-Limit ist 120s
     let saved = 0;
     let skipped = 0;
+    let timedOut = false;
 
     for (const signal of signals) {
+      // Time-guard: stop before Heartbeat timeout
+      if (Date.now() - startTime > TIME_LIMIT_MS) {
+        timedOut = true;
+        console.warn(`[scoreSnapshotCron] Time limit reached after ${saved} saves. Remaining will be picked up next run.`);
+        break;
+      }
       if (existingSet.has(signal.ticker)) {
         skipped++;
         continue;
@@ -57,8 +66,8 @@ export async function handleScoreSnapshot(req: Request, res: Response) {
       saved++;
     }
 
-    console.log(`[scoreSnapshotCron] Saved ${saved} snapshots, skipped ${skipped} (already exist) for ${today}`);
-    return res.json({ ok: true, saved, skipped, date: today });
+    console.log(`[scoreSnapshotCron] Saved ${saved} snapshots, skipped ${skipped} (already exist) for ${today}${timedOut ? ' [partial — time limit reached]' : ''}`);
+    return res.json({ ok: true, saved, skipped, date: today, timedOut });
   } catch (err: any) {
     console.error("[scoreSnapshotCron] Error:", err);
     return res.status(500).json({ error: err?.message ?? "Unknown error", stack: err?.stack });
