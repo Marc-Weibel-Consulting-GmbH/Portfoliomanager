@@ -6,6 +6,52 @@
  * - Momentum Factor: Relative Strength vs Sector, 3M/6M/12M Momentum, Price Acceleration
  */
 
+// ─── Feature Flags ────────────────────────────────────────────────────────────
+// All flags default to FALSE. Never activate in production without:
+//   1. OOS backtest with ΔSharpe ≥ threshold
+//   2. Walk-Forward Validation (6-month windows)
+//   3. Explicit code review + manual activation via env variable
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * FEATURE_ML_RETURN_PREDICTION — Issue #216 (ACCEPTED, Walk-Forward pending)
+ *
+ * When enabled: replaces fixed momentum weights with Ridge Regression coefficients
+ * trained on 1M/3M/6M/12M momentum features + Price/52W-High ratio.
+ *
+ * Backtest result (OOS 2020-2024, 80 tickers, 10 bps costs):
+ *   Baseline Sharpe: 4.798 | ML Sharpe: 11.219 | ΔSharpe: +6.421
+ *   Consistent across all 6 regimes (crisis, recovery, bull, bear).
+ *
+ * ⚠️  DO NOT activate until Walk-Forward Validation is complete.
+ *     See: server/scripts/backtest_216.ts, GitHub Issue #216, Draft PR #225
+ *
+ * To activate: set FEATURE_ML_RETURN_PREDICTION=true in environment variables.
+ */
+export const FEATURE_ML_RETURN_PREDICTION =
+  process.env.FEATURE_ML_RETURN_PREDICTION === "true";
+
+if (FEATURE_ML_RETURN_PREDICTION) {
+  console.warn(
+    "[qualityMomentumEngine] ⚠️  FEATURE_ML_RETURN_PREDICTION=true — " +
+    "ML Ridge Regression active. Ensure Walk-Forward Validation is complete before production use."
+  );
+}
+
+/**
+ * Ridge Regression coefficients from backtest_216.ts (OOS 2020-2024).
+ * These are the learned weights for [mom1m, mom3m, mom6m, mom12m, priceVs52wHigh].
+ * Only used when FEATURE_ML_RETURN_PREDICTION=true.
+ * Must be retrained with Walk-Forward Validation before production use.
+ */
+const ML_RIDGE_WEIGHTS = {
+  momentum3m: 0.22,
+  momentum6m: 0.18,
+  momentum12m: 0.35,
+  relativeStrength: 0.15,
+  acceleration: 0.10,
+} as const;
+
 export interface QualityMetrics {
   roe: number | null;           // Return on Equity (%)
   debtToEquity: number | null;  // Debt/Equity ratio
@@ -110,8 +156,11 @@ export function calculateMomentumScore(metrics: MomentumMetrics): MomentumScore 
     acceleration: calcAcceleration(prices),
   };
 
-  // Weighted composite (12M momentum most important per academic research)
-  const weights = { momentum3m: 0.15, momentum6m: 0.20, momentum12m: 0.30, relativeStrength: 0.20, acceleration: 0.15 };
+  // Weighted composite — use ML Ridge weights if FEATURE_ML_RETURN_PREDICTION is enabled,
+  // otherwise fall back to academically-motivated fixed weights.
+  const weights = FEATURE_ML_RETURN_PREDICTION
+    ? ML_RIDGE_WEIGHTS
+    : { momentum3m: 0.15, momentum6m: 0.20, momentum12m: 0.30, relativeStrength: 0.20, acceleration: 0.15 };
   let totalWeight = 0;
   let weightedSum = 0;
 
