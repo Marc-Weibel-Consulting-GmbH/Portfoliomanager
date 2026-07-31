@@ -130,10 +130,17 @@ export async function handleSignalAlerts(req: Request, res: Response) {
       <p style="color:#6b7280;font-size:12px">Generiert: ${new Date().toLocaleString("de-CH")}</p>
     `;
 
+    // WhatsApp Twilio limit: ~1600 chars per message.
+    // Show Top-5 per type sorted by combinedScore desc, note overflow → full list per Email.
+    const WA_TOP = 5;
+    const buyTop = [...buyAlerts].sort((a, b) => (b.combinedScore ?? 0) - (a.combinedScore ?? 0)).slice(0, WA_TOP);
+    const sellTop = [...sellAlerts].sort((a, b) => (b.combinedScore ?? 0) - (a.combinedScore ?? 0)).slice(0, WA_TOP);
+    const buyOverflow = buyAlerts.length > WA_TOP ? `\n  _(+${buyAlerts.length - WA_TOP} weitere — vollständige Liste per Email)_` : "";
+    const sellOverflow = sellAlerts.length > WA_TOP ? `\n  _(+${sellAlerts.length - WA_TOP} weitere — vollständige Liste per Email)_` : "";
     const whatsappMsg = [
-      `📊 *Portfolio Signal-Alerts*`,
-      buyAlerts.length > 0 ? `\n🟢 *Kauf-Signale (${buyAlerts.length}):*\n${buyAlerts.map(formatAlert).join("\n")}` : "",
-      sellAlerts.length > 0 ? `\n🔴 *Verkauf-Signale (${sellAlerts.length}):*\n${sellAlerts.map(formatAlert).join("\n")}` : "",
+      `📊 *Portfolio Signal-Alerts* — ${new Date().toLocaleDateString("de-CH")}`,
+      buyTop.length > 0 ? `\n🟢 *Kauf-Signale (${buyAlerts.length}):*\n${buyTop.map(formatAlert).join("\n")}${buyOverflow}` : "",
+      sellTop.length > 0 ? `\n🔴 *Verkauf-Signale (${sellAlerts.length}):*\n${sellTop.map(formatAlert).join("\n")}${sellOverflow}` : "",
     ].filter(Boolean).join("\n");
 
     // Send notifications
