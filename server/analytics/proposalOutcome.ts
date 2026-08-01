@@ -82,6 +82,7 @@ export async function evaluateProposalOutcomes(
       createdAt: portfolioProposalLog.createdAt,
       positions: portfolioProposalLog.positions,
       riskProfile: portfolioProposalLog.riskProfile,
+      investmentAmount: portfolioProposalLog.investmentAmount,
     })
     .from(portfolioProposalLog)
     .where(and(isNull(portfolioProposalLog.outcomeEvaluatedAt), lte(portfolioProposalLog.createdAt, cutoff)))
@@ -232,9 +233,36 @@ export async function evaluateProposalOutcomes(
       } catch (e: any) {
         console.warn(`[proposalOutcome] Benchmark nicht verfügbar: ${e?.message}`);
       }
+      // Kosten des Aufbaus modellieren (siehe lib/kostenModell.ts). Die Brutto-
+      // zahl bleibt unberuehrt — die Nettozahl steht daneben, weil die
+      // Kostensaetze Annahmen sind und keine Abrechnung.
+      let kostenPct: number | null = null;
+      try {
+        const { berechneKosten } = await import("../lib/kostenModell");
+        const anlagesumme = Number(proposal.investmentAmount) || 0;
+        if (anlagesumme > 0) {
+          const k = berechneKosten(
+            posInputs.map((p) => ({
+              gewichtPct: p.weightPct,
+              inlaendisch: /\.SW$/i.test(p.ticker) || p.currency === "CHF",
+              // Sleeve-Bausteine sind ETFs/ETPs und tragen eine laufende Gebuehr.
+              istFonds: rawPositions.some(
+                (r: any) => String(r?.ticker) === p.ticker && String(r?.assetType ?? "").toLowerCase() === "etf",
+              ),
+            })),
+            anlagesumme,
+            EVAL_WINDOW_DAYS,
+          );
+          kostenPct = k.gesamtPct;
+        }
+      } catch (e: any) {
+        console.warn(`[proposalOutcome] Kostenmodell nicht anwendbar: ${e?.message}`);
+      }
+
       console.log(
         `[proposalOutcome] Vorschlag ${proposal.id}: Massstab ${benchmarkArt}` +
-        (benchmarkAbdeckung !== null ? ` (Klassen-Abdeckung ${benchmarkAbdeckung} %)` : "")
+        (benchmarkAbdeckung !== null ? ` (Klassen-Abdeckung ${benchmarkAbdeckung} %)` : "") +
+        (kostenPct !== null ? ` · modellierte Kosten ${kostenPct} %` : " · Kosten nicht modelliert")
       );
 
       if (!agg) {
