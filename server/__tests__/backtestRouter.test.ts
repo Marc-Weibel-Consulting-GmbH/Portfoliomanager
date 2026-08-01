@@ -188,12 +188,12 @@ describe("Backtesting Signal Logic", () => {
   it("should calculate benchmark comparison correctly", () => {
     const signalReturn = 12.5;
     const sp500Return = 8.3;
-    const spiReturn = 5.1;
+    const smiReturn = 5.1;
 
     const vsSpx = signalReturn - sp500Return;
-    const vsSpi = signalReturn - spiReturn;
+    const vsSmi = signalReturn - smiReturn;
 
     expect(vsSpx).toBeCloseTo(4.2);
-    expect(vsSpi).toBeCloseTo(7.4);
+    expect(vsSmi).toBeCloseTo(7.4);
   });
 });

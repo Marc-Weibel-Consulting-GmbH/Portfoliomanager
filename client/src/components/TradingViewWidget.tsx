@@ -161,8 +161,9 @@ export const MARKET_QUOTES_CONFIG = {
   showSymbolLogo: true,
   symbolsGroups: [
     {
-      name: "SPI",
-      originalName: "SPI",
+      // Blue Chips der SIX — das sind SMI-Werte, nicht der breite SPI.
+      name: "SMI",
+      originalName: "SMI",
       symbols: [
         { name: "SIX:NESN", displayName: "Nestlé" },
         { name: "SIX:NOVN", displayName: "Novartis" },
@@ -197,7 +198,7 @@ export const TICKER_TAPE_CONFIG = {
   displayMode: "adaptive",
   symbols: [
     { proName: "FOREXCOM:SPXUSD", title: "S&P 500" },
-    { proName: "INDEX:SMI", title: "SPI" },
+    { proName: "INDEX:SMI", title: "SMI" },
     { proName: "FOREXCOM:NSXUSD", title: "Nasdaq" },
     { proName: "INDEX:DAX", title: "DAX" },
     { proName: "FX:USDCHF", title: "USD/CHF" },

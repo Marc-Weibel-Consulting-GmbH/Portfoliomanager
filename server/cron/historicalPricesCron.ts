@@ -13,10 +13,14 @@ async function refreshBenchmarkData(fromDate: string, toDate: string): Promise<v
     return;
   }
 
+  // Identitaet und Rechenbasis stehen zentral in lib/benchmarkIdentity.ts —
+  // sie hier erneut zu tippen war der Grund, warum ein SPI-ETF jahrelang als
+  // «SMI» lief, ohne dass es jemandem auffiel.
+  const { BENCHMARKS, preisFeldFuerBasis } = await import("../lib/benchmarkIdentity");
   const BENCHMARK_MAP: Array<{ symbol: string; key: 'SMI' | 'SP500' | 'MSCI_WORLD' }> = [
-    { symbol: 'ACWI.US', key: 'MSCI_WORLD' },
-    { symbol: 'CHSPI.SW', key: 'SMI' },
-    { symbol: 'SPY.US', key: 'SP500' },
+    { symbol: BENCHMARKS.MSCI_WORLD.ticker, key: 'MSCI_WORLD' },
+    { symbol: BENCHMARKS.SMI.ticker, key: 'SMI' },
+    { symbol: BENCHMARKS.SP500.ticker, key: 'SP500' },
   ];
 
   for (const { symbol, key } of BENCHMARK_MAP) {
@@ -34,7 +38,10 @@ async function refreshBenchmarkData(fromDate: string, toDate: string): Promise<v
         await upsertBenchmarkData({
           benchmark: key,
           date: row.date,
-          close: String(row.adjusted_close ?? row.close),
+          // KURSBASIS, nicht adjusted_close: Die Titelseite rechnet ebenfalls mit
+          // reinen Kursen. Mit Ausschuettungen im Benchmark war jedes Alpha um die
+          // Dividendenrendite des Marktes zu tief — immer, und immer gleich viel.
+          close: String(preisFeldFuerBasis(row, BENCHMARKS[key].basis)),
           source: 'eodhd',
         });
       }
@@ -86,8 +93,15 @@ export async function dailyHistoricalPricesUpdate() {
         console.error("[historicalPricesCron] Daily update failed:", result.errors);
       }
 
-      // Also refresh benchmark data (MSCI World, SMI, S&P 500)
-      await refreshBenchmarkData(weekAgoStr, yesterdayStr);
+      // Benchmarks ueber ein langes Fenster neu schreiben, nicht nur sieben Tage.
+      // Grund: Die Reihen standen bis anhin auf Gesamtrendite und stehen neu auf
+      // Kursbasis. Wuerde nur der Rand aufgefrischt, stuenden zwei Basen in
+      // derselben Reihe und jedes Fenster ueber die Grenze zeigte einen
+      // Scheinsprung. Es sind drei Reihen — der Mehraufwand ist unerheblich.
+      const { BENCHMARK_LOOKBACK_TAGE } = await import("../lib/benchmarkIdentity");
+      const benchmarkStart = new Date();
+      benchmarkStart.setDate(benchmarkStart.getDate() - BENCHMARK_LOOKBACK_TAGE);
+      await refreshBenchmarkData(benchmarkStart.toISOString().split("T")[0], yesterdayStr);
     });
   } catch (error) {
     console.error("[historicalPricesCron] Fatal error during daily update:", error);

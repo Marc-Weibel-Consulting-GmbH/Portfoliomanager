@@ -42,18 +42,22 @@ describe('TradingView Widget Configurations', () => {
     expect(TICKER_TAPE_CONFIG).toBeDefined();
     expect(TICKER_TAPE_CONFIG.symbols.length).toBeGreaterThan(5);
     const titles = TICKER_TAPE_CONFIG.symbols.map((s: any) => s.title);
-    // Der Schweizer Index-Titel wurde bewusst von SMI auf SPI (Swiss Performance
-    // Index, breiter) umgestellt (SMI→SPI-Rename über alle Frontend-Dateien).
-    expect(titles).toContain('SPI');
+    // Frueher wurde hier 'SPI' erwartet — mit der Absicht, den breiteren Index
+    // zu zeigen. Umgestellt wurde aber nur die BESCHRIFTUNG, nicht der Ticker:
+    // proName bleibt INDEX:SMI. Der Test hat damit eine falsche Benennung
+    // festgeschrieben. Wer den SPI zeigen will, muss den Ticker wechseln.
+    expect(titles).toContain('SMI');
     expect(titles).toContain('S&P 500');
     expect(titles).toContain('DAX');
   });
 
-  it('should have valid MARKET_QUOTES_CONFIG with SPI and DAX', async () => {
+  it('should have valid MARKET_QUOTES_CONFIG with SMI and DAX', async () => {
     const { MARKET_QUOTES_CONFIG } = await import('../../client/src/components/TradingViewWidget');
     expect(MARKET_QUOTES_CONFIG).toBeDefined();
     expect(MARKET_QUOTES_CONFIG.symbolsGroups).toHaveLength(2);
-    expect(MARKET_QUOTES_CONFIG.symbolsGroups[0].name).toBe('SPI');
+    // Die Gruppe enthaelt SIX-Blue-Chips (Nestle, Novartis, Roche, UBS, …) —
+    // das sind SMI-Werte, nicht der breite SPI.
+    expect(MARKET_QUOTES_CONFIG.symbolsGroups[0].name).toBe('SMI');
     expect(MARKET_QUOTES_CONFIG.symbolsGroups[1].name).toBe('DAX');
   });
 });
