@@ -33,9 +33,12 @@ describe("Benchmark-Identität", () => {
     expect(BENCHMARKS.SP500.hinweis).toBeUndefined();   // hier stimmt beides
   });
 
-  it("führt alle drei Benchmarks auf Kursbasis", () => {
+  it("führt alle drei Benchmarks auf Gesamtrendite", () => {
+    // Die Titelseite rechnet ueber COALESCE(adjustedClose, close) ebenfalls auf
+    // Gesamtrendite. Beide Seiten muessen dieselbe Basis haben — Kursbasis waere
+    // auf der Titelseite nicht durchhaltbar, weil rohe Kurse Splits verfehlen.
     for (const b of Object.values(BENCHMARKS)) {
-      expect(b.basis).toBe("kurs");
+      expect(b.basis).toBe("gesamtrendite");
     }
   });
 });
@@ -44,8 +47,6 @@ describe("preisFeldFuerBasis", () => {
   const zeile = { close: 100, adjusted_close: 103 };
 
   it("nimmt auf Kursbasis den unbereinigten Schlusskurs", () => {
-    // Genau hier sass der Fehler: adjusted_close enthaelt die Ausschuettungen,
-    // die Titelseite kennt sie nicht — das Alpha war dauerhaft zu tief.
     expect(preisFeldFuerBasis(zeile, "kurs")).toBe(100);
   });
 
@@ -58,8 +59,8 @@ describe("preisFeldFuerBasis", () => {
   });
 
   it("erzeugt bei gemischten Basen einen messbaren Unterschied", () => {
-    // Belegt, warum die Reihe nicht teilweise umgestellt werden darf: Ein
-    // Fenster ueber die Basisgrenze zeigte sonst einen Sprung von 3 %.
+    // Belegt, warum beide Seiten dieselbe Basis brauchen: Sonst steckt genau
+    // dieser Unterschied als stiller Abzug in jedem Alpha.
     const kurs = preisFeldFuerBasis(zeile, "kurs");
     const gesamt = preisFeldFuerBasis(zeile, "gesamtrendite");
     expect(gesamt / kurs - 1).toBeCloseTo(0.03, 5);

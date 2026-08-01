@@ -81,6 +81,7 @@ export async function evaluateProposalOutcomes(
       id: portfolioProposalLog.id,
       createdAt: portfolioProposalLog.createdAt,
       positions: portfolioProposalLog.positions,
+      riskProfile: portfolioProposalLog.riskProfile,
     })
     .from(portfolioProposalLog)
     .where(and(isNull(portfolioProposalLog.outcomeEvaluatedAt), lte(portfolioProposalLog.createdAt, cutoff)))
@@ -159,17 +160,82 @@ export async function evaluateProposalOutcomes(
 
       const agg = aggregateProposalReturn(positionReturns);
 
-      // Benchmark: SMI — dieselbe Quelle wie die Signal-Evaluation.
+      // Benchmark: dasselbe Anlegerprofil, passiv umgesetzt (siehe
+      // lib/klassenBenchmark.ts). Ein Multi-Asset-Vorschlag gegen einen reinen
+      // Aktienindex zu halten, bestraft jede Obligationen- und Goldquote, die
+      // das Profil selbst verlangt — und zieht die Lernschleife mit der Zeit
+      // Richtung Aktien.
       let benchmarkReturn: number | null = null;
+      let benchmarkArt = "aktienindex";
+      let benchmarkAbdeckung: number | null = null;
       try {
-        const benchRows = (await getBenchmarkData("SMI", fetchStartStr, endDate)).map((r: any) => ({
-          date: r.date,
-          close: r.close,
-        }));
-        benchmarkReturn = computeWindowReturn(benchRows, startDate, endDate);
+        const { KLASSEN_REFERENZ, berechneComposite, quotenAusProfil } =
+          await import("../lib/klassenBenchmark");
+        const { getMultiAssetAllocation } = await import("../lib/multiAssetSleeve");
+        const allokation = (await getMultiAssetAllocation())[
+          String(proposal.riskProfile ?? "ausgewogen") as keyof Awaited<ReturnType<typeof getMultiAssetAllocation>>
+        ];
+        const quoten = quotenAusProfil(allokation as any);
+
+        if (quoten.length) {
+          // Renditen der Referenzinstrumente in CHF — gleiche Mechanik wie bei
+          // den Positionen, damit Zaehler und Nenner vergleichbar bleiben.
+          const refTickers = [...new Set(quoten.map((q) => KLASSEN_REFERENZ[q.klasse].ticker))];
+          const refRows = await db
+            .select({ ticker: historicalPrices.ticker, date: historicalPrices.date, close: sql<string>`COALESCE(${historicalPrices.adjustedClose}, ${historicalPrices.close})` })
+            .from(historicalPrices)
+            .where(and(
+              inArray(historicalPrices.ticker, refTickers),
+              gte(historicalPrices.date, fetchStartStr),
+              lte(historicalPrices.date, endDate),
+            ));
+          const refByTicker = new Map<string, DailyClose[]>();
+          for (const r of refRows) {
+            if (!refByTicker.has(r.ticker)) refByTicker.set(r.ticker, []);
+            refByTicker.get(r.ticker)!.push({ date: r.date, close: r.close });
+          }
+
+          const klassenRenditen = await Promise.all(quoten.map(async (q) => {
+            const ref = KLASSEN_REFERENZ[q.klasse];
+            let rows = refByTicker.get(ref.ticker) ?? [];
+            // Fuer Aktien liegt die Reihe in benchmarkData, nicht in historical_prices.
+            if (!rows.length && q.klasse === "equity") {
+              rows = (await getBenchmarkData("SMI", fetchStartStr, endDate)).map((r: any) => ({ date: r.date, close: r.close }));
+            }
+            const lokal = computeWindowReturn(rows, startDate, endDate);
+            const fx = ref.currency === "CHF" ? 0 : (fxReturnByCurrency.get(ref.currency) ?? await (async () => {
+              const a = await tryGetFxRate(startDate, `${ref.currency}CHF`);
+              const b = await tryGetFxRate(endDate, `${ref.currency}CHF`);
+              return a != null && b != null && a > 0 ? b / a - 1 : null;
+            })());
+            const chfReturn = lokal !== null && fx !== null ? (1 + lokal) * (1 + fx) - 1 : null;
+            return { klasse: q.klasse, sollQuotePct: q.sollQuotePct, chfReturn };
+          }));
+
+          const composite = berechneComposite(klassenRenditen);
+          if (composite) {
+            benchmarkReturn = composite.compositeReturn;
+            benchmarkArt = "profil-composite";
+            benchmarkAbdeckung = composite.abdeckungPct;
+          }
+        }
+
+        // Rueckfall auf den Aktienindex, wenn zu wenige Klassen abgedeckt sind.
+        // Dann steht in der Log-Zeile ausdruecklich, welcher Massstab galt.
+        if (benchmarkReturn === null) {
+          const benchRows = (await getBenchmarkData("SMI", fetchStartStr, endDate)).map((r: any) => ({
+            date: r.date,
+            close: r.close,
+          }));
+          benchmarkReturn = computeWindowReturn(benchRows, startDate, endDate);
+        }
       } catch (e: any) {
         console.warn(`[proposalOutcome] Benchmark nicht verfügbar: ${e?.message}`);
       }
+      console.log(
+        `[proposalOutcome] Vorschlag ${proposal.id}: Massstab ${benchmarkArt}` +
+        (benchmarkAbdeckung !== null ? ` (Klassen-Abdeckung ${benchmarkAbdeckung} %)` : "")
+      );
 
       if (!agg) {
         // Zu wenig Kursabdeckung — Abdeckung speichern, Bewertung offen lassen

@@ -22,11 +22,18 @@
  * 0.25 Prozentpunkte je 30-Tage-Fenster. Ein Fehler, der nie auffällt, weil er
  * nie schwankt.
  *
- * Beide Seiten stehen jetzt auf KURSRENDITE. Das ist der gleichnamige
- * Vergleich: Der Titel bringt seine Dividende nicht in die Messung ein, der
- * Markt seine also auch nicht. Wer später auf Gesamtrendite umstellen will,
- * braucht Ausschüttungsdaten je Titel im Messfenster — dann bitte auf BEIDEN
- * Seiten gleichzeitig.
+ * Die Lösung ist NICHT, den Benchmark auf Kursrendite zu stellen. Denn die
+ * Titelseite kann das gar nicht durchhalten: `historical_prices.close` ist
+ * unbereinigt und würde bei einem Aktiensplit im Messfenster einen Sturz von
+ * 50 % ausweisen, den es nie gab. Genau deshalb liest die Vorschlags-Messung
+ * `COALESCE(adjustedClose, close)` — und `adjustedClose` stammt aus EODHDs
+ * `adjusted_close`, das Splits UND Ausschüttungen einrechnet (der Kommentar an
+ * der Befüllstelle nennt nur die Splits, das ist ungenau).
+ *
+ * Richtig ist daher der umgekehrte Weg: BEIDE Seiten auf Gesamtrendite. Der
+ * Benchmark bleibt, wo er war; korrigiert gehört die Signal-Messung, die ihre
+ * Renditen aus rohen Tageskursen (`stocks.currentPrice` gegen den Snapshot-
+ * Kurs) bildet und damit sowohl die Dividenden als auch die Splits verfehlt.
  */
 
 /** Rechenbasis einer Kursreihe. */
@@ -52,7 +59,7 @@ export const BENCHMARKS: Record<string, BenchmarkIdentitaet> = {
     ticker: "CHSPI.SW",
     index: "SPI",
     label: "SPI (Swiss Performance Index)",
-    basis: "kurs",
+    basis: "gesamtrendite",
     hinweis:
       "Der Schlüssel heisst historisch «SMI», die Reihe stammt aber aus dem SPI-ETF CHSPI.SW. " +
       "Der Schlüssel bleibt, weil er ein Datenbank-Enum ist; der Anzeigename nennt den echten Index.",
@@ -62,14 +69,14 @@ export const BENCHMARKS: Record<string, BenchmarkIdentitaet> = {
     ticker: "SPY.US",
     index: "S&P 500",
     label: "S&P 500",
-    basis: "kurs",
+    basis: "gesamtrendite",
   },
   MSCI_WORLD: {
     schluessel: "MSCI_WORLD",
     ticker: "ACWI.US",
     index: "MSCI ACWI",
     label: "MSCI ACWI (All Country World)",
-    basis: "kurs",
+    basis: "gesamtrendite",
     hinweis:
       "ACWI enthält Schwellenländer, der Name «MSCI World» nicht. Der Anzeigename nennt den echten Index.",
   },
@@ -100,11 +107,12 @@ export function preisFeldFuerBasis(
 }
 
 /**
- * Ab wann die Benchmark-Reihen auf Kursbasis stehen.
+ * Rückschreibfenster der Benchmark-Reihen.
  *
- * Ältere Zeilen wurden mit `adjusted_close` geschrieben. Damit nicht zwei Basen
- * in einer Reihe stehen und ein Fenster über die Grenze einen Scheinsprung
- * zeigt, wird die Reihe ab diesem Datum vollständig neu geschrieben (siehe
- * BENCHMARK_LOOKBACK_TAGE in historicalPricesCron).
+ * Bisher wurden nur sieben Tage aufgefrischt. Fällt eine EODHD-Nachbereinigung
+ * (Split, Ausschüttung) auf ältere Tage, blieb die Reihe dauerhaft auf dem
+ * alten Stand — mit einem Knick genau dort. Es sind drei Reihen; sie über gut
+ * drei Jahre neu zu schreiben kostet nichts und hält die Basis über das ganze
+ * Fenster einheitlich.
  */
 export const BENCHMARK_LOOKBACK_TAGE = 1100; // gut drei Jahre — deckt jedes Messfenster ab

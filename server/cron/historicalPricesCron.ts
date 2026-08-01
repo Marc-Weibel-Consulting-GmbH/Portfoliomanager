@@ -38,9 +38,10 @@ async function refreshBenchmarkData(fromDate: string, toDate: string): Promise<v
         await upsertBenchmarkData({
           benchmark: key,
           date: row.date,
-          // KURSBASIS, nicht adjusted_close: Die Titelseite rechnet ebenfalls mit
-          // reinen Kursen. Mit Ausschuettungen im Benchmark war jedes Alpha um die
-          // Dividendenrendite des Marktes zu tief — immer, und immer gleich viel.
+          // Gesamtrendite (adjusted_close). Welche Basis gilt, steht in
+          // benchmarkIdentity.ts — nicht hier versteckt. Die Titelseite muss
+          // dieselbe Basis verwenden, sonst enthaelt jedes Alpha die
+          // Dividendenrendite des Marktes als stillen Abzug.
           close: String(preisFeldFuerBasis(row, BENCHMARKS[key].basis)),
           source: 'eodhd',
         });
@@ -93,11 +94,11 @@ export async function dailyHistoricalPricesUpdate() {
         console.error("[historicalPricesCron] Daily update failed:", result.errors);
       }
 
-      // Benchmarks ueber ein langes Fenster neu schreiben, nicht nur sieben Tage.
-      // Grund: Die Reihen standen bis anhin auf Gesamtrendite und stehen neu auf
-      // Kursbasis. Wuerde nur der Rand aufgefrischt, stuenden zwei Basen in
-      // derselben Reihe und jedes Fenster ueber die Grenze zeigte einen
-      // Scheinsprung. Es sind drei Reihen — der Mehraufwand ist unerheblich.
+      // Benchmarks ueber ein langes Fenster neu schreiben, nicht nur sieben Tage:
+      // EODHD bereinigt Splits und Ausschuettungen rueckwirkend. Wird nur der
+      // Rand aufgefrischt, bleibt der aeltere Teil der Reihe auf dem alten Stand
+      // und die Reihe bekommt genau dort einen Knick. Es sind drei Reihen — der
+      // Mehraufwand ist unerheblich.
       const { BENCHMARK_LOOKBACK_TAGE } = await import("../lib/benchmarkIdentity");
       const benchmarkStart = new Date();
       benchmarkStart.setDate(benchmarkStart.getDate() - BENCHMARK_LOOKBACK_TAGE);
