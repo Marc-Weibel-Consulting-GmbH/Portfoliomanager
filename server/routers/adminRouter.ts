@@ -1247,6 +1247,18 @@ export const adminRouter = router({
       }
     }),
 
+    /**
+     * Stand der Schattenrechnung: Marktregime gegen Titel-Kursphase als
+     * Mischungsschlüssel des Combined Score (siehe lib/regimeSchatten.ts).
+     *
+     * Solange `bewertet` klein ist, sagt der Vergleich nichts — die Zahl steht
+     * bewusst mit dabei, damit niemand aus drei Paaren eine Umstellung ableitet.
+     */
+    getRegimeSchattenBilanz: adminProcedure.query(async () => {
+      const { bilanz } = await import("../lib/regimeSchattenStore");
+      return await bilanz();
+    }),
+
     /** Preview: calculate score with custom config without saving */
     previewScoreConfig: adminProcedure
       .input(z.object({

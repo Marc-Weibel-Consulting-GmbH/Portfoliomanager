@@ -251,6 +251,12 @@ export function initSignalEvaluationCron(): void {
     import("./combinedScoreOutcome")
       .then((m) => m.evaluateCombinedScores())
       .catch((e) => console.error("[combinedScoreOutcome] Eval error:", e));
+    // Schattenrechnung Marktregime vs. Titel-Kursphase — dieselbe Kadenz,
+    // damit beide Varianten über exakt dasselbe Fenster gemessen werden.
+    import("../lib/regimeSchattenStore")
+      .then((m) => m.werteAus())
+      .then((r) => r.bewertet > 0 && console.log(`[regimeSchatten] ${r.bewertet} Saetze bewertet`))
+      .catch((e) => console.error("[regimeSchatten] Eval error:", e));
   }, EVAL_INTERVAL_MS);
 
   // Snapshot: täglich um 18:00 (nach EU-Marktschluss)
