@@ -1259,6 +1259,18 @@ export const adminRouter = router({
       return await bilanz();
     }),
 
+    /**
+     * Netto-Wirkung der Vorschlaege: welcher Massstab galt, wie viel der Aufbau
+     * modelliert gekostet haette und was nach Abzug uebrig bleibt.
+     *
+     * Brutto und Netto stehen nebeneinander — die Kostensaetze sind Annahmen
+     * (siehe lib/kostenModell.ts) und keine Abrechnung.
+     */
+    getVorschlagWirkung: adminProcedure.query(async () => {
+      const { wirkungsBilanz } = await import("../lib/vorschlagWirkungStore");
+      return await wirkungsBilanz();
+    }),
+
     /** Preview: calculate score with custom config without saving */
     previewScoreConfig: adminProcedure
       .input(z.object({

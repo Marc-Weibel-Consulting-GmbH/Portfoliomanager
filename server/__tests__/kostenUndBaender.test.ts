@@ -10,9 +10,11 @@ import { describe, it, expect } from "vitest";
 import { SCORE_BAENDER, bandFuerScore, blendCombinedScore } from "../lib/signalBlend";
 import {
   STANDARD_KOSTEN,
+  REGIME_TOTBAND_TAGE,
   berechneKosten,
   nettoRendite,
   regimeWechselBestaetigt,
+  stabilesRegime,
 } from "../lib/kostenModell";
 
 describe("Score-Bänder (Punkt 4)", () => {
@@ -143,5 +145,46 @@ describe("Totband für Regimewechsel (Punkt 3)", () => {
     expect(regimeWechselBestaetigt(["bull"], "bull")).toBe(false);
     expect(regimeWechselBestaetigt([], "bull")).toBe(false);
     expect(regimeWechselBestaetigt(["bull", "bull", "bull"], "")).toBe(false);
+  });
+});
+
+describe("stabilesRegime — das wirksame Regime hinter dem Totband", () => {
+  it("laesst einen einzelnen Ausreisser nicht durch", () => {
+    // Genau der Fall, der ohne Totband eine Umschichtung ausloest.
+    const verlauf = ["bull", "bull", "bull", "sideways_high_vol", "bull", "bull"];
+    expect(stabilesRegime(verlauf)).toBe("bull");
+  });
+
+  it("wechselt, sobald das neue Regime drei Tage durchhaelt", () => {
+    const verlauf = ["bull", "bull", "bear_trend", "bear_trend", "bear_trend"];
+    expect(stabilesRegime(verlauf)).toBe("bear_trend");
+  });
+
+  it("wechselt nicht bei zwei Tagen", () => {
+    const verlauf = ["bull", "bull", "bull", "bear_trend", "bear_trend"];
+    expect(stabilesRegime(verlauf)).toBe("bull");
+  });
+
+  it("daempft das Flattern an der Seitwaerts-Grenze", () => {
+    // Ohne Totband haette die Mischung hier viermal um 10 Punkte gesprungen.
+    const flattern = [
+      "sideways_low_vol", "sideways_high_vol", "sideways_low_vol",
+      "sideways_high_vol", "sideways_low_vol", "sideways_high_vol",
+    ];
+    expect(stabilesRegime(flattern)).toBe("sideways_low_vol");
+  });
+
+  it("nimmt bei zu kurzer Folge die juengste Erkennung", () => {
+    expect(stabilesRegime(["bull", "bear_trend"])).toBe("bear_trend");
+    expect(stabilesRegime(["bull"])).toBe("bull");
+  });
+
+  it("kommt mit leerer Folge zurecht", () => {
+    expect(stabilesRegime([])).toBe("");
+    expect(stabilesRegime(["", ""])).toBe("");
+  });
+
+  it("nutzt drei Tage als Voreinstellung", () => {
+    expect(REGIME_TOTBAND_TAGE).toBe(3);
   });
 });

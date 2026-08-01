@@ -21,6 +21,7 @@ import YahooFinanceClass from 'yahoo-finance2';
 import { calculateQualityScore, calculateMomentumScore, extractQualityFromYahoo } from '../analytics/qualityMomentumEngine';
 import { detectBubble } from '../analytics/lpplsEngine';
 import { blendCombinedScore } from '../lib/signalBlend';
+import { regimeMitTotband } from '../lib/signals/regimeMitTotband';
 import { getRegimeBlendConfig } from '../analytics/regimeSignalMemory';
 import { computeRegime } from '../lib/signals/regimeEngine';
 // yahoo-finance2 v3: default export is a constructor class
@@ -453,7 +454,9 @@ export const tradingviewRouter = router({
         // StockDetail-Widget, Dashboard-Watchlist und Signale-&-Scores identisch urteilen.
         const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
         let regimeKey = 'default';
-        if (prices.length >= 60) { try { regimeKey = computeRegime(prices).regime; } catch (_) { /* keep default regime */ } }
+        // Regime mit Totband: nicht die Einstufung von heute, sondern die, die
+        // sich ueber mehrere Tage gehalten hat (lib/signals/regimeMitTotband.ts).
+        if (prices.length >= 60) { try { regimeKey = regimeMitTotband(prices); } catch (_) { /* keep default regime */ } }
         const blended = blendCombinedScore(
           { momentumScore: momentumResult.score ?? 0, qualityScore: qualityResult.score ?? 0, regime: regimeKey, lpplPenalty },
           await getRegimeBlendConfig()
@@ -521,7 +524,9 @@ export const tradingviewRouter = router({
           // SIG-1: zentrale Kombiscore-Formel (identisch zu stockScoring/Signale-&-Scores).
           const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
           let regimeKey = 'default';
-          if (prices.length >= 60) { try { regimeKey = computeRegime(prices).regime; } catch (_) { /* keep default regime */ } }
+          // Regime mit Totband: nicht die Einstufung von heute, sondern die, die
+        // sich ueber mehrere Tage gehalten hat (lib/signals/regimeMitTotband.ts).
+        if (prices.length >= 60) { try { regimeKey = regimeMitTotband(prices); } catch (_) { /* keep default regime */ } }
           const blended = blendCombinedScore(
             { momentumScore: momentumResult.score ?? 0, qualityScore: qualityResult.score ?? 0, regime: regimeKey, lpplPenalty },
             await getRegimeBlendConfig()

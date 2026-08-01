@@ -152,3 +152,39 @@ export function regimeWechselBestaetigt(
   const jüngste = letzteRegime.slice(-mindestTage);
   return jüngste.every((r) => r === neuesRegime);
 }
+
+/** Voreinstellung: drei aufeinanderfolgende Tage bestätigen einen Wechsel. */
+export const REGIME_TOTBAND_TAGE = 3;
+
+/**
+ * Wirksames Regime aus einer Folge von Tageserkennungen (ältestes zuerst).
+ *
+ * Läuft die Folge einmal durch und wechselt das wirksame Regime erst, wenn ein
+ * neues an `mindestTage` aufeinanderfolgenden Tagen erkannt wurde. Ein
+ * einzelner Ausreisser ändert damit nichts — genau das ist der Zweck.
+ *
+ * Braucht KEINE gespeicherte Historie: Die Tageserkennungen lassen sich aus
+ * derselben Kursreihe rekonstruieren, indem man sie schrittweise kürzt. Damit
+ * bleibt das Ergebnis reproduzierbar und der Aufrufer zustandsfrei.
+ *
+ * Ist die Folge kürzer als `mindestTage`, gibt es nichts zu glätten — dann gilt
+ * die jüngste Erkennung.
+ */
+export function stabilesRegime(verlauf: string[], mindestTage = REGIME_TOTBAND_TAGE): string {
+  const gefiltert = (verlauf ?? []).filter(Boolean);
+  if (!gefiltert.length) return "";
+  if (gefiltert.length < mindestTage) return gefiltert[gefiltert.length - 1];
+
+  let wirksam = gefiltert[0];
+  let kandidat = gefiltert[0];
+  let inFolge = 1;
+
+  for (let i = 1; i < gefiltert.length; i++) {
+    const heute = gefiltert[i];
+    if (heute === kandidat) inFolge++;
+    else { kandidat = heute; inFolge = 1; }
+    // Erst wenn der Kandidat lange genug durchhält, wird er wirksam.
+    if (kandidat !== wirksam && inFolge >= mindestTage) wirksam = kandidat;
+  }
+  return wirksam;
+}

@@ -236,7 +236,7 @@ export async function evaluateProposalOutcomes(
       // Kosten des Aufbaus modellieren (siehe lib/kostenModell.ts). Die Brutto-
       // zahl bleibt unberuehrt — die Nettozahl steht daneben, weil die
       // Kostensaetze Annahmen sind und keine Abrechnung.
-      let kostenPct: number | null = null;
+      let kosten: { einmaligPct: number; laufendPct: number; gesamtPct: number } | null = null;
       try {
         const { berechneKosten } = await import("../lib/kostenModell");
         const anlagesumme = Number(proposal.investmentAmount) || 0;
@@ -253,7 +253,7 @@ export async function evaluateProposalOutcomes(
             anlagesumme,
             EVAL_WINDOW_DAYS,
           );
-          kostenPct = k.gesamtPct;
+          kosten = k;
         }
       } catch (e: any) {
         console.warn(`[proposalOutcome] Kostenmodell nicht anwendbar: ${e?.message}`);
@@ -262,7 +262,7 @@ export async function evaluateProposalOutcomes(
       console.log(
         `[proposalOutcome] Vorschlag ${proposal.id}: Massstab ${benchmarkArt}` +
         (benchmarkAbdeckung !== null ? ` (Klassen-Abdeckung ${benchmarkAbdeckung} %)` : "") +
-        (kostenPct !== null ? ` · modellierte Kosten ${kostenPct} %` : " · Kosten nicht modelliert")
+        (kosten !== null ? ` · modellierte Kosten ${kosten.gesamtPct} %` : " · Kosten nicht modelliert")
       );
 
       if (!agg) {
@@ -284,6 +284,30 @@ export async function evaluateProposalOutcomes(
           outcomeEvaluatedAt: new Date(),
         })
         .where(eq(portfolioProposalLog.id, proposal.id));
+
+      // Zusatzangaben ablegen: welcher Massstab galt, wie gut er abgedeckt war
+      // und was der Aufbau modelliert gekostet haette. Die Bruttowerte oben
+      // bleiben unberuehrt — die Nettozahl steht daneben, nicht an ihrer Stelle.
+      try {
+        const { haltefestWirkung } = await import("../lib/vorschlagWirkungStore");
+        const bruttoReturnPct = agg.portfolioReturn * 100;
+        const bruttoAlphaPct = alpha !== null ? alpha * 100 : null;
+        await haltefestWirkung({
+          proposalId: proposal.id,
+          benchmarkArt,
+          klassenAbdeckungPct: benchmarkAbdeckung,
+          kostenEinmaligPct: kosten?.einmaligPct ?? null,
+          kostenLaufendPct: kosten?.laufendPct ?? null,
+          kostenGesamtPct: kosten?.gesamtPct ?? null,
+          nettoReturnPct: kosten ? parseFloat((bruttoReturnPct - kosten.gesamtPct).toFixed(4)) : null,
+          nettoAlphaPct:
+            kosten && bruttoAlphaPct !== null
+              ? parseFloat((bruttoAlphaPct - kosten.gesamtPct).toFixed(4))
+              : null,
+        });
+      } catch (e: any) {
+        console.warn(`[proposalOutcome] Wirkungsdetail nicht abgelegt: ${e?.message}`);
+      }
       evaluated++;
     } catch (e: any) {
       console.error(`[proposalOutcome] Vorschlag ${proposal.id} fehlgeschlagen:`, e?.message);

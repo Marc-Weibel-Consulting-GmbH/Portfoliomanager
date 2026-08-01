@@ -59,7 +59,7 @@ export async function refreshSignalCache(): Promise<void> {
     const { generateSignal } = await import("../lib/baseSignal");
     const { blendCombinedScore } = await import("../lib/signalBlend");
     const { getRegimeBlendConfig } = await import("../analytics/regimeSignalMemory");
-    const { computeRegime } = await import("../lib/signals/regimeEngine");
+    const { regimeMitTotband } = await import("../lib/signals/regimeMitTotband");
 
     const optimizedWeights = await getActiveWeights();
     const blendConfig = await getRegimeBlendConfig();
@@ -302,7 +302,9 @@ export async function refreshSignalCache(): Promise<void> {
                   const bReg = bubbleRegime ?? 'normal';
                   const lpplPenalty = bReg === 'bubble' ? bScore * 0.5 : 0;
                   let regimeKey = 'default';
-                  try { regimeKey = computeRegime(prices).regime; } catch { /* silent */ }
+                  // Regime mit Totband — daempft das Flattern an Regimegrenzen,
+                  // das sonst Umschichtungen ausloest (regimeMitTotband.ts).
+                  try { regimeKey = regimeMitTotband(prices); } catch { /* silent */ }
 
                   // RF-Adjustment: RF-Signal leicht in den qualityScore einfliessen lassen
                   // (RF ist ein zusätzlicher Input, kein Override)
