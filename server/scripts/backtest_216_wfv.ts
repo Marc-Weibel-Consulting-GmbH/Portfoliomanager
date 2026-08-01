@@ -199,7 +199,7 @@ async function main() {
   for (const win of windows) {
     // ── Training phase: collect features + labels ──────────────────────────────
     const trainMonthDates: string[] = [];
-    let td = new Date(win.trainStart);
+    const td = new Date(win.trainStart);
     while (td.toISOString().slice(0, 10) < win.trainEnd) {
       trainMonthDates.push(td.toISOString().slice(0, 10));
       td.setMonth(td.getMonth() + 1);
@@ -236,7 +236,7 @@ async function main() {
 
     // ── Test phase: apply trained model ───────────────────────────────────────
     const testMonthDates: string[] = [];
-    let testD = new Date(win.testStart);
+    const testD = new Date(win.testStart);
     while (testD.toISOString().slice(0, 10) < win.testEnd) {
       testMonthDates.push(testD.toISOString().slice(0, 10));
       testD.setMonth(testD.getMonth() + 1);

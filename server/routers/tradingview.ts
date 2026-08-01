@@ -29,16 +29,21 @@ const yahooFinance = new (YahooFinanceClass as any)();
 const MCP_BASE = process.env.TRADINGVIEW_MCP_URL?.replace(/\/$/, "") ?? "";
 
 // ── Exchange mapping: Yahoo suffix → TradingView exchange name ─────────────────
+//
+// Screener-Namen sind TradingView-Laenderslugs (scanner.tradingview.com/<slug>/scan).
+// «europe» stand hier fuer vier Suffixe und existiert bei TradingView gar nicht —
+// der Endpunkt antwortet mit 404. Ebenso hiess Xetra hier «XETRA»; die Boerse
+// heisst dort «XETR», eine Abfrage auf XETRA liefert null Treffer.
 const EXCHANGE_MAP: Record<string, { exchange: string; screener: string }> = {
-  ".SW": { exchange: "SIX",      screener: "europe"  },
-  ".DE": { exchange: "XETRA",    screener: "europe"  },
-  ".PA": { exchange: "EURONEXT", screener: "europe"  },
-  ".L":  { exchange: "LSE",      screener: "europe"  },
-  ".T":  { exchange: "TSE",      screener: "japan"   },
-  ".HK": { exchange: "HKEX",     screener: "hongkong"},
+  ".SW": { exchange: "SIX",      screener: "switzerland" },
+  ".DE": { exchange: "XETR",     screener: "germany"     },
+  ".PA": { exchange: "EURONEXT", screener: "france"      },
+  ".L":  { exchange: "LSE",      screener: "uk"          },
+  ".T":  { exchange: "TSE",      screener: "japan"       },
+  ".HK": { exchange: "HKEX",     screener: "hongkong"    },
 };
 
-function inferExchangeInfo(symbol: string): { exchange: string; screener: string; tvSymbol: string } {
+export function inferExchangeInfo(symbol: string): { exchange: string; screener: string; tvSymbol: string } {
   for (const [suffix, info] of Object.entries(EXCHANGE_MAP)) {
     if (symbol.toUpperCase().endsWith(suffix.toUpperCase())) {
       return { ...info, tvSymbol: symbol.slice(0, -suffix.length).toUpperCase() };
