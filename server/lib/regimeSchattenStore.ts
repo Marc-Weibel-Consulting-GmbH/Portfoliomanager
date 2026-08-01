@@ -134,15 +134,24 @@ export async function werteAus(): Promise<{ bewertet: number }> {
       benchmark = (await getBenchmarkData("SMI")) as any;
     } catch { /* ohne Benchmark bleibt benchmarkReturnPct null */ }
 
+    // Titelrendite aus der BEREINIGTEN Reihe — gleiche Basis wie der Benchmark.
+    // Rohe Tageskurse verfehlten Ausschuettungen und Splits (lib/titelRendite.ts).
+    const { kursreihenAusHistorie, renditeAusReihe } = await import("./titelRendite");
+    const fruehesterTag = zeilen.reduce(
+      (min: string, z: any) => (String(z.snapshotDate) < min ? String(z.snapshotDate) : min),
+      String(zeilen[0].snapshotDate),
+    );
+    const reihen = await kursreihenAusHistorie(tickers, fruehesterTag, heute);
+
     let bewertet = 0;
     for (const z of zeilen) {
-      const start = z.priceAtSnapshot != null ? parseFloat(String(z.priceAtSnapshot)) : NaN;
-      const jetzt = preisMap.get(z.ticker);
-      // Ohne belastbaren Start- oder Endkurs wird NICHT bewertet — eine Zeile
-      // ohne Messwert ist kein Ergebnis von null Prozent.
-      if (!Number.isFinite(start) || start <= 0 || jetzt === undefined || !(jetzt > 0)) continue;
+      const gemessen = renditeAusReihe(reihen.get(z.ticker), String(z.snapshotDate), heute);
+      // Ohne bereinigte Reihe wird NICHT bewertet — eine Zeile ohne Messwert
+      // ist kein Ergebnis von null Prozent, und auf rohe Kurse auszuweichen
+      // hiesse, zwei Basen zu vermischen.
+      if (!gemessen) continue;
 
-      const actual = ((jetzt - start) / start) * 100;
+      const actual = gemessen.rendite * 100;
       let bench: number | null = null;
       if (benchmark.length) {
         const b = computeWindowReturn(benchmark as any, String(z.snapshotDate), heute);
