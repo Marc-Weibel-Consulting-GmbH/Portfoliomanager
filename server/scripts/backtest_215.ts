@@ -163,7 +163,7 @@ async function main() {
 
   // Monthly rebalancing dates
   const rebalDates: string[] = [];
-  let d = new Date('2020-01-01');
+  const d = new Date('2020-01-01');
   const end = new Date('2024-12-01');
   while (d <= end) {
     rebalDates.push(d.toISOString().slice(0, 10));

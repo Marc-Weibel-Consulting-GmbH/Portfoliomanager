@@ -25,6 +25,7 @@ import { runSignalOrchestrator } from '../lib/signals/signalOrchestrator';
 import type { PortfolioAction } from '../lib/signals/types';
 import { computeRegime } from '../lib/signals/regimeEngine';
 import { blendCombinedScore } from '../lib/signalBlend';
+import { regimeMitTotband } from '../lib/signals/regimeMitTotband';
 import { getRegimeBlendConfig } from '../analytics/regimeSignalMemory';
 // SIG-4: gewichtetes Basis-Signal aus dem geteilten Modul (auch vom
 // signalCacheCron genutzt — vorher hatte der Cron eine ungewichtete Kopie).
@@ -422,7 +423,8 @@ async function processStock(
         // Bei fehlendem Regime/Config fällt blendCombinedScore auf 50/50 zurück — identisch
         // zur bisherigen 0.4·mNorm + 0.4·qNorm − lpplPenalty-Formel (verhaltenswahrend).
         let regimeKey = 'default';
-        try { regimeKey = computeRegime(prices).regime; } catch { /* Preise zu kurz o. ä. */ }
+        // Regime mit Totband (lib/signals/regimeMitTotband.ts).
+        try { regimeKey = regimeMitTotband(prices); } catch { /* Preise zu kurz o. ä. */ }
         const blendConfig = await getRegimeBlendConfig();
         const blended = blendCombinedScore(
           {

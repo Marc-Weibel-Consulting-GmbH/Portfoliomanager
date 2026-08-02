@@ -134,14 +134,36 @@ export async function evaluateCombinedScores(): Promise<{ evaluated: number }> {
       console.warn("[combinedScoreOutcome] Benchmark unavailable, Alpha übersprungen:", (e as Error).message);
     }
 
+    // Renditen aus der BEREINIGTEN Kursreihe, nicht aus zwei rohen Tageskursen:
+    // Der Benchmark steht auf Gesamtrendite, also muss die Titelseite dort auch
+    // stehen. Sonst fehlt jedem Alpha die Dividende des Titels — und ein Split
+    // im Fenster erschiene als Kurssturz. Siehe lib/titelRendite.ts.
+    const { kursreihenAusHistorie, renditeAusReihe } = await import("../lib/titelRendite");
+    const fensterStart = pending.reduce(
+      (min: string, s: any) => {
+        const d = s.computedAt.toISOString().split("T")[0];
+        return d < min ? d : min;
+      },
+      pending[0].computedAt.toISOString().split("T")[0] as string,
+    );
+    // EIN Query ueber das weiteste Fenster; die einzelnen Snapshot-Fenster
+    // werden danach im Speicher gerechnet.
+    const reihen = await kursreihenAusHistorie(tickers, fensterStart, todayStr);
+
     let evaluated = 0;
+    let ohneReihe = 0;
     for (const s of pending) {
       const cur = priceMap.get(s.ticker);
-      const entry = s.priceAtSnapshot != null ? parseFloat(s.priceAtSnapshot.toString()) : null;
-      if (!cur || !entry) continue;
-
-      const actualReturn = (cur - entry) / entry;
       const dateStr = s.computedAt.toISOString().split("T")[0];
+
+      const gemessen = renditeAusReihe(reihen.get(s.ticker), dateStr, todayStr);
+      if (!gemessen) {
+        // Keine bereinigte Reihe -> NICHT auf rohe Kurse ausweichen. Eine Zahl
+        // auf anderer Basis danebenzustellen waere genau der behobene Fehler.
+        ohneReihe++;
+        continue;
+      }
+      const actualReturn = gemessen.rendite;
       const benchmarkReturn = benchmarkRows.length ? computeWindowReturn(benchmarkRows, dateStr, todayStr) : null;
       const alpha = computeAlpha(actualReturn, benchmarkReturn);
 
@@ -154,7 +176,7 @@ export async function evaluateCombinedScores(): Promise<{ evaluated: number }> {
         .update(combinedScoreHistory)
         .set({
           evaluatedAt: now,
-          priceAtEvaluation: cur.toString() as any,
+          priceAtEvaluation: cur != null ? (cur.toString() as any) : null,
           actualReturnPct: actualReturn.toFixed(4) as any,
           benchmarkReturnPct: benchmarkReturn !== null ? (benchmarkReturn.toFixed(4) as any) : null,
           alphaPct: alpha !== null ? (alpha.toFixed(4) as any) : null,
@@ -163,7 +185,10 @@ export async function evaluateCombinedScores(): Promise<{ evaluated: number }> {
         .where(eq(combinedScoreHistory.id, s.id));
       evaluated++;
     }
-    console.log(`[combinedScoreOutcome] Evaluated ${evaluated} Combined-Score-Snapshots`);
+    console.log(
+      `[combinedScoreOutcome] Evaluated ${evaluated} Combined-Score-Snapshots` +
+      (ohneReihe ? ` — ${ohneReihe} ohne bereinigte Kursreihe uebersprungen` : "")
+    );
     return { evaluated };
   } catch (e) {
     console.warn("[combinedScoreOutcome] Eval fehlgeschlagen:", (e as Error).message);

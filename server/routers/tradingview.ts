@@ -21,6 +21,7 @@ import YahooFinanceClass from 'yahoo-finance2';
 import { calculateQualityScore, calculateMomentumScore, extractQualityFromYahoo } from '../analytics/qualityMomentumEngine';
 import { detectBubble } from '../analytics/lpplsEngine';
 import { blendCombinedScore } from '../lib/signalBlend';
+import { regimeMitTotband } from '../lib/signals/regimeMitTotband';
 import { getRegimeBlendConfig } from '../analytics/regimeSignalMemory';
 import { computeRegime } from '../lib/signals/regimeEngine';
 // yahoo-finance2 v3: default export is a constructor class
@@ -29,16 +30,21 @@ const yahooFinance = new (YahooFinanceClass as any)();
 const MCP_BASE = process.env.TRADINGVIEW_MCP_URL?.replace(/\/$/, "") ?? "";
 
 // ── Exchange mapping: Yahoo suffix → TradingView exchange name ─────────────────
+//
+// Screener-Namen sind TradingView-Laenderslugs (scanner.tradingview.com/<slug>/scan).
+// «europe» stand hier fuer vier Suffixe und existiert bei TradingView gar nicht —
+// der Endpunkt antwortet mit 404. Ebenso hiess Xetra hier «XETRA»; die Boerse
+// heisst dort «XETR», eine Abfrage auf XETRA liefert null Treffer.
 const EXCHANGE_MAP: Record<string, { exchange: string; screener: string }> = {
-  ".SW": { exchange: "SIX",      screener: "europe"  },
-  ".DE": { exchange: "XETRA",    screener: "europe"  },
-  ".PA": { exchange: "EURONEXT", screener: "europe"  },
-  ".L":  { exchange: "LSE",      screener: "europe"  },
-  ".T":  { exchange: "TSE",      screener: "japan"   },
-  ".HK": { exchange: "HKEX",     screener: "hongkong"},
+  ".SW": { exchange: "SIX",      screener: "switzerland" },
+  ".DE": { exchange: "XETR",     screener: "germany"     },
+  ".PA": { exchange: "EURONEXT", screener: "france"      },
+  ".L":  { exchange: "LSE",      screener: "uk"          },
+  ".T":  { exchange: "TSE",      screener: "japan"       },
+  ".HK": { exchange: "HKEX",     screener: "hongkong"    },
 };
 
-function inferExchangeInfo(symbol: string): { exchange: string; screener: string; tvSymbol: string } {
+export function inferExchangeInfo(symbol: string): { exchange: string; screener: string; tvSymbol: string } {
   for (const [suffix, info] of Object.entries(EXCHANGE_MAP)) {
     if (symbol.toUpperCase().endsWith(suffix.toUpperCase())) {
       return { ...info, tvSymbol: symbol.slice(0, -suffix.length).toUpperCase() };
@@ -448,7 +454,9 @@ export const tradingviewRouter = router({
         // StockDetail-Widget, Dashboard-Watchlist und Signale-&-Scores identisch urteilen.
         const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
         let regimeKey = 'default';
-        if (prices.length >= 60) { try { regimeKey = computeRegime(prices).regime; } catch (_) { /* keep default regime */ } }
+        // Regime mit Totband: nicht die Einstufung von heute, sondern die, die
+        // sich ueber mehrere Tage gehalten hat (lib/signals/regimeMitTotband.ts).
+        if (prices.length >= 60) { try { regimeKey = regimeMitTotband(prices); } catch (_) { /* keep default regime */ } }
         const blended = blendCombinedScore(
           { momentumScore: momentumResult.score ?? 0, qualityScore: qualityResult.score ?? 0, regime: regimeKey, lpplPenalty },
           await getRegimeBlendConfig()
@@ -516,7 +524,9 @@ export const tradingviewRouter = router({
           // SIG-1: zentrale Kombiscore-Formel (identisch zu stockScoring/Signale-&-Scores).
           const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
           let regimeKey = 'default';
-          if (prices.length >= 60) { try { regimeKey = computeRegime(prices).regime; } catch (_) { /* keep default regime */ } }
+          // Regime mit Totband: nicht die Einstufung von heute, sondern die, die
+        // sich ueber mehrere Tage gehalten hat (lib/signals/regimeMitTotband.ts).
+        if (prices.length >= 60) { try { regimeKey = regimeMitTotband(prices); } catch (_) { /* keep default regime */ } }
           const blended = blendCombinedScore(
             { momentumScore: momentumResult.score ?? 0, qualityScore: qualityResult.score ?? 0, regime: regimeKey, lpplPenalty },
             await getRegimeBlendConfig()
