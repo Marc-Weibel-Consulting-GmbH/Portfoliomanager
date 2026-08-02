@@ -435,7 +435,9 @@ export const marketRegimeRouter = router({
 
     // Real index tickers on EODHD
     const indexKeys: { key: string; label: string; eodhdTicker: string; currency: string }[] = [
-      { key: "smi",     label: "SPI",        eodhdTicker: "SSMI.INDX",  currency: "CHF" },
+      // SSMI.INDX IST der SMI. Die Beschriftung «SPI» war schlicht falsch —
+      // der SPI liegt rund 30 % hoeher und wird hier nirgends abgefragt.
+      { key: "smi",     label: "SMI",        eodhdTicker: "SSMI.INDX",  currency: "CHF" },
       { key: "sp500",   label: "S&P 500",    eodhdTicker: "GSPC.INDX",  currency: "USD" },
       { key: "msci",    label: "MSCI World", eodhdTicker: "ACWI.US",    currency: "USD" },
       { key: "nasdaq",  label: "NASDAQ",     eodhdTicker: "IXIC.INDX",  currency: "USD" },

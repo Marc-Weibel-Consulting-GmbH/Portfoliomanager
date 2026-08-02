@@ -59,10 +59,24 @@ export async function refreshSignalCache(): Promise<void> {
     const { generateSignal } = await import("../lib/baseSignal");
     const { blendCombinedScore } = await import("../lib/signalBlend");
     const { getRegimeBlendConfig } = await import("../analytics/regimeSignalMemory");
-    const { computeRegime } = await import("../lib/signals/regimeEngine");
+    const { regimeMitTotband } = await import("../lib/signals/regimeMitTotband");
 
     const optimizedWeights = await getActiveWeights();
     const blendConfig = await getRegimeBlendConfig();
+
+    // Schattenrechnung (siehe lib/regimeSchatten.ts): Der Marktzustand wird EINMAL
+    // je Lauf geholt und dient nur der Parallelvariante. Schlägt das fehl, bleibt
+    // die Schattenrechnung aus — der echte Signal-Lauf ist davon unberührt.
+    const { rechneSchatten } = await import("../lib/regimeSchatten");
+    const schattenSaetze: import("../lib/regimeSchattenStore").SchattenSatz[] = [];
+    let marktLage: { overallRegime: string; volatilitaet?: string | null } | null = null;
+    try {
+      const { computeRegime: computeMarktRegime } = await import("../routers/marketRegimeRouter");
+      const m: any = await computeMarktRegime();
+      marktLage = { overallRegime: m.overallRegime, volatilitaet: m.engines?.volatility?.level ?? null };
+    } catch (e) {
+      console.warn("[signalCacheCron] Marktregime fuer Schattenrechnung nicht verfuegbar:", (e as Error).message);
+    }
 
     // B5: Wikifolio-Konsens-Signal vorab laden (einmal für alle Tickers)
     const wikifolioConsensusMap: Map<string, { score: number; signal: string; buyCount: number; sellCount: number }> = new Map();
@@ -288,7 +302,9 @@ export async function refreshSignalCache(): Promise<void> {
                   const bReg = bubbleRegime ?? 'normal';
                   const lpplPenalty = bReg === 'bubble' ? bScore * 0.5 : 0;
                   let regimeKey = 'default';
-                  try { regimeKey = computeRegime(prices).regime; } catch { /* silent */ }
+                  // Regime mit Totband — daempft das Flattern an Regimegrenzen,
+                  // das sonst Umschichtungen ausloest (regimeMitTotband.ts).
+                  try { regimeKey = regimeMitTotband(prices); } catch { /* silent */ }
 
                   // RF-Adjustment: RF-Signal leicht in den qualityScore einfliessen lassen
                   // (RF ist ein zusätzlicher Input, kein Override)
@@ -303,6 +319,29 @@ export async function refreshSignalCache(): Promise<void> {
                   combinedScore = blended.combinedScore;
                   overallGrade = blended.grade;
                   combinedSignal = blended.signalLabel;
+
+                  // Parallelvariante mitrechnen — identische Eingangswerte, nur der
+                  // Mischungsschluessel kommt aus dem Marktregime statt aus der
+                  // Kursphase des Titels. Wird NICHT angezeigt und NICHT gespeichert
+                  // ausser in regime_blend_shadow; entscheidet nach 30 Tagen die
+                  // Messung, nicht die Vermutung.
+                  if (marktLage) {
+                    try {
+                      const s = rechneSchatten(
+                        { momentumScore, qualityScore: adjustedQualityScore, lpplPenalty,
+                          titelRegime: regimeKey, markt: marktLage },
+                        blendConfig,
+                      );
+                      schattenSaetze.push({
+                        ticker: stock.ticker,
+                        liveRegime: s.liveRegime, liveScore: s.liveScore, liveSignal: s.liveSignal,
+                        marktRegime: marktLage.overallRegime,
+                        schattenRegime: s.schattenRegime, schattenScore: s.schattenScore,
+                        schattenSignal: s.schattenSignal,
+                        preis: typeof currentPrice === "number" && currentPrice > 0 ? currentPrice : null,
+                      });
+                    } catch { /* Schattenrechnung darf den echten Lauf nie stoeren */ }
+                  }
 
                   // Signal-Typ IMMER aus dem kombinierten Score ableiten (EINZIGE Quelle der Wahrheit)
                   if (blended.signalLabel === 'STRONG BUY' || blended.signalLabel === 'BUY') {
@@ -431,6 +470,22 @@ export async function refreshSignalCache(): Promise<void> {
           }
         })
       );
+    }
+
+    // Schattenrechnung ablegen — nach dem echten Lauf, damit ein Fehler hier
+    // nichts an den zwischengespeicherten Signalen ändern kann.
+    if (schattenSaetze.length) {
+      try {
+        const { haltefest } = await import("../lib/regimeSchattenStore");
+        const { geschrieben } = await haltefest(schattenSaetze);
+        const uneinig = schattenSaetze.filter((s) => s.liveSignal !== s.schattenSignal).length;
+        console.log(
+          `[signalCacheCron] Schattenrechnung: ${geschrieben} Saetze, ` +
+          `${uneinig} mit abweichendem Signal (Marktregime: ${marktLage?.overallRegime ?? "unbekannt"})`,
+        );
+      } catch (e) {
+        console.warn("[signalCacheCron] Schattenrechnung nicht abgelegt (non-fatal):", (e as Error).message);
+      }
     }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);

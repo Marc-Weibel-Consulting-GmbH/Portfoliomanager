@@ -24,7 +24,7 @@ function todayStr(): string {
 async function fetchIndexData(): Promise<{ label: string; price: number | null; change: number | null }[]> {
   const { fetchEODHDRealTime } = await import('../_core/eodhdApi');
   const defs = [
-    { label: 'SPI',     ticker: 'SSMI.INDX' },
+    { label: 'SMI',     ticker: 'SSMI.INDX' },   // SSMI ist der SMI, nicht der SPI
     { label: 'S&P 500', ticker: 'GSPC.INDX' },
     { label: 'Nasdaq',  ticker: 'IXIC.INDX' },
     { label: 'SOX',     ticker: 'SOX.INDX' },

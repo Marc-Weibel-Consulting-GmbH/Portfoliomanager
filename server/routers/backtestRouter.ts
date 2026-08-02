@@ -414,7 +414,7 @@ export const backtestRouter = router({
 
         // Benchmarks via EODHD-Index-Symbole (S&P 500, SMI)
         const sp500Return = await benchmarkReturn("GSPC.INDX", fromStr, toStr);
-        const spiReturn = await benchmarkReturn("SSMI.INDX", fromStr, toStr);
+        const smiReturn = await benchmarkReturn("SSMI.INDX", fromStr, toStr);
 
         // Equity curve (cumulative returns)
         const equityCurve: { date: string; value: number }[] = [{ date: validDates[0], value: 100 }];
@@ -446,9 +446,9 @@ export const backtestRouter = router({
             buyHoldReturn,
             outperformance: totalReturn - buyHoldReturn,
             sp500Return,
-            spiReturn,
+            smiReturn,
             vsSpx: totalReturn - sp500Return,
-            vsSpi: totalReturn - spiReturn,
+            vsSmi: totalReturn - smiReturn,
           },
           equityCurve,
           priceData: validDates.map((d: string, i: number) => ({ date: d, price: prices[i] })),
@@ -522,7 +522,7 @@ export const backtestRouter = router({
 
       // Benchmarks via EODHD-Index-Symbole (S&P 500, SMI)
       const sp500Return = await benchmarkReturn("GSPC.INDX", fromStr, toStr);
-      const spiReturn = await benchmarkReturn("SSMI.INDX", fromStr, toStr);
+      const smiReturn = await benchmarkReturn("SSMI.INDX", fromStr, toStr);
 
       // Portfolio-level metrics
       const totalWeightedSignalReturn = results.reduce((sum, r) => sum + (r.signalReturn * r.weight / 100), 0);
@@ -542,9 +542,9 @@ export const backtestRouter = router({
           totalSignalsGenerated: results.reduce((sum, r) => sum + r.totalSignals, 0),
           totalTradesExecuted: results.reduce((sum, r) => sum + r.totalTrades, 0),
           sp500Return,
-          spiReturn,
+          smiReturn,
           vsSpx: totalWeightedSignalReturn - sp500Return,
-          vsSpi: totalWeightedSignalReturn - spiReturn,
+          vsSmi: totalWeightedSignalReturn - smiReturn,
         },
         activeWeights: weights,
       };
