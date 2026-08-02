@@ -53,21 +53,22 @@ export const reportRouter = router({
         }
       }
 
-      // SPI-Benchmark (best-effort, EODHD): Tagesrenditen des SPI über denselben Zeitraum.
+      // SMI-Benchmark (best-effort, EODHD): Tagesrenditen des SMI über denselben Zeitraum.
       // Scheitert der Abruf, wird der Report ohne Benchmark erzeugt (kein Fehler).
       let benchmark: number[] | undefined;
       let benchmarkDates: string[] | undefined;
       try {
         const { fetchEodSeries } = await import("../jobs/importHistoricalPrices");
-        const spi = await fetchEodSeries("SSMI.INDX", dates[0] ?? startDate, endDate);
-        if (spi.prices.length > 30) {
+        // SSMI.INDX ist der SMI (nicht der SPI — der liegt rund 30 % hoeher).
+        const smi = await fetchEodSeries("SSMI.INDX", dates[0] ?? startDate, endDate);
+        if (smi.prices.length > 30) {
           const bRet: number[] = [];
           const bDate: string[] = [];
-          for (let i = 1; i < spi.prices.length; i++) {
-            const r = spi.prices[i] / spi.prices[i - 1] - 1;
+          for (let i = 1; i < smi.prices.length; i++) {
+            const r = smi.prices[i] / smi.prices[i - 1] - 1;
             if (Number.isFinite(r)) {
               bRet.push(r);
-              bDate.push(spi.dates[i]);
+              bDate.push(smi.dates[i]);
             }
           }
           if (bRet.length > 30) {
@@ -76,7 +77,7 @@ export const reportRouter = router({
           }
         }
       } catch (e) {
-        console.warn("[report.tearsheet] SPI-Benchmark nicht verfügbar:", (e as Error).message);
+        console.warn("[report.tearsheet] SMI-Benchmark nicht verfügbar:", (e as Error).message);
       }
 
       let res: Response;
@@ -86,7 +87,7 @@ export const reportRouter = router({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             returns, dates, title: portfolio.name ?? "Portfolio", rf: 0,
-            ...(benchmark && benchmarkDates ? { benchmark, benchmark_dates: benchmarkDates, benchmark_title: "SPI" } : {}),
+            ...(benchmark && benchmarkDates ? { benchmark, benchmark_dates: benchmarkDates, benchmark_title: "SMI" } : {}),
           }),
           signal: AbortSignal.timeout(30000),
         });

@@ -3,15 +3,19 @@
  *
  * Triggered daily via Heartbeat cron (09:00 UTC, after n8n research feed refresh).
  * Finds all research_signals with relevanceScore >= 8 and githubIssueNumber IS NULL,
+ * fetches article full-text via Firecrawl (if URL available),
  * enriches each signal via LLM (hypothesis, expected effect, confidence, affected engine),
  * creates a [Research] GitHub Issue, and stores the issue number back in the DB.
  *
  * Requires GITHUB_TOKEN env variable with repo scope.
+ * Requires FIRECRAWL_API_KEY env variable for article full-text extraction.
  */
 import type { Request, Response } from "express";
 
 const GITHUB_REPO = "Marc-Weibel-Consulting-GmbH/Portfoliomanager";
 const SCORE_THRESHOLD = 8;
+/** Max characters of article text passed to LLM to stay within token budget */
+const MAX_ARTICLE_CHARS = 6000;
 
 interface LLMEnrichment {
   affectedEngine: string;
@@ -21,14 +25,59 @@ interface LLMEnrichment {
   preregisteredThreshold: string;
 }
 
-async function enrichWithLLM(signal: {
-  title: string;
-  sourceName: string | null;
-  topics: unknown;
-  contentType: string | null;
-  evidenceType: string | null;
-  relevanceScore: number | null;
-}): Promise<LLMEnrichment> {
+/**
+ * Fetches the full text of an article via Firecrawl.
+ * Returns null if Firecrawl is not configured, the URL is missing, or extraction fails.
+ */
+async function fetchArticleText(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  const firecrawlKey = process.env.FIRECRAWL_API_KEY;
+  if (!firecrawlKey) {
+    console.warn("[researchGithubIssue] FIRECRAWL_API_KEY not set — skipping article extraction");
+    return null;
+  }
+  try {
+    const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${firecrawlKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url,
+        formats: ["markdown"],
+        onlyMainContent: true,
+        timeout: 20000,
+      }),
+      signal: AbortSignal.timeout(25000),
+    });
+    if (!response.ok) {
+      console.warn(`[researchGithubIssue] Firecrawl ${response.status} for ${url}`);
+      return null;
+    }
+    const data = (await response.json()) as { success?: boolean; data?: { markdown?: string } };
+    if (!data.success || !data.data?.markdown) return null;
+    const text = data.data.markdown.trim();
+    // Truncate to budget
+    return text.length > MAX_ARTICLE_CHARS ? text.slice(0, MAX_ARTICLE_CHARS) + "\n\n[...truncated]" : text;
+  } catch (err: any) {
+    console.warn(`[researchGithubIssue] Firecrawl error for ${url}: ${err?.message}`);
+    return null;
+  }
+}
+
+async function enrichWithLLM(
+  signal: {
+    title: string;
+    url: string | null;
+    sourceName: string | null;
+    topics: unknown;
+    contentType: string | null;
+    evidenceType: string | null;
+    relevanceScore: number | null;
+  },
+  articleText: string | null
+): Promise<LLMEnrichment> {
   try {
     const { invokeLLM } = await import("../_core/llm");
     const topics = Array.isArray(signal.topics) ? (signal.topics as string[]).join(", ") : "–";
@@ -43,13 +92,17 @@ Der Algorithmus besteht aus diesen Engines:
 
 Antworte NUR mit einem JSON-Objekt, keine Erklärung.`;
 
+    const articleSection = articleText
+      ? `\n\n### Artikel-Volltext (Auszug)\n${articleText}`
+      : "";
+
     const userPrompt = `Analysiere diesen Research-Artikel und erstelle eine konkrete Forschungshypothese:
 
 Titel: "${signal.title}"
 Quelle: ${signal.sourceName ?? "–"}
 Tags: ${topics}
 Typ: ${signal.contentType ?? "–"} / ${signal.evidenceType ?? "–"}
-Score: ${signal.relevanceScore}/10
+Score: ${signal.relevanceScore}/10${articleSection}
 
 Erstelle ein JSON mit diesen Feldern:
 {
@@ -116,17 +169,21 @@ function buildIssueBody(
     signalId: string;
     publishedAt: Date | null;
   },
-  enrichment: LLMEnrichment
+  enrichment: LLMEnrichment,
+  articleExtracted: boolean
 ): string {
   const topics = Array.isArray(signal.topics) ? (signal.topics as string[]) : [];
   const topicsStr = topics.length > 0 ? topics.join(", ") : "–";
   const publishedStr = signal.publishedAt
     ? signal.publishedAt.toISOString().slice(0, 10)
     : "–";
+  const extractionNote = articleExtracted
+    ? " *(Hypothese basiert auf Artikel-Volltext via Firecrawl)*"
+    : " *(Hypothese basiert auf Titel + Tags — kein Volltext verfügbar)*";
 
   return `## Research-Hypothese
 
-> Dieser Issue wurde automatisch aus dem Research Observatory erstellt (Score ${signal.relevanceScore}/10). Hypothese via LLM generiert — bitte vor dem Triage-Loop prüfen.
+> Dieser Issue wurde automatisch aus dem Research Observatory erstellt (Score ${signal.relevanceScore}/10). Hypothese via LLM generiert${extractionNote} — bitte vor dem Triage-Loop prüfen.
 
 ### Quelle
 - **Titel:** ${signal.title}
@@ -193,15 +250,23 @@ export async function handleResearchGithubIssue(req: Request, res: Response) {
 
     let created = 0;
     let failed = 0;
-    const results: Array<{ signalId: string; issueNumber?: number; error?: string }> = [];
+    const results: Array<{ signalId: string; issueNumber?: number; articleExtracted?: boolean; error?: string }> = [];
 
     for (const signal of candidates) {
       try {
         const topics = Array.isArray(signal.topics) ? (signal.topics as string[]) : [];
 
-        // LLM enrichment: hypothesis, expected effect, confidence, affected engine
+        // Step 1: Fetch article full-text via Firecrawl (improves LLM hypothesis quality)
+        console.log(`[researchGithubIssue] Fetching article text for "${signal.title}" (${signal.url ?? "no URL"})...`);
+        const articleText = await fetchArticleText(signal.url);
+        const articleExtracted = articleText !== null;
+        if (articleExtracted) {
+          console.log(`[researchGithubIssue] Firecrawl extracted ${articleText!.length} chars`);
+        }
+
+        // Step 2: LLM enrichment with full article context
         console.log(`[researchGithubIssue] Enriching "${signal.title}" via LLM...`);
-        const enrichment = await enrichWithLLM(signal);
+        const enrichment = await enrichWithLLM(signal, articleText);
 
         // Build label list: research, research:new + topic-based algo labels
         const labels = ["research", "research:new"];
@@ -225,7 +290,7 @@ export async function handleResearchGithubIssue(req: Request, res: Response) {
         if (enrichment.affectedEngine.includes("optimizer")) labels.push("algo:optimizer");
 
         const issueTitle = `[Research] ${signal.title}`;
-        const issueBody = buildIssueBody(signal, enrichment);
+        const issueBody = buildIssueBody(signal, enrichment, articleExtracted);
 
         // Create GitHub issue via REST API
         const response = await fetch(
@@ -260,8 +325,8 @@ export async function handleResearchGithubIssue(req: Request, res: Response) {
           .set({ githubIssueNumber: issue.number })
           .where(eq(researchSignals.id, signal.id));
 
-        console.log(`[researchGithubIssue] Created issue #${issue.number} for "${signal.signalId}" (score ${signal.relevanceScore}, confidence ${enrichment.confidence})`);
-        results.push({ signalId: signal.signalId, issueNumber: issue.number });
+        console.log(`[researchGithubIssue] Created issue #${issue.number} for "${signal.signalId}" (score ${signal.relevanceScore}, confidence ${enrichment.confidence}, firecrawl=${articleExtracted})`);
+        results.push({ signalId: signal.signalId, issueNumber: issue.number, articleExtracted });
         created++;
 
         // Rate limit: 1.5s between issues to avoid GitHub secondary rate limits

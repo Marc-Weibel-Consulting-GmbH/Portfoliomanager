@@ -23,6 +23,13 @@ STOCK_EXCHANGES: Set[str] = {
     "sse", "szse", "chn",
     "twse", "tpex",
     "tadawul", "tasi",                  # Saudi Stock Exchange (Tadawul) — All Share Index (TASI)
+    # Europe / Japan — targets of the Yahoo-suffix mapping (.SW/.DE/.PA/.L/.T).
+    # Missing here, every European ticker fell through to the crypto default.
+    "six",                              # SIX Swiss Exchange
+    "xetr", "xetra",                    # Xetra — TradingView's prefix is XETR
+    "euronext",
+    "lse",
+    "tse",                              # Tokyo Stock Exchange
 }
 
 EXCHANGE_SCREENER = {
@@ -67,6 +74,14 @@ EXCHANGE_SCREENER = {
     # Saudi Stock Market (Tadawul) — TradingView scanner uses /ksa/
     "tadawul": "ksa",
     "tasi": "ksa",          # alias: Tadawul All Share Index
+    # Europe / Japan — screener slugs verified against scanner.tradingview.com.
+    # Note there is no "europe" screener; each market has its own country slug.
+    "six": "switzerland",   # SIX Swiss Exchange
+    "xetr": "germany",      # Xetra
+    "xetra": "germany",     # alias: spelling used by some callers
+    "euronext": "france",
+    "lse": "uk",            # London Stock Exchange
+    "tse": "japan",         # Tokyo Stock Exchange
 }
 
 # Map validated exchange identifiers to their canonical TradingView symbol prefix.
@@ -96,6 +111,12 @@ _EXCHANGE_TV_PREFIX: dict = {
     "tpex": "TPEX",
     "tadawul": "TADAWUL",
     "tasi": "TADAWUL",
+    "six": "SIX",
+    "xetr": "XETR",
+    "xetra": "XETR",        # callers saying "XETRA" still resolve to the real prefix
+    "euronext": "EURONEXT",
+    "lse": "LSE",
+    "tse": "TSE",
 }
 
 _YAHOO_SYMBOL_ALIASES: dict = {
@@ -158,10 +179,23 @@ def sanitize_timeframe(tf: str, default: str = "5m") -> str:
 
 
 def sanitize_exchange(ex: str, default: str = "kucoin") -> str:
+    """Validate *ex*, falling back to *default* only when nothing was requested.
+
+    An exchange that was explicitly asked for but is unknown is an error, not an
+    invitation to substitute something else. The previous behaviour returned the
+    default — usually a crypto venue — so a request for the Swiss blue chip
+    ``SIX:NESN`` came back as "No data found for NESN on KUCOIN". That message
+    describes the wrong market and hides the real cause, which is a missing
+    entry in ``EXCHANGE_SCREENER``.
+    """
     if not ex:
         return default
     exs = ex.strip().lower()
-    return exs if exs in EXCHANGE_SCREENER else default
+    if exs in EXCHANGE_SCREENER:
+        return exs
+    raise ValueError(
+        f"Unknown exchange '{ex}'. Known exchanges: {', '.join(sorted(EXCHANGE_SCREENER))}"
+    )
 
 
 def is_stock_exchange(exchange: str) -> bool:

@@ -108,6 +108,39 @@ export interface CombinedBlendResult {
 }
 
 /**
+ * Notenband und Handlungsempfehlung — EINE Tabelle für beide.
+ *
+ * Vorher standen die Schwellen getrennt: Note B ab 0.60, Kaufsignal ab 0.55.
+ * Zwischen 55.0 und 59.9 stand damit «Note C, Signal Kaufen» — für einen
+ * Privatanleger ein Widerspruch, den keine Erklärung auflöst. Auch die
+ * Gegenrichtung war offen: ab 0.70 gab es «Stark kaufen» bei blosser Note B.
+ *
+ * Beide Angaben beantworten dieselbe Frage in unterschiedlicher Sprache. Sie
+ * kommen deshalb aus derselben Zeile — auseinanderlaufen können sie nicht mehr.
+ *
+ * Die Grenzen sind die des Notenbandes; es ist die etabliertere Skala und
+ * erscheint in der Oberfläche prominenter.
+ */
+export const SCORE_BAENDER: {
+  abScore: number;
+  grade: "A" | "B" | "C" | "D" | "F";
+  signal: "STRONG BUY" | "BUY" | "HOLD" | "SELL" | "STRONG SELL";
+  klartext: string;
+}[] = [
+  { abScore: 0.75, grade: "A", signal: "STRONG BUY",  klartext: "Sehr gut — deutlich kaufenswert" },
+  { abScore: 0.60, grade: "B", signal: "BUY",         klartext: "Gut — kaufenswert" },
+  { abScore: 0.45, grade: "C", signal: "HOLD",        klartext: "Durchschnittlich — halten" },
+  { abScore: 0.30, grade: "D", signal: "SELL",        klartext: "Schwach — Abbau prüfen" },
+  { abScore: 0,    grade: "F", signal: "STRONG SELL", klartext: "Sehr schwach — Verkauf prüfen" },
+];
+
+/** Band zu einem Score (0..1). Fällt nie durch — das letzte Band beginnt bei 0. */
+export function bandFuerScore(combined: number): (typeof SCORE_BAENDER)[number] {
+  const v = clamp(combined, 0, 1);
+  return SCORE_BAENDER.find((b) => v >= b.abScore) ?? SCORE_BAENDER[SCORE_BAENDER.length - 1];
+}
+
+/**
  * Regime-abhängige Variante der bestehenden Momentum+Quality−LPPL-Kombiscore-Formel
  * (signalsRouter Step 8a). Faktor 1.0 statt 0.8: neutrale Aktien (momentumScore=0, qualityScore=0)
  * ergeben combined=0.5 → HOLD statt SELL. Nur die Gewichtung wird regime-abhängig und admin-konfigurierbar.
@@ -127,12 +160,9 @@ export function blendCombinedScore(
 
   const combined = clamp(1.0 * (wq * qNorm + wt * mNorm) - lppl, 0, 1);
   const combinedScore = parseFloat((combined * 100).toFixed(1));
-  const grade =
-    combined >= 0.75 ? "A" : combined >= 0.6 ? "B" : combined >= 0.45 ? "C" : combined >= 0.3 ? "D" : "F";
-  const signalLabel =
-    combined >= 0.7 ? "STRONG BUY" : combined >= 0.55 ? "BUY" : combined >= 0.45 ? "HOLD" : combined >= 0.3 ? "SELL" : "STRONG SELL";
+  const band = bandFuerScore(combined);
 
-  return { combinedScore, grade, signalLabel, weights: { quality: wq, trading: wt } };
+  return { combinedScore, grade: band.grade, signalLabel: band.signal, weights: { quality: wq, trading: wt } };
 }
 
 export function blendSignal(input: BlendInput, config: RegimeBlendConfig = DEFAULT_REGIME_BLEND): BlendResult {

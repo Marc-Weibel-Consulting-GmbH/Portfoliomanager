@@ -93,17 +93,30 @@ export async function evaluatePendingSignals(): Promise<void> {
       console.warn("[signalEvalCron] Benchmark data unavailable, skipping alpha:", (e as Error).message);
     }
 
+    // Titelrenditen aus der BEREINIGTEN Kursreihe — dieselbe Basis wie der
+    // Benchmark. Zwei rohe Tageskurse verfehlten Ausschuettungen (systematisch)
+    // und Splits (selten, dann aber ruinoes). Siehe lib/titelRendite.ts.
+    const { kursreihenAusHistorie, renditeAusReihe } = await import("../lib/titelRendite");
+    const fruehesterSignaltag = pending
+      .reduce((min, s) => (s.computedAt < min ? s.computedAt : min), pending[0].computedAt)
+      .toISOString()
+      .split("T")[0];
+    const signalReihen = await kursreihenAusHistorie(tickers, fruehesterSignaltag, todayStr);
+
     let evaluated = 0;
+    let ohneReihe = 0;
     for (const signal of pending) {
       const currentPrice = priceMap.get(signal.ticker);
-      if (!currentPrice || !signal.priceAtSignal) continue;
+      if (!signal.priceAtSignal) continue;
 
-      const entryPrice = parseFloat(signal.priceAtSignal.toString());
-      const actualReturn = (currentPrice - entryPrice) / entryPrice;
+      const signalDateStr = signal.computedAt.toISOString().split("T")[0];
+      const gemessen = renditeAusReihe(signalReihen.get(signal.ticker), signalDateStr, todayStr);
+      // Ohne bereinigte Reihe wird NICHT bewertet — auf rohe Kurse auszuweichen
+      // hiesse, zwei Rechenbasen zu vermischen.
+      if (!gemessen) { ohneReihe++; continue; }
+      const actualReturn = gemessen.rendite;
       const direction = signal.direction ?? 0;
 
-      // F-14: Benchmark-Return über dasselbe Fenster + Alpha
-      const signalDateStr = signal.computedAt.toISOString().split("T")[0];
       const benchmarkReturn = benchmarkRows.length
         ? computeWindowReturn(benchmarkRows, signalDateStr, todayStr)
         : null;
@@ -119,7 +132,7 @@ export async function evaluatePendingSignals(): Promise<void> {
         .update(signalHistory)
         .set({
           evaluatedAt: now,
-          priceAtEvaluation: currentPrice.toString() as any,
+          priceAtEvaluation: currentPrice != null ? (currentPrice.toString() as any) : null,
           actualReturnPct: actualReturn.toFixed(4) as any,
           benchmarkReturnPct: benchmarkReturn !== null ? (benchmarkReturn.toFixed(4) as any) : null,
           alphaPct: alpha !== null ? (alpha.toFixed(4) as any) : null,
@@ -130,7 +143,10 @@ export async function evaluatePendingSignals(): Promise<void> {
       evaluated++;
     }
 
-    console.log(`[signalEvalCron] Evaluated ${evaluated} signals`);
+    console.log(
+      `[signalEvalCron] Evaluated ${evaluated} signals` +
+      (ohneReihe ? ` — ${ohneReihe} ohne bereinigte Kursreihe uebersprungen` : "")
+    );
   } catch (err) {
     console.error("[signalEvalCron] Error during evaluation:", err);
   } finally {
@@ -251,6 +267,12 @@ export function initSignalEvaluationCron(): void {
     import("./combinedScoreOutcome")
       .then((m) => m.evaluateCombinedScores())
       .catch((e) => console.error("[combinedScoreOutcome] Eval error:", e));
+    // Schattenrechnung Marktregime vs. Titel-Kursphase — dieselbe Kadenz,
+    // damit beide Varianten über exakt dasselbe Fenster gemessen werden.
+    import("../lib/regimeSchattenStore")
+      .then((m) => m.werteAus())
+      .then((r) => r.bewertet > 0 && console.log(`[regimeSchatten] ${r.bewertet} Saetze bewertet`))
+      .catch((e) => console.error("[regimeSchatten] Eval error:", e));
   }, EVAL_INTERVAL_MS);
 
   // Snapshot: täglich um 18:00 (nach EU-Marktschluss)
