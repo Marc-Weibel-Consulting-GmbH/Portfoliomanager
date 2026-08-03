@@ -39,6 +39,12 @@ function zahl(v: unknown): number | null {
 }
 
 export async function getDreiScores(ticker: string): Promise<DreiScores> {
+  // Zuerst die vorgerechneten Werte: Der stuendliche Signal-Cron legt sie ab.
+  // Nur wenn dort nichts steht — neuer Titel, Cron noch nicht gelaufen —, wird
+  // live gerechnet. Das spart je Seitenaufruf einen EODHD-Abruf.
+  const vorberechnet = await leseVorberechnet(ticker);
+  if (vorberechnet) return vorberechnet;
+
   const { getQualityMetrics } = await import("./qualityMetricsService");
   const qm = await getQualityMetrics(ticker);
 
@@ -110,4 +116,67 @@ export async function getDreiScores(ticker: string): Promise<DreiScores> {
     },
     bisher,
   };
+}
+
+/**
+ * Vorberechnete Scores aus `stock_scores`, ergaenzt um Signal und Altscore.
+ *
+ * Gibt `null` zurueck, wenn nichts abgelegt ist — dann rechnet der Aufrufer
+ * live weiter.
+ */
+async function leseVorberechnet(ticker: string): Promise<DreiScores | null> {
+  try {
+    const { leseScores } = await import("./dreiScoresStore");
+    const treffer = (await leseScores([ticker])).get(ticker);
+    if (!treffer) return null;
+
+    let signalScore: number | null = null;
+    let bisher: number | null = null;
+    try {
+      const { getDb } = await import("../db");
+      const db = await getDb();
+      if (db) {
+        const { stocks } = await import("../../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        const [row] = await db
+          .select({ signalScore: stocks.signalScore, score: stocks.score })
+          .from(stocks).where(eq(stocks.ticker, ticker)).limit(1);
+        if (row) {
+          signalScore = zahl(row.signalScore);
+          bisher = zahl(row.score);
+        }
+      }
+    } catch { /* Ohne DB tragen die vorberechneten Werte allein. */ }
+
+    return {
+      ticker,
+      qualitaet: {
+        gesamt: treffer.qualitaet,
+        band: treffer.qualitaetBand,
+        niveau: { score: treffer.niveau, abdeckung: treffer.abdeckungNiveau, faktoren: [] },
+        richtung: {
+          score: treffer.richtung,
+          fScore: treffer.fScore,
+          berechenbar: treffer.fScoreBerechenbar,
+          details: { score: treffer.fScore, berechenbar: treffer.fScoreBerechenbar,
+                     hochgerechnet: null, kriterien: [] },
+        },
+      },
+      bewertung: {
+        score: treffer.bewertung,
+        band: treffer.bewertungBand,
+        abdeckung: treffer.abdeckungBewertung,
+        faktoren: [],
+      },
+      timing: {
+        score: signalScore,
+        hinweis: signalScore === null
+          ? "Kein Signal-Score hinterlegt"
+          : "Aus dem bestehenden Signal-Score — misst den Zeitpunkt, nicht das Unternehmen",
+      },
+      bisher,
+    };
+  } catch {
+    return null;
+  }
 }
