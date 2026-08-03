@@ -61,6 +61,10 @@ export const optimizerRouter = router({
       progress: optimizerProgress,
       lastResult: lastOptimizerResult ? {
         hitRate: lastOptimizerResult.hitRate,
+        // Zielgrösse der Schleife; die Trefferquote darüber ist nur noch Bericht.
+        sharpe: lastOptimizerResult.sharpe ?? null,
+        mittlereRendite: lastOptimizerResult.mittlereRendite ?? null,
+        rundlaufKostenPct: lastOptimizerResult.rundlaufKostenPct ?? null,
         totalBacktested: lastOptimizerResult.totalBacktested,
         correctSignals: lastOptimizerResult.correctSignals,
         durationMs: lastOptimizerResult.durationMs,

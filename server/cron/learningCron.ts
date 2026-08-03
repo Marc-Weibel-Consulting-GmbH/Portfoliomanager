@@ -64,10 +64,16 @@ export function initLearningCron() {
         momentum: activeBefore.momentum,
       };
       const outcome = await saveOptimizerResult(result, { triggeredBy: "cron" });
+      // Einheit hängt am Massstab: Sharpe ist eine Verhältniszahl, die
+      // Trefferquote ein Prozentsatz. Ein festes «%» wäre bei Sharpe falsch.
+      const einheit = outcome.massstab === "sharpe" ? "" : "%";
+      const stellen = outcome.massstab === "sharpe" ? 2 : 1;
+      const zahl = (v: number | null) => (v == null ? "—" : `${v.toFixed(stellen)}${einheit}`);
+      const vergleich = `OOS (${outcome.massstab}) Kandidat ${zahl(outcome.candidateOos)} vs Incumbent ${zahl(outcome.incumbentOos)}`;
       if (outcome.activated) {
-        console.log(`[learningCron] Signal-Gewichte aktiviert (Gate bestanden). OOS Kandidat ${outcome.candidateOos?.toFixed(1) ?? "?"}% vs Incumbent ${outcome.incumbentOos?.toFixed(1) ?? "—"}%`);
+        console.log(`[learningCron] Signal-Gewichte aktiviert (Gate bestanden). ${vergleich}`);
       } else {
-        console.log(`[learningCron] Kandidat verworfen (Gate: ${outcome.reason}). Incumbent bleibt aktiv. OOS Kandidat ${outcome.candidateOos?.toFixed(1) ?? "?"}% vs Incumbent ${outcome.incumbentOos?.toFixed(1) ?? "—"}%`);
+        console.log(`[learningCron] Kandidat verworfen (Gate: ${outcome.reason}). Incumbent bleibt aktiv. ${vergleich}`);
       }
     } catch (e: any) {
       console.error("[learningCron] Optimizer fehlgeschlagen (non-fatal):", e?.message);
