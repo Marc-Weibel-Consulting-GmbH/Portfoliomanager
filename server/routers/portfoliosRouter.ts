@@ -332,7 +332,6 @@ export const portfoliosRouter = router({
 
         const { getSavedPortfolioById, getStockByTicker, getStocksByTickers, getPortfolioTransactions } = await import("../db");
         const { getStockCurrency, tryConvertToCHF, getHistoricalPrice } = await import("../fxHelper");
-        const { calculateStockScore } = await import("../scoring");
 
         const portfolio = await getSavedPortfolioById(input, ctx.user.id);
         if (!portfolio) return null;
@@ -435,6 +434,18 @@ export const portfoliosRouter = router({
         const heuteIso = new Date().toISOString().split('T')[0];
         const { berechneTagesveraenderung } = await import("../lib/dailyChange");
 
+        // Qualitaet aus den vorgerechneten drei Scores (stock_scores), nicht
+        // mehr aus dem alten Einzelscore. Ein Titel ohne Eintrag bekommt null —
+        // die Ansicht zeigt dann «—» statt einer erfundenen Mitte.
+        const qualitaetNachTicker = new Map<string, number | null>();
+        try {
+          const { leseScores } = await import("../lib/dreiScoresStore");
+          const treffer = await leseScores(allTickers);
+          for (const [t, s] of treffer) qualitaetNachTicker.set(t, s.qualitaet);
+        } catch (e) {
+          console.warn('[portfolios] Drei-Scores nicht lesbar:', (e as Error).message);
+        }
+
         // Enrich stocks with currency and FX data
         const enrichedStocks = await Promise.all(
           stocksWithoutCash.map(async (stock: any) => {
@@ -488,7 +499,10 @@ export const portfoliosRouter = router({
                 beta: null,
                 volatility: null,
                 sharpeRatio: null,
-                qualityScore: 0,
+                // null, nicht 0: Eine Obligation wird nicht als Aktie bewertet
+                // (#244). Eine 0 hiesse «schlechteste Qualitaet» statt «nicht
+                // bewertet» und faerbte die Position in der Konstellation rot.
+                qualityScore: null,
                 hasBuyPrice: avgBuyPercent > 0,
               };
             }
@@ -671,15 +685,11 @@ export const portfoliosRouter = router({
               beta: dbStock?.beta ?? stock.beta ?? null,
               volatility: dbStock?.volatility ?? stock.volatility ?? null,
               sharpeRatio: dbStock?.sharpeRatio ?? stock.sharpeRatio ?? null,
-              qualityScore: calculateStockScore(ticker, {
-                dividendYield: parseNum(dbStock?.dividendYield),
-                peRatio: parseNum(dbStock?.peRatio),
-                pegRatio: parseNum(dbStock?.pegRatio),
-                beta: parseNum(dbStock?.beta),
-                volatility: parseNum(dbStock?.volatility),
-                sharpeRatio: parseNum(dbStock?.sharpeRatio),
-                ytdPerformance: parseNum(dbStock?.ytdPerformance ?? stock.ytdPerformance),
-              }, undefined, dbStock?.category).totalScore,
+              // Der neue Qualitaets-Score. Fehlt er (Titel noch nicht vom
+              // Signal-Cron erfasst, oder Fundamentaldaten unter der
+              // Mindestabdeckung), bleibt es bei null — kein Rueckfall auf den
+              // alten Einzelscore, der genau das mass, was er nicht sollte.
+              qualityScore: qualitaetNachTicker.get(ticker) ?? null,
               // hasBuyPrice: true only when a real purchase price exists (not the 0%-fallback)
               hasBuyPrice,
               // Tagesveraenderung gegen den letzten Schlusskurs. null = keine
