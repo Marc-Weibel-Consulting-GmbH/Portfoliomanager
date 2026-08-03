@@ -15,6 +15,59 @@ import {
   clearPermanentlyFailedBackfills
 } from "../autoBackfill";
 
+// ─── «Daten aktualisieren» — ein Knopf, drei Schritte ────────────────────────
+
+type SchrittStatus = "offen" | "laeuft" | "fertig" | "fehler";
+
+interface SchrittLauf {
+  name: string;
+  status: SchrittStatus;
+  text: string;
+}
+
+/**
+ * Die Schritte in der Reihenfolge, in der sie aufeinander aufbauen.
+ *
+ * Jeder gibt einen kurzen Ergebnistext zurück oder wirft. Die Reihenfolge ist
+ * nicht Geschmackssache: Schritt 2 rechnet auf den Kennzahlen, die Schritt 1
+ * freigibt, und Schritt 3 auf den Scores, die Schritt 2 schreibt.
+ */
+const DATEN_SCHRITTE: Array<{ name: string; lauf: () => Promise<string> }> = [
+  {
+    name: "Fundamentaldaten-Cache leeren",
+    lauf: async () => {
+      const { clearQualityMetricsCache } = await import("../lib/qualityMetricsService");
+      clearQualityMetricsCache();
+      return "Cache geleert — die nächsten Abrufe holen frische EODHD-Daten.";
+    },
+  },
+  {
+    name: "Signal-Cache und Scores neu berechnen",
+    lauf: async () => {
+      const { refreshSignalCache } = await import("../cron/signalCacheCron");
+      await refreshSignalCache();
+      return "Qualität, Bewertung und Signal für alle Titel neu gerechnet.";
+    },
+  },
+  {
+    name: "Signal-Scores aktualisieren",
+    lauf: async () => {
+      const { runSignalScoreRefresh } = await import("../scheduled/signalScoreRefreshScheduled");
+      const r = await runSignalScoreRefresh();
+      if (!r.ok) throw new Error(r.error ?? "Unbekannter Fehler");
+      return `${r.updated ?? 0} Titel aktualisiert.`;
+    },
+  },
+];
+
+/** Laufzustand im Speicher — wie beim Optimizer, kein eigener Persistenzweg. */
+const datenLauf: {
+  aktiv: boolean;
+  gestartetAm: string | null;
+  beendetAm: string | null;
+  schritte: SchrittLauf[];
+} = { aktiv: false, gestartetAm: null, beendetAm: null, schritte: [] };
+
 export const adminRouter = router({
     /**
      * L-18: Echte Plattform-KPIs statt hartkodierter Platzhalter-Nullen.
@@ -1486,6 +1539,70 @@ export const adminRouter = router({
         };
       }
     }),
+
+    /**
+     * Der eine Knopf: «Daten aktualisieren».
+     *
+     * Fasst die drei Schnellaktionen zusammen, die im Alltag zusammengehören,
+     * und führt sie in der EINZIG richtigen Reihenfolge aus:
+     *
+     *   1. Fundamentaldaten-Cache leeren  (sonst rechnet Schritt 2 auf bis zu
+     *                                      sechs Stunden alten Kennzahlen)
+     *   2. Signal-Cache neu berechnen     (schreibt die drei Scores)
+     *   3. Signal-Scores aktualisieren    (braucht das Ergebnis aus 2)
+     *
+     * Warum serverseitig und nicht als Klickfolge im Browser: Die beiden
+     * bestehenden Trigger geben sofort zurück und arbeiten im Hintergrund
+     * weiter. Drei Aufrufe hintereinander im Browser sähen geordnet aus, wären
+     * es aber nicht — Schritt 3 startete auf den Daten von vorher. Hier wird
+     * jeder Schritt abgewartet.
+     *
+     * Der Lauf selbst läuft im Hintergrund weiter (er dauert Minuten); den
+     * Fortschritt liefert `getDatenLaufStatus`. Gleiches Muster wie beim
+     * Optimizer.
+     */
+    datenAktualisieren: adminProcedure.mutation(async () => {
+      if (datenLauf.aktiv) {
+        return { gestartet: false, message: "Läuft bereits." };
+      }
+      datenLauf.aktiv = true;
+      datenLauf.gestartetAm = new Date().toISOString();
+      datenLauf.beendetAm = null;
+      datenLauf.schritte = DATEN_SCHRITTE.map((s) => ({ name: s.name, status: "offen" as const, text: "" }));
+
+      void (async () => {
+        for (let i = 0; i < DATEN_SCHRITTE.length; i++) {
+          datenLauf.schritte[i].status = "laeuft";
+          try {
+            datenLauf.schritte[i].text = await DATEN_SCHRITTE[i].lauf();
+            datenLauf.schritte[i].status = "fertig";
+          } catch (e: any) {
+            datenLauf.schritte[i].status = "fehler";
+            datenLauf.schritte[i].text = e?.message ?? "Unbekannter Fehler";
+            // Abbruch: Die späteren Schritte bauen auf den früheren auf. Sie
+            // trotzdem laufen zu lassen, erzeugte ein Ergebnis, das aussieht
+            // wie ein Erfolg und keiner ist.
+            for (let j = i + 1; j < datenLauf.schritte.length; j++) {
+              datenLauf.schritte[j].status = "fehler";
+              datenLauf.schritte[j].text = "übersprungen — vorheriger Schritt fehlgeschlagen";
+            }
+            break;
+          }
+        }
+        datenLauf.aktiv = false;
+        datenLauf.beendetAm = new Date().toISOString();
+      })();
+
+      return { gestartet: true, message: "Aktualisierung gestartet." };
+    }),
+
+    /** Fortschritt des Laufs aus `datenAktualisieren`. */
+    getDatenLaufStatus: adminProcedure.query(() => ({
+      aktiv: datenLauf.aktiv,
+      gestartetAm: datenLauf.gestartetAm,
+      beendetAm: datenLauf.beendetAm,
+      schritte: datenLauf.schritte,
+    })),
 
     /**
      * Clear the in-memory quality metrics cache (forces fresh EODHD fetch on next request)
