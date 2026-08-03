@@ -140,10 +140,16 @@ async function fetchLiveData(ticker: string): Promise<{
     if (qm.netDebtToEbitda !== null) {
       debtToEquity = Math.max(0, qm.netDebtToEbitda * 0.5);
     }
-    // FCF Yield aus EODHD qualityScore ableiten
-    if (qm.qualityScore > 60) fcfYield = 3.0;
-    else if (qm.qualityScore > 40) fcfYield = 1.0;
-    else fcfYield = -1.0;
+    // Echte FCF-Rendite (freier Cashflow ÷ Marktkapitalisierung).
+    //
+    // Vorher stand hier eine aus `qm.qualityScore` abgeleitete Stufenzahl
+    // (> 60 → 3.0, > 40 → 1.0, sonst -1.0). Das war keine Messung, sondern eine
+    // Umbenennung: Die FCF-Rendite geht mit Gewicht 0.25 in `calculateQualityScore`
+    // ein — der Qualitätsfaktor entstand damit zu einem Viertel aus sich selbst.
+    //
+    // Fehlt die Zahl, bleibt sie `null`. `calculateQualityScore` rechnet die
+    // übrigen Faktoren hoch, statt einen erfundenen Wert zu verarbeiten.
+    fcfYield = qm.fcfYield;
   } catch { /* silent - degradiert graziös auf null */ }
 
   // Fundamentaldaten zuerst aus der DB-`stocks`-Tabelle (periodisch via Refresh-Cron

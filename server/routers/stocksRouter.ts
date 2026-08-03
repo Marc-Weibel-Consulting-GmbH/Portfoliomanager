@@ -537,9 +537,10 @@ export const stocksRouter = router({
                 volatility: parseNum(dbStock.volatility),
                 sharpeRatio: parseNum(dbStock.sharpeRatio),
               }, undefined, dbStock.category);
-              if (computed.totalScore > 0) {
-                dbStock.score = computed.totalScore;
-              }
+              // `null` heisst «zu wenige Kennzahlen» und wird durchgereicht —
+              // die Oberfläche zeigt dafür «—». Vorher blieb in diesem Fall der
+              // alte Wert stehen, meist die 0, die wie «schwach» aussieht.
+              dbStock.score = computed.totalScore;
             } catch (e) {
               console.warn('[byTicker] Score recalculation failed:', (e as Error).message);
             }

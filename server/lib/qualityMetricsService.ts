@@ -40,6 +40,21 @@ export interface QualityMetrics {
   surpriseRate: number | null;      // % Quartale mit positivem EPS-Surprise (letzte 8Q)
   netDebtToEbitda: number | null;   // Verschuldungsgrad
 
+  // Bewertung auf Cashflow-Basis
+  /**
+   * % Free-Cash-Flow-Rendite = freier Cashflow ÷ Marktkapitalisierung.
+   *
+   * Schwerer zu beschönigen als der Gewinn und deshalb die belastbarere
+   * Bewertungsgrösse. Ersetzt den Platzhalter in `signalsRouter`, der den Wert
+   * aus Bändern des Qualitätsscores ableitete (`> 60 → 3.0`) — womit der
+   * Qualitätsscore zu einem Viertel aus sich selbst entstand.
+   */
+  fcfYield: number | null;
+  /** Freier Cashflow des letzten Geschäftsjahres, Konzernwährung. */
+  freeCashflow: number | null;
+  /** Unternehmenswert ÷ EBITDA. Kapitalstrukturneutral, anders als das KGV. */
+  evToEbitda: number | null;
+
   // Rohdaten für Transparenz
   trailingPE: number | null;
   forwardPE: number | null;
@@ -304,14 +319,48 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
     }
   }
 
+  // ── Freier Cashflow, FCF-Rendite und EV/EBITDA ────────────────────────────
+  //
+  // Alles aus derselben EODHD-Antwort, die oben ohnehin geholt wird. `Cash_Flow`
+  // wurde bisher gar nicht gelesen.
+  const cfYearly = financials.Cash_Flow?.yearly || {};
+  const cfKeys = Object.keys(cfYearly).sort();
+  const marktkapitalisierung = parseFloatOrNull(highlights.MarketCapitalization);
+
+  let freeCashflow: number | null = null;
+  if (cfKeys.length > 0) {
+    const latestCF = cfYearly[cfKeys.at(-1)!];
+    // EODHD liefert `freeCashFlow` meist direkt. Fehlt es, aus operativem
+    // Cashflow abzüglich Investitionen bilden — `capitalExpenditures` ist dort
+    // je nach Titel positiv oder negativ vorzeichenbehaftet, deshalb der Betrag.
+    freeCashflow = parseFloatOrNull(latestCF.freeCashFlow);
+    if (freeCashflow === null) {
+      const operativ = parseFloatOrNull(latestCF.totalCashFromOperatingActivities);
+      const investitionen = parseFloatOrNull(latestCF.capitalExpenditures);
+      if (operativ !== null && investitionen !== null) {
+        freeCashflow = operativ - Math.abs(investitionen);
+      }
+    }
+  }
+
+  let fcfYield: number | null = null;
+  if (freeCashflow !== null && marktkapitalisierung !== null && marktkapitalisierung > 0) {
+    fcfYield = (freeCashflow / marktkapitalisierung) * 100;
+  }
+
   // ── Net Debt / EBITDA ─────────────────────────────────────────────────────
   let netDebtToEbitda: number | null = null;
+  let evToEbitda: number | null = null;
   const ebitda = parseFloatOrNull(highlights.EBITDA);
   if (ebitda && ebitda > 0 && bsKeys.length > 0) {
     const latestBS = bsYearly[bsKeys.at(-1)!];
     const netDebt = parseFloatOrNull(latestBS.netDebt);
     if (netDebt !== null) {
       netDebtToEbitda = netDebt / ebitda;
+      if (marktkapitalisierung !== null && marktkapitalisierung > 0) {
+        // Unternehmenswert = Marktkapitalisierung + Nettoverschuldung.
+        evToEbitda = (marktkapitalisierung + netDebt) / ebitda;
+      }
     }
   }
 
@@ -390,6 +439,9 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
     epsStabilityScore,
     surpriseRate,
     netDebtToEbitda,
+    fcfYield,
+    freeCashflow,
+    evToEbitda,
     trailingPE,
     forwardPE,
     eps,
@@ -409,6 +461,7 @@ function buildFallback(ticker: string, reason: string): QualityMetrics {
     trailingPeg: null, forwardPeg: null, adjustedPeg: null,
     pegQuadrant: "unknown", pegQuadrantLabel: "Unbekannt",
     roic: null, returnOnEquity: null, grossMargin: null, operatingMargin: null,
+    fcfYield: null, freeCashflow: null, evToEbitda: null,
     qualityScore: 50,
     epsGrowthTTM: null, revenueGrowthTTM: null, epsGrowth5y: null,
     epsVolatility: null, epsStabilityScore: 50,

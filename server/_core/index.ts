@@ -257,6 +257,15 @@ async function startServer() {
         .then((m) => m.repariereDividendenrenditen())
         .catch((e) => console.warn("[Dividendenrendite] Reparatur nicht gestartet:", e?.message));
     }, 90 * 1000);
+
+    // Einmaliger Backfill der Qualitäts-Scores nach Einführung der
+    // Mindestabdeckung. Läuft NACH der Dividenden-Reparatur, weil er deren
+    // korrigierte Renditen als Eingangsgrösse braucht.
+    setTimeout(() => {
+      import("../lib/scoreAbdeckungBackfill")
+        .then((m) => m.backfillScoreAbdeckung())
+        .catch((e) => console.warn("[ScoreAbdeckung] Backfill nicht gestartet:", e?.message));
+    }, 150 * 1000);
     // Research signals are refreshed via Heartbeat cron (see /api/scheduled/researchSignalsRefresh)
     initGapFillingCron();
     // Learning-Koordination: wöchentliche Lernschleifen (Regime-Priors + Signal-
