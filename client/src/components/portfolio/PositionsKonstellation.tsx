@@ -1,6 +1,6 @@
 // Positions-Konstellation: bubble scatter of the holdings.
 //   x = erw. Gewinnwachstum (PE / PEG)   y = KGV (PE)
-//   Farbe = Gesamtscore (scoring.ts)      Grösse = Marktkap. (CHF Mrd)
+//   Farbe = Qualitäts-Score (dreiScores)  Grösse = Marktkap. (CHF Mrd)
 //
 // IST  = aktuelle Positionen (echte Fundamentaldaten aus enrichedStocks).
 // SOLL = KI-Optimierungsvorschlag — kommt aus demselben analytics.optimize
@@ -41,7 +41,8 @@ interface KPos {
   g: number;     // erw. Gewinnwachstum % (PE/PEG)
   mcap: number;  // CHF Mrd
   mom: number;   // 0..4
-  score: number; // 0..100
+  /** Qualitaets-Score 0..100; null = nicht bewertet (keine erfundene Mitte). */
+  score: number | null;
   flag?: Flag;
 }
 
@@ -57,7 +58,11 @@ const momColor = (m: number) => MOM[momIdx(m)].hex;
 const momLabel = (m: number) => MOM[momIdx(m)].label;
 const momBucket = (ytd: number) => (ytd < 0 ? 0 : ytd < 5 ? 1 : ytd < 15 ? 2 : ytd < 30 ? 3 : 4);
 
-function scoreColor(s: number): string {
+/** Grau für «nicht bewertet» — deutlich ausserhalb der Rot-Grün-Skala. */
+const KEIN_SCORE_FARBE = "#6b7280";
+
+function scoreColor(s: number | null): string {
+  if (s === null) return KEIN_SCORE_FARBE;
   const t = Math.max(0, Math.min(1, (s - 45) / 40));
   const stops = [[248, 113, 113], [251, 146, 60], [251, 191, 36], [74, 222, 128], [22, 163, 74]];
   const x = t * (stops.length - 1);
@@ -80,7 +85,11 @@ function toKPos(h: any): KPos | null {
   const mcap = num(h.marketCap);
   const g = peg > 0 && pe > 0 ? pe / peg : NaN;
   if (!Number.isFinite(pe) || !Number.isFinite(g) || !Number.isFinite(mcap) || mcap <= 0) return null;
-  const score = Number.isFinite(num(h.qualityScore)) ? num(h.qualityScore) : 50;
+  // Kein Rueckfall auf 50: Ein Titel ohne Qualitaets-Score ist nicht
+  // «durchschnittlich», er ist unbewertet. Die Blase wird grau und traegt
+  // «—» statt einer Zahl, die niemand gerechnet hat.
+  const roh = num(h.qualityScore);
+  const score = Number.isFinite(roh) ? Math.round(roh) : null;
   return {
     ticker: h.ticker,
     name: h.companyName || h.ticker,
@@ -250,7 +259,7 @@ function KonstChart({
               stroke={outlier ? T.warn : isUp ? T.accent : d.flag === "out" ? T.bad : "rgba(0,0,0,0.35)"}
               strokeWidth={outlier ? 2 : isUp ? 2.4 : on ? 2 : 1}
               strokeDasharray={outlier ? "4 3" : d.flag === "out" ? "3 3" : "0"} />
-            <text x={cx} y={cy + 5} textAnchor="middle" fill="#0a0f1a" fontSize={r > 22 ? 15 : 12} fontWeight="800" fontFamily={T.mono} opacity={dim ? 0.55 : 1}>{d.score}</text>
+            <text x={cx} y={cy + 5} textAnchor="middle" fill="#0a0f1a" fontSize={r > 22 ? 15 : 12} fontWeight="800" fontFamily={T.mono} opacity={dim ? 0.55 : 1}>{d.score ?? "—"}</text>
             <text x={cx} y={cy + r + 13} textAnchor="middle" fill={outlier ? T.warn : isUp ? T.accent : T.textMuted} fontSize="10" fontWeight={isUp || outlier ? 700 : 600}>{d.ticker.split(".")[0]}</text>
             {isUp && !outlier && <g transform={`translate(${cx + r - 4}, ${cy - r - 2})`}><circle r="8" fill={T.accent} /><text y="4" textAnchor="middle" fill="#0a0f1a" fontSize="12" fontWeight="800">↑</text></g>}
             {d.flag === "out" && !outlier && <g transform={`translate(${cx + r - 4}, ${cy - r - 2})`}><circle r="8" fill={T.bad} /><text y="4.5" textAnchor="middle" fill="#0a0f1a" fontSize="13" fontWeight="800">×</text></g>}
@@ -277,7 +286,7 @@ function KonstChart({
             <text x={tx + 12} y={ty + 56} fill={T.textMuted} fontSize="11">MCap <tspan fill={T.text} fontFamily={T.mono}>{fmtMcap(hov.mcap)}</tspan>  ·  {hov.sector.slice(0, 12)}</text>
             <circle cx={tx + 17} cy={ty + 71} r="5" fill={momColor(hov.mom)} />
             <text x={tx + 28} y={ty + 75} fill={T.textMuted} fontSize="11">Momentum {momLabel(hov.mom)}</text>
-            <text x={tx + tw - 12} y={ty + 75} textAnchor="end" fill={T.accent} fontSize="11" fontWeight="700" fontFamily={T.mono}>Score {hov.score}</text>
+            <text x={tx + tw - 12} y={ty + 75} textAnchor="end" fill={T.accent} fontSize="11" fontWeight="700" fontFamily={T.mono}>{hov.score === null ? "Nicht bewertet" : `Score ${hov.score}`}</text>
             {hovOutlier && (
               <text x={tx + 12} y={ty + 94} fill={T.warn} fontSize="10.5">Wert ausserhalb der Skala: {outlierValue}</text>
             )}
@@ -294,11 +303,15 @@ function Legends() {
   return (
     <>
       <div>
-        <div style={label}>Farbe · Gesamtscore</div>
+        <div style={label}>Farbe · Qualität</div>
         <div style={{ height: 10, borderRadius: 4, background: `linear-gradient(90deg, ${scoreColor(45)}, ${scoreColor(62)}, ${scoreColor(85)})` }} />
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
           <span style={{ fontSize: 9.5, color: T.textDim, fontFamily: T.mono }}>45</span>
           <span style={{ fontSize: 9.5, color: T.textDim, fontFamily: T.mono }}>90</span>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 3, background: KEIN_SCORE_FARBE, display: "inline-block" }} />
+          <span style={{ fontSize: 10, color: T.textDim }}>grau = nicht bewertet</span>
         </div>
       </div>
       <div>
@@ -393,10 +406,13 @@ export default function PositionsKonstellation({
 
   const positions = isSoll && opt ? sollPositions : istPositions;
 
-  // Weighted average score IST vs SOLL (real, from scoring.ts).
+  // Gewichteter Durchschnitts-Score IST vs SOLL. Unbewertete Positionen bleiben
+  // aussen vor — sie ins Gewicht zu nehmen hiesse, sie mit 0 zu bewerten und
+  // den Portfolio-Schnitt kuenstlich zu druecken.
   const wScore = (weights: Record<string, number>) => {
     let s = 0, w = 0;
     istPositions.forEach((p) => {
+      if (p.score === null) return;
       const ww = weights[p.ticker] ?? 0;
       s += ww * p.score; w += ww;
     });
@@ -414,7 +430,10 @@ export default function PositionsKonstellation({
   }, [opt, optimalWeights, currentWeights]);
 
   const topByScore = React.useMemo(
-    () => [...istPositions].sort((a, b) => b.score - a.score).slice(0, 5),
+    () => istPositions
+      .filter((p): p is KPos & { score: number } => p.score !== null)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5),
     [istPositions]
   );
 

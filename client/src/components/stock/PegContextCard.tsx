@@ -284,6 +284,11 @@ export function PegBadge({ ticker }: { ticker: string }) {
 
 export default function PegContextCard({ ticker, companyName, sector, compact }: PegContextCardProps) {
   const { data, isLoading, error } = trpc.analytics.qualityMetrics.useQuery({ ticker });
+  // Derselbe Qualitaets-Score wie im Seitenkopf. Vorher stand hier eine zweite,
+  // anders gerechnete Zahl — zwei «Qualitaeten» auf einer Seite, die sich
+  // widersprachen. tRPC teilt den Cache mit der Kopfabfrage, also kein
+  // zusaetzlicher Abruf.
+  const { data: dreiScores } = trpc.analytics.dreiScores.useQuery({ ticker });
 
   if (compact) {
     return <PegBadge ticker={ticker} />;
@@ -349,7 +354,9 @@ export default function PegContextCard({ ticker, companyName, sector, compact }:
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs bg-[#1a1f2e] border-[#00CFC1]/20 text-white text-xs">
                       Korrigiert für EPS-Volatilität (CV={fmt(data.epsVolatility, "", 2)}) und
-                      Qualitätsscore ({data.qualityScore}/100)
+                      einen internen Qualitätsfaktor ({data.qualityScore}/100). Dieser Faktor
+                      geht nur in die PEG-Korrektur ein und ist nicht der
+                      Qualitäts-Score der Seite.
                     </TooltipContent>
                   </Tooltip>
                 </div>
@@ -387,18 +394,22 @@ export default function PegContextCard({ ticker, companyName, sector, compact }:
                 <MetricRow label="Bruttomarge" value={fmt(data.grossMargin, "%")} color="text-white" tooltip="Bruttomarge TTM" />
                 <MetricRow label="Betriebsmarge" value={fmt(data.operatingMargin, "%")} color="text-white" tooltip="Operative Marge TTM" />
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-gray-400">Quality-Score</span>
-                  <div className="flex items-center gap-1">
-                    <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${data.qualityScore >= 65 ? "bg-emerald-400" : data.qualityScore >= 45 ? "bg-yellow-400" : "bg-red-400"}`}
-                        style={{ width: `${data.qualityScore}%` }}
-                      />
+                  <span className="text-[11px] text-gray-400">Qualitäts-Score</span>
+                  {dreiScores?.qualitaet?.gesamt != null ? (
+                    <div className="flex items-center gap-1">
+                      <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${dreiScores.qualitaet.gesamt >= 65 ? "bg-emerald-400" : dreiScores.qualitaet.gesamt >= 45 ? "bg-yellow-400" : "bg-red-400"}`}
+                          style={{ width: `${dreiScores.qualitaet.gesamt}%` }}
+                        />
+                      </div>
+                      <span className={`text-xs font-mono font-bold ${qualityColor(dreiScores.qualitaet.gesamt)}`}>
+                        {Math.round(dreiScores.qualitaet.gesamt)}
+                      </span>
                     </div>
-                    <span className={`text-xs font-mono font-bold ${qualityColor(data.qualityScore)}`}>
-                      {data.qualityScore}
-                    </span>
-                  </div>
+                  ) : (
+                    <span className="text-xs font-mono text-gray-500">—</span>
+                  )}
                 </div>
               </div>
 
