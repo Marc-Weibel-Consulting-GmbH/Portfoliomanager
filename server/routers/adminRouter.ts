@@ -1680,11 +1680,19 @@ export const adminRouter = router({
     /** Fortschritt und Umfang der Score-Historie. */
     getRekonstruktionStatus: adminProcedure.query(async () => {
       const { historienUmfang } = await import("../lib/punktInZeitStore");
+      const { vorwaertsUmfang } = await import("../lib/bewertungVorwaertsStore");
       return {
         aktiv: rekonstruktion.aktiv,
         beendetAm: rekonstruktion.beendetAm,
         meldungen: rekonstruktion.meldungen.slice(-30),
+        /** Rekonstruierte Vergangenheit — rueckwaerts, ohne Schaetzfaktoren. */
         umfang: await historienUmfang(),
+        /**
+         * Aufgezeichnete Gegenwart — mit PEG. `tageMitPeg` sagt, wie weit die
+         * Reihe schon reicht; erst ab etwa zwei Jahren traegt ein Backtest des
+         * geschaetzten Bewertungsteils.
+         */
+        vorwaerts: await vorwaertsUmfang(),
       };
     }),
 
