@@ -54,6 +54,7 @@ import { kiBoomRouter } from "./routers/kiBoomRouter";
 import { userSettingsRouter } from "./routers/userSettingsRouter";
 import { alertConfigRouter } from "./routers/alertConfigRouter";
 import { stockCheckRouter } from "./routers/stockCheckRouter";
+import { locateAnythingRouter } from "./routers/locateAnythingRouter";
 import { fetchLogo } from "./logoService";
 import { z } from "zod";
 import { fetchStockMetrics } from "./_core/stockDataApi";
@@ -256,6 +257,10 @@ export const appRouter = router({
   marketReport: marketReportRouter,
   kiBoom: kiBoomRouter,
   alertConfig: alertConfigRouter,
+
+  // NVIDIA LocateAnything-3B — Visuelles Grounding für Dokument-Extraktion
+  // (Jahresberichte, Charts, Finanzdokumente)
+  locateAnything: locateAnythingRouter,
 
   auth: router({
     me: publicProcedure.query(opts => {
