@@ -24,6 +24,14 @@ export interface StockMetrics {
   payoutRatio?: number;          // in %
   equityRatio?: number;          // in %
   ytdPerformance?: number;       // Year-to-date performance in %
+  /**
+   * Qualitäts-Score des Emittenten, 0–100 — nur für Obligationen.
+   *
+   * Bonitätsnäherung: der Qualitäts-Score der Aktie desselben Unternehmens,
+   * zugeordnet über `findeEmittent`. `undefined`/`null` heisst «Emittent nicht
+   * im Universum», dann bleibt es bei Kupon, Momentum und Schwankung.
+   */
+  emittentenQualitaet?: number | null;
   fcfYield?: number;             // Free Cash Flow Yield in %
   revenueGrowth?: number;        // 5-year CAGR in %
 }
@@ -298,12 +306,28 @@ function scoreGrowthStock(metrics: StockMetrics): SubScore[] {
 /** Score for bond ETFs: Yield (50%), Momentum (25%), Volatility (25%) */
 function scoreBond(metrics: StockMetrics): SubScore[] {
   const subScores: SubScore[] = [];
+  // Ist die Bonität des Emittenten bekannt, wird sie zum zweitwichtigsten
+  // Faktor — bei einer Anleihe ist «kann der Schuldner zahlen?» die
+  // Hauptfrage, und Kupon, Momentum und Schwankung beantworten sie nicht.
+  // Ist sie nicht bekannt, bleiben die bisherigen Gewichte unverändert,
+  // statt die Abdeckung mit einem dauerhaft leeren Faktor zu verwässern.
+  const bonitaet = metrics.emittentenQualitaet ?? null;
+  const g = bonitaet !== null
+    ? { rendite: 0.40, bonitaet: 0.30, momentum: 0.15, vola: 0.15 }
+    : { rendite: 0.50, bonitaet: 0,    momentum: 0.25, vola: 0.25 };
+
   const yld = calcSubscore(metrics.dividendYield, [1, 2, 3.5, 5], false);
-  subScores.push({ metric: 'Rendite (Coupon)', value: metrics.dividendYield ?? null, score: yld.score, weight: 0.50, color: yld.color });
+  subScores.push({ metric: 'Rendite (Coupon)', value: metrics.dividendYield ?? null, score: yld.score, weight: g.rendite, color: yld.color });
+
+  if (bonitaet !== null) {
+    const bon = calcSubscore(bonitaet, [35, 50, 65, 80], false);
+    subScores.push({ metric: 'Bonität (Emittent)', value: bonitaet, score: bon.score, weight: g.bonitaet, color: bon.color });
+  }
+
   const mom = calcSubscore(metrics.ytdPerformance, [-10, -5, 0, 5], false);
-  subScores.push({ metric: 'Momentum (YTD)', value: metrics.ytdPerformance ?? null, score: mom.score, weight: 0.25, color: mom.color });
+  subScores.push({ metric: 'Momentum (YTD)', value: metrics.ytdPerformance ?? null, score: mom.score, weight: g.momentum, color: mom.color });
   const vol = calcSubscore(metrics.volatility, [3, 6, 10, 10], true);
-  subScores.push({ metric: 'Volatilität', value: metrics.volatility ?? null, score: vol.score, weight: 0.25, color: vol.color });
+  subScores.push({ metric: 'Volatilität', value: metrics.volatility ?? null, score: vol.score, weight: g.vola, color: vol.color });
   return subScores;
 }
 
