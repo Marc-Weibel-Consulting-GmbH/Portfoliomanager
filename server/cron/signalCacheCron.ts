@@ -69,6 +69,9 @@ export async function refreshSignalCache(): Promise<void> {
     // die Schattenrechnung aus — der echte Signal-Lauf ist davon unberührt.
     const { rechneSchatten } = await import("../lib/regimeSchatten");
     const schattenSaetze: import("../lib/regimeSchattenStore").SchattenSatz[] = [];
+    const { rechneSignalSchatten } = await import("../lib/signalSchatten");
+    const { berechneQualitaet, berechneBewertung } = await import("../lib/dreiScores");
+    const signalSchattenSaetze: import("../lib/signalSchattenStore").SchattenSatz[] = [];
     let marktLage: { overallRegime: string; volatilitaet?: string | null } | null = null;
     try {
       const { computeRegime: computeMarktRegime } = await import("../routers/marketRegimeRouter");
@@ -262,6 +265,9 @@ export async function refreshSignalCache(): Promise<void> {
                 bubbleRegime = bubbleResult.regime;
               } catch { /* silent */ }
 
+              // Wird für die Schattenrechnung weiterverwendet — derselbe Abruf,
+              // kein zweiter Zugriff auf EODHD.
+              let qmCache: Awaited<ReturnType<typeof getQualityMetrics>> | null = null;
               try {
                 // Fetch real quality metrics from EODHD (ROE, Gross Margin, Net Debt/EBITDA)
                 let roe: number | null = null;
@@ -279,11 +285,15 @@ export async function refreshSignalCache(): Promise<void> {
                   if (qm.netDebtToEbitda !== null) {
                     debtToEquity = Math.max(0, qm.netDebtToEbitda * 0.5);
                   }
-                  // FCF Yield: not directly in QualityMetrics, use qualityScore as proxy signal
-                  // If EODHD qualityScore > 60, assume positive FCF yield
-                  if (qm.qualityScore > 60) fcfYield = 3.0;
-                  else if (qm.qualityScore > 40) fcfYield = 1.0;
-                  else fcfYield = -1.0;
+                  // Echte FCF-Rendite (freier Cashflow ÷ Marktkapitalisierung).
+                  //
+                  // Hier stand dieselbe aus `qm.qualityScore` abgeleitete
+                  // Stufenzahl wie in `signalsRouter` — dort in #239 behoben,
+                  // diese zweite Kopie blieb stehen. Sie geht mit Gewicht 0.25
+                  // in `calculateQualityScore` ein; der Qualitätsfaktor entstand
+                  // damit zu einem Viertel aus sich selbst.
+                  fcfYield = qm.fcfYield;
+                  qmCache = qm;
                 } catch { /* silent - use nulls as fallback */ }
                 const qualityResult = calculateQualityScore({ roe, debtToEquity, fcfYield, grossMargin });
                 qualityGrade = qualityResult.grade;
@@ -338,6 +348,47 @@ export async function refreshSignalCache(): Promise<void> {
                         marktRegime: marktLage.overallRegime,
                         schattenRegime: s.schattenRegime, schattenScore: s.schattenScore,
                         schattenSignal: s.schattenSignal,
+                        preis: typeof currentPrice === "number" && currentPrice > 0 ? currentPrice : null,
+                      });
+                    } catch { /* Schattenrechnung darf den echten Lauf nie stoeren */ }
+                  }
+
+                  // Zweite Schattenrechnung: Empfehlung ohne Qualitaet im
+                  // Timing-Teil. Zwischen 35 % (bull) und 75 % (crisis) des
+                  // heutigen Scores sind Qualitaet — wer «Qualitaet 80 · Timing
+                  // 75» liest, zaehlt sie zweimal. Ob die getrennte Fassung
+                  // besser trifft, entscheidet die Messung, nicht die Vermutung.
+                  if (qmCache) {
+                    try {
+                      const q = berechneQualitaet({
+                        roic: qmCache.roic,
+                        betriebsmarge: qmCache.operatingMargin,
+                        bruttomarge: qmCache.grossMargin,
+                        ertragsdeckung: qmCache.ertragsdeckung,
+                        epsStabilitaet: qmCache.epsStabilityScore,
+                        netDebtToEbitda: qmCache.netDebtToEbitda,
+                      }, qmCache.piotroski);
+                      const b = berechneBewertung({
+                        adjustedPeg: qmCache.adjustedPeg,
+                        kgv: qmCache.forwardPE ?? qmCache.trailingPE,
+                        fcfRendite: qmCache.fcfYield,
+                        dividendenrendite: num(stockRow?.dividendYield),
+                        kursBuchwert: qmCache.priceToBook,
+                      });
+                      const s = rechneSignalSchatten(
+                        { momentumScore, qualityScoreAlt: adjustedQualityScore,
+                          qualitaetNeu: q.gesamt, bewertungNeu: b.score,
+                          lpplPenalty, regime: regimeKey },
+                        blendConfig,
+                      );
+                      signalSchattenSaetze.push({
+                        ticker: stock.ticker,
+                        liveScore: s.liveScore, liveSignal: s.liveSignal,
+                        schattenScore: s.schattenScore, schattenSignal: s.schattenSignal,
+                        timingScore: s.timingScore,
+                        qualitaetNeu: q.gesamt, bewertungNeu: b.score,
+                        qualitaetsAnteilLive: s.qualitaetsAnteilLive,
+                        regime: regimeKey,
                         preis: typeof currentPrice === "number" && currentPrice > 0 ? currentPrice : null,
                       });
                     } catch { /* Schattenrechnung darf den echten Lauf nie stoeren */ }
@@ -485,6 +536,23 @@ export async function refreshSignalCache(): Promise<void> {
         );
       } catch (e) {
         console.warn("[signalCacheCron] Schattenrechnung nicht abgelegt (non-fatal):", (e as Error).message);
+      }
+    }
+
+    // Zweite Schattenrechnung: Empfehlung ohne Qualitaet im Timing-Teil.
+    if (signalSchattenSaetze.length) {
+      try {
+        const { haltefestSignalSchatten } = await import("../lib/signalSchattenStore");
+        const datum = new Date().toISOString().split("T")[0];
+        const { geschrieben } = await haltefestSignalSchatten(signalSchattenSaetze, datum);
+        const vergleichbar = signalSchattenSaetze.filter((s) => s.schattenScore !== null);
+        const uneinig = vergleichbar.filter((s) => s.liveSignal !== s.schattenSignal).length;
+        console.log(
+          `[signalCacheCron] Signal-Schattenrechnung: ${geschrieben} Saetze, ` +
+          `${vergleichbar.length} vergleichbar, ${uneinig} mit abweichender Empfehlung`,
+        );
+      } catch (e) {
+        console.warn("[signalCacheCron] Signal-Schattenrechnung nicht abgelegt (non-fatal):", (e as Error).message);
       }
     }
 

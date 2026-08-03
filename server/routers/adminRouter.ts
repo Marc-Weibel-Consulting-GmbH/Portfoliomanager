@@ -1260,6 +1260,53 @@ export const adminRouter = router({
     }),
 
     /**
+     * Stand der Signal-Schattenrechnung: Empfehlung mit gegenüber ohne
+     * Qualitätsanteil im Timing-Teil (siehe lib/signalSchatten.ts).
+     *
+     * `avgQualitaetsAnteil` beziffert, wie viel Qualität heute im angezeigten
+     * Signal-Score steckt — die Doppelzählung, wenn daneben ein eigener
+     * Qualitätsscore steht. `gleichesSignal` zeigt, wie oft die Trennung die
+     * Handlungsempfehlung überhaupt dreht.
+     *
+     * Solange `vergleichbar` klein ist, sagt der Vergleich nichts. Die Zahl
+     * steht bewusst dabei.
+     */
+    getSignalSchattenBilanz: adminProcedure.query(async () => {
+      const { signalSchattenBilanz } = await import("../lib/signalSchattenStore");
+      return await signalSchattenBilanz();
+    }),
+
+    /**
+     * Datenreparaturen von Hand auslösen.
+     *
+     * Beide Routinen laufen bisher nur zeitversetzt nach dem Serverstart
+     * (90 bzw. 150 Sekunden). Das ist fragil: Startet der Prozess in diesem
+     * Fenster neu, wird der Timer abgeschnitten und die Reparatur unterbleibt
+     * — ohne dass es jemand merkt. Beobachtet am 03.08.2026: Nach dem Merge
+     * standen die Werte über eine Stunde unverändert, und es war von aussen
+     * nicht unterscheidbar, ob der Deploy fehlte oder die Reparatur scheiterte.
+     *
+     * Beide Funktionen sind idempotent — ein zweiter Lauf findet nichts mehr
+     * und ändert nichts. Deshalb ist ein Knopf hier ungefährlich.
+     */
+    repariereDaten: adminProcedure.mutation(async () => {
+      // Nacheinander, nicht parallel: Der Score-Backfill liest die
+      // Dividendenrenditen und muss die reparierten Werte sehen.
+      const { repariereDividendenrenditen } = await import("../lib/dividendenrenditeReparatur");
+      const dividende = await repariereDividendenrenditen(true);
+
+      const { backfillScoreAbdeckung } = await import("../lib/scoreAbdeckungBackfill");
+      const scores = await backfillScoreAbdeckung(true);
+
+      return {
+        dividendenrendite: dividende,
+        scoreAbdeckung: scores,
+        hinweis:
+          "signalScore und aiReason werden hiervon nicht berührt — dafür den täglichen Refresh anstossen.",
+      };
+    }),
+
+    /**
      * Netto-Wirkung der Vorschlaege: welcher Massstab galt, wie viel der Aufbau
      * modelliert gekostet haette und was nach Abzug uebrig bleibt.
      *
