@@ -5,6 +5,9 @@
 Güte des Unternehmens.
 **Betroffen:** `server/scoring.ts`, `server/lib/qualityMetricsService.ts`,
 `server/lib/signalBlend.ts`, alle Anzeigestellen des Scores
+**Externe Referenz:** Sandro Rosa, «Qualitätsaktien für unsichere Zeiten»,
+*The Market NZZ*, 30.07.2026 — Piotroski F-Score über rund 1550 Aktien aus SPI,
+Stoxx 600, S&P 500 und Nikkei 225
 
 ---
 
@@ -155,6 +158,79 @@ einmaliges Aufräumen der Bestandswerte und ein Test, der die Konvention festhä
 Eigenständiger Fehler, unabhängig von der Konzeptfrage, in einem separaten Schritt zu
 beheben.
 
+### 1.7 Gegenprobe an einer etablierten Methodik
+
+*The Market NZZ* hat am 30.07.2026 rund 1550 Aktien aus SPI, Stoxx 600, S&P 500 und
+Nikkei 225 nach dem **Piotroski F-Score** durchgerechnet (Sandro Rosa, «Qualitätsaktien
+für unsichere Zeiten»). Der Vergleich mit unserem Score:
+
+| Titel | Piotroski F-Score | unser «Qualitäts-Score» |
+|---|---|---|
+| Novartis | 7 von 9 — «gut» | 68 |
+| **ABB** | 7 von 9 — «gut» | **31 — «schwach»** |
+| **Logitech** | 7 von 9 — «gut» | **43 — «mittel»** |
+| **Apple** | **8 von 9** — Spitzengruppe S&P 500 | **48 — «mittel»** |
+
+Drei von vier Titeln, die eine etablierte Qualitätsmethodik unter die besten ihres
+Marktes einordnet, führt unser Score als mittel oder schwach. Das ist kein Beleg dafür,
+dass Piotroski recht hat — wohl aber dafür, dass unser Score etwas anderes misst als
+das, was in der Branche unter Qualität verstanden wird.
+
+**Der Einheitenfehler aus 1.6 erklärt das nicht.** Die gespeicherten Werte sind
+einheitenrichtig gerechnet; ABB bleibt nach dessen Behebung bei rund 27. Der Befund ist
+konzeptioneller Natur.
+
+### 1.8 Was der Piotroski F-Score misst
+
+Neun binäre Kriterien, je 0 oder 1, Maximum 9:
+
+**Profitabilität (4)**
+- Betrieblicher Cashflow ist positiv
+- Betrieblicher Cashflow übertrifft den Gewinn
+- Gesamtkapitalrendite (ROA) ist positiv
+- ROA höher als im Vorjahr
+
+**Bilanz (3)**
+- Geringere langfristige Verschuldung als im Vorjahr
+- Current Ratio über dem Vorjahreswert
+- Aktienzahl konstant oder gesunken
+
+**Operative Effizienz (2)**
+- Bruttomarge höher als im Vorjahr
+- Kapitalumschlag (Umsatz ÷ mittleres Gesamtkapital) höher als im Vorjahr
+
+Bewertung: ab 8 «sehr gutes Investment», unter 3 «Alarmglocken».
+
+**Drei Dinge daran fehlen unserem Entwurf vollständig:**
+
+1. **Richtung statt nur Niveau.** Sechs der neun Kriterien vergleichen mit dem Vorjahr.
+   Unser Entwurf misst ausschliesslich Niveaus. Ein Unternehmen mit 25 % ROIC, dessen
+   Marge seit drei Jahren fällt, sieht bei uns hervorragend aus.
+2. **Ertragsqualität.** «Betrieblicher Cashflow übertrifft den Gewinn» prüft, ob der
+   ausgewiesene Gewinn durch Zahlungsströme gedeckt ist. Das ist der wirksamste Schutz
+   gegen buchhalterisch erzeugte Gewinne — und in unserem Entwurf gar nicht vorhanden.
+3. **Verwässerung.** Eine steigende Aktienzahl verwässert den Wert je Aktie. Kommt bei
+   uns nicht vor.
+
+**Was der F-Score nicht kann**, und weshalb er unseren Score nicht ersetzt: Er misst
+Veränderung, nicht Güte. Ein mittelmässiges Unternehmen, das sich in allen neun Punkten
+verbessert, erreicht 9; ein hervorragendes auf hohem Plateau kommt kaum über 4. Der
+Artikel nennt den ursprünglichen Zweck ausdrücklich — Piotroski entwarf ihn, um bei
+**Value-Aktien** die Bewertungsfallen auszusortieren, nicht als Qualitätsrangliste.
+
+Niveau und Richtung sind also zwei verschiedene Fragen, und beide gehören beantwortet.
+
+### 1.9 Der Artikel bestätigt die Dreiteilung selbst
+
+Seine Tabellen führen den F-Score (Qualität) und daneben in eigenen Spalten das
+geschätzte KGV, das Kurs-Buchwert-Verhältnis und die Free-Cash-Flow-Rendite
+(Bewertung). Beides wird nirgends zu einer Zahl verrechnet.
+
+Und zum Timing: Der Artikel berichtet, dass Terry Smith seinen strikten Qualitätsansatz
+aufweicht und künftig auch Momentum berücksichtigt; zu GSK heisst es, der Titel sei
+«auch aus markttechnischer Perspektive interessant». Qualität, Bewertung und Timing
+stehen dort nebeneinander — genau die Struktur, die dieses Konzept vorschlägt.
+
 ---
 
 ## 2 · Vorschlag
@@ -174,35 +250,67 @@ Die Trennlinien:
 - **Geschäftsrisiko** (Gewinnstabilität, Verschuldung) gehört zu Qualität,
   **Kursrisiko** (Beta, Volatilität) zu Timing.
 
-### 2.1 Qualität
+### 2.1 Qualität — zwei Teile
+
+Nach 1.8 zerfällt Qualität in zwei Fragen, die getrennt zu beantworten sind:
+
+> **Niveau (0.60):** Ist das ein gutes Geschäft?
+> **Richtung (0.40):** Bewegt es sich fundamental vorwärts oder rückwärts?
+
+Ohne den Niveau-Teil belohnt man Aufholer und bestraft Spitzenreiter auf hohem Plateau.
+Ohne den Richtungs-Teil sieht ein Unternehmen mit erstklassigen, aber seit Jahren
+erodierenden Kennzahlen tadellos aus. Die Gewichtung 60/40 gibt dem Niveau den Vorrang —
+gemessen wird «Qualität», nicht «Verbesserung».
+
+#### Niveau (0.60 des Qualitätsscores)
 
 Alle Kennzahlen liegen in `qualityMetricsService` bereits vor.
 
-| Faktor | Gewicht | Quelle | Begründung |
+| Faktor | Anteil | Quelle | Begründung |
 |---|---|---|---|
 | ROIC | 0.25 | `roic` | Kapitalrendite über den Kapitalkosten ist der belastbarste Einzelindikator für einen Wettbewerbsvorteil |
 | Betriebsmarge | 0.20 | `operatingMargin` | Preissetzungsmacht |
-| Eigenkapitalrendite | 0.15 | `returnOnEquity` | ergänzt ROIC, reagiert aber auf Verschuldung — deshalb geringeres Gewicht |
+| **Ertragsqualität** | **0.20** | *neu:* operativer Cashflow ÷ Nettogewinn | Deckt der Zahlungsstrom den ausgewiesenen Gewinn? Der wirksamste Schutz gegen buchhalterisch erzeugte Gewinne (Piotroski-Kriterium 2) |
 | EPS-Stabilität | 0.15 | `epsStabilityScore` | schwankende Gewinne sind ein Qualitätsmangel, kein Kursrisiko |
-| Net Debt / EBITDA | 0.15 | `netDebtToEbitda` | Bilanzrisiko, invertiert |
+| Net Debt / EBITDA | 0.10 | `netDebtToEbitda` | Bilanzrisiko, invertiert |
 | Bruttomarge | 0.10 | `grossMargin` | Struktur des Geschäftsmodells |
 
-Bewusst **nicht** enthalten: Umsatz- und Gewinnwachstum. Wachstum ist eine eigene
-Dimension und wird in der Bewertung über das PEG bereits berücksichtigt; im
-Qualitätsscore würde es zyklische Titel im Aufschwung systematisch begünstigen.
+Die Eigenkapitalrendite entfällt gegenüber dem ersten Entwurf: Sie misst weitgehend
+dasselbe wie ROIC, reagiert aber zusätzlich auf die Verschuldung — ein hoch
+fremdfinanziertes Unternehmen erscheint dadurch besser. Der freigewordene Anteil geht an
+die Ertragsqualität, die etwas misst, das sonst niemand abdeckt.
 
-Die Surprise-Rate (`surpriseRate`) bleibt vorerst draussen — sie misst die Treffsicherheit
-der Analystenschätzungen, nicht die Güte des Unternehmens.
+#### Richtung (0.40 des Qualitätsscores) — Piotroski F-Score
+
+Die neun Kriterien aus 1.8, unverändert übernommen und auf 0–100 skaliert
+(`F-Score ÷ 9 × 100`). Die binäre Form ist bewusst beibehalten: Sie braucht keine
+Kalibrierung, ist gegen Ausreisser unempfindlich und international vergleichbar.
+
+Der rohe F-Score (0–9) wird **zusätzlich** ausgewiesen. Er ist die verständlichere Zahl
+— «7 von 9 Kriterien erfüllt» sagt einem Privatanleger mehr als «78 von 100».
+
+**Zwei Eigenheiten sind zu kommunizieren:** Der F-Score beruht auf Jahresabschlüssen und
+ändert sich höchstens einmal jährlich. Und er kennt nur zehn Stufen — zwischen 6 und 7
+liegt ein sichtbarer Sprung, innerhalb einer Stufe keine Abstufung.
+
+#### Bewusst nicht enthalten
+
+**Umsatz- und Gewinnwachstum.** Wachstum ist eine eigene Dimension und wird in der
+Bewertung über das PEG berücksichtigt; im Qualitätsscore würde es zyklische Titel im
+Aufschwung systematisch begünstigen.
+
+**Die Surprise-Rate** (`surpriseRate`) misst die Treffsicherheit der Analystenschätzungen,
+nicht die Güte des Unternehmens.
 
 ### 2.2 Bewertung
 
 | Faktor | Gewicht | Quelle | Anmerkung |
 |---|---|---|---|
-| PEG (adjusted) | 0.30 | `adjustedPeg` | bereits qualitäts- und volatilitätsbereinigt |
+| PEG (adjusted) | 0.25 | `adjustedPeg` | bereits qualitäts- und volatilitätsbereinigt |
 | KGV (forward) | 0.25 | `forwardPE` | Rückfall auf `trailingPE`, wenn nicht verfügbar |
-| Dividendenrendite | 0.20 | `stocks.dividendYield` | **÷ 100**, siehe 1.6 |
-| FCF-Rendite | 0.15 | *fehlt* | siehe offene Punkte |
-| EV / EBITDA | 0.10 | *fehlt* | siehe offene Punkte |
+| **FCF-Rendite** | **0.20** | *fehlt* | siehe offene Punkte — der Artikel führt sie in **jeder** seiner vier Tabellen; sie ist schwerer zu manipulieren als der Gewinn |
+| Dividendenrendite | 0.15 | `stocks.dividendYield` | siehe 1.6 |
+| **Kurs-Buchwert** | **0.15** | *fehlt* | Piotroskis Definition einer Value-Aktie; im Artikel durchgehend ausgewiesen. Für Banken und Versicherer die aussagekräftigste Bewertungsgrösse überhaupt |
 
 Für Titel ohne Gewinn (PEG und KGV nicht definiert) tragen die verbleibenden Faktoren
 hochskaliert — dieselbe Mechanik wie heute. Ist gar kein Bewertungsmass verfügbar,
@@ -223,14 +331,20 @@ wird künftig aus dem **neuen** Qualitätsscore gespeist statt aus einer Mischun
 
 ### 2.4 Was das für ABB ergäbe
 
-| Score | erwartete Aussage |
-|---|---|
-| Qualität | hoch — solide Margen und Kapitalrendite |
-| Bewertung | tief — KGV 36, PEG teuer |
-| Timing | gut — Signal 75, Sharpe 1.54, YTD +36 % |
+| Score | erwartete Aussage | Beleg |
+|---|---|---|
+| Qualität | **hoch** | Piotroski 7 von 9 laut *The Market*; solide Margen und Kapitalrendite |
+| Bewertung | **tief** | KGV 26.5 (2027e), Kurs-Buchwert 10.9, FCF-Rendite 2.8 % — alle drei am oberen Rand |
+| Timing | **gut** | Signal 75, Sharpe 1.54, YTD +36 % |
 
 Gelesen: **«Gutes Unternehmen, zu teuer, läuft gerade gut.»** Damit kann ein Anleger
 etwas anfangen. «31 — schwach» kann er es nicht.
+
+Die Bewertungszahlen stammen aus der Schweizer F-Score-Tabelle des Artikels und decken
+sich mit unseren eigenen Werten (KGV trailing 36.0). Bemerkenswert ist die
+Gegenläufigkeit: Dieselbe Aktie ist zugleich von hoher Qualität **und** teuer. Genau
+diese Aussage kann ein einzelner Score nicht transportieren — er muss sich für eine der
+beiden entscheiden, und heute entscheidet er sich stillschweigend für die Bewertung.
 
 ---
 
@@ -272,13 +386,43 @@ Oberfläche ausdrücklich zu benennen.
 
 ---
 
-## 5 · Offene Punkte
+## 5 · Datenverfügbarkeit für Piotroski
 
-- **FCF-Rendite und EV/EBITDA fehlen.** Beide sind für die Bewertungsachse wertvoll,
-  aber heute nicht erhoben. `signalsRouter.ts:143–146` erfindet derzeit einen
-  `fcfYield` aus Score-Bändern (`> 60 → 3.0`, `> 40 → 1.0`, sonst `-1.0`). Das ist ein
-  Platzhalter, keine Messung, und sollte durch den echten Wert ersetzt oder entfernt
-  werden.
+Der F-Score braucht Jahresabschlüsse über **zwei** Geschäftsjahre. Was heute schon
+abgerufen wird:
+
+| Benötigt | Abschnitt der EODHD-Antwort | Status |
+|---|---|---|
+| Betrieblicher Cashflow | `Financials.Cash_Flow.yearly` | in derselben Antwort enthalten, **noch nicht gelesen** |
+| Nettogewinn, Umsatz, Bruttomarge | `Financials.Income_Statement.yearly` | wird gelesen (`qualityMetricsService.ts:264`) |
+| Gesamtkapital, langfristige Schulden, Umlaufvermögen | `Financials.Balance_Sheet.yearly` | wird gelesen (`:263`) |
+| Aktienzahl | Bilanz bzw. `SharesStats` | zu bestätigen |
+
+Der entscheidende Punkt: **Es braucht keinen zusätzlichen Abruf und keine neue Quelle.**
+`getQualityMetrics` holt die vollständigen Fundamentaldaten bereits und wertet nur das
+jeweils **letzte** Jahr aus (`bsKeys.at(-1)`). Die Vorjahreswerte liegen im selben
+Objekt und werden schlicht verworfen.
+
+Ungeprüft ist die Vollständigkeit über das Universum hinweg — insbesondere bei
+Schweizer Nebenwerten. Das gehört vor der Umsetzung gemessen; siehe den Punkt zur
+Abdeckung unten.
+
+---
+
+## 6 · Offene Punkte
+
+- **FCF-Rendite, EV/EBITDA und Kurs-Buchwert fehlen.** Alle drei sind für die
+  Bewertungsachse wertvoll, aber heute nicht erhoben. FCF-Rendite und Kurs-Buchwert
+  führt der Artikel in jeder seiner vier Tabellen — sie gehören offensichtlich zum
+  Standardrepertoire. `signalsRouter.ts:143–146` erfindet derzeit einen `fcfYield` aus
+  Score-Bändern (`> 60 → 3.0`, `> 40 → 1.0`, sonst `-1.0`). Das ist ein Platzhalter,
+  keine Messung, und sollte durch den echten Wert ersetzt oder entfernt werden.
+- **Shiller-KGV für die Marktebene.** Der Artikel begründet seine Vorsicht mit dem
+  zyklisch adjustierten KGV des Weltaktienindex, das so hoch steht wie zuletzt in der
+  Technologieblase. Das ist keine Titelkennzahl, sondern eine Regime-Grösse — sie
+  gehörte in `marketRegimeRouter`, nicht in den Bewertungsscore. Die dortige
+  Bubble-Engine misst mit LPPL etwas anderes (Beschleunigungsmuster im Kurs), nicht die
+  Bewertungshöhe. Eigener Prüfpunkt.
 - **`debtToEquity` ist ein Proxy** (`netDebtToEbitda * 0.5`, `signalsRouter.ts:141`).
   Für den Qualitätsscore wird `netDebtToEbitda` direkt verwendet; der Proxy entfällt.
 - **Abdeckung ist nicht gemessen.** Wie viele Titel im Universum liefern ROIC, Margen
