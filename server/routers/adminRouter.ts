@@ -68,6 +68,10 @@ const datenLauf: {
   schritte: SchrittLauf[];
 } = { aktiv: false, gestartetAm: null, beendetAm: null, schritte: [] };
 
+/** Laufzustand der Punkt-in-Zeit-Rekonstruktion, ebenfalls im Speicher. */
+const rekonstruktion: { aktiv: boolean; beendetAm: string | null; meldungen: string[] } =
+  { aktiv: false, beendetAm: null, meldungen: [] };
+
 export const adminRouter = router({
     /**
      * L-18: Echte Plattform-KPIs statt hartkodierter Platzhalter-Nullen.
@@ -1594,6 +1598,94 @@ export const adminRouter = router({
       })();
 
       return { gestartet: true, message: "Aktualisierung gestartet." };
+    }),
+
+    /**
+     * Punkt-in-Zeit-Rekonstruktion der Score-Historie starten.
+     *
+     * Laeuft im Hintergrund (ein EODHD-Abruf je Titel) und schreibt nach
+     * `stock_scores_history`. Erst mit dieser Reihe laesst sich die Gewichtung
+     * der drei Scores backtesten, ohne die heutigen Kennzahlen auf vergangene
+     * Kurse anzuwenden.
+     */
+    starteRekonstruktion: adminProcedure
+      .input(z.object({
+        von: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        bis: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }))
+      .mutation(async ({ input }) => {
+        if (rekonstruktion.aktiv) return { gestartet: false, message: "Laeuft bereits." };
+        rekonstruktion.aktiv = true;
+        rekonstruktion.meldungen = [`Start ${input.von} bis ${input.bis}`];
+        rekonstruktion.beendetAm = null;
+
+        void (async () => {
+          try {
+            const { rekonstruiere } = await import("../lib/punktInZeitRekonstruktion");
+            const { activeCurated } = await import("../lib/stockUniverse");
+            const { ENV } = await import("../_core/env");
+            const { toEodhdSymbol } = await import("../lib/eodhdSymbol");
+            const { getDb } = await import("../db");
+            const { stocks } = await import("../../drizzle/schema");
+            const db = await getDb();
+            if (!db) throw new Error("Datenbank nicht verfuegbar");
+            // `activeCurated()` ist eine Bedingung, keine Liste.
+            const universum = await db
+              .select({ ticker: stocks.ticker, sector: stocks.sector })
+              .from(stocks)
+              .where(activeCurated());
+            const apiKey = ENV.eodhdApiKey;
+            if (!apiKey) throw new Error("EODHD-Schluessel fehlt");
+
+            const symbol = (t: string) => toEodhdSymbol(t.includes(".") ? t : `${t}.US`);
+            const ergebnis = await rekonstruiere(
+              universum.map((r) => ({ ticker: r.ticker, sektor: r.sector ?? null })),
+              input.von, input.bis,
+              async (t) => {
+                const r = await fetch(
+                  `https://eodhd.com/api/fundamentals/${symbol(t)}?api_token=${apiKey}&fmt=json`,
+                  { signal: AbortSignal.timeout(15_000) });
+                return r.ok ? await r.json() : null;
+              },
+              async (t) => {
+                const r = await fetch(
+                  `https://eodhd.com/api/eod/${symbol(t)}?api_token=${apiKey}&from=${input.von}&to=${input.bis}&fmt=json`,
+                  { signal: AbortSignal.timeout(15_000) });
+                if (!r.ok) return [];
+                const d = await r.json();
+                return Array.isArray(d)
+                  ? d.map((x: any) => ({ date: String(x.date), close: Number(x.adjusted_close ?? x.close) }))
+                      .filter((x: any) => Number.isFinite(x.close) && x.close > 0)
+                  : [];
+              },
+              (m) => {
+                rekonstruktion.meldungen.push(m);
+                if (rekonstruktion.meldungen.length > 100) {
+                  rekonstruktion.meldungen = rekonstruktion.meldungen.slice(-100);
+                }
+              },
+            );
+            rekonstruktion.meldungen.push(...ergebnis.meldungen);
+          } catch (e: any) {
+            rekonstruktion.meldungen.push(`Fehler: ${e?.message ?? "unbekannt"}`);
+          } finally {
+            rekonstruktion.aktiv = false;
+            rekonstruktion.beendetAm = new Date().toISOString();
+          }
+        })();
+
+        return { gestartet: true, message: "Rekonstruktion gestartet." };
+      }),
+
+    /** Fortschritt und Umfang der Score-Historie. */
+    getRekonstruktionStatus: adminProcedure.query(async () => {
+      const { historienUmfang } = await import("../lib/punktInZeitStore");
+      return {
+        aktiv: rekonstruktion.aktiv,
+        beendetAm: rekonstruktion.beendetAm,
+        meldungen: rekonstruktion.meldungen.slice(-30),
+        umfang: await historienUmfang(),
+      };
     }),
 
     /** Fortschritt des Laufs aus `datenAktualisieren`. */
