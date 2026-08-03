@@ -320,8 +320,8 @@ async function main() {
     console.log(`OOS months: ${allMonths[0]} to ${allMonths[allMonths.length - 1]} (${allMonths.length} months)`);
 
     // Compute uncertainty stats for diagnostics
-    let csvValues: number[] = [];
-    let dispValues: number[] = [];
+    const csvValues: number[] = [];
+    const dispValues: number[] = [];
     for (let i = 2; i < allMonths.length; i++) {
       const u = calcUncertaintyMetrics(monthlyPrices, allMonths[i-1], allMonths[i-2]);
       csvValues.push(u.csv);
