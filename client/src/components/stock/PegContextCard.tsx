@@ -272,7 +272,7 @@ export function PegBadge({ ticker }: { ticker: string }) {
           <div className="font-semibold text-[#00CFC1]">Adjusted PEG</div>
           <div>Trailing PEG: {fmt(data.trailingPeg, "", 2)}</div>
           <div>Forward PEG: {fmt(data.forwardPeg, "", 2)}</div>
-          <div>EPS-Stabilität: {data.epsStabilityScore}/100</div>
+          <div>EPS-Stabilität: {data.epsStabilityScore === null ? "—" : `${data.epsStabilityScore}/100`}</div>
           <div>ROIC: {fmt(data.roic, "%")}</div>
         </div>
       </TooltipContent>
@@ -343,7 +343,11 @@ export default function PegContextCard({ ticker, companyName, sector, compact }:
                 <div className={`text-lg font-bold font-mono ${pegColor(data.forwardPeg)}`}>
                   {fmt(data.forwardPeg, "", 2)}
                 </div>
-                <div className="text-[9px] text-gray-500 mt-0.5">Nächstes Jahr</div>
+                <div className="text-[9px] text-gray-500 mt-0.5">
+                  {data.forwardPeg === null && data.epsGrowth5y !== null && data.epsGrowth5y < 2
+                    ? "Wachstum zu gering für PEG"
+                    : "Nächstes Jahr"}
+                </div>
               </div>
               <div className="bg-[#0f1420] rounded-lg p-3 border border-[#00CFC1]/30">
                 <div className="text-[10px] text-[#00CFC1] mb-1 flex items-center gap-1">
@@ -426,17 +430,21 @@ export default function PegContextCard({ ticker, companyName, sector, compact }:
                 />
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] text-gray-400">EPS-Stabilität</span>
-                  <div className="flex items-center gap-1">
-                    <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${data.epsStabilityScore >= 70 ? "bg-emerald-400" : data.epsStabilityScore >= 40 ? "bg-yellow-400" : "bg-red-400"}`}
-                        style={{ width: `${data.epsStabilityScore}%` }}
-                      />
+                  {data.epsStabilityScore === null ? (
+                    <span className="text-xs font-mono text-gray-500" title="Zu wenige Jahre EPS-Historie">—</span>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${data.epsStabilityScore >= 70 ? "bg-emerald-400" : data.epsStabilityScore >= 40 ? "bg-yellow-400" : "bg-red-400"}`}
+                          style={{ width: `${data.epsStabilityScore}%` }}
+                        />
+                      </div>
+                      <span className={`text-xs font-mono font-bold ${stabilityColor(data.epsStabilityScore)}`}>
+                        {data.epsStabilityScore}
+                      </span>
                     </div>
-                    <span className={`text-xs font-mono font-bold ${stabilityColor(data.epsStabilityScore)}`}>
-                      {data.epsStabilityScore}
-                    </span>
-                  </div>
+                  )}
                 </div>
                 <MetricRow
                   label="EPS Surprise-Rate"

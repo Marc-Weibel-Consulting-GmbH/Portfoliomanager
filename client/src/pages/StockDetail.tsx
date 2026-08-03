@@ -83,7 +83,9 @@ function ScoreCircle({ score, onClick }: { score: number | null; onClick?: () =>
           <span className="text-xl font-bold text-gray-500" title="Zu wenige Kennzahlen für eine Beurteilung">—</span>
         ) : (
           <>
-            <span className="text-xl font-bold text-white">{score}</span>
+            {/* Ganze Zahlen: Die Nachkommastelle suggeriert eine Genauigkeit,
+                die keine der Eingangsgrössen hergibt. */}
+            <span className="text-xl font-bold text-white">{Math.round(score)}</span>
             <span className="text-xs text-gray-400">/100</span>
           </>
         )}

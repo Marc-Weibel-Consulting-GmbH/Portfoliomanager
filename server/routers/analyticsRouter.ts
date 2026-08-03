@@ -411,7 +411,7 @@ WACHSTUM:
 
 RISIKO:
 - EPS-Volatilität (CV): ${metrics.epsVolatility !== null ? metrics.epsVolatility.toFixed(2) : "n/v"}
-- EPS-Stabilitäts-Score: ${metrics.epsStabilityScore}/100
+- EPS-Stabilitäts-Score: ${metrics.epsStabilityScore === null ? "nicht berechenbar" : `${metrics.epsStabilityScore}/100`}
 - EPS Surprise-Rate: ${fmt(metrics.surpriseRate, "% der letzten 8Q")}
 - Net Debt/EBITDA: ${fmt(metrics.netDebtToEbitda, "x", 2)}
 
