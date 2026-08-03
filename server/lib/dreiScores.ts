@@ -38,6 +38,15 @@ export interface Teilfaktor {
   gewicht: number;
   /** Klartext für die Oberfläche. */
   hinweis: string;
+  /**
+   * Beruht dieser Faktor auf einer SCHÄTZUNG statt auf berichteten Zahlen?
+   *
+   * Betrifft heute nur das PEG: Es enthält eine Wachstumserwartung, und
+   * Erwartungen von damals sind nirgends gespeichert. Solche Faktoren lassen
+   * sich nicht rückwirkend prüfen — der Backtest sieht sie nie. Die Markierung
+   * hält fest, welcher Teil der Bewertung gemessen und welcher geglaubt ist.
+   */
+  geschaetzt?: boolean;
 }
 
 export interface TeilScore {
@@ -46,6 +55,16 @@ export interface TeilScore {
   /** Anteil der Gewichtung, der auf Daten beruht (0–1). */
   abdeckung: number;
   faktoren: Teilfaktor[];
+  /**
+   * Derselbe Score, aber nur aus berichteten Zahlen — ohne Schätzfaktoren.
+   *
+   * Diese Grösse existiert AUCH in der Vergangenheit und ist deshalb die
+   * einzige, gegen die sich ehrlich backtesten lässt. `null`, wenn nach dem
+   * Weglassen der Schätzfaktoren zu wenig Gewicht übrig bleibt.
+   */
+  scoreGemessen?: number | null;
+  /** Anteil des belegten Gewichts, der auf Schätzungen beruht (0–1). */
+  anteilGeschaetzt?: number;
 }
 
 /**
@@ -74,10 +93,35 @@ function baueTeilScore(faktoren: Teilfaktor[]): TeilScore {
     }
   }
   const abdeckung = gesamt > 0 ? belegt / gesamt : 0;
+
+  // Dieselbe Rechnung ohne die Schätzfaktoren. Das Gewicht der weggelassenen
+  // verteilt sich auf die übrigen — sonst verglichen wir eine gekürzte Summe
+  // mit einer vollen.
+  let gewichtetGemessen = 0;
+  let belegtGemessen = 0;
+  let gesamtGemessen = 0;
+  let belegtGeschaetzt = 0;
+  for (const f of faktoren) {
+    if (f.geschaetzt) {
+      if (f.punkte !== null) belegtGeschaetzt += f.gewicht;
+      continue;
+    }
+    gesamtGemessen += f.gewicht;
+    if (f.punkte !== null) {
+      gewichtetGemessen += f.punkte * f.gewicht;
+      belegtGemessen += f.gewicht;
+    }
+  }
+  const abdeckungGemessen = gesamtGemessen > 0 ? belegtGemessen / gesamtGemessen : 0;
+
   return {
     score: abdeckung < MIN_ABDECKUNG_SCORE ? null : parseFloat((gewichtet / belegt).toFixed(1)),
     abdeckung: parseFloat(abdeckung.toFixed(3)),
     faktoren,
+    scoreGemessen: abdeckungGemessen < MIN_ABDECKUNG_SCORE || belegtGemessen === 0
+      ? null
+      : parseFloat((gewichtetGemessen / belegtGemessen).toFixed(1)),
+    anteilGeschaetzt: belegt > 0 ? parseFloat((belegtGeschaetzt / belegt).toFixed(3)) : 0,
   };
 }
 
@@ -350,6 +394,7 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
   const faktoren: Teilfaktor[] = [
     {
       name: "PEG (bereinigt)",
+      geschaetzt: true,
       wert: e.adjustedPeg,
       punkte: pegPunkte,
       gewicht: 0.45,
