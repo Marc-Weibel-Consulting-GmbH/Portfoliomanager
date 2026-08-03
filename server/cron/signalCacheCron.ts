@@ -72,6 +72,9 @@ export async function refreshSignalCache(): Promise<void> {
     const { rechneSignalSchatten } = await import("../lib/signalSchatten");
     const { berechneQualitaet, berechneBewertung } = await import("../lib/dreiScores");
     const signalSchattenSaetze: import("../lib/signalSchattenStore").SchattenSatz[] = [];
+    // Qualitaet und Bewertung werden hier einmal vorgerechnet und abgelegt —
+    // sonst braeuchte jede Tabellenzeile einen eigenen EODHD-Abruf.
+    const dreiScoreSaetze: import("../lib/dreiScoresStore").GespeicherteScores[] = [];
     let marktLage: { overallRegime: string; volatilitaet?: string | null } | null = null;
     try {
       const { computeRegime: computeMarktRegime } = await import("../routers/marketRegimeRouter");
@@ -384,6 +387,20 @@ export async function refreshSignalCache(): Promise<void> {
                           lpplPenalty, regime: regimeKey },
                         blendConfig,
                       );
+                      const { qualitaetsBand, bewertungsBand } = await import("../lib/dreiScores");
+                      dreiScoreSaetze.push({
+                        ticker: stock.ticker,
+                        qualitaet: q.gesamt,
+                        qualitaetBand: qualitaetsBand(q.gesamt),
+                        niveau: q.niveau.score,
+                        richtung: q.richtung.score,
+                        fScore: q.richtung.fScore,
+                        fScoreBerechenbar: q.richtung.berechenbar,
+                        bewertung: b.score,
+                        bewertungBand: bewertungsBand(b.score),
+                        abdeckungNiveau: q.niveau.abdeckung,
+                        abdeckungBewertung: b.abdeckung,
+                      });
                       signalSchattenSaetze.push({
                         ticker: stock.ticker,
                         liveScore: s.liveScore, liveSignal: s.liveSignal,
@@ -539,6 +556,23 @@ export async function refreshSignalCache(): Promise<void> {
         );
       } catch (e) {
         console.warn("[signalCacheCron] Schattenrechnung nicht abgelegt (non-fatal):", (e as Error).message);
+      }
+    }
+
+    // Qualitaet und Bewertung ablegen — sie sind ab jetzt die fuehrenden
+    // Scores. Der alte Einzelscore bleibt in stocks.score stehen und ist damit
+    // die Schattenrechnung: beide Zahlen nebeneinander, ohne eigene Mechanik.
+    if (dreiScoreSaetze.length) {
+      try {
+        const { haltefestScores } = await import("../lib/dreiScoresStore");
+        const { geschrieben } = await haltefestScores(dreiScoreSaetze);
+        const ohneQualitaet = dreiScoreSaetze.filter((s) => s.qualitaet === null).length;
+        console.log(
+          `[signalCacheCron] Drei Scores: ${geschrieben} Titel abgelegt, ` +
+          `${ohneQualitaet} ohne Qualitaetsnote (zu wenige Kennzahlen)`,
+        );
+      } catch (e) {
+        console.warn("[signalCacheCron] Drei Scores nicht abgelegt (non-fatal):", (e as Error).message);
       }
     }
 
