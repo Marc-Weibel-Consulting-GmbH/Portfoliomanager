@@ -74,7 +74,18 @@ export interface SchattenEingang {
 }
 
 export interface SchattenErgebnis {
-  /** Der heute angezeigte Score, 0–100. */
+  /**
+   * Der Score der ALTEN Zusammensetzung (Momentum + Qualität − LPPL), 0–100.
+   *
+   * ACHTUNG ZUM NAMEN: Seit der Umstellung des Signals auf die Kombination der
+   * drei Scores ist diese Variante nicht mehr live — sie läuft im Schatten,
+   * und die neue trägt die Entscheidung. Die Feldnamen bleiben trotzdem, wie
+   * sie sind: In `signal_blend_shadow` steht `liveScore` seit dem ersten Tag
+   * für die alte Zusammensetzung. Die Spalten umzuwidmen hiesse, die
+   * Messreihe genau in der Mitte zu brechen — jede Auswertung müsste dann das
+   * Umstellungsdatum kennen. Die Vergleichbarkeit der Reihe ist hier mehr wert
+   * als die Genauigkeit des Spaltennamens.
+   */
   liveScore: number;
   liveSignal: string;
   /** Die Schattenvariante, 0–100 — oder `null`, wenn die neuen Scores fehlen. */

@@ -58,6 +58,7 @@ export async function refreshSignalCache(): Promise<void> {
     const { getActiveWeights } = await import("../analytics/optimizerWorker");
     const { generateSignal } = await import("../lib/baseSignal");
     const { blendCombinedScore } = await import("../lib/signalBlend");
+    const { rechneSignal, berechneTiming } = await import("../lib/dreiScoreSignal");
     const { getRegimeBlendConfig } = await import("../analytics/regimeSignalMemory");
     const { regimeMitTotband } = await import("../lib/signals/regimeMitTotband");
 
@@ -281,6 +282,14 @@ export async function refreshSignalCache(): Promise<void> {
             let momentumScore: number | undefined;
             let combinedScore: number | undefined;
             let combinedSignal: string | undefined;
+            // Das fuehrende Signal aus den drei Scores. Bleibt undefined, wenn
+            // Qualitaet/Bewertung fehlen — dann traegt weiter die alte Mischung.
+            let dreiSignal: { score: number; label: string; grade: string } | undefined;
+            let timingScore: number | null = null;
+            // Die beiden neuen Scores auch ausserhalb des Rechenblocks, damit
+            // der Begruendungstext sie nennen kann.
+            let qNeu: number | null = null;
+            let bNeu: number | null = null;
             let overallGrade: string | undefined;
             let bubbleScore: number | undefined;
             let bubbleRegime: string | undefined;
@@ -442,27 +451,80 @@ export async function refreshSignalCache(): Promise<void> {
                         regime: regimeKey,
                         preis: typeof currentPrice === "number" && currentPrice > 0 ? currentPrice : null,
                       });
+
+                      // ── Das fuehrende Signal: Kombination der drei Scores ──
+                      //
+                      // Timing kommt aus den Groessen, die sich mit der Zeit
+                      // aendern — ohne KGV, PEG und Dividendenrendite. Die
+                      // stehen in der Bewertung; sie hier erneut zu gewichten
+                      // hiesse, den Preis zweimal zu zaehlen.
+                      const t = berechneTiming({
+                        momentum: momentumScore,
+                        rsi14,
+                        positionIn52W: (typeof currentPrice === "number" && currentPrice > 0
+                          && typeof fiftyTwoWeekHigh === "number" && typeof fiftyTwoWeekLow === "number"
+                          && fiftyTwoWeekHigh > fiftyTwoWeekLow)
+                          ? (currentPrice - fiftyTwoWeekLow) / (fiftyTwoWeekHigh - fiftyTwoWeekLow)
+                          : null,
+                        ytdPerformance,
+                        blasenScore: bubbleScore ?? null,
+                      });
+                      timingScore = t.score;
+                      qNeu = q.gesamt;
+                      bNeu = b.score;
+                      const sig = rechneSignal({
+                        qualitaet: q.gesamt, bewertung: b.score, timing: t.score, regime: regimeKey,
+                      });
+                      if (sig.score !== null && sig.label && sig.grade) {
+                        dreiSignal = { score: sig.score, label: sig.label, grade: sig.grade };
+                      }
                     } catch { /* Schattenrechnung darf den echten Lauf nie stoeren */ }
                   }
 
-                  // Signal-Typ IMMER aus dem kombinierten Score ableiten (EINZIGE Quelle der Wahrheit)
-                  if (blended.signalLabel === 'STRONG BUY' || blended.signalLabel === 'BUY') {
+                  // ── EINZIGE QUELLE DER WAHRHEIT: die Kombination der drei Scores ──
+                  //
+                  // Bis hierher entschied `blendCombinedScore` (40 % Momentum,
+                  // 40 % Qualitaet, 20 % LPPL). Diese Qualitaet stammte aus
+                  // einer eigenen, vierten Formel und war damit im Signal ein
+                  // zweites Mal enthalten, obwohl die Seite bereits einen
+                  // Qualitaets-Score zeigt.
+                  //
+                  // Jetzt entscheidet `rechneSignal` aus Qualitaet, Bewertung
+                  // und einem von Preisgroessen bereinigten Timing. Die alte
+                  // Mischung laeuft in `signal_blend_shadow` weiter — umgekehrt
+                  // zur bisherigen Anordnung, gleiches Muster wie beim
+                  // Qualitaets-Score.
+                  //
+                  // Faellt das neue Signal aus (Fundamentaldaten fehlen, oder
+                  // die Abdeckung reicht nicht), traegt weiter die alte
+                  // Mischung. Kein Titel verliert dadurch sein Signal.
+                  const massgeblich = dreiSignal?.label ?? blended.signalLabel;
+                  if (massgeblich === 'STRONG BUY' || massgeblich === 'BUY') {
                     signalType = 'buy';
-                    signalStrength = blended.signalLabel === 'STRONG BUY' ? 'strong' : 'moderate';
-                  } else if (blended.signalLabel === 'STRONG SELL' || blended.signalLabel === 'SELL') {
+                    signalStrength = massgeblich === 'STRONG BUY' ? 'strong' : 'moderate';
+                  } else if (massgeblich === 'STRONG SELL' || massgeblich === 'SELL') {
                     signalType = 'sell';
-                    signalStrength = blended.signalLabel === 'STRONG SELL' ? 'strong' : 'moderate';
+                    signalStrength = massgeblich === 'STRONG SELL' ? 'strong' : 'moderate';
                   } else {
                     signalType = 'hold';
                     signalStrength = 'moderate';
                   }
+                  // Der angezeigte Score folgt der Entscheidung — sonst stuenden
+                  // Zahl und Empfehlung nebeneinander und widersprechen sich.
+                  if (dreiSignal) {
+                    combinedScore = dreiSignal.score;
+                    combinedSignal = dreiSignal.label;
+                    overallGrade = dreiSignal.grade;
+                  }
 
-                  // Begründungstext aus dem kombinierten Score generieren (konsistent mit Signal-Typ)
-                  const scoreRound = Math.round(blended.combinedScore);
+                  // Begründungstext — MUSS derselben Quelle folgen wie die
+                  // Entscheidung, sonst steht im Text ein anderer Score als in
+                  // der Empfehlung.
+                  const scoreRound = Math.round(dreiSignal?.score ?? blended.combinedScore);
                   const momentumDir = momentumScore > 0.2 ? 'positiv' : momentumScore < -0.2 ? 'negativ' : 'neutral';
                   // RF-Note nur einblenden wenn RF-Signal mit finalem Signal-Typ übereinstimmt
-                  const finalIsBuy = blended.signalLabel === 'BUY' || blended.signalLabel === 'STRONG BUY';
-                  const finalIsSell = blended.signalLabel === 'SELL' || blended.signalLabel === 'STRONG SELL';
+                  const finalIsBuy = massgeblich === 'BUY' || massgeblich === 'STRONG BUY';
+                  const finalIsSell = massgeblich === 'SELL' || massgeblich === 'STRONG SELL';
                   const rfIsBuy = rfSignal === 'buy' || rfSignal === 'strong_buy';
                   const rfIsSell = rfSignal === 'sell' || rfSignal === 'strong_sell';
                   const rfAgreesWithFinal = (finalIsBuy && rfIsBuy) || (finalIsSell && rfIsSell);
@@ -472,20 +534,26 @@ export async function refreshSignalCache(): Promise<void> {
                   const bubbleNote = bReg === 'bubble' ? ` Achtung: Blasen-Risiko erkannt (LPPL ${(bScore * 100).toFixed(0)}%).` : '';
                   const peNote = peRatio && peRatio > 30 ? ` P/E ${peRatio.toFixed(1)} erhöht.` : peRatio && peRatio < 15 ? ` P/E ${peRatio.toFixed(1)} günstig.` : '';
 
-                  if (blended.signalLabel === 'STRONG BUY') {
-                    reason = `Starkes Kaufsignal (Score ${scoreRound}/100): Momentum ${momentumDir}, mehrere positive Indikatoren.${peNote}${rfNote}${bubbleNote}`;
+                  // Woraus der Score entsteht — nennt die drei Teile beim
+                  // Namen, statt «Momentum und mehrere Indikatoren» zu sagen.
+                  const teileNote = dreiSignal
+                    ? ` Zusammensetzung: Qualität ${qNeu === null ? '—' : Math.round(qNeu)} · Bewertung ${bNeu === null ? '—' : Math.round(bNeu)} · Timing ${timingScore === null ? '—' : Math.round(timingScore)}.`
+                    : '';
+
+                  if (massgeblich === 'STRONG BUY') {
+                    reason = `Starkes Kaufsignal (Score ${scoreRound}/100).${teileNote} Momentum ${momentumDir}.${peNote}${rfNote}${bubbleNote}`;
                     targetPrice = currentPrice * 1.15;
-                  } else if (blended.signalLabel === 'BUY') {
-                    reason = `Kaufsignal (Score ${scoreRound}/100): Momentum ${momentumDir}, positive Indikatoren überwiegen.${peNote}${rfNote}${bubbleNote}`;
+                  } else if (massgeblich === 'BUY') {
+                    reason = `Kaufsignal (Score ${scoreRound}/100).${teileNote} Momentum ${momentumDir}.${peNote}${rfNote}${bubbleNote}`;
                     targetPrice = currentPrice * 1.10;
-                  } else if (blended.signalLabel === 'HOLD') {
-                    reason = `Halten (Score ${scoreRound}/100): Gemischte Signale, keine klare Richtung. Momentum ${momentumDir}.${peNote}${rfNote}${bubbleNote}`;
+                  } else if (massgeblich === 'HOLD') {
+                    reason = `Halten (Score ${scoreRound}/100).${teileNote} Keine klare Richtung, Momentum ${momentumDir}.${peNote}${rfNote}${bubbleNote}`;
                     targetPrice = currentPrice * 1.02;
-                  } else if (blended.signalLabel === 'SELL') {
-                    reason = `Verkaufssignal (Score ${scoreRound}/100): Momentum ${momentumDir}, negative Indikatoren überwiegen.${peNote}${rfNote}${bubbleNote}`;
+                  } else if (massgeblich === 'SELL') {
+                    reason = `Verkaufssignal (Score ${scoreRound}/100).${teileNote} Momentum ${momentumDir}.${peNote}${rfNote}${bubbleNote}`;
                     targetPrice = currentPrice * 0.92;
                   } else { // STRONG SELL
-                    reason = `Starkes Verkaufssignal (Score ${scoreRound}/100): Momentum ${momentumDir}, mehrere negative Indikatoren.${peNote}${rfNote}${bubbleNote}`;
+                    reason = `Starkes Verkaufssignal (Score ${scoreRound}/100).${teileNote} Momentum ${momentumDir}.${peNote}${rfNote}${bubbleNote}`;
                     targetPrice = currentPrice * 0.85;
                   }
                 } catch { /* silent */ }
