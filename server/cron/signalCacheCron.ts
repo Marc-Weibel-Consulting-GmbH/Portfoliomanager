@@ -374,6 +374,9 @@ export async function refreshSignalCache(): Promise<void> {
                         fcfRendite: qmCache.fcfYield,
                         dividendenrendite: num(stockRow?.dividendYield),
                         kursBuchwert: qmCache.priceToBook,
+                        epsWachstumTTM: qmCache.epsGrowthTTM,
+                        epsWachstum5j: qmCache.epsGrowth5y,
+                        sektor: stockRow?.sector ?? null,
                       });
                       const s = rechneSignalSchatten(
                         { momentumScore, qualityScoreAlt: adjustedQualityScore,

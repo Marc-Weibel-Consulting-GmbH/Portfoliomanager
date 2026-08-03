@@ -237,6 +237,67 @@ export interface BewertungsEingang {
   dividendenrendite: number | null;
   /** Kurs-Buchwert-Verhältnis. */
   kursBuchwert: number | null;
+  /** % EPS-Wachstum der letzten zwölf Monate. */
+  epsWachstumTTM?: number | null;
+  /** % EPS-Wachstum p. a. über fünf Jahre. */
+  epsWachstum5j?: number | null;
+  /** Sektor, entscheidet über das Profil. */
+  sektor?: string | null;
+}
+
+/**
+ * Sektoren, in denen der Buchwert die aussagekräftigste Bewertungsgrösse ist.
+ *
+ * Bei Banken, Versicherern und Immobiliengesellschaften besteht das Vermögen
+ * aus bilanzierten Forderungen und Objekten — der Buchwert ist dort eine echte
+ * Grösse. Bei einem Softwarehaus steht das Wesentliche gar nicht in der Bilanz;
+ * Apple handelt zum 42-fachen, Palantir zum 35-fachen Buchwert. Ein für Value
+ * kalibrierter Anker gäbe beiden null Punkte und sagte damit nichts.
+ */
+export function nutztBuchwert(sektor?: string | null): boolean {
+  const s = (sektor || "").toLowerCase();
+  return s.includes("financ") || s.includes("bank") || s.includes("insur") ||
+    s.includes("versicher") || s.includes("real estate") || s.includes("immobilien");
+}
+
+/**
+ * Wachstumsrichtung: beschleunigt oder verlangsamt sich das Gewinnwachstum?
+ *
+ * Differenz in Prozentpunkten zwischen dem Wachstum der letzten zwölf Monate
+ * und dem Fünfjahresschnitt. Beide Werte liegen in `qualityMetricsService`
+ * bereits vor.
+ *
+ * Das ist keine Bewertungskennzahl, sondern ein Verlässlichkeitsmass für das
+ * PEG: Dessen Nenner ist das Wachstum. Schrumpft der Nenner, steigt das PEG,
+ * ohne dass sich der Preis bewegt hat. Ein PEG von 0.45 bei nachlassendem
+ * Wachstum ist etwas anderes als dasselbe PEG bei anziehendem.
+ */
+export function wachstumsFaktor(ttm?: number | null, fuenfJahre?: number | null): number {
+  if (ttm == null || fuenfJahre == null || !Number.isFinite(ttm) || !Number.isFinite(fuenfJahre)) {
+    return 1;
+  }
+  const differenz = ttm - fuenfJahre;
+  return Math.max(0.8, Math.min(1.1, 1 + differenz / 100));
+}
+
+/**
+ * KGV als Deckel statt als Summand.
+ *
+ * Ein tiefes PEG bei sehr hohem KGV heisst nicht «günstig», sondern «günstig,
+ * FALLS das Wachstum hält». Der Markt hat dann viele Jahre Wachstum
+ * vorweggenommen; bleibt es aus, ist der Rückschlag gross. Diese Asymmetrie
+ * kann das PEG nicht ausdrücken — es kennt nur das Verhältnis, nicht die
+ * Fallhöhe.
+ *
+ * Der Deckel begrenzt deshalb, was ein Titel trotz gutem PEG erreichen kann.
+ * Bis KGV 30 greift er nicht.
+ */
+export function kgvDeckel(kgv: number | null): number {
+  if (kgv === null || !Number.isFinite(kgv) || kgv <= 0) return 100;
+  if (kgv <= 30) return 100;
+  if (kgv <= 50) return 100 - ((kgv - 30) / 20) * 40;   // 100 → 60
+  if (kgv <= 80) return 60 - ((kgv - 50) / 30) * 25;    // 60 → 35
+  return 25;
 }
 
 /**
@@ -245,47 +306,87 @@ export interface BewertungsEingang {
  * **Hoch heisst günstig.** Das ist die entscheidende Leseregel und muss in der
  * Oberfläche ausdrücklich dabeistehen, sonst liest sich «Bewertung 85» als
  * «teuer».
+ *
+ * Zwei Profile: Für Banken, Versicherer und Immobilien trägt der Buchwert; für
+ * alle übrigen das PEG, gedeckelt durch das absolute KGV.
  */
 export function berechneBewertung(e: BewertungsEingang): TeilScore {
+  const dividende: Teilfaktor = {
+    name: "Dividendenrendite",
+    wert: e.dividendenrendite,
+    punkte: punkteAus(e.dividendenrendite, 0, 5),
+    gewicht: 0,
+    hinweis: e.dividendenrendite === null ? "nicht verfügbar" : `${e.dividendenrendite.toFixed(2)} %`,
+  };
+
+  if (nutztBuchwert(e.sektor)) {
+    const faktoren: Teilfaktor[] = [
+      {
+        name: "Kurs-Buchwert",
+        wert: e.kursBuchwert,
+        punkte: punkteAus(e.kursBuchwert === null || e.kursBuchwert <= 0 ? null : e.kursBuchwert, 3, 0.7),
+        gewicht: 0.35,
+        hinweis: e.kursBuchwert === null ? "nicht verfügbar" : `${e.kursBuchwert.toFixed(2)}-facher Buchwert`,
+      },
+      {
+        name: "KGV",
+        wert: e.kgv,
+        punkte: punkteAus(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 20, 7),
+        gewicht: 0.30,
+        hinweis: e.kgv === null ? "nicht verfügbar" : `${e.kgv.toFixed(1)}-facher Jahresgewinn`,
+      },
+      { ...dividende, gewicht: 0.35 },
+    ];
+    return baueTeilScore(faktoren);
+  }
+
+  const faktor = wachstumsFaktor(e.epsWachstumTTM, e.epsWachstum5j);
+  const pegRoh = punkteAus(e.adjustedPeg === null || e.adjustedPeg <= 0 ? null : e.adjustedPeg, 3, 0.8);
+  const pegPunkte = pegRoh === null ? null : Math.max(0, Math.min(100, pegRoh * faktor));
+
+  const richtungsText = faktor > 1.02 ? " · Wachstum zieht an"
+    : faktor < 0.98 ? " · Wachstum lässt nach" : "";
+
   const faktoren: Teilfaktor[] = [
     {
       name: "PEG (bereinigt)",
       wert: e.adjustedPeg,
-      // Unter 1 gilt klassisch als günstig, ab 3 als ambitioniert.
-      punkte: punkteAus(e.adjustedPeg === null || e.adjustedPeg <= 0 ? null : e.adjustedPeg, 3, 0.8),
-      gewicht: 0.25,
-      hinweis: e.adjustedPeg === null ? "nicht verfügbar" : `${e.adjustedPeg.toFixed(2)} — Bewertung im Verhältnis zum Wachstum`,
-    },
-    {
-      name: "KGV",
-      wert: e.kgv,
-      punkte: punkteAus(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 40, 10),
-      gewicht: 0.25,
-      hinweis: e.kgv === null ? "nicht verfügbar" : `${e.kgv.toFixed(1)}-facher Jahresgewinn`,
+      punkte: pegPunkte,
+      gewicht: 0.45,
+      hinweis: e.adjustedPeg === null ? "nicht verfügbar"
+        : `${e.adjustedPeg.toFixed(2)} — Bewertung im Verhältnis zum Wachstum${richtungsText}`,
     },
     {
       name: "Free-Cash-Flow-Rendite",
       wert: e.fcfRendite,
       punkte: punkteAus(e.fcfRendite, 0, 8),
-      gewicht: 0.20,
+      gewicht: 0.35,
       hinweis: e.fcfRendite === null ? "nicht verfügbar" : `${e.fcfRendite.toFixed(1)} % — schwerer zu beschönigen als der Gewinn`,
     },
-    {
-      name: "Dividendenrendite",
-      wert: e.dividendenrendite,
-      punkte: punkteAus(e.dividendenrendite, 0, 5),
-      gewicht: 0.15,
-      hinweis: e.dividendenrendite === null ? "nicht verfügbar" : `${e.dividendenrendite.toFixed(2)} %`,
-    },
-    {
-      name: "Kurs-Buchwert",
-      wert: e.kursBuchwert,
-      punkte: punkteAus(e.kursBuchwert === null || e.kursBuchwert <= 0 ? null : e.kursBuchwert, 8, 1),
-      gewicht: 0.15,
-      hinweis: e.kursBuchwert === null ? "nicht verfügbar" : `${e.kursBuchwert.toFixed(2)}-facher Buchwert`,
-    },
+    { ...dividende, gewicht: 0.20 },
   ];
-  return baueTeilScore(faktoren);
+
+  const basis = baueTeilScore(faktoren);
+  if (basis.score === null) return basis;
+
+  const deckel = kgvDeckel(e.kgv);
+  if (basis.score <= deckel) return basis;
+
+  return {
+    ...basis,
+    score: parseFloat(deckel.toFixed(1)),
+    faktoren: [
+      ...basis.faktoren,
+      {
+        name: "KGV-Deckel",
+        wert: e.kgv,
+        punkte: parseFloat(deckel.toFixed(1)),
+        gewicht: 0,
+        hinweis: `KGV ${e.kgv!.toFixed(1)} begrenzt die Bewertung auf ${deckel.toFixed(0)} — `
+          + `das PEG allein ergäbe ${basis.score.toFixed(1)}`,
+      },
+    ],
+  };
 }
 
 // ─── Bänder ───────────────────────────────────────────────────────────────────

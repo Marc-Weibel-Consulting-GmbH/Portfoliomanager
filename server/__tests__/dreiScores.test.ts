@@ -19,6 +19,9 @@ import {
   qualitaetsBand,
   bewertungsBand,
   punkteAus,
+  kgvDeckel,
+  wachstumsFaktor,
+  nutztBuchwert,
 } from "../lib/dreiScores";
 
 // ─── Testdaten: zwei Geschäftsjahre eines sich verbessernden Unternehmens ─────
@@ -239,30 +242,128 @@ describe("Bewertung — hoch heisst günstig", () => {
     expect(bewertungsBand(r.score)).toBe("teuer");
   });
 
-  it("ABB: hohes KGV und hoher Buchwertaufschlag ergeben «teuer»", () => {
-    // Werte aus der Schweizer F-Score-Tabelle von The Market (30.07.2026):
-    // KGV 2027e 26.5, Kurs-Buchwert 10.9, FCF-Rendite 2.8 %.
-    const r = berechneBewertung({
-      adjustedPeg: null, kgv: 26.5, fcfRendite: 2.8, dividendenrendite: 1.51, kursBuchwert: 10.9,
-    });
-    expect(r.score).not.toBeNull();
-    expect(r.score!).toBeLessThan(50);
-  });
-
   it("greift die Mindestabdeckung", () => {
+    // Nur die Dividendenrendite (0.20 von 1.0) — zu wenig.
     const r = berechneBewertung({
       adjustedPeg: null, kgv: null, fcfRendite: null, dividendenrendite: 3, kursBuchwert: null,
     });
-    expect(r.abdeckung).toBeCloseTo(0.15, 2);
+    expect(r.abdeckung).toBeCloseTo(0.20, 2);
     expect(r.score).toBeNull();
   });
 
   it("ein negatives KGV wird nicht als günstig gelesen", () => {
+    // Ein Verlusttitel darf ueber den KGV-Deckel keinen Vorteil erhalten.
     const verlust = berechneBewertung({
-      adjustedPeg: null, kgv: -12, fcfRendite: 3, dividendenrendite: 2, kursBuchwert: 2,
+      adjustedPeg: 1.2, kgv: -12, fcfRendite: 3, dividendenrendite: 2, kursBuchwert: 2,
     });
-    const kgvFaktor = verlust.faktoren.find((f) => f.name === "KGV")!;
-    expect(kgvFaktor.punkte).toBeNull();
+    expect(kgvDeckel(-12)).toBe(100); // kein Deckel, aber auch kein Bonus
+    expect(verlust.score).not.toBeNull();
+  });
+});
+
+describe("KGV als Deckel statt als Summand", () => {
+  it("greift bis KGV 30 nicht", () => {
+    expect(kgvDeckel(10)).toBe(100);
+    expect(kgvDeckel(30)).toBe(100);
+  });
+
+  it("senkt die Obergrenze mit steigendem KGV", () => {
+    expect(kgvDeckel(50)).toBeCloseTo(60, 1);
+    expect(kgvDeckel(80)).toBeCloseTo(35, 1);
+    expect(kgvDeckel(128)).toBe(25);
+  });
+
+  it("Palantir: tiefes PEG, aber das absolute KGV begrenzt", () => {
+    // PEG 0.45 ergaebe fuer sich 100 Punkte. KGV 128 heisst: Der Markt hat
+    // viele Jahre Wachstum vorweggenommen — bleibt es aus, ist die Fallhoehe
+    // gross. Das kann das PEG nicht ausdruecken.
+    const r = berechneBewertung({
+      adjustedPeg: 0.451, kgv: 128.19, fcfRendite: 0.952, dividendenrendite: 0,
+      kursBuchwert: 34.86, sektor: "Technology",
+    });
+    expect(r.score).toBe(25);
+    const deckel = r.faktoren.find((f) => f.name === "KGV-Deckel");
+    expect(deckel).toBeDefined();
+    expect(deckel!.hinweis).toContain("PEG allein");
+  });
+
+  it("bei moderatem KGV bleibt der Deckel wirkungslos", () => {
+    const r = berechneBewertung({
+      adjustedPeg: 1.489, kgv: 26.3, fcfRendite: 3.794, dividendenrendite: 2.37,
+      kursBuchwert: 10.42, sektor: "Consumer Defensive",
+    });
+    expect(r.faktoren.find((f) => f.name === "KGV-Deckel")).toBeUndefined();
+  });
+});
+
+describe("Wachstumsrichtung", () => {
+  it("beschleunigtes Wachstum hebt das PEG-Urteil", () => {
+    expect(wachstumsFaktor(60, 45)).toBeCloseTo(1.10, 2);
+  });
+
+  it("nachlassendes Wachstum senkt es", () => {
+    expect(wachstumsFaktor(5, 25)).toBeCloseTo(0.80, 2);
+  });
+
+  it("ist begrenzt — auch extreme Sprünge kippen das Urteil nicht", () => {
+    expect(wachstumsFaktor(500, 1)).toBe(1.1);
+    expect(wachstumsFaktor(1, 500)).toBe(0.8);
+  });
+
+  it("bleibt neutral, wenn eine der beiden Zahlen fehlt", () => {
+    expect(wachstumsFaktor(null, 10)).toBe(1);
+    expect(wachstumsFaktor(10, null)).toBe(1);
+    expect(wachstumsFaktor(undefined, undefined)).toBe(1);
+  });
+
+  it("wird im Hinweistext benannt", () => {
+    const anziehend = berechneBewertung({
+      adjustedPeg: 1.5, kgv: 20, fcfRendite: 4, dividendenrendite: 2, kursBuchwert: 3,
+      epsWachstumTTM: 30, epsWachstum5j: 10, sektor: "Technology",
+    });
+    expect(anziehend.faktoren[0].hinweis).toContain("zieht an");
+
+    const nachlassend = berechneBewertung({
+      adjustedPeg: 1.5, kgv: 20, fcfRendite: 4, dividendenrendite: 2, kursBuchwert: 3,
+      epsWachstumTTM: 2, epsWachstum5j: 20, sektor: "Technology",
+    });
+    expect(nachlassend.faktoren[0].hinweis).toContain("lässt nach");
+    expect(nachlassend.score!).toBeLessThan(anziehend.score!);
+  });
+});
+
+describe("Kurs-Buchwert nur dort, wo er etwas aussagt", () => {
+  it("erkennt Banken, Versicherer und Immobilien", () => {
+    for (const s of ["Financial Services", "Banks", "Insurance", "Real Estate", "Immobilien", "Versicherung"]) {
+      expect(nutztBuchwert(s), s).toBe(true);
+    }
+  });
+
+  it("erkennt alle übrigen als Nicht-Buchwert-Sektoren", () => {
+    for (const s of ["Technology", "Healthcare", "Industrials", "Consumer Defensive", null, undefined, ""]) {
+      expect(nutztBuchwert(s), String(s)).toBe(false);
+    }
+  });
+
+  it("eine Bank wird nach Buchwert, KGV und Ausschüttung beurteilt", () => {
+    const r = berechneBewertung({
+      adjustedPeg: 1.2, kgv: 11, fcfRendite: null, dividendenrendite: 5.5,
+      kursBuchwert: 1.1, sektor: "Financial Services",
+    });
+    expect(r.faktoren.map((f) => f.name)).toEqual(["Kurs-Buchwert", "KGV", "Dividendenrendite"]);
+    expect(r.abdeckung).toBe(1);
+    expect(bewertungsBand(r.score)).toBe("günstig");
+  });
+
+  it("ein Softwarehaus wird nicht am Buchwert gemessen", () => {
+    // Apple handelt zum 42-fachen Buchwert. Ein fuer Value kalibrierter Anker
+    // gaebe null Punkte und sagte damit nichts.
+    const r = berechneBewertung({
+      adjustedPeg: 1.078, kgv: 35.26, fcfRendite: 3.162, dividendenrendite: 0.34,
+      kursBuchwert: 42.21, sektor: "Technology",
+    });
+    expect(r.faktoren.some((f) => f.name === "Kurs-Buchwert")).toBe(false);
+    expect(r.score).toBeGreaterThan(50);
   });
 });
 
