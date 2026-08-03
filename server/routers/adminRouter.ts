@@ -1260,6 +1260,23 @@ export const adminRouter = router({
     }),
 
     /**
+     * Stand der Signal-Schattenrechnung: Empfehlung mit gegenüber ohne
+     * Qualitätsanteil im Timing-Teil (siehe lib/signalSchatten.ts).
+     *
+     * `avgQualitaetsAnteil` beziffert, wie viel Qualität heute im angezeigten
+     * Signal-Score steckt — die Doppelzählung, wenn daneben ein eigener
+     * Qualitätsscore steht. `gleichesSignal` zeigt, wie oft die Trennung die
+     * Handlungsempfehlung überhaupt dreht.
+     *
+     * Solange `vergleichbar` klein ist, sagt der Vergleich nichts. Die Zahl
+     * steht bewusst dabei.
+     */
+    getSignalSchattenBilanz: adminProcedure.query(async () => {
+      const { signalSchattenBilanz } = await import("../lib/signalSchattenStore");
+      return await signalSchattenBilanz();
+    }),
+
+    /**
      * Netto-Wirkung der Vorschlaege: welcher Massstab galt, wie viel der Aufbau
      * modelliert gekostet haette und was nach Abzug uebrig bleibt.
      *
