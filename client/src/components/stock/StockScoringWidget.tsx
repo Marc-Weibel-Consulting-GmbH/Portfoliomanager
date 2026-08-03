@@ -1,8 +1,11 @@
 /**
- * StockScoringWidget — «Signal-Score (Strategie)»
- * Combined Momentum + Quality + LPPL scoring widget (StockDetail, Tab «Signale»).
- * F-07: Teil des Signal-Konzepts — dieser Score fliesst ins Handelssignal ein
- * und ist bewusst vom langfristigen Qualitäts-Score im Header getrennt.
+ * StockScoringWidget — Detailansicht der alten Signal-Zusammensetzung.
+ *
+ * Zeigt Momentum, Qualität und LPPL, wie sie das Signal bis zur Umstellung
+ * bildeten. Diese Mischung entscheidet nicht mehr — das Signal entsteht jetzt
+ * aus Qualität, Bewertung und Timing (`dreiScoreSignal.ts`). Die Ansicht
+ * bleibt, weil die alte Mischung im Schatten weiterläuft und der Vergleich
+ * sichtbar sein soll.
  */
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -74,7 +77,7 @@ export default function StockScoringWidget({ ticker }: Props) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-white text-sm flex items-center gap-2">
             <Activity className="w-4 h-4 text-[#00CFC1]" />
-            Signal-Score (Strategie)
+            Frühere Zusammensetzung (Schattenrechnung)
             <span className="text-gray-500 text-xs font-normal">Momentum + Qualität + LPPL</span>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -99,7 +102,8 @@ export default function StockScoringWidget({ ticker }: Props) {
         </div>
         {/* F-07: Einzeiler zur Einordnung */}
         <p className="text-gray-500 text-xs">
-          Fliesst als Strategie-Komponente ins Handelssignal ein — kein Qualitätsurteil über die Aktie.
+          Entscheidet nicht mehr — das Signal entsteht jetzt aus Qualität, Bewertung und Timing.
+          Diese Mischung läuft im Schatten weiter, damit der Vergleich messbar bleibt.
         </p>
       </CardHeader>
       <CardContent className="p-4 pt-0">
@@ -202,7 +206,7 @@ export default function StockScoringWidget({ ticker }: Props) {
 
             {/* Weights info */}
             <p className="text-gray-600 text-[10px] text-right">
-              Gewichtung: 40% Momentum · 40% Qualität · 20% LPPL-Malus · {scoring.analysisDate}
+              Frühere Gewichtung: 40% Momentum · 40% Qualität · 20% LPPL-Malus · {scoring.analysisDate}
             </p>
           </div>
         )}

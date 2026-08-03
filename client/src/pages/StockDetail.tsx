@@ -1095,13 +1095,21 @@ export default function StockDetail() {
                 <div className="w-10 h-10 rounded-lg bg-[#00CFC1]/20 flex items-center justify-center">
                   <Info className="w-5 h-5 text-[#00CFC1]" />
                 </div>
-                <h3 className="text-xl font-bold text-white">Signal-Score (Strategie)</h3>
+                <h3 className="text-xl font-bold text-white">Signal</h3>
               </div>
 
               <p className="text-sm text-gray-300 mb-4">
-                Der <strong className="text-[#00CFC1]">Signal-Score</strong> ist die kurz- bis
-                mittelfristige Strategie-Sicht und fliesst ins Handelssignal ein — kein Qualitätsurteil
-                über die Aktie. Zusammensetzung und Gewichtung (40% Momentum · 40% Qualität · 20% LPPL-Malus):
+                Das <strong className="text-[#00CFC1]">Signal</strong> ist die Zusammenfassung der drei
+                Scores zu einer Empfehlung: <strong>Qualität</strong> (wie gut ist das Unternehmen),
+                <strong> Bewertung</strong> (wie teuer ist die Aktie) und <strong>Timing</strong>
+                (wie günstig ist der Zeitpunkt). Wie stark jeder Teil zählt, hängt vom Marktregime ab —
+                in der Krise wiegt das Unternehmen schwerer, im Aufschwung der Zeitpunkt.
+              </p>
+              <p className="text-xs text-gray-400 mb-4">
+                Bis zur Umstellung bestand diese Zahl zu 40 % aus einer eigenen Qualitätsrechnung. Wer
+                Qualität und Signal nebeneinander las, zählte Qualität damit zweimal. Jetzt zählt jeder
+                Teil genau einmal, und die Rechnung steht offen: Die drei Beiträge summieren sich zum
+                Signal.
               </p>
 
               <StockScoringWidget ticker={ticker} />
