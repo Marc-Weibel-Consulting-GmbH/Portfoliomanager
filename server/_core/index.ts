@@ -247,6 +247,16 @@ async function startServer() {
     initKiBoomHistoryCron();
     // Start KI-Boom dynamic metrics cron (daily Perplexity fetch of OpenAI, CapEx, VC, ROI data)
     initKiBoomDynamicCron();
+
+    // Einmalige Reparatur der hundertfach zu hohen Dividendenrenditen. Läuft
+    // verzögert, damit der Start nicht blockiert, und ist idempotent — ein
+    // zweiter Lauf findet nichts mehr. Selbstheilend, weil der Deploy keine
+    // Migrationen ausführt.
+    setTimeout(() => {
+      import("../lib/dividendenrenditeReparatur")
+        .then((m) => m.repariereDividendenrenditen())
+        .catch((e) => console.warn("[Dividendenrendite] Reparatur nicht gestartet:", e?.message));
+    }, 90 * 1000);
     // Research signals are refreshed via Heartbeat cron (see /api/scheduled/researchSignalsRefresh)
     initGapFillingCron();
     // Learning-Koordination: wöchentliche Lernschleifen (Regime-Priors + Signal-
