@@ -1,3 +1,4 @@
+import { detectAssetClass, istBewertbar, kuponAusName } from './lib/assetClassSignal';
 import { MIN_ABDECKUNG_SCORE } from './lib/scoreAbdeckung';
 export { MIN_ABDECKUNG_SCORE };
 
@@ -371,14 +372,38 @@ export function calculateStockScore(
   ticker: string,
   metrics: StockMetrics,
   stockType?: StockType,
-  category?: string
+  category?: string,
+  name?: string | null,
 ): StockScore {
+  // Obligationen, Fonds und Zertifikate erkennen — auch dann, wenn die
+  // Kategorie sie faelschlich als Aktien fuehrt. In der Datenbank stehen 17
+  // solcher Papiere unter «Wachstumsaktien»; sie trugen KGV = 0, PEG = 0 und
+  // Dividendenrendite = 0 bei einem Kurs von 99.53. Der Name verraet, was sie
+  // wirklich sind: «0.35% NTS Lonza Swiss Finanz AG».
+  const erkannt = detectAssetClass(category, null, name ?? null, ticker);
+  if (!istBewertbar(erkannt)) {
+    return {
+      ticker,
+      type: 'growth',
+      totalScore: null,
+      abdeckung: 0,
+      color: 'red',
+      subScores: [],
+    };
+  }
+
   // ACS-1: Route to asset-class-specific scorer for non-equity assets
   const cat = (category || '').toLowerCase();
   let assetSubScores: SubScore[] | null = null;
   let assetTypeName: StockType = 'growth';
-  if (cat.includes('obligation') || cat.includes('bond') || cat.includes('anleihe')) {
-    assetSubScores = scoreBond(metrics); assetTypeName = 'dividend';
+  if (erkannt === 'bond' || cat.includes('obligation') || cat.includes('bond') || cat.includes('anleihe')) {
+    // Der Kupon steht bei diesen Papieren im Namen und sonst nirgends. Ohne ihn
+    // bewertet scoreBond eine 0 als Rendite — und 0 heisst hier «nicht
+    // erfasst», nicht «schuettet nichts aus».
+    const kupon = (metrics.dividendYield ?? 0) > 0
+      ? metrics.dividendYield
+      : (kuponAusName(name) ?? undefined);
+    assetSubScores = scoreBond({ ...metrics, dividendYield: kupon }); assetTypeName = 'dividend';
   } else if (cat.includes('gold')) {
     assetSubScores = scoreGold(metrics); assetTypeName = 'growth';
   } else if (cat.includes('rohstoff') || cat.includes('commodity') || cat.includes('rohwaren')) {
