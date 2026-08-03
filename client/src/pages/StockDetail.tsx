@@ -32,13 +32,16 @@ import {
 type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "10Y" | "YTD" | "All";
 
 // Score circle component with explanation
-function ScoreCircle({ score, onClick }: { score: number; onClick?: () => void }) {
+function ScoreCircle({ score, onClick }: { score: number | null; onClick?: () => void }) {
   const circumference = 2 * Math.PI * 40;
-  const strokeDashoffset = circumference - (score / 100) * circumference;
+  // `null` heisst «nicht beurteilbar» und ist etwas anderes als eine schlechte
+  // Note. Der Ring bleibt dann leer und die Mitte zeigt einen Strich.
+  const strokeDashoffset = score === null ? circumference : circumference - (score / 100) * circumference;
   
   // UX2-7: Farbskala deckungsgleich mit der erklärten Notenskala im
   // Score-Dialog (>80 Ausgezeichnet · 61–80 Gut · 41–60 Mittel · ≤40 Schwach).
-  const getColor = (score: number) => {
+  const getColor = (score: number | null) => {
+    if (score === null) return "#334155";
     if (score > 80) return "#00CFC1";
     if (score > 60) return "#eab308";
     if (score > 40) return "#fb923c";
@@ -76,8 +79,14 @@ function ScoreCircle({ score, onClick }: { score: number; onClick?: () => void }
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-xl font-bold text-white">{score}</span>
-        <span className="text-xs text-gray-400">/100</span>
+        {score === null ? (
+          <span className="text-xl font-bold text-gray-500" title="Zu wenige Kennzahlen für eine Beurteilung">—</span>
+        ) : (
+          <>
+            <span className="text-xl font-bold text-white">{score}</span>
+            <span className="text-xs text-gray-400">/100</span>
+          </>
+        )}
       </div>
     </div>
   );
@@ -150,6 +159,7 @@ export default function StockDetail() {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("6M");
   const [showScoreExplanation, setShowScoreExplanation] = useState(false);
   const [showSignalExplanation, setShowSignalExplanation] = useState(false);
+  const [showBewertungExplanation, setShowBewertungExplanation] = useState(false);
   const [showAddToPortfolio, setShowAddToPortfolio] = useState(false);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
   // UX2-1: Alarm-Dialog verdrahtet (vorher toter Button ohne onClick/State)
@@ -209,6 +219,15 @@ export default function StockDetail() {
 
   // Check if stock is already in a portfolio (for hiding "Add to Portfolio" button)
   const { data: userPortfolios = [] } = trpc.portfolios.list.useQuery();
+
+  // Qualitaet und Bewertung getrennt (design/KONZEPT_SCORE_DREITEILUNG.md).
+  // Der bisherige Einzelscore mischte beides: ABB erhielt 31 «schwach», weil
+  // Dividendenrendite und KGV zusammen 70 % des Gewichts trugen und beide
+  // dasselbe sagten — teuer. Ueber die Guete des Unternehmens sagte er nichts.
+  const { data: dreiScores } = trpc.analytics.dreiScores.useQuery(
+    { ticker: ticker ?? "" },
+    { enabled: !!ticker, staleTime: 300000, retry: false },
+  );
   const utils = trpc.useUtils();
 
   // Signal-Score (Strategie) für den Header-Kreis neben dem Qualitäts-Score.
@@ -523,15 +542,36 @@ export default function StockDetail() {
                 </Button>
               </div>
             </div>
-            {score !== null && (
-              /* F-07: Qualitäts-Score (langfristig, fundamental) — Klick öffnet Erklärung */
+            {/* Drei getrennte Achsen statt einer Zahl:
+                  Qualitaet  — Ist das ein gutes Unternehmen?  (kursunabhaengig)
+                  Bewertung  — Ist der Preis angemessen?       (hoch = guenstig)
+                  Signal     — Was tun?                         (Empfehlung)
+
+                Das Signal heisst bewusst nicht «Timing»: Es enthaelt noch einen
+                Qualitaetsanteil von 35 bis 75 Prozent je nach Regime. Ob der
+                herausgeloest wird, entscheidet die Schattenmessung (#241). Bis
+                dahin waere «Timing» eine falsche Beschriftung. */}
+            <div className="flex flex-col items-center gap-1">
+              <ScoreCircle
+                score={dreiScores ? dreiScores.qualitaet.gesamt : score}
+                onClick={() => setShowScoreExplanation(true)}
+              />
+              <span className="text-xs text-gray-400">Qualität</span>
+              {dreiScores?.qualitaet.band && (
+                <span className="text-[10px] text-gray-500">{dreiScores.qualitaet.band}</span>
+              )}
+            </div>
+            {dreiScores && (
               <div className="flex flex-col items-center gap-1">
-                <ScoreCircle score={score} onClick={() => setShowScoreExplanation(true)} />
-                <span className="text-xs text-gray-400">Qualität</span>
+                <ScoreCircle
+                  score={dreiScores.bewertung.score}
+                  onClick={() => setShowBewertungExplanation(true)}
+                />
+                <span className="text-xs text-gray-400">Bewertung</span>
+                <span className="text-[10px] text-gray-500">{dreiScores.bewertung.band}</span>
               </div>
             )}
             {signalScore !== null && (
-              /* Signal-Score (Strategie) — gleichwertiger Kreis; Klick öffnet Detail/Berechnung */
               <div className="flex flex-col items-center gap-1">
                 <ScoreCircle score={signalScore} onClick={() => setShowSignalExplanation(true)} />
                 <span className="text-xs text-gray-400">Signal</span>
@@ -1084,52 +1124,128 @@ export default function StockDetail() {
                 <h3 className="text-xl font-bold text-white">Qualitäts-Score</h3>
               </div>
 
-              {/* F-07: Erklärung entspricht der echten Gewichtung in server/scoring.ts
-                  (calculateStockScore, Dividenden- vs. Wachstumsprofil). */}
+              {/* Erklärung entspricht der Umsetzung in server/lib/dreiScores.ts
+                  (berechneQualitaet: Niveau 60 % + Richtung 40 %). */}
               <div className="space-y-4 text-sm text-gray-300">
                 <p>
-                  Der <strong className="text-[#00CFC1]">Qualitäts-Score ({score}/100)</strong> misst
-                  die langfristige Qualität einer Aktie anhand von Fundamental- und Risikokennzahlen.
-                  Er sagt nichts über den richtigen Kaufzeitpunkt aus — dafür gibt es den
-                  Signal-Score im Seitenkopf.
+                  Der <strong className="text-[#00CFC1]">Qualitäts-Score</strong> misst, wie gut das
+                  <strong> Unternehmen</strong> ist — nicht, ob die Aktie günstig ist und nicht, ob
+                  der Zeitpunkt stimmt. Dafür stehen die Kreise «Bewertung» und «Signal» daneben.
                 </p>
 
-                <p>
-                  Je nach Profil der Aktie werden unterschiedliche Kennzahlen gewichtet:
+                <p className="text-xs text-gray-400">
+                  Die Abgrenzung: Eine Kennzahl gehört hierher, wenn sie sich <em>nicht</em> ändert,
+                  sobald allein der Kurs sich bewegt. Dividendenrendite, KGV und Momentum ändern sich
+                  mit dem Kurs — sie stehen deshalb bei der Bewertung beziehungsweise beim Signal.
                 </p>
 
                 <div>
-                  <p className="font-semibold text-white mb-1">Dividendentitel</p>
+                  <p className="font-semibold text-white mb-1">Niveau — 60 %: Ist das Geschäft gut?</p>
                   <ul className="space-y-1">
-                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Dividendenrendite (40%):</strong> Wie viel Ausschüttung Sie im Verhältnis zum Kurs erhalten</span></li>
-                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>KGV (30%):</strong> Wie teuer die Aktie im Verhältnis zum Gewinn ist — tiefer ist besser</span></li>
-                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Beta (20%):</strong> Wie stark die Aktie mit dem Markt schwankt — stabiler ist besser</span></li>
-                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Volatilität (10%):</strong> Wie stark der Kurs schwankt — ruhiger ist besser</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Kapitalrendite ROIC (25%):</strong> Was das Unternehmen aus dem eingesetzten Kapital erwirtschaftet — der belastbarste Hinweis auf einen Wettbewerbsvorteil</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Betriebsmarge (20%):</strong> Was vom Umsatz als Betriebsgewinn übrig bleibt — ein Mass für Preissetzungsmacht</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Ertragsqualität (20%):</strong> Ob der ausgewiesene Gewinn durch echte Zahlungsströme gedeckt ist — der wirksamste Schutz gegen buchhalterisch erzeugte Gewinne</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Gewinnstabilität (15%):</strong> Wie gleichmässig die Gewinne über die Jahre ausfallen</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Verschuldung (10%):</strong> Nettoschulden im Verhältnis zum operativen Ergebnis</span></li>
+                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Bruttomarge (10%):</strong> Struktur des Geschäftsmodells</span></li>
                   </ul>
                 </div>
 
                 <div>
-                  <p className="font-semibold text-white mb-1">Wachstumstitel</p>
-                  <ul className="space-y-1">
-                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Sharpe Ratio (30%):</strong> Rendite im Verhältnis zum eingegangenen Risiko</span></li>
-                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>PEG Ratio (25%):</strong> Bewertung im Verhältnis zum Gewinnwachstum — tiefer ist besser</span></li>
-                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Gewinnwachstum (25%):</strong> Erwartetes jährliches Gewinnwachstum (aus KGV/PEG abgeleitet)</span></li>
-                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Beta (20%):</strong> Marktschwankung — stabiler ist besser</span></li>
-                    <li className="flex items-start gap-2"><div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div><span><strong>Momentum YTD (15%):</strong> Kursentwicklung seit Jahresbeginn</span></li>
-                  </ul>
+                  <p className="font-semibold text-white mb-1">Richtung — 40 %: Vorwärts oder rückwärts?</p>
+                  <p className="text-xs">
+                    Der <strong>Piotroski F-Score</strong> prüft neun Kriterien gegenüber dem Vorjahr —
+                    Cashflow, Kapitalrendite, Verschuldung, Liquidität, Aktienzahl, Bruttomarge und
+                    Kapitalumschlag. Je Kriterium ein Punkt, höchstens neun. Er zeigt, ob sich ein
+                    Unternehmen fundamental verbessert oder verschlechtert.
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Ohne diesen Teil sähe ein Unternehmen mit erstklassigen, aber seit Jahren
+                    erodierenden Kennzahlen tadellos aus.
+                  </p>
                 </div>
 
                 <p className="text-xs text-gray-500">
-                  Fehlt eine Kennzahl, wird sie herausgerechnet und die übrigen Gewichte werden
-                  entsprechend hochskaliert (die Prozentwerte sind relative Gewichte).
+                  Fehlt eine Kennzahl, tragen die übrigen entsprechend stärker. Sind weniger als
+                  60 % der Gewichtung belegt, zeigt der Kreis «—» statt einer Note — eine Lücke ist
+                  ehrlicher als eine Zahl, die nur die Datenlage abbildet.
                 </p>
 
                 <div className="pt-3 border-t border-white/10">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-[#00CFC1]">&gt;80: Ausgezeichnet</span>
-                    <span className="text-yellow-500">61–80: Gut</span>
-                    <span className="text-orange-400">41–60: Mittel</span>
-                    <span className="text-red-500">≤40: Schwach</span>
+                    <span className="text-[#00CFC1]">≥75: Ausgezeichnet</span>
+                    <span className="text-yellow-500">55–74: Gut</span>
+                    <span className="text-orange-400">35–54: Mittel</span>
+                    <span className="text-red-500">&lt;35: Schwach</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showBewertungExplanation && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#0f1420] border border-[#00CFC1]/30 rounded-lg max-w-md w-full p-6 relative max-h-[85vh] overflow-y-auto">
+              <button
+                onClick={() => setShowBewertungExplanation(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+                aria-label="Schliessen"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-[#00CFC1]/15 flex items-center justify-center">
+                  <Info className="h-5 w-5 text-[#00CFC1]" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">Bewertungs-Score</h3>
+              </div>
+
+              <div className="space-y-4 text-sm text-gray-300">
+                <p>
+                  Der <strong className="text-[#00CFC1]">Bewertungs-Score</strong> beantwortet eine
+                  einzige Frage: <strong>Ist der Preis angemessen?</strong>
+                </p>
+                <p className="rounded-md bg-[#00CFC1]/10 border border-[#00CFC1]/30 px-3 py-2 text-xs">
+                  <strong>Hoch heisst günstig.</strong> Ein Wert von 85 bedeutet also preiswert,
+                  nicht teuer.
+                </p>
+
+                {dreiScores?.bewertung.faktoren?.length ? (
+                  <div>
+                    <p className="font-semibold text-white mb-1">Für diesen Titel</p>
+                    <ul className="space-y-1.5">
+                      {dreiScores.bewertung.faktoren.map((f) => (
+                        <li key={f.name} className="flex items-start gap-2">
+                          <div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div>
+                          <span>
+                            <strong>{f.name}{f.gewicht > 0 ? ` (${Math.round(f.gewicht * 100)}%)` : ""}:</strong>{" "}
+                            {f.hinweis}
+                            {f.punkte !== null && <span className="text-gray-500"> — {Math.round(f.punkte)} Punkte</span>}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                <p className="text-xs text-gray-400">
+                  Bei Banken, Versicherern und Immobilien zählt der Buchwert; dort besteht das
+                  Vermögen aus bilanzierten Forderungen und Objekten. Bei allen übrigen trägt das
+                  PEG — die Bewertung im Verhältnis zum Gewinnwachstum.
+                </p>
+                <p className="text-xs text-gray-400">
+                  Ein sehr hohes KGV <strong>begrenzt</strong> den Score, auch wenn das PEG günstig
+                  aussieht. Ein tiefes PEG bei KGV 128 heisst nicht «günstig», sondern «günstig,
+                  falls das Wachstum hält» — bleibt es aus, ist die Fallhöhe gross.
+                </p>
+
+                <div className="pt-3 border-t border-white/10">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[#00CFC1]">≥75: Günstig</span>
+                    <span className="text-yellow-500">55–74: Fair</span>
+                    <span className="text-orange-400">35–54: Ambitioniert</span>
+                    <span className="text-red-500">&lt;35: Teuer</span>
                   </div>
                 </div>
               </div>
