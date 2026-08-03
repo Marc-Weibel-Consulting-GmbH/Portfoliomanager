@@ -16,18 +16,102 @@
 
 import type { SignalType, SignalStrength, BaseSignal } from './baseSignal';
 
-export type AssetClass = 'equity' | 'bond' | 'gold' | 'commodity' | 'crypto' | 'realestate';
+export type AssetClass =
+  | 'equity' | 'bond' | 'gold' | 'commodity' | 'crypto' | 'realestate'
+  /** Fondsanteile und Zertifikate — weder Aktie noch direkt bewertbares Wertpapier. */
+  | 'fund' | 'certificate';
 
-/** Detect asset class from category string (from stocks.category or SLEEVE_TICKER_LABEL) */
-export function detectAssetClass(category?: string | null, assetType?: string | null): AssetClass {
+/**
+ * Wertpapiere, die nach keinem Aktien- oder Anlageklassen-Massstab beurteilt
+ * werden können. Sie erhalten weder Score noch Handlungsempfehlung.
+ */
+export const NICHT_BEWERTBAR: AssetClass[] = ['fund', 'certificate'];
+
+export function istBewertbar(assetClass: AssetClass): boolean {
+  return !NICHT_BEWERTBAR.includes(assetClass);
+}
+
+/** Ticker in ISIN-Form (2 Buchstaben, 9 alphanumerische, 1 Prüfziffer). */
+const ISIN_FORM = /^[A-Z]{2}[A-Z0-9]{9}[0-9]/;
+
+/**
+ * Kuponangabe im Wertpapiernamen — «1/4%», «0.35%», «3/8%», «1.5%».
+ * Ein Kupon im Namen ist das verlässlichste Merkmal einer Anleihe.
+ */
+const KUPON_IM_NAMEN = /(^|\s)(\d+([./]\d+)?)\s?%/;
+
+/**
+ * Liest den Kupon aus dem Wertpapiernamen.
+ *
+ * Bei den Wikifolio-Importen steht er dort und nirgends sonst: «0.35% NTS
+ * Lonza», «5/8% NTS Axpo», «1/4% NTS Pfandbriefzentrale». Das Feld
+ * `dividendYield` trägt für diese Papiere 0 — was «nicht erfasst» bedeutet,
+ * aber wie «keine Ausschüttung» aussieht und den Bewertungsmassstab verzerrt.
+ *
+ * Brüche werden aufgelöst: «5/8%» sind 0.625 Prozent.
+ */
+export function kuponAusName(name?: string | null): number | null {
+  const treffer = (name || "").match(/(^|\s)(\d+)(?:([./])(\d+))?\s?%/);
+  if (!treffer) return null;
+  const ganz = parseInt(treffer[2], 10);
+  if (!treffer[3]) return Number.isFinite(ganz) ? ganz : null;
+  const zweiter = parseInt(treffer[4], 10);
+  if (!Number.isFinite(zweiter)) return null;
+  // «0.35%» ist eine Dezimalzahl, «5/8%» ein Bruch.
+  const wert = treffer[3] === "." ? parseFloat(`${ganz}.${treffer[4]}`) : ganz / zweiter;
+  return Number.isFinite(wert) ? wert : null;
+}
+
+/**
+ * Erkennt die Anlageklasse.
+ *
+ * Die Kategorie allein reicht nicht: In der Datenbank stehen 17 Obligationen,
+ * Fonds und Zertifikate unter «Wachstumsaktien» — Wikifolio-Importe, deren
+ * Ticker noch die ISIN ist. Sie wurden dadurch nach Sharpe Ratio, PEG und
+ * Momentum beurteilt und trugen KGV = 0, PEG = 0 und Dividendenrendite = 0
+ * bei einem Kurs von 99.53. Das sind Nullen, die «nicht anwendbar» bedeuten,
+ * aber wie «extrem günstig» aussehen.
+ *
+ * Deshalb zusätzlich Name und Tickerform. Der Name trägt bei diesen Papieren
+ * die Information, die der Kategorie fehlt: «0.35% NTS Lonza Swiss Finanz AG»
+ * ist unmissverständlich eine Anleihe.
+ */
+export function detectAssetClass(
+  category?: string | null,
+  assetType?: string | null,
+  name?: string | null,
+  ticker?: string | null,
+): AssetClass {
   const cat = (category || '').toLowerCase();
   const at = (assetType || '').toLowerCase();
+  const nm = (name || '').toLowerCase();
+  const tk = (ticker || '').toUpperCase();
 
+  // Ausdrückliche Angaben haben Vorrang vor der Namensdeutung.
   if (at === 'bond' || cat.includes('obligation') || cat.includes('bond') || cat.includes('anleihe')) return 'bond';
   if (cat.includes('gold')) return 'gold';
   if (cat.includes('rohstoff') || cat.includes('commodity') || cat.includes('rohwaren')) return 'commodity';
   if (at === 'crypto' || cat.includes('krypto') || cat.includes('crypto')) return 'crypto';
   if (cat.includes('immobilien') || cat.includes('realestate') || cat.includes('reit')) return 'realestate';
+
+  // Namensdeutung — greift auch bei falscher Kategorie.
+  if (nm.includes('gold') || nm.includes('minen & metalle')) return 'gold';
+  if (nm.includes('bitcoin') || nm.includes('ethereum') || nm.includes('solana') || nm.includes('staking')) return 'crypto';
+
+  if (/\bnts\b/.test(nm) || /\bemtn\b/.test(nm) || nm.includes('pfandbrief') ||
+      nm.includes('anleihe') || nm.includes('obligation') || nm.includes('bond f')) {
+    return 'bond';
+  }
+  if (nm.startsWith('zert') || nm.includes('zertifikat')) return 'certificate';
+  if (nm.startsWith('ant ') || nm.startsWith('akt ') || nm.includes('fcp') ||
+      nm.includes(' pcc ') || nm.includes('sicav') || nm.includes('fonds')) {
+    return 'fund';
+  }
+
+  // Ein Kupon im Namen ist nur bei ISIN-Tickern aussagekräftig — bei einer
+  // gewöhnlichen Aktie könnte «5%» aus dem Firmennamen stammen.
+  if (ISIN_FORM.test(tk) && KUPON_IM_NAMEN.test(nm)) return 'bond';
+
   return 'equity';
 }
 
@@ -39,6 +123,8 @@ export const ASSET_CLASS_LABEL: Record<AssetClass, string> = {
   commodity: 'Rohstoff',
   crypto: 'Krypto',
   realestate: 'Immobilien',
+  fund: 'Fondsanteil',
+  certificate: 'Zertifikat',
 };
 
 /** Score description per asset class (shown under the score number) */
@@ -49,6 +135,8 @@ export const ASSET_CLASS_SCORE_DESC: Record<AssetClass, string> = {
   commodity: 'Momentum · RSI · 52W-Range · Volatilität',
   crypto: 'Momentum · RSI · 52W-Range',
   realestate: 'Yield · RSI · 52W-Range · Volatilität',
+  fund: 'Nicht nach Wertpapierkriterien bewertbar',
+  certificate: 'Nicht nach Wertpapierkriterien bewertbar',
 };
 
 /** Signal score description per asset class */
@@ -59,6 +147,8 @@ export const ASSET_CLASS_SIGNAL_DESC: Record<AssetClass, string> = {
   commodity: 'Momentum + Trend',
   crypto: 'Momentum + Trend',
   realestate: 'Yield-Trend + Momentum',
+  fund: 'Keine Empfehlung — Zusammensetzung nicht bekannt',
+  certificate: 'Keine Empfehlung — Auszahlungsprofil nicht bekannt',
 };
 
 /** Bewertungs-Score tooltip description per asset class */
@@ -69,6 +159,8 @@ export const ASSET_CLASS_BEWERTUNG_DESC: Record<AssetClass, string> = {
   commodity: 'Bewertet Momentum (YTD), RSI und Position in der 52W-Range. Höher = stärkerer Aufwärtstrend.',
   crypto: 'Bewertet Momentum (YTD), RSI und Position in der 52W-Range. Krypto-angepasste Schwellen.',
   realestate: 'Bewertet Ausschüttungsrendite (REIT), RSI und Volatilität. Höher = attraktiverer REIT.',
+  fund: 'Ein Fondsanteil wird nicht direkt bewertet — massgeblich ist, was im Fonds steckt.',
+  certificate: 'Ein Zertifikat wird nicht direkt bewertet — massgeblich sind Basiswert und Auszahlungsprofil.',
 };
 
 /**

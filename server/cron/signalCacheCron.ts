@@ -12,7 +12,7 @@ import { eq, inArray } from "drizzle-orm";
 import { getDb } from "../db";
 import { stockSignalCache, stocks } from "../../drizzle/schema";
 import { activeCurated } from "../lib/stockUniverse";
-import { detectAssetClass, generateAssetClassSignal } from "../lib/assetClassSignal";
+import { detectAssetClass, generateAssetClassSignal, istBewertbar, ASSET_CLASS_LABEL } from "../lib/assetClassSignal";
 
 let isRunning = false;
 
@@ -152,7 +152,12 @@ export async function refreshSignalCache(): Promise<void> {
             // ACS-1: Detect asset class from category/assetType
             const stockCategory = stockRow?.category ?? null;
             const stockAssetType = (stockRow as any)?.assetType ?? null;
-            const assetClass = detectAssetClass(stockCategory, stockAssetType);
+            // Name und Ticker mitgeben: 17 Obligationen, Fonds und Zertifikate
+            // stehen unter der Kategorie «Wachstumsaktien» (Wikifolio-Importe mit
+            // ISIN statt Ticker). Ohne den Namen bliebe die Erkennung blind.
+            const assetClass = detectAssetClass(
+              stockCategory, stockAssetType, stockRow?.companyName ?? null, ticker,
+            );
 
             const num = (v: string | null | undefined): number | null => {
               if (v == null) return null;
@@ -199,6 +204,32 @@ export async function refreshSignalCache(): Promise<void> {
               fiftyTwoWeekHigh = Math.max(...prices);
               fiftyTwoWeekLow = Math.min(...prices);
               if (prices.length >= 15) rsi14 = calcRSI(prices, 14);
+            }
+
+            // Fondsanteile und Zertifikate erhalten keine Empfehlung: Was in
+            // einem Fonds steckt, wissen wir nicht, und ein Zertifikat haengt an
+            // einem Auszahlungsprofil, das wir nicht kennen. Eine Kaufempfehlung
+            // waere hier eine Behauptung ohne Grundlage.
+            if (!istBewertbar(assetClass)) {
+              await db.insert(stockSignalCache).values({
+                ticker,
+                companyName: stockRow?.companyName ?? ticker,
+                signalType: 'hold',
+                signalStrength: 'weak',
+                combinedScore: null,
+                overallGrade: null,
+                reason: `${ASSET_CLASS_LABEL[assetClass]} — nicht nach Wertpapierkriterien bewertbar`,
+                computedAt: new Date(),
+              }).onDuplicateKeyUpdate({
+                set: {
+                  signalType: 'hold', signalStrength: 'weak',
+                  combinedScore: null, overallGrade: null,
+                  reason: `${ASSET_CLASS_LABEL[assetClass]} — nicht nach Wertpapierkriterien bewertbar`,
+                  computedAt: new Date(),
+                },
+              });
+              saved++;
+              return;
             }
 
             // 3. Generate base signal
