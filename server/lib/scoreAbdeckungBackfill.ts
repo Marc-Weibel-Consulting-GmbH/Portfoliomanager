@@ -53,6 +53,7 @@ export async function backfillScoreAbdeckung(erneutErlauben = false): Promise<Ba
         ticker: stocks.ticker,
         score: stocks.score,
         category: stocks.category,
+        companyName: stocks.companyName,
         dividendYield: stocks.dividendYield,
         peRatio: stocks.peRatio,
         pegRatio: stocks.pegRatio,
@@ -69,6 +70,18 @@ export async function backfillScoreAbdeckung(erneutErlauben = false): Promise<Ba
       return Number.isFinite(n) ? n : undefined;
     };
 
+    // Bonitätsnäherung für Obligationen: Qualitäts-Score der Aktie desselben
+    // Emittenten. Einmal je Lauf aufgebaut, nicht je Zeile.
+    const { findeEmittent } = await import("./emittentenQualitaet");
+    const { detectAssetClass } = await import("./assetClassSignal");
+    const { leseScores } = await import("./dreiScoresStore");
+    const scores = await leseScores(rows.map((r) => r.ticker));
+    const aktienFuerZuordnung = rows.map((r) => ({
+      ticker: r.ticker,
+      name: r.companyName,
+      qualitaet: scores.get(r.ticker)?.qualitaet ?? null,
+    }));
+
     let geaendert = 0;
     let aufNullGesetzt = 0;
 
@@ -83,9 +96,20 @@ export async function backfillScoreAbdeckung(erneutErlauben = false): Promise<Ba
           volatility: zahl(row.volatility),
           sharpeRatio: zahl(row.sharpeRatio),
           ytdPerformance: zahl(row.ytdPerformance),
+          // Nur für Obligationen. Bei einer Aktie fände die Zuordnung sie
+          // selbst — der Wert bliebe zwar folgenlos (nur `scoreBond` liest
+          // ihn), die Rechnerei wäre aber unnötig und irreführend.
+          emittentenQualitaet:
+            detectAssetClass(row.category, null, row.companyName, row.ticker) === "bond"
+              ? findeEmittent(row.companyName, aktienFuerZuordnung)?.qualitaet ?? null
+              : null,
         },
         undefined,
         row.category ?? undefined,
+        // Ohne den Namen erkennt `detectAssetClass` die Wikifolio-Importe nicht
+        // als Obligationen — deren Ticker ist die ISIN, die Kategorie sagt
+        // «Wachstumsaktien». Dieser Pfad wertete sie deshalb weiter wie Aktien.
+        row.companyName,
       );
 
       // `stocks.score` ist ein Ganzzahlfeld; auf dieselbe Genauigkeit runden,
