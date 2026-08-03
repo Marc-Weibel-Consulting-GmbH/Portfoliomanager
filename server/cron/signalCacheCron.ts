@@ -76,6 +76,11 @@ export async function refreshSignalCache(): Promise<void> {
     // Qualitaet und Bewertung werden hier einmal vorgerechnet und abgelegt —
     // sonst braeuchte jede Tabellenzeile einen eigenen EODHD-Abruf.
     const dreiScoreSaetze: import("../lib/dreiScoresStore").GespeicherteScores[] = [];
+    // Taegliche Aufzeichnung des geschaetzten Bewertungsteils. Das PEG laesst
+    // sich nicht rueckwirkend rekonstruieren — die Luecke schliesst sich nur
+    // nach vorn, und nur wenn jemand mitschreibt.
+    const vorwaertsSaetze: import("../lib/bewertungVorwaertsStore").VorwaertsSatz[] = [];
+    const heuteTag = new Date().toISOString().slice(0, 10);
     let marktLage: { overallRegime: string; volatilitaet?: string | null } | null = null;
     try {
       const { computeRegime: computeMarktRegime } = await import("../routers/marketRegimeRouter");
@@ -441,6 +446,16 @@ export async function refreshSignalCache(): Promise<void> {
                         abdeckungNiveau: q.niveau.abdeckung,
                         abdeckungBewertung: b.abdeckung,
                       });
+                      vorwaertsSaetze.push({
+                        ticker: stock.ticker,
+                        datum: heuteTag,
+                        bewertung: b.score,
+                        bewertungGemessen: b.scoreGemessen ?? null,
+                        anteilGeschaetzt: b.anteilGeschaetzt ?? 0,
+                        adjustedPeg: qmCache.adjustedPeg ?? null,
+                        kgv: qmCache.forwardPE ?? qmCache.trailingPE ?? null,
+                        kurs: typeof currentPrice === "number" && currentPrice > 0 ? currentPrice : null,
+                      });
                       signalSchattenSaetze.push({
                         ticker: stock.ticker,
                         liveScore: s.liveScore, liveSignal: s.liveSignal,
@@ -672,6 +687,23 @@ export async function refreshSignalCache(): Promise<void> {
         );
       } catch (e) {
         console.warn("[signalCacheCron] Drei Scores nicht abgelegt (non-fatal):", (e as Error).message);
+      }
+    }
+
+    // Geschaetzter Bewertungsteil mitschreiben. Erst wenn diese Reihe lang
+    // genug ist, laesst sich auch das PEG backtesten — bis dahin rechnet der
+    // Backtest auf `scoreGemessen`.
+    if (vorwaertsSaetze.length) {
+      try {
+        const { haltefestVorwaerts } = await import("../lib/bewertungVorwaertsStore");
+        const n = await haltefestVorwaerts(vorwaertsSaetze);
+        const mitPeg = vorwaertsSaetze.filter((v) => v.adjustedPeg !== null).length;
+        console.log(
+          `[signalCacheCron] Bewertung vorwaerts: ${n} Zeilen fuer ${heuteTag}, ` +
+          `davon ${mitPeg} mit PEG`,
+        );
+      } catch (e) {
+        console.warn("[signalCacheCron] Vorwaertsreihe nicht abgelegt (non-fatal):", (e as Error).message);
       }
     }
 
