@@ -47,6 +47,7 @@ export async function getDreiScores(ticker: string): Promise<DreiScores> {
   let dividendenrendite: number | null = null;
   let signalScore: number | null = null;
   let bisher: number | null = null;
+  let sektor: string | null = null;
   try {
     const { getDb } = await import("../db");
     const db = await getDb();
@@ -58,6 +59,7 @@ export async function getDreiScores(ticker: string): Promise<DreiScores> {
           dividendYield: stocks.dividendYield,
           signalScore: stocks.signalScore,
           score: stocks.score,
+          sector: stocks.sector,
         })
         .from(stocks)
         .where(eq(stocks.ticker, ticker))
@@ -66,6 +68,7 @@ export async function getDreiScores(ticker: string): Promise<DreiScores> {
         dividendenrendite = zahl(row.dividendYield);
         signalScore = zahl(row.signalScore);
         bisher = zahl(row.score);
+        sektor = row.sector ?? null;
       }
     }
   } catch (e) {
@@ -90,6 +93,9 @@ export async function getDreiScores(ticker: string): Promise<DreiScores> {
     fcfRendite: qm.fcfYield,
     dividendenrendite,
     kursBuchwert: qm.priceToBook,
+    epsWachstumTTM: qm.epsGrowthTTM,
+    epsWachstum5j: qm.epsGrowth5y,
+    sektor,
   });
 
   return {
