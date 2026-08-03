@@ -148,6 +148,23 @@ describe("rekonstruiere", () => {
     expect(r.uebersprungen[0]).toContain("keine Kurse");
   });
 
+  it("meldet die Zahl der Uebersprungenen waehrend des Laufs, nicht erst am Ende", async () => {
+    // Vorher stand in der Fortschrittsmeldung nur «X/Y Titel, Z Zeilen». Ein
+    // Lauf, der reihenweise scheiterte, sah damit aus wie einer, der arbeitet
+    // — sichtbar wurde es erst nach Stunden.
+    const meldungen: string[] = [];
+    await rekonstruiere(
+      Array.from({ length: 10 }, (_, i) => ({ ticker: `T${i}.SW`, sektor: null })),
+      "2023-06-01", "2024-06-30",
+      async () => null,
+      async () => TAGESKURSE,
+      (m) => meldungen.push(m),
+    );
+    const fortschritt = meldungen.filter((m) => m.startsWith("Fortschritt"));
+    expect(fortschritt.length).toBeGreaterThan(0);
+    expect(fortschritt.at(-1)).toContain("übersprungen");
+  });
+
   it("faengt einen Fehler je Titel ab, statt den Lauf abzubrechen", async () => {
     const r = await rekonstruiere(
       [{ ticker: "KAPUTT.SW", sektor: null }, { ticker: "GUT.SW", sektor: null }],

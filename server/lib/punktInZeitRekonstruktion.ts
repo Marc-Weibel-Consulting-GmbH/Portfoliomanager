@@ -15,6 +15,13 @@ import { kennzahlenPerStichtag } from "./punktInZeitKennzahlen";
 import { berechneQualitaet, berechneBewertung } from "./dreiScores";
 import { haltefestHistorie, type HistorienSatz } from "./punktInZeitStore";
 
+/** Pause vor jedem Titel, in Millisekunden. */
+const PAUSE_JE_TITEL_MS = 150;
+/** Nach so vielen Titeln eine längere Pause (zwei Anfragen je Titel). */
+const TITEL_JE_BLOCK = 10;
+/** Länge dieser Pause. */
+const PAUSE_JE_BLOCK_MS = 2000;
+
 export interface RekonstruktionsErgebnis {
   titel: number;
   zeilen: number;
@@ -100,6 +107,17 @@ export async function rekonstruiere(
 
   for (let i = 0; i < tickers.length; i++) {
     const { ticker, sektor } = tickers[i];
+
+    // Drosselung wie im Optimizer: EODHD verträgt rund 20 Anfragen am Stück.
+    // Je Titel gehen ZWEI raus (Fundamentaldaten und Kurse), deshalb die halbe
+    // Blockgrösse. Ohne diese Pausen läuft jede Anfrage in den Timeout statt
+    // eine Antwort zu bekommen — der Lauf dauert dann Stunden und liefert
+    // fast nur übersprungene Titel.
+    await new Promise((r) => setTimeout(r, PAUSE_JE_TITEL_MS));
+    if (i > 0 && i % TITEL_JE_BLOCK === 0) {
+      await new Promise((r) => setTimeout(r, PAUSE_JE_BLOCK_MS));
+    }
+
     try {
       const fundamentals = await holeFundamentals(ticker);
       if (!fundamentals) { uebersprungen.push(`${ticker} (keine Fundamentaldaten)`); continue; }
@@ -110,11 +128,21 @@ export async function rekonstruiere(
       if (!saetze.length) { uebersprungen.push(`${ticker} (keine belegte Zeile)`); continue; }
 
       zeilen += await haltefestHistorie(saetze);
-      if ((i + 1) % 10 === 0 || i === tickers.length - 1) {
-        melde(`Fortschritt: ${i + 1}/${tickers.length} Titel, ${zeilen} Zeilen.`);
-      }
     } catch (e) {
       uebersprungen.push(`${ticker} (${(e as Error).message})`);
+    } finally {
+      // `finally`, nicht danach: Die `continue`-Zweige oben springen sonst an
+      // der Meldung vorbei — ausgerechnet bei den übersprungenen Titeln, über
+      // die berichtet werden soll. Ein Lauf, der reihenweise scheitert, blieb
+      // damit vollständig stumm.
+      //
+      // Und die Zahl der Übersprungenen gehört IN die laufende Meldung, nicht
+      // erst ans Ende: Sonst sieht ein scheiternder Lauf zwei Stunden lang aus
+      // wie einer, der arbeitet.
+      if ((i + 1) % 10 === 0 || i === tickers.length - 1) {
+        melde(`Fortschritt: ${i + 1}/${tickers.length} Titel, ${zeilen} Zeilen, ` +
+              `${uebersprungen.length} übersprungen.`);
+      }
     }
   }
 
