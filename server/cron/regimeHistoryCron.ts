@@ -18,9 +18,11 @@ async function runOnce() {
   try {
     const res = await recordRegimeSnapshot();
     if (res.recorded) {
-      console.log(`[regimeHistoryCron] Snapshot ${res.date}: Score ${res.score.toFixed(4)}`);
+      console.log(`[regimeHistoryCron] Snapshot ${res.date}: Score ${res.score.toFixed(4)} (${(res.abdeckung * 100).toFixed(0)} % gedeckt)`);
+    } else if (res.grund === "ungedeckt") {
+      console.log(`[regimeHistoryCron] Snapshot ${res.date} übersprungen: zu wenig Daten (${(res.abdeckung * 100).toFixed(0)} % gedeckt) — die Kurve bekommt eine Lücke statt eines Scheinwerts`);
     } else {
-      console.log(`[regimeHistoryCron] Snapshot ${res.date} nicht gespeichert (DB/Tabelle fehlt)`);
+      console.log(`[regimeHistoryCron] Snapshot ${res.date} nicht gespeichert (${res.grund ?? "DB/Tabelle fehlt"})`);
     }
   } catch (e) {
     console.error("[regimeHistoryCron] Snapshot fehlgeschlagen:", (e as Error).message);

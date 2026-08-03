@@ -10,7 +10,56 @@ type EngineResult = {
   score: number;
   level: RegimeLevel;
   description: string;
+  /**
+   * Ob dieser Score auf Daten beruht.
+   *
+   * Ohne dieses Feld ist ein Ausfall nicht von einer echten Messung zu
+   * unterscheiden: Jede Engine liefert bei fehlgeschlagenem Abruf `score: 0`,
+   * und 0 ist ein gültiger Score. Fallen alle sieben aus, ergibt die gewichtete
+   * Summe exakt 0 — und 0 liegt über der Neutral-Schwelle von -0.1. Ein
+   * Totalausfall sah damit aus wie ein selbstbewusstes «Neutral».
+   */
+  ok: boolean;
 };
+
+/** Ausfall einer Engine. Score 0, aber ausdrücklich als «keine Messung» markiert. */
+function engineAusfall(label: string, description: string): EngineResult {
+  return { label, score: 0, level: "neutral", description, ok: false };
+}
+
+/**
+ * Erkennt eine Historienzeile, die keinen Markt abbildet, sondern einen
+ * Datenausfall.
+ *
+ * Zwei Wege, weil der Bestand gemischt ist:
+ *  - Neue Zeilen führen `_abdeckung` in `engineScores` mit.
+ *  - Ältere Zeilen haben das nicht. Für sie gilt: Sind alle sieben Engine-Scores
+ *    exakt 0, war kein einziger Abruf erfolgreich. Dass sieben unabhängige
+ *    Gleitkommazahlen gleichzeitig exakt 0 treffen, kommt sonst nicht vor.
+ *
+ * Bewusst NICHT am Gesamtscore festgemacht: 0.0000 ist ein zulässiges
+ * Messergebnis, und eine echte Messung darf nicht verschwinden, nur weil sie
+ * gerundet auf der Nulllinie landet.
+ */
+export function istAusfallZeile(row: { engineScores?: unknown }): boolean {
+  const roh = row?.engineScores;
+  let scores: Record<string, unknown> | null = null;
+  if (typeof roh === "string") {
+    try { scores = JSON.parse(roh); } catch { return false; }
+  } else if (roh && typeof roh === "object") {
+    scores = roh as Record<string, unknown>;
+  }
+  if (!scores) return false;
+
+  const abdeckung = scores._abdeckung;
+  if (typeof abdeckung === "number") return abdeckung < MIN_ABDECKUNG_SNAPSHOT;
+
+  const werte = Object.entries(scores)
+    .filter(([k]) => !k.startsWith("_"))
+    .map(([, v]) => Number(v));
+  if (werte.length === 0 || werte.some((v) => !Number.isFinite(v))) return false;
+  return werte.every((v) => v === 0);
+}
 
 function classify(score: number): RegimeLevel {
   if (score > 0.15) return "bullish";
@@ -33,7 +82,7 @@ async function calculateTrendEngine(): Promise<EngineResult> {
   try {
     const prices = await fetchHistoricalPrices('GSPC.INDX', 2);
     if (!prices || prices.length < 200) {
-      return { label: "Ungenügend Daten", score: 0, level: "neutral", description: "Weniger als 200 Tage Daten" };
+      return engineAusfall("Ungenügend Daten", "Weniger als 200 Tage Daten");
     }
 
     const closes = prices.map((p: any) => p.close);
@@ -58,10 +107,10 @@ async function calculateTrendEngine(): Promise<EngineResult> {
     const pctAbove200 = ((current / dma200 - 1) * 100).toFixed(1);
     const desc = `S&P 500 ${Number(pctAbove200) >= 0 ? '+' : ''}${pctAbove200}% über 200DMA | ${dma50 > dma200 ? 'Golden Cross' : 'Death Cross'} | 12M: ${(momentum12m * 100).toFixed(1)}%`;
     
-    return { label: labelFromLevel(level), score, level, description: desc };
+    return { label: labelFromLevel(level), score, level, description: desc, ok: true };
   } catch (e) {
     console.error('[MarketRegime] Trend engine error:', e);
-    return { label: "Fehler", score: 0, level: "neutral", description: "Datenabruf fehlgeschlagen" };
+    return engineAusfall("Fehler", "Datenabruf fehlgeschlagen");
   }
 }
 
@@ -76,7 +125,7 @@ async function calculateBreadthEngine(): Promise<EngineResult> {
     ]);
     
     if (!rspPrices || !spyPrices || rspPrices.length < 20 || spyPrices.length < 20) {
-      return { label: "Ungenügend Daten", score: 0, level: "neutral", description: "Weniger als 20 Tage Daten" };
+      return engineAusfall("Ungenügend Daten", "Weniger als 20 Tage Daten");
     }
 
     const rspCloses = rspPrices.map((p: any) => p.close);
@@ -92,10 +141,10 @@ async function calculateBreadthEngine(): Promise<EngineResult> {
     
     const desc = `RSP 1M: ${(rsp1m * 100).toFixed(1)}% | SPY 1M: ${(spy1m * 100).toFixed(1)}% | Breadth ${breadthDiff > 0 ? 'gesund' : 'schwach'}`;
     
-    return { label: labelFromLevel(level), score, level, description: desc };
+    return { label: labelFromLevel(level), score, level, description: desc, ok: true };
   } catch (e) {
     console.error('[MarketRegime] Breadth engine error:', e);
-    return { label: "Fehler", score: 0, level: "neutral", description: "Datenabruf fehlgeschlagen" };
+    return engineAusfall("Fehler", "Datenabruf fehlgeschlagen");
   }
 }
 
@@ -107,7 +156,7 @@ async function calculateVolatilityEngine(): Promise<EngineResult> {
     const prices = await fetchHistoricalPrices('VIX.INDX', 1);
     
     if (!prices || prices.length < 20) {
-      return { label: "Ungenügend Daten", score: 0, level: "neutral", description: "Weniger als 20 Tage VIX-Daten" };
+      return engineAusfall("Ungenügend Daten", "Weniger als 20 Tage VIX-Daten");
     }
 
     const closes = prices.map((p: any) => p.close);
@@ -131,10 +180,10 @@ async function calculateVolatilityEngine(): Promise<EngineResult> {
     
     const desc = `VIX: ${currentVix.toFixed(1)} | 20D-Avg: ${avg20.toFixed(1)} | ${currentVix < avg20 ? 'Fallend' : 'Steigend'}`;
     
-    return { label: labelFromLevel(level), score, level, description: desc };
+    return { label: labelFromLevel(level), score, level, description: desc, ok: true };
   } catch (e) {
     console.error('[MarketRegime] Volatility engine error:', e);
-    return { label: "Fehler", score: 0, level: "neutral", description: "Datenabruf fehlgeschlagen" };
+    return engineAusfall("Fehler", "Datenabruf fehlgeschlagen");
   }
 }
 
@@ -149,17 +198,28 @@ async function calculateLiquidityEngine(): Promise<EngineResult> {
     ]);
     
     let tltSignal = 0;
+    let tltOk = false;
     if (tltPrices && tltPrices.length >= 50) {
       const tltCloses = tltPrices.map((p: any) => p.close);
       const tlt1m = (tltCloses[tltCloses.length - 1] - tltCloses[tltCloses.length - 21]) / tltCloses[tltCloses.length - 21];
       tltSignal = Math.max(-1, Math.min(1, tlt1m * 10));
+      tltOk = true;
     }
 
     let dollarSignal = 0;
+    let uupOk = false;
     if (uupPrices && uupPrices.length >= 50) {
       const uupCloses = uupPrices.map((p: any) => p.close);
       const uup1m = (uupCloses[uupCloses.length - 1] - uupCloses[uupCloses.length - 21]) / uupCloses[uupCloses.length - 21];
       dollarSignal = Math.max(-1, Math.min(1, -uup1m * 10));
+      uupOk = true;
+    }
+
+    // Anders als die übrigen Engines hat diese keinen Ungenügend-Daten-Zweig:
+    // Fehlen beide Reihen, bleiben beide Signale auf 0 und der Score sähe wie
+    // eine echte neutrale Messung aus. Ohne jede Reihe gibt es keine Messung.
+    if (!tltOk && !uupOk) {
+      return engineAusfall("Ungenügend Daten", "Weder TLT- noch UUP-Reihe verfügbar");
     }
 
     const score = Math.max(-1, Math.min(1, (tltSignal * 0.6 + dollarSignal * 0.4)));
@@ -167,10 +227,10 @@ async function calculateLiquidityEngine(): Promise<EngineResult> {
     
     const desc = `TLT-Signal: ${tltSignal > 0 ? '+' : ''}${(tltSignal * 100).toFixed(0)}% | USD-Signal: ${dollarSignal > 0 ? '+' : ''}${(dollarSignal * 100).toFixed(0)}%`;
     
-    return { label: labelFromLevel(level), score, level, description: desc };
+    return { label: labelFromLevel(level), score, level, description: desc, ok: true };
   } catch (e) {
     console.error('[MarketRegime] Liquidity engine error:', e);
-    return { label: "Fehler", score: 0, level: "neutral", description: "Datenabruf fehlgeschlagen" };
+    return engineAusfall("Fehler", "Datenabruf fehlgeschlagen");
   }
 }
 
@@ -185,7 +245,7 @@ async function calculateCreditEngine(): Promise<EngineResult> {
     ]);
     
     if (!hygPrices || !lqdPrices || hygPrices.length < 20 || lqdPrices.length < 20) {
-      return { label: "Ungenügend Daten", score: 0, level: "neutral", description: "Weniger als 20 Tage Daten" };
+      return engineAusfall("Ungenügend Daten", "Weniger als 20 Tage Daten");
     }
 
     const hygCloses = hygPrices.map((p: any) => p.close);
@@ -201,10 +261,10 @@ async function calculateCreditEngine(): Promise<EngineResult> {
     
     const desc = `HYG/LQD Ratio: ${currentRatio.toFixed(3)} | 20D-Trend: ${ratioChange > 0 ? 'Spreads tightening' : 'Spreads widening'}`;
     
-    return { label: labelFromLevel(level), score, level, description: desc };
+    return { label: labelFromLevel(level), score, level, description: desc, ok: true };
   } catch (e) {
     console.error('[MarketRegime] Credit engine error:', e);
-    return { label: "Fehler", score: 0, level: "neutral", description: "Datenabruf fehlgeschlagen" };
+    return engineAusfall("Fehler", "Datenabruf fehlgeschlagen");
   }
 }
 
@@ -227,7 +287,7 @@ async function calculateSentimentEngine(): Promise<EngineResult> {
     ]);
 
     if (!xly || !xlp || xly.length < 60 || xlp.length < 60) {
-      return { label: "Ungenügend Daten", score: 0, level: "neutral", description: "Weniger als 60 Tage XLY/XLP-Daten" };
+      return engineAusfall("Ungenügend Daten", "Weniger als 60 Tage XLY/XLP-Daten");
     }
 
     // Ratio-Serie über die letzten gemeinsamen Handelstage (beide US-Kalender).
@@ -239,7 +299,7 @@ async function calculateSentimentEngine(): Promise<EngineResult> {
       if (y > 0 && p > 0) ratios.push(y / p);
     }
     if (ratios.length < 60) {
-      return { label: "Ungenügend Daten", score: 0, level: "neutral", description: "Zu wenige gültige XLY/XLP-Kurse" };
+      return engineAusfall("Ungenügend Daten", "Zu wenige gültige XLY/XLP-Kurse");
     }
 
     const current = ratios[ratios.length - 1];
@@ -255,10 +315,10 @@ async function calculateSentimentEngine(): Promise<EngineResult> {
     const level = classify(score);
     const desc = `Risikoappetit (XLY/XLP): ${current.toFixed(2)} | 50T-Schnitt: ${avg50.toFixed(2)} | ${score > 0.15 ? 'Risk-On' : score < -0.15 ? 'Defensiv' : 'Neutral'}`;
 
-    return { label: labelFromLevel(level), score, level, description: desc };
+    return { label: labelFromLevel(level), score, level, description: desc, ok: true };
   } catch (e) {
     console.error('[MarketRegime] Sentiment engine error:', e);
-    return { label: "Fehler", score: 0, level: "neutral", description: "Datenabruf fehlgeschlagen" };
+    return engineAusfall("Fehler", "Datenabruf fehlgeschlagen");
   }
 }
 
@@ -270,7 +330,7 @@ async function calculateBubbleEngine(): Promise<EngineResult> {
     const prices = await fetchHistoricalPrices('GSPC.INDX', 2);
     
     if (!prices || prices.length < 250) {
-      return { label: "Ungenügend Daten", score: 0, level: "neutral", description: "Weniger als 250 Tage Daten" };
+      return engineAusfall("Ungenügend Daten", "Weniger als 250 Tage Daten");
     }
 
     const { detectBubble } = await import("../analytics/lpplsEngine");
@@ -287,10 +347,10 @@ async function calculateBubbleEngine(): Promise<EngineResult> {
     else if (result.bubbleScore > 0.2) desc += " | Erhöhtes Risiko";
     else desc += " | Normal";
     
-    return { label: labelFromLevel(level), score, level, description: desc };
+    return { label: labelFromLevel(level), score, level, description: desc, ok: true };
   } catch (e) {
     console.error('[MarketRegime] Bubble engine error:', e);
-    return { label: "Fehler", score: 0, level: "neutral", description: "Berechnung fehlgeschlagen" };
+    return engineAusfall("Fehler", "Berechnung fehlgeschlagen");
   }
 }
 
@@ -544,6 +604,11 @@ export const marketRegimeRouter = router({
   // Regime-Verlauf (R4): letzte `days` Handelstage des Gesamt-Scores für die
   // Sparkline. Fehlertolerant — fehlt die Tabelle (noch nicht migriert) oder die
   // DB, kommt eine leere Serie zurück und die UI zeigt einen ehrlichen Hinweis.
+  //
+  // Ausfalltage werden hier ausgefiltert, nicht nur beim Schreiben verhindert:
+  // Vor dem Fix hat der Cron sie weggeschrieben, und in der Produktionsdatenbank
+  // stehen sie weiterhin. Filtern heilt die Kurve ohne Migration; der Bestand
+  // bleibt für eine spätere Auswertung erhalten.
   getHistory: publicProcedure
     .input(z.object({ days: z.number().int().min(7).max(365).default(90) }).optional())
     .query(async ({ input }) => {
@@ -565,11 +630,17 @@ export const marketRegimeRouter = router({
           .where(gte(marketRegimeHistory.date, cutoffStr))
           .orderBy(asc(marketRegimeHistory.date));
 
-        const points: RegimeHistoryPoint[] = rows.map((r: any) => ({
-          date: r.date,
-          score: parseFloat(String(r.overallScore)),
-          regime: r.regime,
-        }));
+        const alle = rows.length;
+        const points: RegimeHistoryPoint[] = rows
+          .filter((r: any) => !istAusfallZeile(r))
+          .map((r: any) => ({
+            date: r.date,
+            score: parseFloat(String(r.overallScore)),
+            regime: r.regime,
+          }));
+        if (points.length < alle) {
+          console.log(`[MarketRegime] getHistory: ${alle - points.length} Ausfalltag(e) ausgeblendet`);
+        }
         return { points };
       } catch (e) {
         console.warn("[MarketRegime] getHistory failed:", (e as Error).message);
@@ -673,6 +744,15 @@ export async function computeRegime() {
     sentiment.score * ENGINE_WEIGHTS.sentiment +
     bubble.score * ENGINE_WEIGHTS.bubble;
 
+  // Anteil der Gesamtgewichtung, der tatsächlich auf Daten beruht. Ausgefallene
+  // Engines liefern 0 und ziehen den Score damit gegen die Mitte — je tiefer
+  // dieser Wert, desto weniger sagt der Score über den Markt aus.
+  const alleEngines = { trend, breadth, volatility, liquidity, credit, sentiment, bubble };
+  const abgedeckteGewichtung = +(Object.entries(alleEngines)
+    .filter(([, e]) => e.ok)
+    .reduce((s, [k]) => s + ENGINE_WEIGHTS[k as keyof typeof ENGINE_WEIGHTS], 0)
+    .toFixed(4));
+
   let overallRegime: string;
   let equityAllocation: number;
   let regimeMultiplier: number;
@@ -698,29 +778,65 @@ export async function computeRegime() {
   return {
     overallRegime,
     overallScore,
+    abgedeckteGewichtung,
     equityAllocation,
     regimeMultiplier,
-    engines: { trend, breadth, volatility, liquidity, credit, sentiment, bubble },
+    engines: alleEngines,
     lastUpdated: new Date().toISOString(),
   };
 }
 
 /**
+ * Mindestanteil der Engine-Gewichtung, der auf Daten beruhen muss, damit ein
+ * Snapshot in die Historie geht.
+ *
+ * 0.75 heisst: Höchstens ein Viertel der Gewichtung darf fehlen. Der Ausfall
+ * der drei kleinen Engines zusammen (Credit 10 %, Sentiment 5 %, Bubble 5 %)
+ * geht damit durch, der Ausfall der Trend-Engine (30 %) nicht — sie ist der
+ * grösste Einzelfaktor, ohne sie sagt der Score zu wenig.
+ *
+ * Eine Lücke in der Kurve ist ehrlicher als ein Punkt, der den Ausfall abbildet.
+ */
+export const MIN_ABDECKUNG_SNAPSHOT = 0.75;
+
+/**
  * Persistiert einen Tages-Snapshot des Regimes (Upsert per UTC-Datum).
  * Aufgerufen vom regimeHistoryCron. Fehlertolerant: fehlt DB/Tabelle, No-op.
+ *
+ * Schreibt nur, wenn der Score gedeckt ist — siehe MIN_ABDECKUNG_SNAPSHOT.
  */
-export async function recordRegimeSnapshot(): Promise<{ recorded: boolean; date: string; score: number }> {
+export async function recordRegimeSnapshot(): Promise<{ recorded: boolean; date: string; score: number; abdeckung: number; grund?: string }> {
   const regime = await computeRegime();
   const date = new Date().toISOString().split("T")[0];
+  const abdeckung = regime.abgedeckteGewichtung;
+
+  if (abdeckung < MIN_ABDECKUNG_SNAPSHOT) {
+    const ausgefallen = Object.entries(regime.engines)
+      .filter(([, e]) => !e.ok)
+      .map(([k]) => k)
+      .join(", ");
+    console.warn(
+      `[MarketRegime] Snapshot ${date} verworfen: nur ${(abdeckung * 100).toFixed(0)} % der Gewichtung gedeckt ` +
+      `(ausgefallen: ${ausgefallen || "—"}). Score ${regime.overallScore.toFixed(4)} bildet den Ausfall ab, nicht den Markt.`,
+    );
+    return { recorded: false, date, score: regime.overallScore, abdeckung, grund: "ungedeckt" };
+  }
+
   try {
     const { getDb } = await import("../db");
     const { marketRegimeHistory } = await import("../../drizzle/schema");
     const db = await getDb();
-    if (!db) return { recorded: false, date, score: regime.overallScore };
+    if (!db) return { recorded: false, date, score: regime.overallScore, abdeckung, grund: "keine-db" };
 
-    const engineScores = Object.fromEntries(
-      Object.entries(regime.engines).map(([k, v]) => [k, +v.score.toFixed(4)]),
-    );
+    const engineScores = {
+      ...Object.fromEntries(
+        Object.entries(regime.engines).map(([k, v]) => [k, +v.score.toFixed(4)]),
+      ),
+      // Mitgeschrieben, damit später erkennbar bleibt, wie gut dieser Punkt
+      // gedeckt war. Eigene Spalte scheidet aus: Der manus-Deploy führt
+      // `drizzle-kit migrate` nicht aus.
+      _abdeckung: abdeckung,
+    };
     const values = {
       date,
       overallScore: regime.overallScore.toFixed(4),
@@ -741,9 +857,9 @@ export async function recordRegimeSnapshot(): Promise<{ recorded: boolean; date:
           engineScores: values.engineScores,
         },
       });
-    return { recorded: true, date, score: regime.overallScore };
+    return { recorded: true, date, score: regime.overallScore, abdeckung };
   } catch (e) {
     console.warn("[MarketRegime] recordRegimeSnapshot failed:", (e as Error).message);
-    return { recorded: false, date, score: regime.overallScore };
+    return { recorded: false, date, score: regime.overallScore, abdeckung, grund: "schreibfehler" };
   }
 }
