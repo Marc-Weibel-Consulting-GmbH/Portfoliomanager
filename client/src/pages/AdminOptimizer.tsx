@@ -196,31 +196,59 @@ export default function AdminOptimizer() {
               </div>
               {status.lastResult && !status.isRunning && (
                 <div className="mt-3 space-y-3">
-                  <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Ertrag/Risiko:</span>{" "}
+                      <span className="font-bold text-green-500">
+                        {status.lastResult.sharpe != null ? status.lastResult.sharpe.toFixed(2) : "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Ø netto je Signal:</span>{" "}
+                      <span className="font-bold">
+                        {status.lastResult.mittlereRendite != null
+                          ? `${status.lastResult.mittlereRendite.toFixed(2)}%`
+                          : "—"}
+                      </span>
+                    </div>
                     <div>
                       <span className="text-muted-foreground">Trefferquote:</span>{" "}
-                      <span className="font-bold text-green-500">{status.lastResult.hitRate.toFixed(1)}%</span>
+                      <span className="font-bold">{status.lastResult.hitRate.toFixed(1)}%</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">Signale getestet:</span>{" "}
                       <span className="font-bold">{status.lastResult.totalBacktested}</span>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Korrekte Signale:</span>{" "}
-                      <span className="font-bold">{status.lastResult.correctSignals}</span>
-                    </div>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Optimiert wird auf Ertrag je Einheit Schwankung, nach Handelskosten
+                    {status.lastResult.rundlaufKostenPct != null
+                      ? ` (${status.lastResult.rundlaufKostenPct.toFixed(2)}% je Rundlauf)`
+                      : ""}.
+                    Die Trefferquote wird nur noch berichtet — sie sagt nichts darüber, ob die
+                    Gewinne die Verluste decken.
                   </div>
                   {status.lastResult.walkForward && (
                     <div className="border-t pt-3">
-                      <div className="text-xs font-semibold text-muted-foreground mb-2">Walk-Forward Validierung (80/20)</div>
+                      <div className="text-xs font-semibold text-muted-foreground mb-2">
+                        Walk-Forward Validierung (80/20) — die letzten 20 % waren an der Auswahl nicht beteiligt
+                      </div>
                       <div className="grid grid-cols-4 gap-3 text-sm">
                         <div>
                           <span className="text-muted-foreground">In-Sample:</span>{" "}
-                          <span className="font-bold">{status.lastResult.walkForward.inSampleHitRate.toFixed(1)}%</span>
+                          <span className="font-bold">
+                            {status.lastResult.walkForward.inSampleSharpe != null
+                              ? status.lastResult.walkForward.inSampleSharpe.toFixed(2)
+                              : `${status.lastResult.walkForward.inSampleHitRate.toFixed(1)}%`}
+                          </span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Out-of-Sample:</span>{" "}
-                          <span className="font-bold text-blue-500">{status.lastResult.walkForward.outOfSampleHitRate.toFixed(1)}%</span>
+                          <span className="font-bold text-blue-500">
+                            {status.lastResult.walkForward.outOfSampleSharpe != null
+                              ? status.lastResult.walkForward.outOfSampleSharpe.toFixed(2)
+                              : `${status.lastResult.walkForward.outOfSampleHitRate.toFixed(1)}%`}
+                          </span>
                         </div>
                         <div>
                           <span className="text-muted-foreground">Overfit-Ratio:</span>{" "}

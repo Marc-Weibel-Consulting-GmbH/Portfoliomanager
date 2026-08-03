@@ -14,6 +14,19 @@ import { eq, desc } from "drizzle-orm";
 import { ENV } from "../_core/env";
 import { toEodhdSymbol } from "../lib/eodhdSymbol";
 import { calcWilderRSI } from "../lib/watchlistSignalScore";
+import { kennzahlen, rundlaufKostenPct, type Kennzahlen } from "../lib/backtestKennzahlen";
+
+/** Rundlaufkosten je Signal, in Prozent — einmal berechnet, überall abgezogen. */
+const RUNDLAUF_KOSTEN_PCT = rundlaufKostenPct();
+
+/** Ein Titel mit Kursreihe und den Kennzahlen, die der Score konsumiert. */
+interface StockDaten {
+  ticker: string;
+  prices: number[];
+  volumes: number[];
+  fundamentals: { peRatio: number | null; pegRatio: number | null; dividendYield: number };
+}
+
 export interface WeightConfig {
   pe: number;
   peg: number;
@@ -31,10 +44,17 @@ export interface WeightConfig {
 
 export interface OptimizerResult {
   bestWeights: WeightConfig;
+  /** Trefferquote des Siegers in Prozent — Berichtsgrösse, nicht mehr Zielgrösse. */
   hitRate: number;
   totalBacktested: number;
   correctSignals: number;
-  topCombinations: Array<{ weights: WeightConfig; hitRate: number }>;
+  /** Zielgrösse: Ertrag je Einheit Streuung nach Kosten, annualisiert. */
+  sharpe?: number;
+  /** Mittlere Nettorendite je Signal, in Prozent. */
+  mittlereRendite?: number;
+  /** Die im Lauf abgezogenen Rundlaufkosten je Signal, in Prozent. */
+  rundlaufKostenPct?: number;
+  topCombinations: Array<{ weights: WeightConfig; hitRate: number; sharpe?: number; mittlereRendite?: number }>;
   log: string[];
   durationMs: number;
   // Walk-Forward Validation
@@ -47,6 +67,12 @@ export interface OptimizerResult {
     // Promotion-Gate: der aktuell aktive Satz, auf DEMSELBEN OOS-Fenster bewertet
     // (fairer Vergleich). null = kein Incumbent (Erstlauf) → Kandidat wird akzeptiert.
     incumbentOutOfSampleHitRate?: number | null;
+    /** Netto-Kennzahlen desselben Fensters; das Gate entscheidet auf `outOfSampleSharpe`. */
+    inSampleSharpe?: number;
+    outOfSampleSharpe?: number;
+    inSampleMittlereRendite?: number;
+    outOfSampleMittlereRendite?: number;
+    incumbentOutOfSampleSharpe?: number | null;
   };
   totalStocksProcessed?: number;
   batchInfo?: string;
@@ -269,6 +295,13 @@ function generateWeightedScore(
 
 /**
  * Backtest a single stock with given weights
+ *
+ * Liefert neben der Trefferquote die realisierten, richtungsbereinigten
+ * Vorwärtsrenditen je Signal — bei «buy» die Kursrendite, bei «sell» ihr
+ * Vorzeichen umgekehrt (ein Short/Nicht-Halten gewinnt, wenn der Kurs fällt) —
+ * jeweils abzüglich der Rundlaufkosten. Erst diese Reihe erlaubt es, kleine
+ * Gewinne gegen grosse Verluste aufzurechnen; die reine Trefferquote kann das
+ * nicht.
  */
 function backtestStock(
   prices: number[],
@@ -277,9 +310,10 @@ function backtestStock(
   fundamentals: { peRatio: number | null; pegRatio: number | null; dividendYield: number },
   lookforward: number = 20,
   threshold: number = 15
-): { correct: number; total: number } {
+): { correct: number; total: number; nettoRenditen: number[] } {
   let correct = 0;
   let total = 0;
+  const nettoRenditen: number[] = [];
 
   const SIGNAL_INTERVAL = 20; // More frequent signals for more data points
   const LOOKFORWARD = lookforward;
@@ -322,9 +356,55 @@ function backtestStock(
 
     total++;
     if (isCorrect) correct++;
+
+    const bruttoPct = ((futurePrice - currentPrice) / currentPrice) * 100;
+    const gerichtet = predictedDirection === "buy" ? bruttoPct : -bruttoPct;
+    nettoRenditen.push(gerichtet - RUNDLAUF_KOSTEN_PCT);
   }
 
-  return { correct, total };
+  return { correct, total, nettoRenditen };
+}
+
+/**
+ * Der In-Sample-Anteil jeder Kursreihe.
+ *
+ * Auswahl (Pass 1–3) darf NUR auf diesem Anteil laufen. Vorher lief der
+ * Grid-Search über die gesamte Reihe und wurde anschliessend auf den letzten
+ * 20 % «validiert» — auf Daten also, aus denen der Gewinner mit ausgewählt
+ * worden war. Das war eine In-Sample-Prüfung unter fremdem Namen.
+ */
+const IN_SAMPLE_ANTEIL = 0.8;
+
+/** Der Auswahl zugängliche Teil einer Kursreihe (erste 80 %). */
+function inSampleTeil(stock: StockDaten): { prices: number[]; volumes: number[] } {
+  const splitIdx = Math.floor(stock.prices.length * IN_SAMPLE_ANTEIL);
+  return { prices: stock.prices.slice(0, splitIdx), volumes: stock.volumes.slice(0, splitIdx) };
+}
+
+/**
+ * Ein Gewichtssatz über alle Titel — auf dem In-Sample-Teil.
+ *
+ * Bündelt die Signale ALLER Titel zu einer Reihe, bevor die Kennzahlen
+ * gerechnet werden: Die Zielgrösse bewertet die Strategie, nicht den
+ * Durchschnitt titelweiser Durchschnitte.
+ */
+function bewerteGewichte(
+  stockData: StockDaten[],
+  weights: WeightConfig,
+  lookforward: number,
+  threshold: number,
+): Kennzahlen {
+  let correct = 0;
+  let total = 0;
+  const renditen: number[] = [];
+  for (const stock of stockData) {
+    const teil = inSampleTeil(stock);
+    const bt = backtestStock(teil.prices, teil.volumes, weights, stock.fundamentals, lookforward, threshold);
+    correct += bt.correct;
+    total += bt.total;
+    for (const r of bt.nettoRenditen) renditen.push(r);
+  }
+  return kennzahlen(renditen, correct, total, lookforward);
 }
 
 /**
@@ -415,12 +495,7 @@ export async function runOptimizerNonBlocking(
   const BATCH_SIZE = 20; // EODHD rate limit: 20 requests per batch, then pause
   const stocksToProcess = allStocks.slice(0, MAX_STOCKS);
 
-  const stockData: Array<{
-    ticker: string;
-    prices: number[];
-    volumes: number[];
-    fundamentals: { peRatio: number | null; pegRatio: number | null; dividendYield: number };
-  }> = [];
+  const stockData: StockDaten[] = [];
 
   for (let i = 0; i < stocksToProcess.length; i++) {
     const stock = stocksToProcess[i];
@@ -430,7 +505,11 @@ export async function runOptimizerNonBlocking(
 
     try {
       const data = await fetchPricesEODHD(stock.ticker);
-      if (data && data.prices.length >= 60) {
+      // 100 statt 60 Kurse: Die Auswahl sieht nur die ersten 80 %, und darin
+      // müssen 60 Tage Indikator-Vorlauf Platz haben. Ein Titel mit 60 Kursen
+      // steuert nach dem Schnitt kein einziges Signal bei — er würde nur die
+      // Titelzahl im Protokoll aufblähen.
+      if (data && data.prices.length >= 100) {
         stockData.push({
           ticker: stock.ticker,
           prices: data.prices,
@@ -464,53 +543,56 @@ export async function runOptimizerNonBlocking(
   }
 
   // 3. MULTI-PASS ITERATIVE OPTIMIZATION
-  // Pass 1: Find best lookforward period and threshold
+  //
+  // Alle drei Pässe laufen ausschliesslich auf den ersten 80 % jeder Kursreihe
+  // (siehe `inSampleTeil`). Die letzten 20 % bleiben unberührt, damit die
+  // Walk-Forward-Prüfung weiter unten tatsächlich out-of-sample ist.
+  //
+  // Zielgrösse ist NICHT mehr die Trefferquote, sondern der Ertrag je Einheit
+  // Streuung nach Rundlaufkosten (`kennzahlen().sharpe`). Die Trefferquote wird
+  // weiter mitgeführt und ausgewiesen — sie sagt aber nichts darüber, ob die
+  // Gewinne die Verluste und die Kosten decken.
   const lookforwardOptions = [5, 10, 15, 20, 30];
   const thresholdOptions = [5, 10, 15, 20, 25];
+  const MIN_SIGNALE = 50;
   let bestLookforward = 20;
   let bestThreshold = 15;
-  let bestPassOneRate = 0;
+  let bestPassOne: Kennzahlen | null = null;
 
-  logMsg("Pass 1: Optimale Lookforward-Periode und Signal-Schwelle suchen...");
+  logMsg(`Rundlaufkosten je Signal: ${RUNDLAUF_KOSTEN_PCT.toFixed(2)}% (Courtage + halbe Spanne + Stempel, Kauf und Verkauf)`);
+  logMsg("Pass 1: Optimale Lookforward-Periode und Signal-Schwelle suchen (In-Sample = erste 80%)...");
   for (const lf of lookforwardOptions) {
     for (const th of thresholdOptions) {
-      let correct = 0, total = 0;
-      for (const stock of stockData) {
-        const bt = backtestStock(stock.prices, stock.volumes, DEFAULT_WEIGHTS, stock.fundamentals, lf, th);
-        correct += bt.correct;
-        total += bt.total;
-      }
-      const rate = total > 0 ? (correct / total) * 100 : 0;
-      if (rate > bestPassOneRate && total >= 50) {
-        bestPassOneRate = rate;
+      const k = bewerteGewichte(stockData, DEFAULT_WEIGHTS, lf, th);
+      if (k.n >= MIN_SIGNALE && (bestPassOne === null || k.sharpe > bestPassOne.sharpe)) {
+        bestPassOne = k;
         bestLookforward = lf;
         bestThreshold = th;
       }
     }
     await new Promise(r => setTimeout(r, 0));
   }
-  logMsg(`Pass 1 Ergebnis: Lookforward=${bestLookforward}d, Threshold=${bestThreshold}, Rate=${bestPassOneRate.toFixed(1)}%`);
+  logMsg(
+    `Pass 1 Ergebnis: Lookforward=${bestLookforward}d, Threshold=${bestThreshold}, ` +
+    `Sharpe=${(bestPassOne?.sharpe ?? 0).toFixed(2)}, ` +
+    `Ø netto=${(bestPassOne?.mittlereRendite ?? 0).toFixed(2)}%, ` +
+    `Treffer=${(bestPassOne?.hitRate ?? 0).toFixed(1)}%`
+  );
 
   // Pass 2: Grid search with optimized parameters
   const weightGrid = generateWeightGrid();
   logMsg(`Pass 2: Grid Search über ${weightGrid.length} Gewichtungskombinationen (LF=${bestLookforward}d, TH=${bestThreshold})...`);
   logMsg(`Getunt werden die 6 Produktions-Faktoren (pe/peg/rsi/dividend/week52/ytd); macd/rf/sentiment/bubble/quality/momentum bleiben auf Default (nicht Teil der Produktions-Zielfunktion).`);
 
-  const results: Array<{ weights: WeightConfig; hitRate: number; correct: number; total: number }> = [];
+  type Kandidat = { weights: WeightConfig; kennzahlen: Kennzahlen };
+  const results: Kandidat[] = [];
 
   for (let wi = 0; wi < weightGrid.length; wi++) {
     const weights = weightGrid[wi];
-    let totalCorrect = 0;
-    let totalSignals = 0;
-
-    for (const stock of stockData) {
-      const bt = backtestStock(stock.prices, stock.volumes, weights, stock.fundamentals, bestLookforward, bestThreshold);
-      totalCorrect += bt.correct;
-      totalSignals += bt.total;
-    }
-
-    const hitRate = totalSignals > 0 ? (totalCorrect / totalSignals) * 100 : 0;
-    results.push({ weights, hitRate, correct: totalCorrect, total: totalSignals });
+    results.push({
+      weights,
+      kennzahlen: bewerteGewichte(stockData, weights, bestLookforward, bestThreshold),
+    });
 
     if (wi % 10 === 0) {
       await new Promise(r => setTimeout(r, 0));
@@ -520,12 +602,18 @@ export async function runOptimizerNonBlocking(
     }
   }
 
+  // Kandidaten mit zu dünner Signalbasis taugen nicht als Sieger: Ein hoher
+  // Sharpe aus drei Signalen ist Rauschen. Reicht kein einziger Kandidat die
+  // Mindestzahl, wird nicht gefiltert — sonst bliebe nichts übrig.
+  const nachSharpe = (a: Kandidat, b: Kandidat) => b.kennzahlen.sharpe - a.kennzahlen.sharpe;
+  const tragfaehig = (k: Kandidat) => k.kennzahlen.n >= MIN_SIGNALE;
+
   // Pass 3: Fine-tune around top 5 results
-  results.sort((a, b) => b.hitRate - a.hitRate);
-  const topResults = results.slice(0, 5);
+  const passZwei = results.filter(tragfaehig).length > 0 ? results.filter(tragfaehig) : results;
+  const topResults = [...passZwei].sort(nachSharpe).slice(0, 5);
   logMsg(`Pass 3: Feinabstimmung der Top-5 Gewichtungen...`);
 
-  const refinedResults: typeof results = [...results];
+  const refinedResults: Kandidat[] = [...results];
   for (const topResult of topResults) {
     // Generate 20 variations around each top result
     for (let v = 0; v < 20; v++) {
@@ -541,23 +629,24 @@ export async function runOptimizerNonBlocking(
         variant[key] = Math.max(0.02, Math.min(0.30, variant[key] + delta));
       }
 
-      let totalCorrect = 0, totalSignals = 0;
-      for (const stock of stockData) {
-        const bt = backtestStock(stock.prices, stock.volumes, variant, stock.fundamentals, bestLookforward, bestThreshold);
-        totalCorrect += bt.correct;
-        totalSignals += bt.total;
-      }
-      const hitRate = totalSignals > 0 ? (totalCorrect / totalSignals) * 100 : 0;
-      refinedResults.push({ weights: variant, hitRate, correct: totalCorrect, total: totalSignals });
+      refinedResults.push({
+        weights: variant,
+        kennzahlen: bewerteGewichte(stockData, variant, bestLookforward, bestThreshold),
+      });
     }
     await new Promise(r => setTimeout(r, 0));
   }
 
   // 4. Sort all results and get the best
-  refinedResults.sort((a, b) => b.hitRate - a.hitRate);
-  const best = refinedResults[0];
+  const kandidaten = refinedResults.filter(tragfaehig).length > 0
+    ? refinedResults.filter(tragfaehig)
+    : refinedResults;
+  kandidaten.sort(nachSharpe);
+  const best = kandidaten[0];
+  const bestK = best.kennzahlen;
 
-  logMsg(`✅ Beste In-Sample Trefferquote: ${best.hitRate.toFixed(1)}% (${best.correct}/${best.total} Signale korrekt)`);
+  logMsg(`✅ Bester In-Sample Kandidat: Sharpe=${bestK.sharpe.toFixed(2)}, Ø netto=${bestK.mittlereRendite.toFixed(2)}% je Signal (${bestK.n} Signale)`);
+  logMsg(`   Trefferquote dazu: ${bestK.hitRate.toFixed(1)}% — Berichtsgrösse, nicht Zielgrösse`);
   logMsg(`   Lookforward: ${bestLookforward} Tage, Threshold: ${bestThreshold}`);
 
   // ═══════════════════════════════════════════════════════════════════
@@ -565,18 +654,20 @@ export async function runOptimizerNonBlocking(
   // Use the first 80% of each stock's price history as in-sample (training)
   // and the last 20% as out-of-sample (validation) to detect overfitting
   // ═══════════════════════════════════════════════════════════════════
-  logMsg("Walk-Forward Validierung: 80/20 Split...");
+  logMsg("Walk-Forward Validierung: 80/20 Split (die letzten 20% waren an keiner Auswahl beteiligt)...");
 
+  // Sammelbecken je Fenster: erst alle Signale zusammentragen, dann bewerten.
+  const isRenditen: number[] = [], oosRenditen: number[] = [], incRenditen: number[] = [];
   let inSampleCorrect = 0, inSampleTotal = 0;
   let outOfSampleCorrect = 0, outOfSampleTotal = 0;
   // Incumbent (aktuell aktive Gewichte) auf demselben OOS-Fenster — für das Gate.
   let incumbentOosCorrect = 0, incumbentOosTotal = 0;
   let wfProcessed = 0;
-  const wfEligible = stockData.filter(s => Math.floor(s.prices.length * 0.8) >= 80).length;
+  const wfEligible = stockData.filter(s => Math.floor(s.prices.length * IN_SAMPLE_ANTEIL) >= 80).length;
 
   for (let si = 0; si < stockData.length; si++) {
     const stock = stockData[si];
-    const splitIdx = Math.floor(stock.prices.length * 0.8);
+    const splitIdx = Math.floor(stock.prices.length * IN_SAMPLE_ANTEIL);
     if (splitIdx < 80) continue; // Need enough in-sample data
 
     const inSamplePrices = stock.prices.slice(0, splitIdx);
@@ -586,17 +677,20 @@ export async function runOptimizerNonBlocking(
     const inBt = backtestStock(inSamplePrices, stock.volumes.slice(0, splitIdx), best.weights, stock.fundamentals, bestLookforward, bestThreshold);
     inSampleCorrect += inBt.correct;
     inSampleTotal += inBt.total;
+    for (const r of inBt.nettoRenditen) isRenditen.push(r);
 
     // Out-of-sample backtest (validation)
     const outBt = backtestStock(outOfSamplePrices, stock.volumes.slice(splitIdx - 60), best.weights, stock.fundamentals, bestLookforward, bestThreshold);
     outOfSampleCorrect += outBt.correct;
     outOfSampleTotal += outBt.total;
+    for (const r of outBt.nettoRenditen) oosRenditen.push(r);
 
     // Incumbent auf demselben OOS-Slice (fairer Vergleich für das Gate)
     if (incumbentWeights) {
       const incBt = backtestStock(outOfSamplePrices, stock.volumes.slice(splitIdx - 60), incumbentWeights, stock.fundamentals, bestLookforward, bestThreshold);
       incumbentOosCorrect += incBt.correct;
       incumbentOosTotal += incBt.total;
+      for (const r of incBt.nettoRenditen) incRenditen.push(r);
     }
 
     wfProcessed++;
@@ -607,17 +701,29 @@ export async function runOptimizerNonBlocking(
     if (si % 5 === 0) await new Promise(r => setTimeout(r, 0));
   }
 
-  const inSampleHitRate = inSampleTotal > 0 ? (inSampleCorrect / inSampleTotal) * 100 : 0;
-  const outOfSampleHitRate = outOfSampleTotal > 0 ? (outOfSampleCorrect / outOfSampleTotal) * 100 : 0;
+  const isK = kennzahlen(isRenditen, inSampleCorrect, inSampleTotal, bestLookforward);
+  const oosK = kennzahlen(oosRenditen, outOfSampleCorrect, outOfSampleTotal, bestLookforward);
+  const incK = kennzahlen(incRenditen, incumbentOosCorrect, incumbentOosTotal, bestLookforward);
+
+  const inSampleHitRate = isK.hitRate;
+  const outOfSampleHitRate = oosK.hitRate;
+  // Overfit-Mass bleibt bewusst auf der Trefferquote: Sie ist nach unten
+  // beschränkt, ein Verhältnis daraus ist also immer interpretierbar. Aus zwei
+  // Sharpe-Werten liesse sich kein sinnvolles Verhältnis bilden, sobald einer
+  // negativ wird — und genau das ist nach Kostenabzug der Normalfall.
   const overfitRatio = outOfSampleHitRate > 0 ? inSampleHitRate / outOfSampleHitRate : 999;
   const incumbentOutOfSampleHitRate = (incumbentWeights && incumbentOosTotal > 0)
-    ? (incumbentOosCorrect / incumbentOosTotal) * 100
+    ? incK.hitRate
     : null;
+  const incumbentOutOfSampleSharpe = (incumbentWeights && incRenditen.length > 0) ? incK.sharpe : null;
 
-  logMsg(`📊 Walk-Forward Ergebnis:`);
-  logMsg(`   In-Sample:  ${inSampleHitRate.toFixed(1)}% (${inSampleCorrect}/${inSampleTotal})`);
-  logMsg(`   Out-of-Sample: ${outOfSampleHitRate.toFixed(1)}% (${outOfSampleCorrect}/${outOfSampleTotal})`);
-  logMsg(`   Overfit-Ratio: ${overfitRatio.toFixed(2)} (ideal: ~1.0, >1.3 = Overfitting)`);
+  logMsg(`📊 Walk-Forward Ergebnis (netto, nach Rundlaufkosten):`);
+  logMsg(`   In-Sample:     Sharpe ${isK.sharpe.toFixed(2)}, Ø ${isK.mittlereRendite.toFixed(2)}%, Treffer ${inSampleHitRate.toFixed(1)}% (${inSampleCorrect}/${inSampleTotal})`);
+  logMsg(`   Out-of-Sample: Sharpe ${oosK.sharpe.toFixed(2)}, Ø ${oosK.mittlereRendite.toFixed(2)}%, Treffer ${outOfSampleHitRate.toFixed(1)}% (${outOfSampleCorrect}/${outOfSampleTotal})`);
+  if (incumbentOutOfSampleSharpe !== null) {
+    logMsg(`   Aktiver Satz auf demselben Fenster: Sharpe ${incumbentOutOfSampleSharpe.toFixed(2)}, Treffer ${(incumbentOutOfSampleHitRate ?? 0).toFixed(1)}%`);
+  }
+  logMsg(`   Overfit-Ratio (Treffer IS/OOS): ${overfitRatio.toFixed(2)} (ideal: ~1.0, >1.3 = Overfitting)`);
 
   if (overfitRatio > 1.3) {
     logMsg(`⚠️ Mögliches Overfitting erkannt (Ratio ${overfitRatio.toFixed(2)}). Verwende konservativere Gewichte.`);
@@ -635,10 +741,18 @@ export async function runOptimizerNonBlocking(
 
   return {
     bestWeights: best.weights,
-    hitRate: best.hitRate,
-    totalBacktested: best.total,
-    correctSignals: best.correct,
-    topCombinations: refinedResults.slice(0, 10).map(r => ({ weights: r.weights, hitRate: r.hitRate })),
+    hitRate: bestK.hitRate,
+    totalBacktested: bestK.total,
+    correctSignals: bestK.correct,
+    sharpe: bestK.sharpe,
+    mittlereRendite: bestK.mittlereRendite,
+    rundlaufKostenPct: RUNDLAUF_KOSTEN_PCT,
+    topCombinations: kandidaten.slice(0, 10).map(r => ({
+      weights: r.weights,
+      hitRate: r.kennzahlen.hitRate,
+      sharpe: r.kennzahlen.sharpe,
+      mittlereRendite: r.kennzahlen.mittlereRendite,
+    })),
     log,
     durationMs: Date.now() - startTime,
     walkForward: {
@@ -648,6 +762,11 @@ export async function runOptimizerNonBlocking(
       outOfSampleCount: outOfSampleTotal,
       overfitRatio,
       incumbentOutOfSampleHitRate,
+      inSampleSharpe: isK.sharpe,
+      outOfSampleSharpe: oosK.sharpe,
+      inSampleMittlereRendite: isK.mittlereRendite,
+      outOfSampleMittlereRendite: oosK.mittlereRendite,
+      incumbentOutOfSampleSharpe,
     },
     totalStocksProcessed: stockData.length,
     batchInfo: `${stockData.length}/${allStocks.length} Titel verarbeitet`,
@@ -663,6 +782,8 @@ export interface SaveOptimizerOutcome {
   activated: boolean;
   candidateOos: number | null;
   incumbentOos: number | null;
+  /** Welche Grösse verglichen wurde: "sharpe" (neu) oder "hitRate" (Altläufe). */
+  massstab: "sharpe" | "hitRate";
   reason: string;
 }
 
@@ -672,32 +793,54 @@ export interface SaveOptimizerOutcome {
  * Der monatliche Random-Search selektiert In-Sample; ohne Gate ersetzt ein
  * zufällig guter Lauf ungeprüft eine bessere aktive Konfiguration. Deshalb:
  * Der Kandidat wird nur aktiv, wenn er den aktuell aktiven Satz auf DEMSELBEN
- * Out-of-Sample-Fenster erreicht/übertrifft (Toleranz 0.5 Pp). Sonst bleibt der
- * Incumbent aktiv (Rollback) und der Kandidat wird nur als isActive=0 zur
- * Nachvollziehbarkeit protokolliert. Erstlauf (kein Incumbent) → akzeptiert.
+ * Out-of-Sample-Fenster erreicht/übertrifft. Sonst bleibt der Incumbent aktiv
+ * (Rollback) und der Kandidat wird nur als isActive=0 zur Nachvollziehbarkeit
+ * protokolliert. Erstlauf (kein Incumbent) → akzeptiert.
+ *
+ * Verglichen wird die Zielgrösse der Schleife: der Netto-Sharpe. Fehlt er —
+ * Ergebnisse aus Läufen vor der Umstellung —, fällt das Gate auf die
+ * Trefferquote zurück, damit alte Läufe weiter entschieden werden können.
  */
 export async function saveOptimizerResult(
   result: OptimizerResult,
   opts: SaveOptimizerOptions = {},
 ): Promise<SaveOptimizerOutcome> {
   const db = await getDb();
-  if (!db) return { activated: false, candidateOos: null, incumbentOos: null, reason: "no-db" };
+  if (!db) {
+    return { activated: false, candidateOos: null, incumbentOos: null, massstab: "sharpe", reason: "no-db" };
+  }
 
   const triggeredBy = opts.triggeredBy ?? "cron";
-  const candidateOos = result.walkForward?.outOfSampleHitRate ?? null;
-  const incumbentOos = result.walkForward?.incumbentOutOfSampleHitRate ?? null;
-  const TOLERANCE_PP = 0.5; // Kandidat darf max. 0.5 Pp schlechter sein → akzeptiert
+  const wf = result.walkForward;
+  // Sharpe nur dann als Massstab, wenn er für BEIDE Seiten vorliegt — sonst
+  // verglichen wir eine neue Grösse gegen eine fehlende und liessen jeden
+  // Kandidaten durch.
+  const sharpeVerfuegbar = wf?.outOfSampleSharpe != null && wf?.incumbentOutOfSampleSharpe != null;
+  const massstab: "sharpe" | "hitRate" = sharpeVerfuegbar ? "sharpe" : "hitRate";
+
+  const candidateOos = sharpeVerfuegbar
+    ? (wf?.outOfSampleSharpe ?? null)
+    : (wf?.outOfSampleHitRate ?? null);
+  const incumbentOos = sharpeVerfuegbar
+    ? (wf?.incumbentOutOfSampleSharpe ?? null)
+    : (wf?.incumbentOutOfSampleHitRate ?? null);
+  // Toleranz in der Einheit des Massstabs: 0.5 Prozentpunkte bei der
+  // Trefferquote, 0.05 Sharpe-Punkte bei der Zielgrösse.
+  const TOLERANZ = sharpeVerfuegbar ? 0.05 : 0.5;
 
   const activated =
     incumbentOos == null ||
     candidateOos == null ||
-    candidateOos >= incumbentOos - TOLERANCE_PP;
+    candidateOos >= incumbentOos - TOLERANZ;
 
   const reason = activated
     ? (incumbentOos == null ? "no-incumbent" : "candidate-oos-ok")
     : "candidate-oos-below-incumbent";
 
-  const gate = { triggeredBy, candidateOos, incumbentOos, activated, reason, decidedAt: new Date().toISOString() };
+  const gate = {
+    triggeredBy, candidateOos, incumbentOos, massstab, activated, reason,
+    decidedAt: new Date().toISOString(),
+  };
   const optimizerLog = JSON.stringify({
     durationMs: result.durationMs,
     topCombinations: result.topCombinations.slice(0, 5),
@@ -721,7 +864,7 @@ export async function saveOptimizerResult(
       isActive: 0,
       optimizerLog,
     });
-    return { activated: false, candidateOos, incumbentOos, reason };
+    return { activated: false, candidateOos, incumbentOos, massstab, reason };
   }
 
   // Deactivate all existing weights
@@ -738,7 +881,7 @@ export async function saveOptimizerResult(
     isActive: 1,
     optimizerLog,
   });
-  return { activated: true, candidateOos, incumbentOos, reason };
+  return { activated: true, candidateOos, incumbentOos, massstab, reason };
 }
 
 /**

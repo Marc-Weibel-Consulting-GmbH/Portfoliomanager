@@ -2,9 +2,13 @@
  * Promotion-Gate von saveOptimizerResult (KIMI-Audit ①).
  *
  * Prüft die Aktivierungs-Entscheidung: der Kandidat wird nur aktiv, wenn er
- * den Incumbent out-of-sample erreicht/übertrifft (Toleranz 0.5 Pp). Sonst
- * bleibt der aktive Satz unangetastet (kein update auf isActive), der Kandidat
- * landet nur als inaktive Zeile.
+ * den Incumbent out-of-sample erreicht/übertrifft. Sonst bleibt der aktive Satz
+ * unangetastet (kein update auf isActive), der Kandidat landet nur als inaktive
+ * Zeile.
+ *
+ * Massstab ist seit der Umstellung der Netto-Sharpe (Toleranz 0.05). Fehlt er
+ * — Ergebnisse aus Läufen vor der Umstellung —, fällt das Gate auf die
+ * Trefferquote zurück (Toleranz 0.5 Pp). Beide Wege sind hier abgedeckt.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
@@ -44,6 +48,20 @@ function makeResult(candidateOos: number, incumbentOos: number | null): Optimize
   };
 }
 
+/** Wie `makeResult`, aber mit Netto-Sharpe auf beiden Seiten. */
+function makeSharpeResult(candidateSharpe: number, incumbentSharpe: number | null): OptimizerResult {
+  const base = makeResult(50, 55); // Trefferquote bewusst gegenläufig zum Sharpe
+  return {
+    ...base,
+    walkForward: {
+      ...base.walkForward!,
+      inSampleSharpe: 1.2,
+      outOfSampleSharpe: candidateSharpe,
+      incumbentOutOfSampleSharpe: incumbentSharpe,
+    },
+  };
+}
+
 beforeEach(() => { h.updateCalls = 0; h.inserted = []; });
 
 describe("saveOptimizerResult — Promotion-Gate", () => {
@@ -73,5 +91,43 @@ describe("saveOptimizerResult — Promotion-Gate", () => {
     expect(out.activated).toBe(true);
     expect(h.updateCalls).toBe(1);
     expect(h.inserted[0].isActive).toBe(1);
+  });
+
+  it("fällt auf die Trefferquote zurück, wenn kein Sharpe vorliegt", async () => {
+    const out = await saveOptimizerResult(makeResult(58, 55), { triggeredBy: "cron" });
+    expect(out.massstab).toBe("hitRate");
+    expect(out.candidateOos).toBe(58);
+  });
+
+  it("entscheidet auf dem Sharpe, nicht auf der Trefferquote", async () => {
+    // Trefferquote 50 gegen 55 — nach altem Massstab verworfen. Der Netto-Sharpe
+    // ist aber besser: weniger Treffer, aber die richtigen.
+    const out = await saveOptimizerResult(makeSharpeResult(0.9, 0.6), { triggeredBy: "cron" });
+    expect(out.massstab).toBe("sharpe");
+    expect(out.activated).toBe(true);
+    expect(out.candidateOos).toBe(0.9);
+    expect(out.incumbentOos).toBe(0.6);
+  });
+
+  it("verwirft einen Kandidaten mit schlechterem Sharpe trotz besserer Trefferquote", async () => {
+    const base = makeSharpeResult(0.3, 0.8);
+    base.walkForward!.outOfSampleHitRate = 70; // deutlich besser als der Incumbent
+    const out = await saveOptimizerResult(base, { triggeredBy: "cron" });
+    expect(out.massstab).toBe("sharpe");
+    expect(out.activated).toBe(false);
+    expect(h.updateCalls).toBe(0);
+    expect(h.inserted[0].name).toMatch(/^rejected_/);
+  });
+
+  it("akzeptiert innerhalb der Sharpe-Toleranz (0.05)", async () => {
+    const out = await saveOptimizerResult(makeSharpeResult(0.76, 0.80), { triggeredBy: "cron" });
+    expect(out.activated).toBe(true);
+  });
+
+  it("akzeptiert beim Erstlauf auch ohne Incumbent-Sharpe", async () => {
+    const out = await saveOptimizerResult(makeSharpeResult(0.1, null), { triggeredBy: "cron" });
+    // Ohne Incumbent-Sharpe greift der Rückfall — und dort ist der Incumbent
+    // ebenfalls unbekannt (makeResult setzt 55), also entscheidet die Trefferquote.
+    expect(out.massstab).toBe("hitRate");
   });
 });
