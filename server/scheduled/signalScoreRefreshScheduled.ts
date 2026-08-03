@@ -12,14 +12,21 @@
  * Route: POST /api/scheduled/signalScoreRefresh
  */
 import type { Request, Response } from "express";
+import { alsProzent } from "../lib/dividendenrendite";
 
 /**
  * Calculate signal score from fundamental and technical metrics.
+ *
+ * `divYield` steht in PROZENT (1.51 = 1.51 %) — dieselbe Konvention wie
+ * `stocks.dividendYield` und `fetchEODHDFundamentals`. Vorher erwartete die
+ * Funktion einen Bruch, bekam aber Prozent: Jeder Titel mit irgendeiner
+ * Ausschüttung überschritt damit die oberste Schwelle und erhielt +15 Punkte.
+ * Apple (0.31 % Rendite) wurde so als «Sehr hohe Dividende» geführt.
  */
-function calcSignalScore(params: {
+export function calcSignalScore(params: {
   pe: number | null;
   peg: number | null;
-  divYield: number | null; // decimal (0.04 = 4%)
+  divYield: number | null; // Prozent (4 = 4 %)
   priceVs52wLow: number | null; // 0-1 position between 52w low and high
   ytdPerf: number | null; // percentage e.g. -20.9 or +12.0
 }): { score: number; signalType: "buy" | "sell" | "hold"; reasons: string[] } {
@@ -36,11 +43,11 @@ function calcSignalScore(params: {
     else if (pe > 40) { score -= 8; reasons.push(`Hohes P/E (${pe.toFixed(1)})`); }
   }
 
-  // 2) Dividend yield scoring
+  // 2) Dividend yield scoring — Schwellen in Prozent (6 %, 4 %, 2.5 %)
   if (divYield !== null) {
-    if (divYield > 0.06) { score += 15; reasons.push(`Sehr hohe Dividende (${(divYield * 100).toFixed(1)}%)`); }
-    else if (divYield > 0.04) { score += 12; reasons.push(`Hohe Dividende (${(divYield * 100).toFixed(1)}%)`); }
-    else if (divYield > 0.025) { score += 6; reasons.push(`Gute Dividende (${(divYield * 100).toFixed(1)}%)`); }
+    if (divYield > 6) { score += 15; reasons.push(`Sehr hohe Dividende (${divYield.toFixed(1)}%)`); }
+    else if (divYield > 4) { score += 12; reasons.push(`Hohe Dividende (${divYield.toFixed(1)}%)`); }
+    else if (divYield > 2.5) { score += 6; reasons.push(`Gute Dividende (${divYield.toFixed(1)}%)`); }
     else if (divYield === 0) { score -= 2; }
   }
 
@@ -170,8 +177,10 @@ export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult>
           priceVs52wLow = Math.max(0, Math.min(1, priceVs52wLow));
         }
 
-        // divYield from EODHD is already a decimal (0.04 = 4%)
-        const divYield = fundamentals.dividendYield;
+        // `fetchEODHDFundamentals` liefert bereits Prozent (eodhdApi.ts rechnet
+        // den EODHD-Bruch um). Hier NICHT nochmals mit 100 multiplizieren —
+        // genau das erzeugte die 151 für ABBs 1.51 %.
+        const divYield = alsProzent(fundamentals.dividendYield, "signalScoreRefresh/EODHD");
 
         const ytdPerf = parseFloat(stock.ytdPerformance ?? "0") || null;
 
@@ -187,7 +196,7 @@ export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult>
         await db.update(stocksTable).set({
           peRatio: fundamentals.peRatio?.toString() ?? stock.peRatio,
           pegRatio: fundamentals.pegRatio?.toString() ?? stock.pegRatio,
-          dividendYield: divYield != null ? (divYield * 100).toFixed(4) : stock.dividendYield,
+          dividendYield: divYield != null ? divYield.toFixed(4) : stock.dividendYield,
           week52High: high52w?.toString() ?? stock.week52High,
           week52Low: low52w?.toString() ?? stock.week52Low,
           signalScore: score,
