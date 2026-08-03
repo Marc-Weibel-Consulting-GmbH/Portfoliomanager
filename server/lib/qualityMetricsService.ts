@@ -37,7 +37,8 @@ export interface QualityMetrics {
 
   // Risiko / Stabilität
   epsVolatility: number | null;     // CV der jährlichen EPS-Wachstumsraten (0–1+)
-  epsStabilityScore: number;        // 0–100 (100 = sehr stabile Gewinne)
+  /** 0–100 (100 = sehr gleichmässige Gewinne); null = nicht berechenbar. */
+  epsStabilityScore: number | null;
   surpriseRate: number | null;      // % Quartale mit positivem EPS-Surprise (letzte 8Q)
   netDebtToEbitda: number | null;   // Verschuldungsgrad
 
@@ -175,7 +176,9 @@ export async function getQualityMetrics(ticker: string): Promise<QualityMetrics>
 
 // ─── Extraktion ───────────────────────────────────────────────────────────────
 
-function extractMetrics(d: any, ticker: string): QualityMetrics {
+/** Exportiert für den Test — die Netzabfrage ist der einzige Grund, warum
+ *  `getQualityMetrics` nicht direkt prüfbar ist. */
+export function extractMetrics(d: any, ticker: string): QualityMetrics {
   const highlights = d.Highlights || {};
   const financials = d.Financials || {};
   const earnings = d.Earnings || {};
@@ -241,7 +244,9 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
   // ── Historische Gewinnvolatilität (EPS-CV) ────────────────────────────────
   // Verwende jährliche EPS-Wachstumsraten der letzten 10 Jahre
   let epsVolatility: number | null = null;
-  let epsStabilityScore = 50;
+  // null heisst «nicht berechenbar», nicht «mittelmässig». Vorher stand hier
+  // 50 — eine erfundene Mitte für jeden Titel ohne zehn Jahre EPS-Historie.
+  let epsStabilityScore: number | null = null;
 
   const epsValues: number[] = annualKeys
     .slice(-11) // 11 Jahre für 10 Wachstumsraten
@@ -263,10 +268,23 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
       // CV = std / |mean|, aber nur wenn mean > 0 (Wachstumsunternehmen)
       epsVolatility = Math.abs(mean) > 0.01 ? std / Math.abs(mean) : std;
 
-      // Stabilitäts-Score: 0 = sehr volatil (CV > 1.5), 100 = sehr stabil (CV < 0.1)
-      epsStabilityScore = Math.max(0, Math.min(100,
-        Math.round(100 - (epsVolatility / 1.5) * 100)
-      ));
+      // Stabilität aus der STREUUNG der Wachstumsraten, nicht aus ihrem
+      // Variationskoeffizienten.
+      //
+      // Vorher: `100 - (CV / 1.5) * 100` mit CV = std / |mittel|. Damit der
+      // Score über 0 liegt, müsste die Streuung der jährlichen Wachstumsraten
+      // kleiner sein als das 1.5-fache ihres Mittelwerts — bei 8 % mittlerem
+      // Wachstum also unter 12 Prozentpunkten. Reale Gewinne schwanken um ein
+      // Vielfaches davon (ein einziges Krisenjahr genügt), weshalb praktisch
+      // JEDER Titel exakt 0 bekam. Der Faktor mass nichts mehr, zog aber in
+      // `berechneQualitaet` mit 15 % Gewicht jeden Titel gleich weit herunter.
+      //
+      // Jetzt direkt die Streuung in Prozentpunkten: bis 5 pp sehr gleichmässig
+      // (100), ab 50 pp sehr sprunghaft (0), linear dazwischen.
+      const streuungPp = std * 100;
+      const OBEN = 5, UNTEN = 50;
+      const anteil = (UNTEN - Math.max(OBEN, Math.min(UNTEN, streuungPp))) / (UNTEN - OBEN);
+      epsStabilityScore = Math.round(anteil * 100);
     }
   }
 
@@ -450,10 +468,19 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
   // ── Forward PEG ──────────────────────────────────────────────────────────
   // Konzeptionell korrekt: Forward PE / zukunftsgerichtetes Wachstum (5Y CAGR)
   // Nicht: Forward PE / historisches TTM-Wachstum (Vergangenheit ≠ Zukunft)
+  //
+  // Untergrenze für das Wachstum im Nenner: Unter 2 % p.a. ist das PEG keine
+  // Aussage mehr, sondern eine Division durch fast null. Ein Titel mit 0.7 %
+  // Wachstum bekam so ein PEG von 47 — arithmetisch richtig, inhaltlich
+  // wertlos, weil schon ein Zehntelprozent Messfehler im Nenner das Ergebnis
+  // halbiert oder verdoppelt. Bei so wenig Wachstum ist die richtige Antwort
+  // nicht «PEG 47», sondern «PEG sagt hier nichts» — die Aussage «kaum
+  // Wachstum» steht ohnehin schon im Wachstumsfeld daneben.
+  const MIN_WACHSTUM_FUER_PEG = 2; // % p.a.
   let forwardPeg: number | null = null;
-  if (forwardPE !== null && forwardPE > 0.1 && epsGrowth5y !== null && epsGrowth5y > 0) {
+  if (forwardPE !== null && forwardPE > 0.1 && epsGrowth5y !== null && epsGrowth5y >= MIN_WACHSTUM_FUER_PEG) {
     forwardPeg = forwardPE / epsGrowth5y;
-  } else if (forwardPE !== null && forwardPE > 0.1 && epsGrowthTTM !== null && epsGrowthTTM > 0) {
+  } else if (forwardPE !== null && forwardPE > 0.1 && epsGrowthTTM !== null && epsGrowthTTM >= MIN_WACHSTUM_FUER_PEG) {
     // Fallback: TTM als Wachstumsschätzung, nur wenn kein 5Y CAGR verfügbar
     forwardPeg = forwardPE / epsGrowthTTM;
   }
@@ -510,7 +537,7 @@ function buildFallback(ticker: string, reason: string): QualityMetrics {
     piotroski: berechnePiotroski(null),
     qualityScore: 50,
     epsGrowthTTM: null, revenueGrowthTTM: null, epsGrowth5y: null,
-    epsVolatility: null, epsStabilityScore: 50,
+    epsVolatility: null, epsStabilityScore: null,
     surpriseRate: null, netDebtToEbitda: null,
     trailingPE: null, forwardPE: null, eps: null, epsEstimateNextYear: null,
     investedCapital: null, nopat: null,
