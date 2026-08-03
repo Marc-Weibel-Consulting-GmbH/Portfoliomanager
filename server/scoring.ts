@@ -1,3 +1,6 @@
+import { MIN_ABDECKUNG_SCORE } from './lib/scoreAbdeckung';
+export { MIN_ABDECKUNG_SCORE };
+
 /**
  * Stock Scoring System
  * Evaluates dividend and growth stocks with traffic light indicators (Red/Orange/Yellow/Green)
@@ -35,10 +38,22 @@ export interface SubScore {
 export interface StockScore {
   ticker: string;
   type: StockType;
-  totalScore: number;
+  /**
+   * 0–100, oder `null`, wenn zu wenige Kennzahlen vorliegen.
+   *
+   * `null` heisst «nicht beurteilbar» und ist etwas anderes als eine schlechte
+   * Note. Vorher wurde in beiden Fällen eine Zahl ausgewiesen: Ein Titel ohne
+   * jede Kennzahl erhielt 0 («schwach»), einer mit einer einzigen Kennzahl den
+   * Wert eben dieser einen.
+   */
+  totalScore: number | null;
+  /** Anteil der Faktorgewichtung, der tatsächlich mit Daten belegt ist (0–1). */
+  abdeckung: number;
   color: ScoreColor;
   subScores: SubScore[];
 }
+
+
 
 /**
  * Calculate subscore for a single metric with linear interpolation
@@ -374,12 +389,7 @@ export function calculateStockScore(
     assetSubScores = scoreRealEstate(metrics); assetTypeName = 'dividend';
   }
   if (assetSubScores !== null) {
-    let totalScore = 0; let totalWeight = 0;
-    for (const sub of assetSubScores) {
-      if (sub.value !== null && sub.score !== null) { totalScore += sub.score * sub.weight; totalWeight += sub.weight; }
-    }
-    const finalScore = totalWeight > 0 ? totalScore / totalWeight : 0;
-    return { ticker, type: assetTypeName, totalScore: Math.round(finalScore * 100) / 100, color: getColorFromScore(finalScore), subScores: assetSubScores };
+    return baueScore(ticker, assetTypeName, assetSubScores);
   }
   // Equity path: determine type if not provided
   const type = stockType || determineStockType(metrics, category);
@@ -389,24 +399,49 @@ export function calculateStockScore(
     ? scoreDividendStock(metrics)
     : scoreGrowthStock(metrics);
 
-  // Calculate weighted total score
-  let totalScore = 0;
-  let totalWeight = 0;
+  return baueScore(ticker, type, subScores);
+}
+
+/**
+ * Gewichtetes Mittel der belegten Teilscores — oder `null`, wenn zu wenig belegt.
+ *
+ * Die Normalisierung auf die belegte Gewichtung ist für sich richtig: Fehlt eine
+ * Kennzahl, sollen die übrigen entsprechend stärker zählen. Ohne Untergrenze
+ * führt sie aber dazu, dass eine einzelne Kennzahl den ganzen Score bestimmt —
+ * GLD.US erhielt so 87.5 «ausgezeichnet» allein aus seinem Beta.
+ */
+function baueScore(ticker: string, type: StockType, subScores: SubScore[]): StockScore {
+  let gewichtet = 0;
+  let belegtesGewicht = 0;
+  let gesamtGewicht = 0;
 
   for (const sub of subScores) {
+    gesamtGewicht += sub.weight;
     if (sub.value !== null && sub.score !== null) {
-      totalScore += sub.score * sub.weight;
-      totalWeight += sub.weight;
+      gewichtet += sub.score * sub.weight;
+      belegtesGewicht += sub.weight;
     }
   }
 
-  // Normalize if not all metrics available
-  const finalScore = totalWeight > 0 ? totalScore / totalWeight : 0;
+  const abdeckung = gesamtGewicht > 0 ? belegtesGewicht / gesamtGewicht : 0;
 
+  if (abdeckung < MIN_ABDECKUNG_SCORE) {
+    return {
+      ticker,
+      type,
+      totalScore: null,
+      abdeckung: Math.round(abdeckung * 1000) / 1000,
+      color: 'red',
+      subScores,
+    };
+  }
+
+  const finalScore = gewichtet / belegtesGewicht;
   return {
     ticker,
     type,
     totalScore: Math.round(finalScore * 100) / 100,
+    abdeckung: Math.round(abdeckung * 1000) / 1000,
     color: getColorFromScore(finalScore),
     subScores,
   };

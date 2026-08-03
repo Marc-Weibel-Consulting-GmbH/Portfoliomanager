@@ -6,6 +6,8 @@
  * - Momentum Factor: Relative Strength vs Sector, 3M/6M/12M Momentum, Price Acceleration
  */
 
+import { MIN_ABDECKUNG_SCORE } from '../lib/scoreAbdeckung';
+
 // ─── Feature Flags ────────────────────────────────────────────────────────────
 // All flags default to FALSE. Never activate in production without:
 //   1. OOS backtest with ΔSharpe ≥ threshold
@@ -123,17 +125,25 @@ export function calculateQualityScore(metrics: QualityMetrics): QualityScore {
     }
   }
 
-    const rawScore = totalWeight > 0 ? weightedSum / totalWeight : 0;
+  // Mindestabdeckung — dieselbe Schwelle und derselbe Grund wie in
+  // `server/scoring.ts`: Die Normalisierung auf das belegte Gewicht ist für sich
+  // richtig, lässt ohne Untergrenze aber eine einzelne Kennzahl den ganzen Score
+  // bestimmen. Vorher galt nur totalWeight === 0 als «keine Daten»; allein die
+  // Eigenkapitalrendite (0.35) reichte damit für eine Note.
+  const gesamtGewicht = Object.values(weights).reduce((a, w) => a + w, 0);
+  const abdeckung = gesamtGewicht > 0 ? totalWeight / gesamtGewicht : 0;
+  const belegt = abdeckung >= MIN_ABDECKUNG_SCORE;
+
+  const rawScore = totalWeight > 0 ? weightedSum / totalWeight : 0;
   const score = Math.max(-1, Math.min(1, rawScore));
-  // Grade assignment — wenn keine Daten verfügbar (totalWeight=0), kein Grade vergeben
   let grade: 'A' | 'B' | 'C' | 'D' | 'F' | 'N/A';
-  if (totalWeight === 0) grade = 'N/A';
+  if (!belegt) grade = 'N/A';
   else if (score >= 0.6) grade = 'A';
   else if (score >= 0.3) grade = 'B';
   else if (score >= 0.05) grade = 'C';
   else if (score >= -0.3) grade = 'D';
   else grade = 'F';
-    return { score, rawScore, components, grade, dataAvailable: totalWeight > 0 };
+  return { score, rawScore, components, grade, dataAvailable: belegt };
 }
 /**
  * Calculate Momentum Factor Score
