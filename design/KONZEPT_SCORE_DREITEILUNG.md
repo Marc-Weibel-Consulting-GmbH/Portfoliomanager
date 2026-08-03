@@ -100,19 +100,60 @@ Die Zuordnung selbst ist zusätzlich instabil:
 
 ### 1.6 Einheitenfehler bei der Dividendenrendite
 
-`dividendYield` wird ×100 gespeichert (`stocksRouter.ts:574`: `str(divYield * 100)`),
-also **151** für 1.51 %. Zwei Aufrufstellen reichen diesen Rohwert ungeteilt an
-`calculateStockScore()` weiter, dessen Schwellen `[1.5, 2.5, 4, 6]` in Prozent stehen:
+Die Rendite wird **zweimal** in Prozent umgerechnet und steht damit hundertfach zu hoch
+in der Datenbank.
 
-- `server/helpers/portfolioEnrichment.ts:162`
-- `server/routers/stocksRouter.ts:532` (Nachberechnung bei fehlendem Score)
+EODHD liefert einen Bruch (`0.0151` = 1.51 %). Die Umrechnung geschieht korrekt in
+`server/_core/eodhdApi.ts:198`:
 
-Nachgerechnet für ABB: Teilscore **12.8 statt 87.5**, Gesamtscore **26.6 gegenüber
-56.5**. Derselbe Rohwert lässt ausserdem die Fallback-Regel aus 1.5 immer anschlagen —
-praktisch jeder Titel ohne passende Kategorie landet im Dividendenprofil.
+```ts
+// EODHD returns dividend yield as decimal (0.03 = 3%)
+fundamentals.dividendYield = pf(highlights.DividendYield) * 100;   // 0.0151 → 1.51
+```
 
-Das ist ein eigenständiger Fehler, unabhängig von der Konzeptfrage, und in einem
-separaten Schritt zu beheben.
+`server/scheduled/signalScoreRefreshScheduled.ts:190` multipliziert denselben, bereits
+umgerechneten Wert erneut:
+
+```ts
+const divYield = fundamentals.dividendYield;                      // = 1.51, schon Prozent
+dividendYield: divYield != null ? (divYield * 100).toFixed(4) : stock.dividendYield;
+//                                            ^^^^^ → 151.0000
+```
+
+Stichprobe aus der Produktionsdatenbank (2026-08-03):
+
+| Titel | gespeichert | tatsächlich |
+|---|---|---|
+| ABBN.SW | 151.0000 | 1.51 % |
+| NESN.SW | 376.0000 | 3.76 % |
+| NOVN.SW | 368.0000 | 3.68 % |
+| KO.US | 235.0000 | 2.35 % |
+| AAPL.US | 31.0000 | 0.31 % |
+
+Ein zweiter Schreibpfad macht es richtig: `server/cron/watchlistAlertsCron.ts:128` holt
+den Wert von Yahoo, wo er tatsächlich noch ein Bruch ist — die Variable heisst dort
+`dividendYieldFraction` (Zeile 118). Zwei Jobs schreiben also mit unterschiedlichem
+Verständnis in dieselbe Spalte.
+
+**Auswirkungen:**
+
+- **Anzeige.** `client/src/pages/StockDetail.tsx:782` gibt den Rohwert mit
+  Prozentzeichen aus (`parseFloat(...).toFixed(1)`, `suffix="%"`) — für ABB also
+  «151.0 %». Im Client wird nirgends durch 100 geteilt.
+- **Ampel.** `getRating` (`StockDetail.tsx:433`) stuft `> 3` als «gut» ein; bei 151 ist
+  jeder Titel mit irgendeiner Ausschüttung grün.
+- **Score.** `calculateStockScore()` vergleicht mit Schwellen in Prozent
+  (`[1.5, 2.5, 4, 6]`). Zwei Stellen reichen den Rohwert ungeteilt weiter:
+  `server/helpers/portfolioEnrichment.ts:162` und `server/routers/stocksRouter.ts:532`.
+  Nachgerechnet für ABB: Teilscore **87.5 statt 12.8**, Gesamtscore **56.5 gegenüber
+  26.6**.
+- **Profilzuordnung.** Die Fallback-Regel aus 1.5 («Rendite > 2 %») sieht 151 und
+  schlägt bei praktisch jedem Titel an.
+
+**Korrektur:** Das `* 100` in `signalScoreRefreshScheduled.ts:190` entfällt, dazu ein
+einmaliges Aufräumen der Bestandswerte und ein Test, der die Konvention festhält.
+Eigenständiger Fehler, unabhängig von der Konzeptfrage, in einem separaten Schritt zu
+beheben.
 
 ---
 
