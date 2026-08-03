@@ -11,6 +11,7 @@
 
 import { ENV } from "../_core/env";
 import { toEodhdSymbol } from "./eodhdSymbol";
+import { berechnePiotroski, type PiotroskiErgebnis } from "./piotroski";
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -54,6 +55,19 @@ export interface QualityMetrics {
   freeCashflow: number | null;
   /** Unternehmenswert ÷ EBITDA. Kapitalstrukturneutral, anders als das KGV. */
   evToEbitda: number | null;
+  /** Kurs-Buchwert-Verhältnis. Für Banken und Versicherer die aussagekräftigste Bewertungsgrösse. */
+  priceToBook: number | null;
+
+  /**
+   * Operativer Cashflow ÷ Nettogewinn — die Ertragsqualität.
+   *
+   * Über 1 heisst: Der ausgewiesene Gewinn ist durch Zahlungsströme gedeckt.
+   * Der wirksamste Schutz gegen buchhalterisch erzeugte Gewinne.
+   */
+  ertragsdeckung: number | null;
+
+  /** Piotroski F-Score — die fundamentale Richtung gegenüber dem Vorjahr. */
+  piotroski: PiotroskiErgebnis;
 
   // Rohdaten für Transparenz
   trailingPE: number | null;
@@ -348,6 +362,33 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
     fcfYield = (freeCashflow / marktkapitalisierung) * 100;
   }
 
+  // Ertragsqualität: Deckt der Zahlungsstrom den ausgewiesenen Gewinn?
+  // Bei negativem Gewinn ist das Verhältnis nicht sinnvoll interpretierbar —
+  // dann lieber kein Wert als ein Vorzeichenartefakt.
+  let ertragsdeckung: number | null = null;
+  if (cfKeys.length > 0 && isKeys.length > 0) {
+    const letzterCF = cfYearly[cfKeys.at(-1)!];
+    const letzterIS = isYearly[isKeys.at(-1)!];
+    const operativ = parseFloatOrNull(letzterCF?.totalCashFromOperatingActivities);
+    const gewinn = parseFloatOrNull(letzterIS?.netIncome);
+    if (operativ !== null && gewinn !== null && gewinn > 0) {
+      ertragsdeckung = operativ / gewinn;
+    }
+  }
+
+  // Kurs-Buchwert — EODHD führt es unter `Valuation`, ersatzweise aus
+  // Marktkapitalisierung und Eigenkapital.
+  let priceToBook = parseFloatOrNull(valuation.PriceBookMRQ);
+  if (priceToBook === null && marktkapitalisierung !== null && bsKeys.length > 0) {
+    const eigenkapital = parseFloatOrNull(bsYearly[bsKeys.at(-1)!]?.totalStockholderEquity);
+    if (eigenkapital !== null && eigenkapital > 0) {
+      priceToBook = marktkapitalisierung / eigenkapital;
+    }
+  }
+
+  // Piotroski aus denselben Abschlüssen — zwei Geschäftsjahre, kein neuer Abruf.
+  const piotroski = berechnePiotroski(financials);
+
   // ── Net Debt / EBITDA ─────────────────────────────────────────────────────
   let netDebtToEbitda: number | null = null;
   let evToEbitda: number | null = null;
@@ -442,6 +483,9 @@ function extractMetrics(d: any, ticker: string): QualityMetrics {
     fcfYield,
     freeCashflow,
     evToEbitda,
+    priceToBook,
+    ertragsdeckung,
+    piotroski,
     trailingPE,
     forwardPE,
     eps,
@@ -461,7 +505,9 @@ function buildFallback(ticker: string, reason: string): QualityMetrics {
     trailingPeg: null, forwardPeg: null, adjustedPeg: null,
     pegQuadrant: "unknown", pegQuadrantLabel: "Unbekannt",
     roic: null, returnOnEquity: null, grossMargin: null, operatingMargin: null,
-    fcfYield: null, freeCashflow: null, evToEbitda: null,
+    fcfYield: null, freeCashflow: null, evToEbitda: null, priceToBook: null,
+    ertragsdeckung: null,
+    piotroski: berechnePiotroski(null),
     qualityScore: 50,
     epsGrowthTTM: null, revenueGrowthTTM: null, epsGrowth5y: null,
     epsVolatility: null, epsStabilityScore: 50,

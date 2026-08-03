@@ -339,6 +339,27 @@ export const analyticsRouter = router({
   /**
    * Quality Metrics: ROIC, EPS-CV, Adjusted PEG, Surprise-Rate via EODHD
    */
+  /**
+   * Qualität, Bewertung und Timing als drei getrennte Scores.
+   *
+   * Umsetzung von `design/KONZEPT_SCORE_DREITEILUNG.md`. Liefert zusätzlich den
+   * bisherigen Einzelscore unter `bisher`, damit sich alt und neu während der
+   * Umstellung nebeneinander lesen lassen.
+   */
+  dreiScores: protectedProcedure
+    .input(z.object({ ticker: z.string() }))
+    .query(async ({ input }) => {
+      const { getDreiScores } = await import("../lib/dreiScoresService");
+      try {
+        return await getDreiScores(input.ticker);
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err.message ?? "Score-Berechnung fehlgeschlagen",
+        });
+      }
+    }),
+
   qualityMetrics: protectedProcedure
     .input(z.object({ ticker: z.string() }))
     .query(async ({ input }) => {
