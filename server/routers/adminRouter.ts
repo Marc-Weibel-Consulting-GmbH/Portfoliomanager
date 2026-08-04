@@ -1631,8 +1631,7 @@ export const adminRouter = router({
         void (async () => {
           try {
             const { rekonstruiere } = await import("../lib/punktInZeitRekonstruktion");
-            const { tickerMitReihe } = await import("../lib/punktInZeitStore");
-            const { monatsStichtage } = await import("../lib/punktInZeit");
+            const { tickerMitReihe, tickerOhneReihe, merkeOhneReihe } = await import("../lib/punktInZeitStore");
             const { activeCurated } = await import("../lib/stockUniverse");
             const { ENV } = await import("../_core/env");
             const { toEodhdSymbol } = await import("../lib/eodhdSymbol");
@@ -1679,12 +1678,30 @@ export const adminRouter = router({
               // Als «erfasst» gilt ein Titel erst ab der halben moeglichen
               // Zeilenzahl. Wer nur drei Stichtage hat, weil der vorige Lauf
               // mitten in ihm abbrach, wird erneut geholt.
+              // EINE Zeile genuegt als «erfasst». `reiheFuerTitel` rechnet ALLE
+              // Stichtage eines Titels in einem Durchgang — danach hat er
+              // entweder alle Zeilen, die er haben kann, oder keine. Ein
+              // erneuter Abruf fuegt nichts hinzu.
+              //
+              // Vorher stand hier die halbe moegliche Zeilenzahl. Titel mit
+              // kuerzerer Boersenhistorie erreichen die nie: Drei Titel mit je
+              // 48 von 127 moeglichen Zeilen galten als unfertig und wurden bei
+              // jedem Lauf erneut geholt — der Lauf drehte sich im Kreis.
               input.fortsetzen
-                ? await tickerMitReihe(input.von, input.bis,
-                    Math.max(1, Math.floor(monatsStichtage(input.von, input.bis).length / 2)))
+                ? new Set([
+                    // Erledigt ist beides: Titel MIT Reihe und Titel, von
+                    // denen wir wissen, dass sie keine haben koennen.
+                    ...await tickerMitReihe(input.von, input.bis, 1),
+                    ...await tickerOhneReihe(input.von, input.bis),
+                  ])
                 : new Set<string>(),
               input.maxTitel,
             );
+            // Die Erkenntnis «dieser Titel kann keine Reihe haben» festhalten,
+            // sonst steht er beim naechsten Lauf wieder vorn in der Schlange.
+            if (ergebnis.ohneReihe.length) {
+              await merkeOhneReihe(ergebnis.ohneReihe, input.von, input.bis);
+            }
             rekonstruktion.meldungen.push(...ergebnis.meldungen);
             rekonstruktion.nochOffen = ergebnis.nochOffen;
             rekonstruktion.zuletzt = ergebnis.zuletzt;

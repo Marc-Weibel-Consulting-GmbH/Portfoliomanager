@@ -177,3 +177,68 @@ export async function tickerMitReihe(
     return aus;
   }
 }
+
+/**
+ * Titel, die geprüft wurden und keine Reihe liefern können.
+ *
+ * ETFs, Fonds und Indexprodukte haben keine Bilanz und kein EPS. Ohne dieses
+ * Gedächtnis stehen sie bei jedem Lauf erneut vorn in der Warteschlange, und
+ * der Lauf kommt nie vom Fleck — genau das ist passiert: 22 von 25 Titeln
+ * eines Häppchens waren ETFs, zwei Läufe hintereinander mit identischem
+ * Ergebnis.
+ *
+ * Eigene Tabelle statt eines Merkmals am Titel: Die Aussage gilt für einen
+ * Zeitraum, nicht für den Titel an sich. Ein Titel, der 2016 noch nicht
+ * kotiert war, kann für ein späteres Fenster sehr wohl eine Reihe haben.
+ */
+let leerGeprueft = false;
+
+async function stelleLeerTabelleSicher(db: any): Promise<void> {
+  if (leerGeprueft) return;
+  const { sql } = await import("drizzle-orm");
+  await db.execute(sql.raw(`CREATE TABLE IF NOT EXISTS \`stock_scores_ohne_reihe\` (
+    \`ticker\` varchar(24) NOT NULL,
+    \`von\` varchar(10) NOT NULL,
+    \`bis\` varchar(10) NOT NULL,
+    \`geprueftAm\` timestamp NOT NULL DEFAULT (now()),
+    PRIMARY KEY (\`ticker\`, \`von\`, \`bis\`)
+  )`));
+  leerGeprueft = true;
+}
+
+export async function merkeOhneReihe(tickers: string[], von: string, bis: string): Promise<number> {
+  if (!tickers.length) return 0;
+  try {
+    const { getDb } = await import("../db");
+    const db = await getDb();
+    if (!db) return 0;
+    await stelleLeerTabelleSicher(db);
+    const { sql } = await import("drizzle-orm");
+    const werte = tickers.map((t) => sql`(${t}, ${von}, ${bis})`);
+    await db.execute(sql`
+      INSERT INTO stock_scores_ohne_reihe (ticker, von, bis) VALUES ${sql.join(werte, sql`, `)}
+      ON DUPLICATE KEY UPDATE geprueftAm = now()`);
+    return tickers.length;
+  } catch (e) {
+    console.warn("[PunktInZeit] Leer-Vermerk fehlgeschlagen (non-fatal):", (e as Error).message);
+    return 0;
+  }
+}
+
+export async function tickerOhneReihe(von: string, bis: string): Promise<Set<string>> {
+  const aus = new Set<string>();
+  try {
+    const { getDb } = await import("../db");
+    const db = await getDb();
+    if (!db) return aus;
+    await stelleLeerTabelleSicher(db);
+    const { sql } = await import("drizzle-orm");
+    const rows: any = await db.execute(sql`
+      SELECT ticker FROM stock_scores_ohne_reihe WHERE von = ${von} AND bis = ${bis}`);
+    const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
+    for (const r of liste as any[]) aus.add(String(r.ticker));
+    return aus;
+  } catch {
+    return aus;
+  }
+}
