@@ -69,8 +69,13 @@ const datenLauf: {
 } = { aktiv: false, gestartetAm: null, beendetAm: null, schritte: [] };
 
 /** Laufzustand der Punkt-in-Zeit-Rekonstruktion, ebenfalls im Speicher. */
-const rekonstruktion: { aktiv: boolean; beendetAm: string | null; meldungen: string[] } =
-  { aktiv: false, beendetAm: null, meldungen: [] };
+const rekonstruktion: {
+  aktiv: boolean; beendetAm: string | null; meldungen: string[];
+  /** Nach dem letzten Haeppchen noch offen; null = unbekannt. */
+  nochOffen: number | null;
+  /** Zuletzt begonnener Titel — die Spur, wenn der Prozess stirbt. */
+  zuletzt: string | null;
+} = { aktiv: false, beendetAm: null, meldungen: [], nochOffen: null, zuletzt: null };
 
 export const adminRouter = router({
     /**
@@ -1614,6 +1619,8 @@ export const adminRouter = router({
         bis: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         /** Bereits erfasste Titel ueberspringen — setzt einen Abbruch fort. */
         fortsetzen: z.boolean().default(true),
+        /** Hoechstens so viele Titel je Lauf. Klein halten: lange Laeufe sterben. */
+        maxTitel: z.number().int().min(1).max(250).default(25),
       }))
       .mutation(async ({ input }) => {
         if (rekonstruktion.aktiv) return { gestartet: false, message: "Laeuft bereits." };
@@ -1676,8 +1683,11 @@ export const adminRouter = router({
                 ? await tickerMitReihe(input.von, input.bis,
                     Math.max(1, Math.floor(monatsStichtage(input.von, input.bis).length / 2)))
                 : new Set<string>(),
+              input.maxTitel,
             );
             rekonstruktion.meldungen.push(...ergebnis.meldungen);
+            rekonstruktion.nochOffen = ergebnis.nochOffen;
+            rekonstruktion.zuletzt = ergebnis.zuletzt;
           } catch (e: any) {
             rekonstruktion.meldungen.push(`Fehler: ${e?.message ?? "unbekannt"}`);
           } finally {
@@ -1697,6 +1707,8 @@ export const adminRouter = router({
         aktiv: rekonstruktion.aktiv,
         beendetAm: rekonstruktion.beendetAm,
         meldungen: rekonstruktion.meldungen.slice(-30),
+        nochOffen: rekonstruktion.nochOffen,
+        zuletzt: rekonstruktion.zuletzt,
         /** Rekonstruierte Vergangenheit — rueckwaerts, ohne Schaetzfaktoren. */
         umfang: await historienUmfang(),
         /**
