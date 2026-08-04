@@ -17,6 +17,23 @@ export default function AdminDashboard() {
   const [deepDiveCacheStatus, setDeepDiveCacheStatus] = useState<string | null>(null);
   const [sleeveBackfillStatus, setSleeveBackfillStatus] = useState<string | null>(null);
   const [seltenOffen, setSeltenOffen] = useState(false);
+  const [rekoVon, setRekoVon] = useState("2016-01-01");
+  const [rekoBis, setRekoBis] = useState(new Date().toISOString().slice(0, 10));
+
+  // Punkt-in-Zeit-Rekonstruktion. Die Endpunkte gibt es seit #253 — eine
+  // Bedienung dafuer fehlte, weshalb der Lauf nur ueber die API ausloesbar war
+  // und sein Fortschritt nirgends sichtbar.
+  const rekoStatus = trpc.admin.getRekonstruktionStatus.useQuery(undefined, {
+    refetchInterval: (query) => (query.state.data?.aktiv ? 5_000 : false),
+  });
+  const starteReko = trpc.admin.starteRekonstruktion.useMutation({
+    onSuccess: (d) => {
+      if (d.gestartet) toast.success("Rekonstruktion gestartet", { description: "Der Fortschritt erscheint unten." });
+      else toast.info(d.message);
+      rekoStatus.refetch();
+    },
+    onError: (err) => toast.error("Fehler", { description: err.message }),
+  });
 
   // Der eine Knopf. Der Lauf selbst dauert Minuten und läuft auf dem Server;
   // hier wird nur der Fortschritt geholt — und nur solange er läuft.
@@ -276,6 +293,99 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Score-Historie rekonstruieren — die Datengrundlage fuer das
+            Backtesting der Score-Gewichte. Laeuft lange und im Hintergrund;
+            der Zustand liegt im Speicher, ein Deploy bricht ihn ab. */}
+        <div className="p-4 bg-muted/30 rounded-lg border space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Score-Historie rekonstruieren</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Rechnet Qualität und Bewertung für jeden Monatsstichtag mit den Daten von damals —
+                Grundlage für das Backtesting der Gewichte. Dauert je nach Zeitraum 10–20 Minuten.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="date" value={rekoVon} onChange={(e) => setRekoVon(e.target.value)}
+                className="h-9 rounded-md border bg-background px-2 text-xs"
+                aria-label="Von"
+              />
+              <span className="text-xs text-muted-foreground">bis</span>
+              <input
+                type="date" value={rekoBis} onChange={(e) => setRekoBis(e.target.value)}
+                className="h-9 rounded-md border bg-background px-2 text-xs"
+                aria-label="Bis"
+              />
+              <Button
+                onClick={() => starteReko.mutate({ von: rekoVon, bis: rekoBis })}
+                disabled={starteReko.isPending || rekoStatus.data?.aktiv}
+                variant="outline"
+                className="gap-2"
+              >
+                {rekoStatus.data?.aktiv
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <Database className="h-4 w-4" />}
+                {rekoStatus.data?.aktiv ? "Läuft..." : "Rekonstruieren"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Umfang: was tatsaechlich in der Datenbank steht. Ueberlebt einen
+              Neustart, im Gegensatz zu den Meldungen darunter. */}
+          {rekoStatus.data?.umfang && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 border-t pt-3 text-sm">
+              <div>
+                <span className="text-muted-foreground text-xs">Zeilen</span>
+                <div className="font-bold">{rekoStatus.data.umfang.zeilen.toLocaleString("de-CH")}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Titel</span>
+                <div className="font-bold">{rekoStatus.data.umfang.titel}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Zeitraum</span>
+                <div className="font-bold text-xs">
+                  {rekoStatus.data.umfang.von && rekoStatus.data.umfang.bis
+                    ? `${rekoStatus.data.umfang.von} – ${rekoStatus.data.umfang.bis}`
+                    : "—"}
+                </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Ø Monate je Titel</span>
+                <div className="font-bold">
+                  {rekoStatus.data.umfang.titel > 0
+                    ? Math.round(rekoStatus.data.umfang.zeilen / rekoStatus.data.umfang.titel)
+                    : "—"}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* PEG-Aufzeichnung: waechst nur nach vorn, siehe #255. */}
+          {rekoStatus.data?.vorwaerts && rekoStatus.data.vorwaerts.zeilen > 0 && (
+            <p className="text-xs text-muted-foreground">
+              PEG-Aufzeichnung: {rekoStatus.data.vorwaerts.tageMitPeg} Tage erfasst
+              {rekoStatus.data.vorwaerts.von ? ` (seit ${rekoStatus.data.vorwaerts.von})` : ""} —
+              der geschätzte Teil der Bewertung wird erst backtestbar, wenn diese Reihe ein bis zwei
+              Jahre umfasst.
+            </p>
+          )}
+
+          {rekoStatus.data?.meldungen && rekoStatus.data.meldungen.length > 0 && (
+            <div className="bg-black/50 rounded p-3 max-h-40 overflow-y-auto font-mono text-xs text-green-400 border-t">
+              {rekoStatus.data.meldungen.map((m, i) => (
+                <div key={i} className={m.includes("ohne Reihe") ? "text-amber-400" : ""}>{m}</div>
+              ))}
+            </div>
+          )}
+          {!rekoStatus.data?.aktiv && rekoStatus.data?.beendetAm && (
+            <p className="text-[11px] text-muted-foreground">
+              Beendet {new Date(rekoStatus.data.beendetAm).toLocaleString("de-CH")}
+            </p>
+          )}
         </div>
 
         {/* Backfill-Status */}
