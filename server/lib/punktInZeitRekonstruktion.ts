@@ -33,6 +33,8 @@ export interface RekonstruktionsErgebnis {
   nochOffen: number;
   /** Zuletzt begonnener Titel. Stirbt der Prozess, steht hier die Spur. */
   zuletzt: string | null;
+  /** Titel, die geprüft wurden und keine Reihe liefern können (ETF, Fonds, …). */
+  ohneReihe: string[];
 }
 
 /** Kurs am oder unmittelbar vor einem Stichtag. */
@@ -96,7 +98,7 @@ export function reiheFuerTitel(
  * Netzzugriff getestet werden kann und der Abrufweg an einer Stelle steht.
  */
 export async function rekonstruiere(
-  tickers: { ticker: string; sektor: string | null }[],
+  tickers: { ticker: string; sektor: string | null; kategorie?: string | null; name?: string | null }[],
   von: string,
   bis: string,
   holeFundamentals: (ticker: string) => Promise<any | null>,
@@ -125,11 +127,15 @@ export async function rekonstruiere(
   const alleOffen = tickers.filter((t) => !bereitsErfasst.has(t.ticker));
   const offen = alleOffen.slice(0, Math.max(1, maxTitel));
   melde(`${tickers.length} Titel, ${stichtage.length} Stichtage (${von} bis ${bis}).`
-    + (bereitsErfasst.size ? ` ${tickers.length - alleOffen.length} bereits erfasst, ${alleOffen.length} offen.` : "")
+    + (bereitsErfasst.size ? ` ${tickers.length - alleOffen.length} erledigt, ${alleOffen.length} offen.` : "")
     + (alleOffen.length > offen.length ? ` Dieser Lauf nimmt ${offen.length}.` : ""));
 
   let zeilen = 0;
   let zuletzt: string | null = null;
+  // Titel, die nachweislich keine Reihe liefern koennen. Der Aufrufer merkt
+  // sie sich, damit sie nicht bei jedem Lauf erneut vorn in der Schlange
+  // stehen — genau daran drehte sich der Lauf zuvor im Kreis.
+  const ohneReihe: string[] = [];
   const uebersprungen: string[] = [];
   const meldungen: string[] = [];
 
@@ -154,7 +160,11 @@ export async function rekonstruiere(
       if (!kurse.length) { uebersprungen.push(`${ticker} (keine Kurse)`); continue; }
 
       const saetze = reiheFuerTitel(ticker, fundamentals, kurse, stichtage, sektor, meldefristTage);
-      if (!saetze.length) { uebersprungen.push(`${ticker} (keine belegte Zeile)`); continue; }
+      if (!saetze.length) {
+        uebersprungen.push(`${ticker} (keine belegte Zeile)`);
+        ohneReihe.push(ticker);
+        continue;
+      }
 
       zeilen += await haltefestHistorie(saetze);
     } catch (e) {
@@ -189,5 +199,6 @@ export async function rekonstruiere(
   return {
     titel: offen.length - uebersprungen.length,
     zeilen, uebersprungen, meldungen, bereitsVorhanden, nochOffen, zuletzt,
+    ohneReihe,
   };
 }

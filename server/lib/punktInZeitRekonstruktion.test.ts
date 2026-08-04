@@ -219,6 +219,30 @@ describe("rekonstruiere", () => {
     expect(r.nochOffen).toBe(0);
   });
 
+  it("merkt sich Titel, die keine Reihe liefern koennen", async () => {
+    // Der Fall aus der Praxis: 22 der 25 Titel eines Haeppchens waren ETFs.
+    // Sie koennen keine Fundamentalreihe haben, blockierten aber den Anfang
+    // der Warteschlange — bei jedem Lauf erneut, weil sie nie «erfasst»
+    // wurden. Der Lauf drehte sich im Kreis.
+    const geholt: string[] = [];
+    const r = await rekonstruiere(
+      [
+        { ticker: "SPY.US", sektor: null, kategorie: "ETF", name: "SPDR S&P 500 ETF" },
+        { ticker: "NESN.SW", sektor: null, kategorie: "Dividendenaktien", name: "Nestle" },
+        { ticker: "QQQ.US", sektor: null, kategorie: "ETF", name: "Invesco QQQ Trust" },
+      ],
+      "2023-06-01", "2024-06-30",
+      async (t) => { geholt.push(t); return t === "NESN.SW" ? FUNDAMENTALS : { Financials: {}, Earnings: {} }; },
+      async () => TAGESKURSE,
+      () => {},
+    );
+    // Alle drei werden geholt — vorab lassen sie sich nicht unterscheiden.
+    // Entscheidend ist, dass die beiden ETFs DANACH vermerkt werden, damit
+    // sie beim naechsten Lauf nicht wieder vorn stehen.
+    expect(geholt.length).toBe(3);
+    expect(r.ohneReihe).toEqual(["SPY.US", "QQQ.US"]);
+  });
+
   it("holt ohne Bestandsliste weiterhin alles", async () => {
     const geholt: string[] = [];
     const r = await rekonstruiere(
