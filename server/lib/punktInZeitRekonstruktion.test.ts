@@ -185,6 +185,40 @@ describe("rekonstruiere", () => {
     expect(r.titel).toBe(1);
   });
 
+  it("nimmt je Lauf hoechstens das Haeppchen und meldet den Rest", async () => {
+    // Ein Lauf ueber alle offenen Titel stirbt in der Zielumgebung, bevor er
+    // fertig wird. Kleine Haeppchen kommen durch und hinterlassen ihr
+    // Ergebnis; die Meldung sagt, dass nachgelegt werden muss.
+    const geholt: string[] = [];
+    const r = await rekonstruiere(
+      Array.from({ length: 7 }, (_, i) => ({ ticker: `T${i}.SW`, sektor: null })),
+      "2023-06-01", "2024-06-30",
+      async (t) => { geholt.push(t); return FUNDAMENTALS; },
+      async () => TAGESKURSE,
+      () => {},
+      undefined,
+      new Set(),
+      3,
+    );
+    expect(geholt).toEqual(["T0.SW", "T1.SW", "T2.SW"]);
+    expect(r.nochOffen).toBe(4);
+    expect(r.zuletzt).toBe("T2.SW");
+  });
+
+  it("meldet nichts mehr offen, wenn das Haeppchen reicht", async () => {
+    const r = await rekonstruiere(
+      [{ ticker: "A.SW", sektor: null }],
+      "2023-06-01", "2024-06-30",
+      async () => FUNDAMENTALS,
+      async () => TAGESKURSE,
+      () => {},
+      undefined,
+      new Set(),
+      25,
+    );
+    expect(r.nochOffen).toBe(0);
+  });
+
   it("holt ohne Bestandsliste weiterhin alles", async () => {
     const geholt: string[] = [];
     const r = await rekonstruiere(

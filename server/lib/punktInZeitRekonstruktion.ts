@@ -29,6 +29,10 @@ export interface RekonstruktionsErgebnis {
   meldungen: string[];
   /** Titel, die bereits eine Reihe hatten und nicht erneut geholt wurden. */
   bereitsVorhanden: number;
+  /** Noch offen nach diesem Lauf — grösser 0, wenn das Häppchen voll war. */
+  nochOffen: number;
+  /** Zuletzt begonnener Titel. Stirbt der Prozess, steht hier die Spur. */
+  zuletzt: string | null;
 }
 
 /** Kurs am oder unmittelbar vor einem Stichtag. */
@@ -106,18 +110,32 @@ export async function rekonstruiere(
    * statt alles noch einmal von EODHD zu holen.
    */
   bereitsErfasst: Set<string> = new Set(),
+  /**
+   * Höchstens so viele Titel je Lauf.
+   *
+   * Ein Lauf über 128 Titel dauert Minuten und stirbt in dieser Umgebung
+   * reproduzierbar, bevor er fertig wird — ohne dass der Grund von aussen
+   * erkennbar wäre. Ein Häppchen von 25 Titeln ist in unter zwei Minuten
+   * durch und hinterlässt sein Ergebnis in der Datenbank. Mehrere Läufe
+   * hintereinander kommen damit ans Ziel, wo ein langer scheitert.
+   */
+  maxTitel: number = 25,
 ): Promise<RekonstruktionsErgebnis> {
   const stichtage = monatsStichtage(von, bis);
-  const offen = tickers.filter((t) => !bereitsErfasst.has(t.ticker));
+  const alleOffen = tickers.filter((t) => !bereitsErfasst.has(t.ticker));
+  const offen = alleOffen.slice(0, Math.max(1, maxTitel));
   melde(`${tickers.length} Titel, ${stichtage.length} Stichtage (${von} bis ${bis}).`
-    + (bereitsErfasst.size ? ` ${tickers.length - offen.length} bereits erfasst, ${offen.length} offen.` : ""));
+    + (bereitsErfasst.size ? ` ${tickers.length - alleOffen.length} bereits erfasst, ${alleOffen.length} offen.` : "")
+    + (alleOffen.length > offen.length ? ` Dieser Lauf nimmt ${offen.length}.` : ""));
 
   let zeilen = 0;
+  let zuletzt: string | null = null;
   const uebersprungen: string[] = [];
   const meldungen: string[] = [];
 
   for (let i = 0; i < offen.length; i++) {
     const { ticker, sektor } = offen[i];
+    zuletzt = ticker;
 
     // Drosselung wie im Optimizer: EODHD verträgt rund 20 Anfragen am Stück.
     // Je Titel gehen ZWEI raus (Fundamentaldaten und Kurse), deshalb die halbe
@@ -150,7 +168,7 @@ export async function rekonstruiere(
       // Und die Zahl der Übersprungenen gehört IN die laufende Meldung, nicht
       // erst ans Ende: Sonst sieht ein scheiternder Lauf zwei Stunden lang aus
       // wie einer, der arbeitet.
-      if ((i + 1) % 10 === 0 || i === offen.length - 1) {
+      if ((i + 1) % 5 === 0 || i === offen.length - 1) {
         melde(`Fortschritt: ${i + 1}/${offen.length} Titel, ${zeilen} Zeilen, ` +
               `${uebersprungen.length} übersprungen.`);
       }
@@ -163,12 +181,13 @@ export async function rekonstruiere(
     meldungen.push(`${uebersprungen.length} Titel ohne Reihe: ${uebersprungen.slice(0, 20).join(", ")}` +
       (uebersprungen.length > 20 ? " …" : ""));
   }
-  const bereitsVorhanden = tickers.length - offen.length;
-  melde(`Fertig: ${zeilen} Zeilen aus ${offen.length - uebersprungen.length} neu geholten Titeln`
-    + (bereitsVorhanden ? `, ${bereitsVorhanden} waren bereits erfasst.` : "."));
+  const bereitsVorhanden = tickers.length - alleOffen.length;
+  const nochOffen = alleOffen.length - offen.length;
+  melde(`Fertig: ${zeilen} Zeilen aus ${offen.length - uebersprungen.length} neu geholten Titeln.`
+    + (nochOffen > 0 ? ` NOCH ${nochOffen} OFFEN — erneut starten.` : " Alle Titel erfasst."));
 
   return {
     titel: offen.length - uebersprungen.length,
-    zeilen, uebersprungen, meldungen, bereitsVorhanden,
+    zeilen, uebersprungen, meldungen, bereitsVorhanden, nochOffen, zuletzt,
   };
 }

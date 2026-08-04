@@ -328,7 +328,11 @@ export default function AdminDashboard() {
                 {rekoStatus.data?.aktiv
                   ? <Loader2 className="h-4 w-4 animate-spin" />
                   : <Database className="h-4 w-4" />}
-                {rekoStatus.data?.aktiv ? "Läuft..." : "Rekonstruieren"}
+                {rekoStatus.data?.aktiv
+                  ? "Läuft..."
+                  : rekoStatus.data?.nochOffen
+                    ? `Weiter (${rekoStatus.data.nochOffen} offen)`
+                    : "Rekonstruieren"}
               </Button>
             </div>
           </div>
@@ -380,6 +384,18 @@ export default function AdminDashboard() {
                 <div key={i} className={m.includes("ohne Reihe") ? "text-amber-400" : ""}>{m}</div>
               ))}
             </div>
+          )}
+          {/* Der Lauf arbeitet in Häppchen. Bleibt etwas offen, muss der Knopf
+              erneut gedrückt werden — ein einzelner langer Lauf stirbt in
+              dieser Umgebung, bevor er fertig wird. */}
+          {!rekoStatus.data?.aktiv && (rekoStatus.data?.nochOffen ?? 0) > 0 && (
+            <p className="text-xs text-amber-400">
+              Noch {rekoStatus.data!.nochOffen} Titel offen — nochmals starten. Der Lauf arbeitet in
+              Häppchen zu 25 Titeln, damit er zuverlässig fertig wird.
+            </p>
+          )}
+          {rekoStatus.data?.zuletzt && rekoStatus.data?.aktiv && (
+            <p className="text-[11px] text-muted-foreground">Zuletzt begonnen: {rekoStatus.data.zuletzt}</p>
           )}
           {!rekoStatus.data?.aktiv && rekoStatus.data?.beendetAm && (
             <p className="text-[11px] text-muted-foreground">
