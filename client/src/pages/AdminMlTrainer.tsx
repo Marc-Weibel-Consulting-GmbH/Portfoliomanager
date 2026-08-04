@@ -38,6 +38,17 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+/**
+ * Die Schwellen des Promotion-Gates.
+ *
+ * Muessen mit `mlTrainingJob.ts` (`gate: { minHitRate, maxOverfitRatio,
+ * minAlpha }`) uebereinstimmen. Vorher stand die Overfit-Schwelle hier als
+ * 1.6 in der Zeilenpruefung und als 2.0 in der Karte darueber — die Tabelle
+ * meldete deshalb «Gate nicht bestanden» fuer Modelle, die das echte Gate
+ * bestanden hatten und aktiv liefen.
+ */
+const GATE = { minHitRate: 0.52, maxOverfitRatio: 2.0, minAlpha: 0 };
+
 function GateBadge({ passed }: { passed: boolean }) {
   return passed
     ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">✓ Gate bestanden</span>
@@ -164,8 +175,8 @@ export default function AdminMlTrainer() {
                 <MetricCard
                   label="Overfit-Ratio"
                   value={fmtNum(activeMetrics?.overfitRatio)}
-                  highlight={Number(activeMetrics?.overfitRatio) <= 2.0}
-                  target="≤ 2.0"
+                  highlight={Number(activeMetrics?.overfitRatio) <= GATE.maxOverfitRatio}
+                  target={`≤ ${GATE.maxOverfitRatio.toFixed(1)}`}
                 />
                 <MetricCard
                   label="Trainingsperiode"
@@ -190,7 +201,7 @@ export default function AdminMlTrainer() {
               </div>
               <div className="bg-zinc-800/50 rounded p-3">
                 <div className="text-zinc-400 text-xs mb-1">Overfit-Ratio</div>
-                <div className="text-white font-semibold">≤ 2.0</div>
+                <div className="text-white font-semibold">≤ {GATE.maxOverfitRatio.toFixed(1)}</div>
                 <div className="text-zinc-500 text-xs mt-1">IS-HitRate / OOS-HitRate (Overfitting-Indikator)</div>
               </div>
               <div className="bg-zinc-800/50 rounded p-3">
@@ -232,18 +243,20 @@ export default function AdminMlTrainer() {
                       const hitRate = Number(m?.hitRate ?? 0);
                       const alpha = Number(m?.alpha ?? 0);
                       const overfit = Number(m?.overfitRatio ?? 0);
-                      const passed = hitRate >= 0.52 && overfit <= 1.6 && alpha >= 0;
+                      const passed = hitRate >= GATE.minHitRate
+                        && overfit <= GATE.maxOverfitRatio
+                        && alpha >= GATE.minAlpha;
                       return (
                         <tr key={run.id} className="border-b border-zinc-800/50 hover:bg-zinc-800/20">
                           <td className="py-2 pr-4 font-mono text-zinc-300">v{run.version}</td>
                           <td className="py-2 pr-4"><StatusBadge status={run.status} /></td>
-                          <td className={`py-2 pr-4 font-mono ${hitRate >= 0.52 ? "text-emerald-400" : "text-red-400"}`}>
+                          <td className={`py-2 pr-4 font-mono ${hitRate >= GATE.minHitRate ? "text-emerald-400" : "text-red-400"}`}>
                             {fmtPct(m?.hitRate)}
                           </td>
-                          <td className={`py-2 pr-4 font-mono ${alpha >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                          <td className={`py-2 pr-4 font-mono ${alpha >= GATE.minAlpha ? "text-emerald-400" : "text-red-400"}`}>
                             {fmtPct(m?.alpha)}
                           </td>
-                          <td className={`py-2 pr-4 font-mono ${overfit <= 1.6 ? "text-emerald-400" : "text-red-400"}`}>
+                          <td className={`py-2 pr-4 font-mono ${overfit <= GATE.maxOverfitRatio ? "text-emerald-400" : "text-red-400"}`}>
                             {fmtNum(m?.overfitRatio)}
                           </td>
                           <td className="py-2 pr-4 text-zinc-400">{run.universeSize ?? "–"}</td>
