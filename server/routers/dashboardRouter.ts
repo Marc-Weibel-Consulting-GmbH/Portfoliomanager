@@ -821,11 +821,15 @@ export const dashboardRouter = router({
       if (!db) return { range: input.range, scope: input.scope, points: [] };
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
-      // Support both live and demo portfolios
+      // Live UND Demo — in beiden Fassungen.
       let targetPortfolios: any[];
       if (input.scope === "aggregate") {
-        // Aggregate: only live portfolios (with transactions)
-        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+        // Demo-Portfolios gehoeren dazu. Die Kacheln der Uebersicht zaehlen
+        // sie laengst mit (getDashboardOverview) — nur hier fielen sie raus,
+        // obwohl der Zweig fuer sie unten fertig dasteht. Ergebnis war ein
+        // Dashboard, das oben einen Gesamtwert zeigte und darunter «keine
+        // Daten verfuegbar». Wer nur Demos hat, sah gar keine Auswertung.
+        targetPortfolios = portfolios;
       } else {
         // Specific portfolio: find by ID regardless of isLive status
         targetPortfolios = portfolios.filter(p => p.id === input.scope);
@@ -1199,10 +1203,15 @@ export const dashboardRouter = router({
       const { convertToCHF } = await import("../fxHelper");
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
-      // Support both live and demo portfolios
+      // Live UND Demo — in beiden Fassungen.
       let targetPortfolios: any[];
       if (input.scope === "aggregate") {
-        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+        // Demo-Portfolios gehoeren dazu. Die Kacheln der Uebersicht zaehlen
+        // sie laengst mit (getDashboardOverview) — nur hier fielen sie raus,
+        // obwohl der Zweig fuer sie unten fertig dasteht. Ergebnis war ein
+        // Dashboard, das oben einen Gesamtwert zeigte und darunter «keine
+        // Daten verfuegbar». Wer nur Demos hat, sah gar keine Auswertung.
+        targetPortfolios = portfolios;
       } else {
         targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
@@ -1401,10 +1410,15 @@ export const dashboardRouter = router({
       };
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
-      // Support both live and demo portfolios
+      // Live UND Demo — in beiden Fassungen.
       let targetPortfolios: any[];
       if (input.scope === "aggregate") {
-        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+        // Demo-Portfolios gehoeren dazu. Die Kacheln der Uebersicht zaehlen
+        // sie laengst mit (getDashboardOverview) — nur hier fielen sie raus,
+        // obwohl der Zweig fuer sie unten fertig dasteht. Ergebnis war ein
+        // Dashboard, das oben einen Gesamtwert zeigte und darunter «keine
+        // Daten verfuegbar». Wer nur Demos hat, sah gar keine Auswertung.
+        targetPortfolios = portfolios;
       } else {
         targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
@@ -1538,10 +1552,15 @@ export const dashboardRouter = router({
       };
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
-      // Support both live and demo portfolios
+      // Live UND Demo — in beiden Fassungen.
       let targetPortfolios: any[];
       if (input.scope === "aggregate") {
-        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+        // Demo-Portfolios gehoeren dazu. Die Kacheln der Uebersicht zaehlen
+        // sie laengst mit (getDashboardOverview) — nur hier fielen sie raus,
+        // obwohl der Zweig fuer sie unten fertig dasteht. Ergebnis war ein
+        // Dashboard, das oben einen Gesamtwert zeigte und darunter «keine
+        // Daten verfuegbar». Wer nur Demos hat, sah gar keine Auswertung.
+        targetPortfolios = portfolios;
       } else {
         targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
@@ -1673,7 +1692,12 @@ export const dashboardRouter = router({
       const portfolios = await getSavedPortfolios(ctx.user.id);
       let targetPortfolios: any[];
       if (input.scope === "aggregate") {
-        targetPortfolios = portfolios.filter(p => p.isLive === 1 && p.liveStartDate);
+        // Demo-Portfolios gehoeren dazu. Die Kacheln der Uebersicht zaehlen
+        // sie laengst mit (getDashboardOverview) — nur hier fielen sie raus,
+        // obwohl der Zweig fuer sie unten fertig dasteht. Ergebnis war ein
+        // Dashboard, das oben einen Gesamtwert zeigte und darunter «keine
+        // Daten verfuegbar». Wer nur Demos hat, sah gar keine Auswertung.
+        targetPortfolios = portfolios;
       } else {
         targetPortfolios = portfolios.filter(p => p.id === input.scope);
       }
@@ -1851,7 +1875,7 @@ export const dashboardRouter = router({
       if (!db) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
-      // Support both live and demo portfolios
+      // Live UND Demo — in beiden Fassungen.
       let targetPortfolios: any[];
       if (input.scope === "aggregate") {
         // Include ALL portfolios (live + demo) for risk metrics — same as getAggregatedMetrics
@@ -2207,7 +2231,7 @@ export const dashboardRouter = router({
       const { convertToCHF } = await import("../fxHelper");
 
       const portfolios = await getSavedPortfolios(ctx.user.id);
-      // Support both live and demo portfolios
+      // Live UND Demo — in beiden Fassungen.
       let targetPortfolios: any[];
       if (input.scope === "aggregate") {
         targetPortfolios = portfolios; // Include all portfolios for copilot analysis
