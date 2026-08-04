@@ -27,6 +27,8 @@ export interface RekonstruktionsErgebnis {
   zeilen: number;
   uebersprungen: string[];
   meldungen: string[];
+  /** Titel, die bereits eine Reihe hatten und nicht erneut geholt wurden. */
+  bereitsVorhanden: number;
 }
 
 /** Kurs am oder unmittelbar vor einem Stichtag. */
@@ -97,16 +99,25 @@ export async function rekonstruiere(
   holeKurse: (ticker: string) => Promise<{ date: string; close: number }[]>,
   melde: (text: string) => void = () => {},
   meldefristTage: number = MELDEFRIST_TAGE,
+  /**
+   * Titel, die bereits eine Reihe haben und übersprungen werden dürfen.
+   *
+   * Damit setzt ein erneuter Start dort fort, wo der abgebrochene Lauf stand,
+   * statt alles noch einmal von EODHD zu holen.
+   */
+  bereitsErfasst: Set<string> = new Set(),
 ): Promise<RekonstruktionsErgebnis> {
   const stichtage = monatsStichtage(von, bis);
-  melde(`${tickers.length} Titel, ${stichtage.length} Stichtage (${von} bis ${bis}).`);
+  const offen = tickers.filter((t) => !bereitsErfasst.has(t.ticker));
+  melde(`${tickers.length} Titel, ${stichtage.length} Stichtage (${von} bis ${bis}).`
+    + (bereitsErfasst.size ? ` ${tickers.length - offen.length} bereits erfasst, ${offen.length} offen.` : ""));
 
   let zeilen = 0;
   const uebersprungen: string[] = [];
   const meldungen: string[] = [];
 
-  for (let i = 0; i < tickers.length; i++) {
-    const { ticker, sektor } = tickers[i];
+  for (let i = 0; i < offen.length; i++) {
+    const { ticker, sektor } = offen[i];
 
     // Drosselung wie im Optimizer: EODHD verträgt rund 20 Anfragen am Stück.
     // Je Titel gehen ZWEI raus (Fundamentaldaten und Kurse), deshalb die halbe
@@ -139,8 +150,8 @@ export async function rekonstruiere(
       // Und die Zahl der Übersprungenen gehört IN die laufende Meldung, nicht
       // erst ans Ende: Sonst sieht ein scheiternder Lauf zwei Stunden lang aus
       // wie einer, der arbeitet.
-      if ((i + 1) % 10 === 0 || i === tickers.length - 1) {
-        melde(`Fortschritt: ${i + 1}/${tickers.length} Titel, ${zeilen} Zeilen, ` +
+      if ((i + 1) % 10 === 0 || i === offen.length - 1) {
+        melde(`Fortschritt: ${i + 1}/${offen.length} Titel, ${zeilen} Zeilen, ` +
               `${uebersprungen.length} übersprungen.`);
       }
     }
@@ -152,7 +163,12 @@ export async function rekonstruiere(
     meldungen.push(`${uebersprungen.length} Titel ohne Reihe: ${uebersprungen.slice(0, 20).join(", ")}` +
       (uebersprungen.length > 20 ? " …" : ""));
   }
-  melde(`Fertig: ${zeilen} Zeilen aus ${tickers.length - uebersprungen.length} Titeln.`);
+  const bereitsVorhanden = tickers.length - offen.length;
+  melde(`Fertig: ${zeilen} Zeilen aus ${offen.length - uebersprungen.length} neu geholten Titeln`
+    + (bereitsVorhanden ? `, ${bereitsVorhanden} waren bereits erfasst.` : "."));
 
-  return { titel: tickers.length - uebersprungen.length, zeilen, uebersprungen, meldungen };
+  return {
+    titel: offen.length - uebersprungen.length,
+    zeilen, uebersprungen, meldungen, bereitsVorhanden,
+  };
 }
