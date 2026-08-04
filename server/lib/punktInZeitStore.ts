@@ -140,3 +140,40 @@ export async function historienUmfang(): Promise<{
     return leer;
   }
 }
+
+/**
+ * Ticker, die im gewünschten Zeitraum bereits eine ausreichend dichte Reihe haben.
+ *
+ * Damit lässt sich ein abgebrochener Lauf fortsetzen, statt ihn von vorn zu
+ * beginnen: Ein Lauf über 246 Titel, der bei 150 stehen bleibt, holte sonst
+ * 150-mal Daten, die schon in der Datenbank stehen — und läuft mit demselben
+ * Zeitaufwand ins selbe Problem.
+ *
+ * `mindestZeilen` schützt vor halb gefüllten Titeln: Wer nur drei Stichtage
+ * hat, weil der vorige Lauf mitten in ihm abbrach, soll erneut geholt werden.
+ */
+export async function tickerMitReihe(
+  von: string,
+  bis: string,
+  mindestZeilen: number,
+): Promise<Set<string>> {
+  const aus = new Set<string>();
+  try {
+    const { getDb } = await import("../db");
+    const db = await getDb();
+    if (!db) return aus;
+    await stelleTabelleSicher(db);
+    const { sql } = await import("drizzle-orm");
+    const rows: any = await db.execute(sql`
+      SELECT ticker, COUNT(*) AS n FROM stock_scores_history
+      WHERE datum >= ${von} AND datum <= ${bis}
+      GROUP BY ticker HAVING n >= ${mindestZeilen}`);
+    const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
+    for (const r of liste as any[]) aus.add(String(r.ticker));
+    return aus;
+  } catch (e) {
+    // Ohne diese Auskunft wird eben alles neu geholt — langsamer, nicht falsch.
+    console.warn("[PunktInZeit] Bestandsabfrage fehlgeschlagen (non-fatal):", (e as Error).message);
+    return aus;
+  }
+}

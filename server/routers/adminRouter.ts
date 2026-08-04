@@ -1612,6 +1612,8 @@ export const adminRouter = router({
       .input(z.object({
         von: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         bis: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        /** Bereits erfasste Titel ueberspringen — setzt einen Abbruch fort. */
+        fortsetzen: z.boolean().default(true),
       }))
       .mutation(async ({ input }) => {
         if (rekonstruktion.aktiv) return { gestartet: false, message: "Laeuft bereits." };
@@ -1622,6 +1624,8 @@ export const adminRouter = router({
         void (async () => {
           try {
             const { rekonstruiere } = await import("../lib/punktInZeitRekonstruktion");
+            const { tickerMitReihe } = await import("../lib/punktInZeitStore");
+            const { monatsStichtage } = await import("../lib/punktInZeit");
             const { activeCurated } = await import("../lib/stockUniverse");
             const { ENV } = await import("../_core/env");
             const { toEodhdSymbol } = await import("../lib/eodhdSymbol");
@@ -1664,6 +1668,14 @@ export const adminRouter = router({
                   rekonstruktion.meldungen = rekonstruktion.meldungen.slice(-100);
                 }
               },
+              undefined,
+              // Als «erfasst» gilt ein Titel erst ab der halben moeglichen
+              // Zeilenzahl. Wer nur drei Stichtage hat, weil der vorige Lauf
+              // mitten in ihm abbrach, wird erneut geholt.
+              input.fortsetzen
+                ? await tickerMitReihe(input.von, input.bis,
+                    Math.max(1, Math.floor(monatsStichtage(input.von, input.bis).length / 2)))
+                : new Set<string>(),
             );
             rekonstruktion.meldungen.push(...ergebnis.meldungen);
           } catch (e: any) {

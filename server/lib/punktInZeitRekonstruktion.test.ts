@@ -165,6 +165,39 @@ describe("rekonstruiere", () => {
     expect(fortschritt.at(-1)).toContain("übersprungen");
   });
 
+  it("setzt fort, statt bereits erfasste Titel erneut zu holen", async () => {
+    // Der Fall aus der Praxis: Ein Lauf ueber viele Titel bleibt in der Mitte
+    // stehen. Ohne Fortsetzen holt der zweite Versuch alles noch einmal — mit
+    // demselben Zeitaufwand und demselben Risiko, an derselben Stelle zu
+    // scheitern.
+    const geholt: string[] = [];
+    const r = await rekonstruiere(
+      [{ ticker: "A.SW", sektor: null }, { ticker: "B.SW", sektor: null }, { ticker: "C.SW", sektor: null }],
+      "2023-06-01", "2024-06-30",
+      async (t) => { geholt.push(t); return FUNDAMENTALS; },
+      async () => TAGESKURSE,
+      () => {},
+      undefined,
+      new Set(["A.SW", "B.SW"]),
+    );
+    expect(geholt).toEqual(["C.SW"]);
+    expect(r.bereitsVorhanden).toBe(2);
+    expect(r.titel).toBe(1);
+  });
+
+  it("holt ohne Bestandsliste weiterhin alles", async () => {
+    const geholt: string[] = [];
+    const r = await rekonstruiere(
+      [{ ticker: "A.SW", sektor: null }, { ticker: "B.SW", sektor: null }],
+      "2023-06-01", "2024-06-30",
+      async (t) => { geholt.push(t); return FUNDAMENTALS; },
+      async () => TAGESKURSE,
+      () => {},
+    );
+    expect(geholt).toEqual(["A.SW", "B.SW"]);
+    expect(r.bereitsVorhanden).toBe(0);
+  });
+
   it("faengt einen Fehler je Titel ab, statt den Lauf abzubrechen", async () => {
     const r = await rekonstruiere(
       [{ ticker: "KAPUTT.SW", sektor: null }, { ticker: "GUT.SW", sektor: null }],
