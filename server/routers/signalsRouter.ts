@@ -30,6 +30,7 @@ import { getRegimeBlendConfig } from '../analytics/regimeSignalMemory';
 // SIG-4: gewichtetes Basis-Signal aus dem geteilten Modul (auch vom
 // signalCacheCron genutzt — vorher hatte der Cron eine ungewichtete Kopie).
 import { generateSignal, type BaseSignal, type SignalType, type SignalStrength } from '../lib/baseSignal';
+import { rsiWilder } from '../lib/rsi';
 
 interface Signal extends BaseSignal {
   rfSignal?: string;
@@ -211,7 +212,7 @@ async function fetchLiveData(ticker: string): Promise<{
       const closes = series.map(p => p.close);
       fiftyTwoWeekHigh = Math.max(...closes);
       fiftyTwoWeekLow = Math.min(...closes);
-      if (closes.length >= 15) rsi14 = calcRSI(closes, 14);
+      if (closes.length >= 15) rsi14 = rsiWilder(closes, 14);
     }
   } catch (err) {
     console.warn(`[Signals] Historie/RSI fehlgeschlagen für ${ticker}:`, (err as Error).message);
@@ -234,48 +235,6 @@ async function fetchLiveData(ticker: string): Promise<{
   };
 }
 
-/**
- * Calculate RSI (Relative Strength Index) from closing prices
- */
-function calcRSI(prices: number[], period: number = 14): number | null {
-  if (prices.length < period + 1) return null;
-
-  // Calculate price changes
-  const changes: number[] = [];
-  for (let i = 1; i < prices.length; i++) {
-    changes.push(prices[i] - prices[i - 1]);
-  }
-
-  // Use last `period * 3` changes for a more stable RSI (or all if less)
-  const relevantChanges = changes.slice(-period * 3);
-  if (relevantChanges.length < period) return null;
-
-  // Initial average gain/loss
-  let avgGain = 0;
-  let avgLoss = 0;
-  for (let i = 0; i < period; i++) {
-    if (relevantChanges[i] > 0) avgGain += relevantChanges[i];
-    else avgLoss += Math.abs(relevantChanges[i]);
-  }
-  avgGain /= period;
-  avgLoss /= period;
-
-  // Smoothed RSI using Wilder's method
-  for (let i = period; i < relevantChanges.length; i++) {
-    const change = relevantChanges[i];
-    if (change > 0) {
-      avgGain = (avgGain * (period - 1) + change) / period;
-      avgLoss = (avgLoss * (period - 1)) / period;
-    } else {
-      avgGain = (avgGain * (period - 1)) / period;
-      avgLoss = (avgLoss * (period - 1) + Math.abs(change)) / period;
-    }
-  }
-
-  if (avgLoss === 0) return 100;
-  const rs = avgGain / avgLoss;
-  return 100 - 100 / (1 + rs);
-}
 
 /**
  * Generate trading signal based on live fundamental + technical data

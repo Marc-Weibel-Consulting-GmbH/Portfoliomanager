@@ -118,6 +118,58 @@ describe("reiheFuerTitel", () => {
     const frueh = reiheFuerTitel("TEST.SW", FUNDAMENTALS, TAGESKURSE, ["2016-06-30"]);
     expect(frueh).toEqual([]);
   });
+
+  it("schreibt bei dünner Kursreihe KEINEN Timing-Wert", () => {
+    // `TAGESKURSE` hat einen Kurs je Monat. Daraus einen Timing-Score zu
+    // bilden hiesse, aus dreizehn Punkten einen RSI und ein Momentum zu
+    // behaupten. Die Zeile bleibt an dieser Stelle leer — das ist die
+    // Aussage, nicht ein Mangel.
+    for (const r of reihe) {
+      expect(r.timing).toBeNull();
+      expect(r.regime).toBe("default");
+    }
+  });
+});
+
+describe("reiheFuerTitel mit täglichen Kursen", () => {
+  // Dieselbe Bilanz, aber eine echte Tagesreihe: Erst damit ist der dritte
+  // Score überhaupt berechenbar.
+  const TAEGLICH = (() => {
+    const aus: { date: string; close: number }[] = [];
+    const d = new Date("2022-01-03T00:00:00Z");
+    let i = 0;
+    while (d < new Date("2024-07-01T00:00:00Z")) {
+      const wd = d.getUTCDay();
+      if (wd !== 0 && wd !== 6) {
+        aus.push({ date: d.toISOString().slice(0, 10), close: 20 * 1.001 ** i++ });
+      }
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+    return aus;
+  })();
+
+  const reihe = reiheFuerTitel("TEST.SW", FUNDAMENTALS, TAEGLICH, ["2023-12-29", "2024-06-28"], "Industrials");
+
+  it("füllt Timing und Regime aus der Kursreihe", () => {
+    for (const r of reihe) {
+      expect(r.timing).not.toBeNull();
+      expect(r.timing!).toBeGreaterThanOrEqual(0);
+      expect(r.timing!).toBeLessThanOrEqual(100);
+      expect(r.regime).toBe("bull_trend");
+    }
+  });
+
+  it("hält die fehlende Blasen-Komponente in der Abdeckung fest", () => {
+    // 0.90 statt 1.0 — der LPPL-Wert ist rückwirkend nicht rekonstruierbar.
+    // Ohne diese Zahl sähe die Reihe später aus wie eine vollständige Messung.
+    for (const r of reihe) expect(r.timingAbdeckung).toBe(0.9);
+  });
+
+  it("bewertet jeden Stichtag mit dem Kursstand von damals", () => {
+    const [dez, juni] = reihe;
+    expect(dez.kurs).not.toBe(juni.kurs);
+    expect(dez.kurs!).toBeLessThan(juni.kurs!);
+  });
 });
 
 describe("rekonstruiere", () => {
