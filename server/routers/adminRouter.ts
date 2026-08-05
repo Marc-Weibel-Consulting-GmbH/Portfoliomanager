@@ -1675,6 +1675,23 @@ export const adminRouter = router({
             if (!apiKey) throw new Error("EODHD-Schluessel fehlt");
 
             const symbol = (t: string) => toEodhdSymbol(t.includes(".") ? t : `${t}.US`);
+
+            // Kurse VOR dem ersten Stichtag mitholen.
+            //
+            // Timing und Regime schauen 400 Kalendertage zurueck, die
+            // Momentum-Engine braucht 253 Handelstage fuer den
+            // 12-Monats-Anteil. Wuerde die Reihe erst am ersten Stichtag
+            // beginnen, blieben die ersten rund 15 Monate jedes Titels ohne
+            // Timing — bei einem Lauf ab 2016 waeren das ueber ein Zehntel
+            // aller Zeilen, und zwar stillschweigend.
+            //
+            // Ein Puffer von 500 Tagen statt 400: Feiertage und Boersenpausen
+            // duennen die Reihe aus, und der Abruf kostet nichts extra.
+            const KURSVORLAUF_TAGE = 500;
+            const kursVon = new Date(
+              Date.parse(`${input.von}T00:00:00Z`) - KURSVORLAUF_TAGE * 86_400_000,
+            ).toISOString().slice(0, 10);
+
             const ergebnis = await rekonstruiere(
               universum.map((r) => ({ ticker: r.ticker, sektor: r.sector ?? null })),
               input.von, input.bis,
@@ -1686,7 +1703,7 @@ export const adminRouter = router({
               },
               async (t) => {
                 const r = await fetch(
-                  `https://eodhd.com/api/eod/${symbol(t)}?api_token=${apiKey}&from=${input.von}&to=${input.bis}&fmt=json`,
+                  `https://eodhd.com/api/eod/${symbol(t)}?api_token=${apiKey}&from=${kursVon}&to=${input.bis}&fmt=json`,
                   { signal: AbortSignal.timeout(15_000) });
                 if (!r.ok) return [];
                 const d = await r.json();
