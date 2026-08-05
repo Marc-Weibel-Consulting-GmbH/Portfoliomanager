@@ -13,6 +13,7 @@ import { getDb } from "../db";
 import { stockSignalCache, stocks } from "../../drizzle/schema";
 import { activeCurated } from "../lib/stockUniverse";
 import { detectAssetClass, generateAssetClassSignal, istBewertbar, ASSET_CLASS_LABEL } from "../lib/assetClassSignal";
+import { rsiWilder } from "../lib/rsi";
 
 let isRunning = false;
 
@@ -212,7 +213,7 @@ export async function refreshSignalCache(): Promise<void> {
               if (currentPrice === 0) currentPrice = last.close;
               fiftyTwoWeekHigh = Math.max(...prices);
               fiftyTwoWeekLow = Math.min(...prices);
-              if (prices.length >= 15) rsi14 = calcRSI(prices, 14);
+              if (prices.length >= 15) rsi14 = rsiWilder(prices, 14);
             }
 
             // Fondsanteile und Zertifikate erhalten keine Empfehlung: Was in
@@ -733,30 +734,6 @@ export async function refreshSignalCache(): Promise<void> {
   }
 }
 
-/**
- * Calculate RSI from closing prices
- */
-function calcRSI(prices: number[], period: number = 14): number | null {
-  if (prices.length < period + 1) return null;
-  const changes: number[] = [];
-  for (let i = 1; i < prices.length; i++) changes.push(prices[i] - prices[i - 1]);
-  const relevant = changes.slice(-period * 3);
-  if (relevant.length < period) return null;
-  let avgGain = 0, avgLoss = 0;
-  for (let i = 0; i < period; i++) {
-    if (relevant[i] > 0) avgGain += relevant[i];
-    else avgLoss += Math.abs(relevant[i]);
-  }
-  avgGain /= period;
-  avgLoss /= period;
-  for (let i = period; i < relevant.length; i++) {
-    const c = relevant[i];
-    if (c > 0) { avgGain = (avgGain * (period - 1) + c) / period; avgLoss = (avgLoss * (period - 1)) / period; }
-    else { avgGain = (avgGain * (period - 1)) / period; avgLoss = (avgLoss * (period - 1) + Math.abs(c)) / period; }
-  }
-  if (avgLoss === 0) return 100;
-  return 100 - 100 / (1 + avgGain / avgLoss);
-}
 
 /**
  * Initialize the signal cache cron (runs every 2 hours)

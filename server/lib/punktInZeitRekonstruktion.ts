@@ -14,6 +14,7 @@ import { beschneideFundamentals, monatsStichtage, MELDEFRIST_TAGE } from "./punk
 import { kennzahlenPerStichtag } from "./punktInZeitKennzahlen";
 import { berechneQualitaet, berechneBewertung } from "./dreiScores";
 import { haltefestHistorie, type HistorienSatz } from "./punktInZeitStore";
+import { timingUndRegimeAm } from "./punktInZeitTiming";
 
 /** Pause vor jedem Titel, in Millisekunden. */
 const PAUSE_JE_TITEL_MS = 150;
@@ -76,6 +77,9 @@ export function reiheFuerTitel(
 
     const q = berechneQualitaet(k.qualitaet, k.piotroski);
     const b = berechneBewertung(k.bewertung);
+    // Der dritte Score kommt aus derselben Kursreihe, die schon geholt ist —
+    // ohne ihn liessen sich die Signal-Gewichte gar nicht optimieren.
+    const t = timingUndRegimeAm(kurse, datum);
     saetze.push({
       ticker,
       datum,
@@ -84,6 +88,9 @@ export function reiheFuerTitel(
       fScore: k.piotroski.score,
       fScoreBerechenbar: k.piotroski.berechenbar,
       kurs,
+      timing: t.timing,
+      timingAbdeckung: t.abdeckung,
+      regime: t.regime,
       belegt: k.belegt,
       meldefristTage,
     });

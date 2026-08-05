@@ -14,6 +14,20 @@
 
 let tabelleGeprueft = false;
 
+/**
+ * Spalten, die nach der ersten Fassung dazugekommen sind.
+ *
+ * MySQL kennt kein `ADD COLUMN IF NOT EXISTS`, und `drizzle-kit migrate` läuft
+ * beim Deploy nicht. Deshalb erst fragen, dann ergänzen — für die Tabelle, die
+ * bereits 25 000 Zeilen trägt. Neuinstallationen bekommen die Spalten schon
+ * aus dem CREATE oben.
+ */
+const NACHGETRAGENE_SPALTEN: { name: string; ddl: string }[] = [
+  { name: "timing", ddl: "ADD `timing` decimal(6,2)" },
+  { name: "timingAbdeckung", ddl: "ADD `timingAbdeckung` decimal(4,3)" },
+  { name: "regime", ddl: "ADD `regime` varchar(24)" },
+];
+
 async function stelleTabelleSicher(db: any): Promise<void> {
   if (tabelleGeprueft) return;
   const { sql } = await import("drizzle-orm");
@@ -25,12 +39,28 @@ async function stelleTabelleSicher(db: any): Promise<void> {
     \`fScore\` tinyint,
     \`fScoreBerechenbar\` tinyint,
     \`kurs\` decimal(18,6),
+    \`timing\` decimal(6,2),
+    \`timingAbdeckung\` decimal(4,3),
+    \`regime\` varchar(24),
     \`belegt\` tinyint NOT NULL DEFAULT 0,
     \`meldefristTage\` smallint NOT NULL DEFAULT 90,
     \`erfasstAm\` timestamp NOT NULL DEFAULT (now()),
     PRIMARY KEY (\`ticker\`, \`datum\`),
     KEY \`ix_stock_scores_history_datum\` (\`datum\`)
   )`));
+
+  for (const spalte of NACHGETRAGENE_SPALTEN) {
+    const res: any = await db.execute(sql`
+      SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'stock_scores_history'
+        AND COLUMN_NAME = ${spalte.name}`);
+    const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
+    if (Number((liste as any[])[0]?.cnt ?? 0) === 0) {
+      await db.execute(sql.raw(`ALTER TABLE \`stock_scores_history\` ${spalte.ddl}`));
+    }
+  }
+
   tabelleGeprueft = true;
 }
 
@@ -42,6 +72,12 @@ export interface HistorienSatz {
   fScore: number;
   fScoreBerechenbar: number;
   kurs: number | null;
+  /** Timing-Score 0–100 aus der Kursreihe; null, wenn zu wenig Kurshistorie. */
+  timing: number | null;
+  /** Anteil des belegten Timing-Gewichts, 0–1. Ohne Blasensignal höchstens 0.90. */
+  timingAbdeckung: number | null;
+  /** Regime-Schlüssel der Engine an diesem Stichtag, oder `default`. */
+  regime: string | null;
   belegt: number;
   meldefristTage: number;
 }
@@ -63,15 +99,20 @@ export async function haltefestHistorie(saetze: HistorienSatz[]): Promise<number
       const teil = saetze.slice(i, i + BLOCK);
       const werte = teil.map((s) =>
         sql`(${s.ticker}, ${s.datum}, ${s.qualitaet}, ${s.bewertung}, ${s.fScore},
-             ${s.fScoreBerechenbar}, ${s.kurs}, ${s.belegt}, ${s.meldefristTage})`);
+             ${s.fScoreBerechenbar}, ${s.kurs}, ${s.timing ?? null},
+             ${s.timingAbdeckung ?? null}, ${s.regime ?? null},
+             ${s.belegt}, ${s.meldefristTage})`);
       await db.execute(sql`
         INSERT INTO stock_scores_history
-          (ticker, datum, qualitaet, bewertung, fScore, fScoreBerechenbar, kurs, belegt, meldefristTage)
+          (ticker, datum, qualitaet, bewertung, fScore, fScoreBerechenbar, kurs,
+           timing, timingAbdeckung, regime, belegt, meldefristTage)
         VALUES ${sql.join(werte, sql`, `)}
         ON DUPLICATE KEY UPDATE
           qualitaet = VALUES(qualitaet), bewertung = VALUES(bewertung),
           fScore = VALUES(fScore), fScoreBerechenbar = VALUES(fScoreBerechenbar),
-          kurs = VALUES(kurs), belegt = VALUES(belegt),
+          kurs = VALUES(kurs), timing = VALUES(timing),
+          timingAbdeckung = VALUES(timingAbdeckung), regime = VALUES(regime),
+          belegt = VALUES(belegt),
           meldefristTage = VALUES(meldefristTage), erfasstAm = now()`);
       geschrieben += teil.length;
     }
@@ -91,7 +132,8 @@ export async function leseHistorie(ticker: string): Promise<HistorienSatz[]> {
     await stelleTabelleSicher(db);
     const { sql } = await import("drizzle-orm");
     const rows: any = await db.execute(sql`
-      SELECT ticker, datum, qualitaet, bewertung, fScore, fScoreBerechenbar, kurs, belegt, meldefristTage
+      SELECT ticker, datum, qualitaet, bewertung, fScore, fScoreBerechenbar, kurs,
+             timing, timingAbdeckung, regime, belegt, meldefristTage
       FROM stock_scores_history WHERE ticker = ${ticker} ORDER BY datum ASC`);
     const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
     const num = (v: unknown) => (v === null || v === undefined ? null : parseFloat(String(v)));
@@ -103,6 +145,9 @@ export async function leseHistorie(ticker: string): Promise<HistorienSatz[]> {
       fScore: Number(r.fScore ?? 0),
       fScoreBerechenbar: Number(r.fScoreBerechenbar ?? 0),
       kurs: num(r.kurs),
+      timing: num(r.timing),
+      timingAbdeckung: num(r.timingAbdeckung),
+      regime: r.regime === null || r.regime === undefined ? null : String(r.regime),
       belegt: Number(r.belegt ?? 0),
       meldefristTage: Number(r.meldefristTage ?? 90),
     }));
@@ -112,11 +157,22 @@ export async function leseHistorie(ticker: string): Promise<HistorienSatz[]> {
   }
 }
 
-/** Wie viele Zeilen liegen vor und über welchen Zeitraum — für die Admin-Anzeige. */
+/**
+ * Wie viele Zeilen liegen vor und über welchen Zeitraum — für die Admin-Anzeige.
+ *
+ * `titelMitRegime` zeigt, wie weit der Nachtrag des dritten Scores gediehen
+ * ist: Titel aus der ersten Fassung tragen kein Regime. Ohne diese Zahl sähe
+ * eine Reihe, die für die Gewichtsoptimierung noch gar nicht taugt, genauso
+ * vollständig aus wie eine fertige.
+ */
 export async function historienUmfang(): Promise<{
   zeilen: number; titel: number; von: string | null; bis: string | null;
+  titelMitRegime: number; zeilenMitTiming: number;
 }> {
-  const leer = { zeilen: 0, titel: 0, von: null, bis: null };
+  const leer = {
+    zeilen: 0, titel: 0, von: null, bis: null,
+    titelMitRegime: 0, zeilenMitTiming: 0,
+  };
   try {
     const { getDb } = await import("../db");
     const db = await getDb();
@@ -125,7 +181,9 @@ export async function historienUmfang(): Promise<{
     const { sql } = await import("drizzle-orm");
     const rows: any = await db.execute(sql`
       SELECT COUNT(*) AS zeilen, COUNT(DISTINCT ticker) AS titel,
-             MIN(datum) AS von, MAX(datum) AS bis
+             MIN(datum) AS von, MAX(datum) AS bis,
+             COUNT(DISTINCT CASE WHEN regime IS NOT NULL THEN ticker END) AS titelMitRegime,
+             SUM(CASE WHEN timing IS NOT NULL THEN 1 ELSE 0 END) AS zeilenMitTiming
       FROM stock_scores_history`);
     const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
     const r = (liste as any[])[0];
@@ -135,6 +193,8 @@ export async function historienUmfang(): Promise<{
       titel: Number(r.titel ?? 0),
       von: r.von ? String(r.von) : null,
       bis: r.bis ? String(r.bis) : null,
+      titelMitRegime: Number(r.titelMitRegime ?? 0),
+      zeilenMitTiming: Number(r.zeilenMitTiming ?? 0),
     };
   } catch {
     return leer;
@@ -151,6 +211,17 @@ export async function historienUmfang(): Promise<{
  *
  * `mindestZeilen` schützt vor halb gefüllten Titeln: Wer nur drei Stichtage
  * hat, weil der vorige Lauf mitten in ihm abbrach, soll erneut geholt werden.
+ *
+ * `regime IS NOT NULL` unterscheidet die Zeilen der ersten Fassung von denen
+ * mit Timing-Score. Die alten zählen nicht als fertig und werden ein einziges
+ * Mal nachgeholt — ein eigener Nachtragslauf wäre dieselbe Arbeit mit doppelter
+ * Maschinerie.
+ *
+ * Warum `regime` und nicht `timing`: `regime` wird IMMER geschrieben, notfalls
+ * als `default`. `timing` bleibt bei dünner Kurshistorie zu Recht leer — als
+ * Merkmal genommen, stünde so ein Titel bei jedem Lauf erneut vorn in der
+ * Schlange und der Lauf käme nie durch. Genau diese Falle hat #262 schon
+ * einmal zugeschnappt.
  */
 export async function tickerMitReihe(
   von: string,
@@ -166,7 +237,7 @@ export async function tickerMitReihe(
     const { sql } = await import("drizzle-orm");
     const rows: any = await db.execute(sql`
       SELECT ticker, COUNT(*) AS n FROM stock_scores_history
-      WHERE datum >= ${von} AND datum <= ${bis}
+      WHERE datum >= ${von} AND datum <= ${bis} AND regime IS NOT NULL
       GROUP BY ticker HAVING n >= ${mindestZeilen}`);
     const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
     for (const r of liste as any[]) aus.add(String(r.ticker));

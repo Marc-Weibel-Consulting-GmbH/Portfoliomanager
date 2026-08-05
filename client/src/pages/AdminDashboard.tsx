@@ -373,6 +373,21 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* Der dritte Score. Zeilen aus der ersten Fassung tragen nur Qualität
+              und Bewertung — für die Optimierung der Signal-Gewichte reicht das
+              nicht. Ohne diese Zeile sähe eine unbrauchbare Reihe vollständig aus. */}
+          {rekoStatus.data?.umfang && rekoStatus.data.umfang.titel > 0 && (
+            <p className={`text-xs ${
+              rekoStatus.data.umfang.titelMitRegime < rekoStatus.data.umfang.titel
+                ? "text-amber-400" : "text-muted-foreground"}`}>
+              Timing &amp; Regime: {rekoStatus.data.umfang.titelMitRegime} von{" "}
+              {rekoStatus.data.umfang.titel} Titeln
+              {rekoStatus.data.umfang.titelMitRegime < rekoStatus.data.umfang.titel
+                ? " — die übrigen stammen aus der ersten Fassung und werden beim nächsten Lauf nachgeholt."
+                : ` (${rekoStatus.data.umfang.zeilenMitTiming.toLocaleString("de-CH")} Zeilen mit Timing-Score).`}
+            </p>
+          )}
+
           {/* PEG-Aufzeichnung: waechst nur nach vorn, siehe #255. */}
           {rekoStatus.data?.vorwaerts && rekoStatus.data.vorwaerts.zeilen > 0 && (
             <p className="text-xs text-muted-foreground">
