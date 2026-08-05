@@ -23,6 +23,7 @@
  */
 
 import { SCORE_BAENDER, bandFuerScore } from "./signalBlend";
+import { gewichtsZeile } from "./regimeSchluessel";
 
 export interface SignalGewichte {
   qualitaet: number;
@@ -175,11 +176,20 @@ export interface SignalErgebnis {
   beitraege: { name: string; score: number | null; gewicht: number; beitrag: number | null }[];
 }
 
+/**
+ * Gewichte zu einem Regime-Namen.
+ *
+ * Die Auflösung liegt in `regimeSchluessel`, weil die Engine `bull_trend`
+ * liefert und diese Tabelle die Zeile `bull` heisst — ein direkter Zugriff
+ * `config[regime]` verfehlte genau die zwei häufigsten Regimes und fiel still
+ * auf `default` zurück. Das Signal war damit dort, wo es am meisten zählt,
+ * gar nicht regimeabhängig.
+ */
 export function gewichteFuerRegime(
   regime: string | null | undefined,
   config: Record<string, SignalGewichte> = DEFAULT_SIGNAL_GEWICHTE,
 ): SignalGewichte {
-  return (regime && config[regime]) || config.default;
+  return gewichtsZeile(regime, config);
 }
 
 /**

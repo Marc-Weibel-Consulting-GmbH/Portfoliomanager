@@ -11,6 +11,8 @@
  * Gewichte kommen als Konfiguration herein (später aus der DB / Admin-UI).
  */
 
+import { gewichtsZeile } from "./regimeSchluessel";
+
 export interface RegimeWeights {
   /** Gewicht der Qualitäts-/Titelwahl-Achse (>= 0). */
   quality: number;
@@ -57,16 +59,15 @@ export interface BlendResult {
 
 /** Regime-Gewichte auflösen; unbekanntes Regime → `default`. Case-insensitiv, tolerant. */
 export function resolveWeights(regime: string, config: RegimeBlendConfig): RegimeWeights {
-  const key = (regime || "").toLowerCase().replace(/[\s-]+/g, "_");
-  if (config[key]) return config[key];
   // SIG-2 (Audit 2026-07): die Regime-Engine liefert `bull_trend`/`bear_trend`,
   // die Config-Keys heissen `bull`/`bear` — ohne Alias fielen genau die zwei
   // häufigsten Trendregimes still auf default (50/50) zurück und die beworbene
   // regime-abhängige Gewichtung war dort wirkungslos.
-  const ALIASES: Record<string, string> = { bull_trend: "bull", bear_trend: "bear" };
-  const aliased = ALIASES[key];
-  if (aliased && config[aliased]) return config[aliased];
-  return config.default;
+  //
+  // Die Auflösung steht seither in `regimeSchluessel`, weil die Korrektur hier
+  // hängen blieb und zwei später hinzugekommene Gewichtstabellen denselben
+  // Fehler von vorn machten.
+  return gewichtsZeile(regime, config);
 }
 
 function clamp(v: number, lo: number, hi: number): number {
