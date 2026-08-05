@@ -30,6 +30,7 @@
  */
 
 import { bandFuerScore, resolveWeights, type RegimeBlendConfig } from "./signalBlend";
+import { gewichtsZeile } from "./regimeSchluessel";
 
 /**
  * Vorläufige Dreiergewichte je Regime.
@@ -55,8 +56,11 @@ export const SCHATTEN_GEWICHTE: Record<string, { qualitaet: number; bewertung: n
 };
 
 export function schattenGewichte(regime: string) {
-  const key = (regime || "").toLowerCase().replace(/[\s-]+/g, "_");
-  return SCHATTEN_GEWICHTE[key] ?? SCHATTEN_GEWICHTE.default;
+  // Über `gewichtsZeile`, weil die Engine `bull_trend`/`bear_trend` liefert und
+  // die Tabelle `bull`/`bear` heisst. Die reine Kleinschreibung reichte nicht:
+  // Die Schattenrechnung mass in den zwei häufigsten Regimes ihre eigenen
+  // `default`-Gewichte statt der Hypothese, die sie prüfen sollte.
+  return gewichtsZeile(regime, SCHATTEN_GEWICHTE);
 }
 
 export interface SchattenEingang {
