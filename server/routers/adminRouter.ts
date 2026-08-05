@@ -69,13 +69,33 @@ const datenLauf: {
 } = { aktiv: false, gestartetAm: null, beendetAm: null, schritte: [] };
 
 /** Laufzustand der Punkt-in-Zeit-Rekonstruktion, ebenfalls im Speicher. */
+/**
+ * Nach dieser Zeit gilt ein Lauf als tot, auch wenn `aktiv` noch true ist.
+ *
+ * Das Flag lebt im Speicher und wird am Ende des Laufs zurueckgesetzt. Haengt
+ * der Lauf aber — etwa an einem Abruf, der nie zurueckkommt —, bleibt es
+ * stehen, und JEDER weitere Start wird mit «Laeuft bereits» abgewiesen. Von
+ * aussen sieht das aus, als ginge der Knopf nicht mehr. Ein Haeppchen von 25
+ * Titeln braucht unter zwei Minuten; nach zehn laeuft nichts mehr.
+ */
+const LAUF_GILT_ALS_TOT_MS = 10 * 60_000;
+
 const rekonstruktion: {
   aktiv: boolean; beendetAm: string | null; meldungen: string[];
+  /** Beginn des laufenden Durchgangs — Grundlage fuer die Totzeit oben. */
+  gestartetAm: number | null;
   /** Nach dem letzten Haeppchen noch offen; null = unbekannt. */
   nochOffen: number | null;
   /** Zuletzt begonnener Titel — die Spur, wenn der Prozess stirbt. */
   zuletzt: string | null;
-} = { aktiv: false, beendetAm: null, meldungen: [], nochOffen: null, zuletzt: null };
+} = { aktiv: false, beendetAm: null, meldungen: [], nochOffen: null, zuletzt: null, gestartetAm: null };
+
+/** Haengt der als aktiv markierte Lauf laenger als erlaubt? */
+function laufGiltAlsTot(): boolean {
+  return rekonstruktion.aktiv
+    && rekonstruktion.gestartetAm !== null
+    && Date.now() - rekonstruktion.gestartetAm > LAUF_GILT_ALS_TOT_MS;
+}
 
 export const adminRouter = router({
     /**
@@ -1623,8 +1643,15 @@ export const adminRouter = router({
         maxTitel: z.number().int().min(1).max(250).default(25),
       }))
       .mutation(async ({ input }) => {
-        if (rekonstruktion.aktiv) return { gestartet: false, message: "Laeuft bereits." };
+        if (rekonstruktion.aktiv && !laufGiltAlsTot()) {
+          return { gestartet: false, message: "Laeuft bereits." };
+        }
+        if (laufGiltAlsTot()) {
+          rekonstruktion.meldungen.push(
+            "Vorheriger Lauf haengt seit ueber 10 Minuten — wird als tot behandelt und neu gestartet.");
+        }
         rekonstruktion.aktiv = true;
+        rekonstruktion.gestartetAm = Date.now();
         rekonstruktion.meldungen = [`Start ${input.von} bis ${input.bis}`];
         rekonstruktion.beendetAm = null;
 
@@ -1709,6 +1736,7 @@ export const adminRouter = router({
             rekonstruktion.meldungen.push(`Fehler: ${e?.message ?? "unbekannt"}`);
           } finally {
             rekonstruktion.aktiv = false;
+            rekonstruktion.gestartetAm = null;
             rekonstruktion.beendetAm = new Date().toISOString();
           }
         })();
@@ -1722,6 +1750,11 @@ export const adminRouter = router({
       const { vorwaertsUmfang } = await import("../lib/bewertungVorwaertsStore");
       return {
         aktiv: rekonstruktion.aktiv,
+        /** Laeuft laenger als erlaubt — der Startknopf gibt trotzdem wieder frei. */
+        haengt: laufGiltAlsTot(),
+        laeuftSeitSekunden: rekonstruktion.gestartetAm
+          ? Math.round((Date.now() - rekonstruktion.gestartetAm) / 1000)
+          : null,
         beendetAm: rekonstruktion.beendetAm,
         meldungen: rekonstruktion.meldungen.slice(-30),
         nochOffen: rekonstruktion.nochOffen,

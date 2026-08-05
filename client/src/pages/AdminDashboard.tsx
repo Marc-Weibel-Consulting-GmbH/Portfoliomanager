@@ -321,14 +321,19 @@ export default function AdminDashboard() {
               />
               <Button
                 onClick={() => starteReko.mutate({ von: rekoVon, bis: rekoBis })}
-                disabled={starteReko.isPending || rekoStatus.data?.aktiv}
+                // Bei einem haengenden Lauf NICHT sperren: Sonst ist der Knopf
+                // fuer immer tot, weil das «aktiv»-Flag im Speicher steht und
+                // niemand es zuruecksetzen kann.
+                disabled={starteReko.isPending || (rekoStatus.data?.aktiv && !rekoStatus.data?.haengt)}
                 variant="outline"
                 className="gap-2"
               >
                 {rekoStatus.data?.aktiv
                   ? <Loader2 className="h-4 w-4 animate-spin" />
                   : <Database className="h-4 w-4" />}
-                {rekoStatus.data?.aktiv
+                {rekoStatus.data?.haengt
+                  ? "Neu starten"
+                  : rekoStatus.data?.aktiv
                   ? "Läuft..."
                   : rekoStatus.data?.nochOffen
                     ? `Weiter (${rekoStatus.data.nochOffen} offen)`
@@ -396,6 +401,12 @@ export default function AdminDashboard() {
           )}
           {rekoStatus.data?.zuletzt && rekoStatus.data?.aktiv && (
             <p className="text-[11px] text-muted-foreground">Zuletzt begonnen: {rekoStatus.data.zuletzt}</p>
+          )}
+          {rekoStatus.data?.haengt && (
+            <p className="text-xs text-amber-400">
+              Der Lauf meldet sich seit {Math.round((rekoStatus.data.laeuftSeitSekunden ?? 0) / 60)} Minuten
+              nicht mehr. Ein Häppchen braucht unter zwei — der Knopf ist wieder freigegeben.
+            </p>
           )}
           {!rekoStatus.data?.aktiv && rekoStatus.data?.beendetAm && (
             <p className="text-[11px] text-muted-foreground">
