@@ -123,6 +123,57 @@ export async function haltefestHistorie(saetze: HistorienSatz[]): Promise<number
   }
 }
 
+/**
+ * Alle Reihen, nach Titel gebündelt — Eingang für den Gewichts-Backtest.
+ *
+ * Nur Zeilen mit Regime: Die Zeilen der ersten Fassung tragen kein Timing, und
+ * eine Auswertung, die sie mitnimmt, misst ein Zweidrittelmodell. Lieber eine
+ * kürzere Reihe als eine, die stillschweigend etwas anderes auswertet.
+ *
+ * Rund 25 000 Zeilen — für einen Ausleseauftrag auf Knopfdruck vertretbar; der
+ * Aufrufer soll sie NICHT in einer Schleife holen.
+ */
+export async function leseAlleReihen(): Promise<Map<string, HistorienSatz[]>> {
+  const aus = new Map<string, HistorienSatz[]>();
+  try {
+    const { getDb } = await import("../db");
+    const db = await getDb();
+    if (!db) return aus;
+    await stelleTabelleSicher(db);
+    const { sql } = await import("drizzle-orm");
+    const rows: any = await db.execute(sql`
+      SELECT ticker, datum, qualitaet, bewertung, fScore, fScoreBerechenbar, kurs,
+             timing, timingAbdeckung, regime, belegt, meldefristTage
+      FROM stock_scores_history
+      WHERE regime IS NOT NULL
+      ORDER BY ticker ASC, datum ASC`);
+    const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
+    const num = (v: unknown) => (v === null || v === undefined ? null : parseFloat(String(v)));
+    for (const r of liste as any[]) {
+      const ticker = String(r.ticker);
+      if (!aus.has(ticker)) aus.set(ticker, []);
+      aus.get(ticker)!.push({
+        ticker,
+        datum: String(r.datum),
+        qualitaet: num(r.qualitaet),
+        bewertung: num(r.bewertung),
+        fScore: Number(r.fScore ?? 0),
+        fScoreBerechenbar: Number(r.fScoreBerechenbar ?? 0),
+        kurs: num(r.kurs),
+        timing: num(r.timing),
+        timingAbdeckung: num(r.timingAbdeckung),
+        regime: r.regime === null || r.regime === undefined ? null : String(r.regime),
+        belegt: Number(r.belegt ?? 0),
+        meldefristTage: Number(r.meldefristTage ?? 90),
+      });
+    }
+    return aus;
+  } catch (e) {
+    console.warn("[PunktInZeit] Gesamtabfrage fehlgeschlagen (non-fatal):", (e as Error).message);
+    return aus;
+  }
+}
+
 /** Liest die Reihe eines Titels, aufsteigend nach Datum. */
 export async function leseHistorie(ticker: string): Promise<HistorienSatz[]> {
   try {

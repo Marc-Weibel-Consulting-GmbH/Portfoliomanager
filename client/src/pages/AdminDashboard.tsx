@@ -35,6 +35,13 @@ export default function AdminDashboard() {
     onError: (err) => toast.error("Fehler", { description: err.message }),
   });
 
+  // Schritt 3b: Gewichte auf der rekonstruierten Reihe messen. Rechnet einige
+  // Sekunden, schreibt nichts — das Ergebnis ist ein Bericht, keine Übernahme.
+  const [horizont, setHorizont] = useState(1);
+  const gewichteBacktest = trpc.admin.gewichteBacktest.useMutation({
+    onError: (err) => toast.error("Backtest fehlgeschlagen", { description: err.message }),
+  });
+
   // Der eine Knopf. Der Lauf selbst dauert Minuten und läuft auf dem Server;
   // hier wird nur der Fortschritt geholt — und nur solange er läuft.
   const datenLauf = trpc.admin.getDatenLaufStatus.useQuery(undefined, {
@@ -428,6 +435,127 @@ export default function AdminDashboard() {
               Beendet {new Date(rekoStatus.data.beendetAm).toLocaleString("de-CH")}
             </p>
           )}
+        </div>
+
+        {/* Schritt 3b: Gewichte messen. Setzt die Reihe mit Timing und Regime
+            voraus — ohne sie misst der Lauf ein Zweidrittelmodell. */}
+        <div className="p-4 bg-muted/30 rounded-lg border space-y-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="min-w-[260px]">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <Calculator className="h-4 w-4 text-emerald-400" />Signal-Gewichte messen
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Sucht auf der rekonstruierten Reihe den besten Satz aus Qualität, Bewertung und
+                Timing — nach Kosten, mit Zeit-Holdout. Übernimmt nichts.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                className="bg-background border rounded px-2 py-1.5 text-sm"
+                value={horizont}
+                onChange={(e) => setHorizont(Number(e.target.value))}
+                disabled={gewichteBacktest.isPending}
+              >
+                {[1, 3, 6, 12].map((m) => (
+                  <option key={m} value={m}>{m} Monat{m > 1 ? "e" : ""} Haltedauer</option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                className="gap-2"
+                disabled={gewichteBacktest.isPending}
+                onClick={() => gewichteBacktest.mutate({ horizontMonate: horizont })}
+              >
+                {gewichteBacktest.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <FlaskConical className="h-4 w-4" />}
+                {gewichteBacktest.isPending ? "Rechnet..." : "Messen"}
+              </Button>
+            </div>
+          </div>
+
+          {gewichteBacktest.data && (() => {
+            const e = gewichteBacktest.data;
+            const pct = (v: number) => `${v >= 0 ? "+" : ""}${v.toFixed(2)} %`;
+            // Die Felder kommen über die Serialisierung als optional heraus.
+            const satz = (w: { qualitaet?: number; bewertung?: number; timing?: number }) =>
+              `Q ${Math.round((w.qualitaet ?? 0) * 100)} · B ${Math.round((w.bewertung ?? 0) * 100)}`
+              + ` · T ${Math.round((w.timing ?? 0) * 100)}`;
+            return (
+              <div className="space-y-3 border-t pt-3">
+                <p className="text-xs text-muted-foreground">
+                  {e.titel} Titel · {e.beobachtungen.toLocaleString("de-CH")} Beobachtungen ·
+                  Zeitschnitt {e.trennDatum ?? "—"} · {e.kandidaten} Kandidaten · {e.dauerSekunden}s
+                </p>
+
+                {/* Das Urteil zuerst. Eine Rastersuche liefert IMMER einen
+                    Gewinner — ohne diese Zeile läse sich Rauschen wie ein Fund. */}
+                <div className={`rounded p-3 text-sm ${e.taugt
+                  ? "bg-emerald-500/10 border border-emerald-500/40"
+                  : "bg-amber-500/10 border border-amber-500/40"}`}>
+                  <p className="font-medium">
+                    {e.taugt
+                      ? `Übernehmbar: ${satz(e.gewichte)}`
+                      : "Kein übernehmbarer Gewichtssatz"}
+                  </p>
+                  {e.hinweis && <p className="text-xs mt-1 text-muted-foreground">{e.hinweis}</p>}
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="text-muted-foreground">
+                      <tr>
+                        <th className="text-left font-normal py-1">Gewichte</th>
+                        <th className="text-right font-normal">Ø Rendite Prüfzeitraum</th>
+                        <th className="text-right font-normal">gegen «alles kaufen»</th>
+                        <th className="text-right font-normal">Sharpe</th>
+                        <th className="text-right font-normal">Signale</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t">
+                        <td className="py-1.5">Gefunden — {satz(e.gewichte)}</td>
+                        <td className="text-right">{pct(e.pruefung.signal.mittlereRendite)}</td>
+                        <td className="text-right">
+                          {pct(e.pruefung.signal.mittlereRendite - e.pruefung.basis.mittlereRendite)}
+                        </td>
+                        <td className="text-right">{e.pruefung.signal.sharpe.toFixed(2)}</td>
+                        <td className="text-right">{e.pruefung.signal.n}</td>
+                      </tr>
+                      {e.heute && (
+                        <tr className="border-t">
+                          <td className="py-1.5">Heute im Betrieb — {satz(e.heute.gewichte)}</td>
+                          <td className="text-right">{pct(e.heute.pruefung.signal.mittlereRendite)}</td>
+                          <td className="text-right">
+                            {pct(e.heute.pruefung.signal.mittlereRendite - e.pruefung.basis.mittlereRendite)}
+                          </td>
+                          <td className="text-right">{e.heute.pruefung.signal.sharpe.toFixed(2)}</td>
+                          <td className="text-right">{e.heute.pruefung.signal.n}</td>
+                        </tr>
+                      )}
+                      <tr className="border-t text-muted-foreground">
+                        <td className="py-1.5">Alles kaufen (Vergleichsmass)</td>
+                        <td className="text-right">{pct(e.pruefung.basis.mittlereRendite)}</td>
+                        <td className="text-right">—</td>
+                        <td className="text-right">{e.pruefung.basis.sharpe.toFixed(2)}</td>
+                        <td className="text-right">{e.pruefung.basis.n}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <p className="text-[11px] text-muted-foreground">
+                  Alle Renditen nach einem vollen Rundlauf (Courtage, Stempelabgabe, halbe Spanne).
+                  Bei {e.horizontMonate} Monat{e.horizontMonate > 1 ? "en" : ""} Haltedauer sind das
+                  rund {(1.125 * (12 / e.horizontMonate)).toFixed(1)} % im Jahr — längere Haltedauern
+                  verteilen dieselben Kosten auf mehr Zeit.
+                  {" "}Anpassungsverhältnis Training/Prüfung: {e.ueberanpassung.toFixed(2)}
+                  {" "}(nahe 1 = übertragbar).
+                </p>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Backfill-Status */}
