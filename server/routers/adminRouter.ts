@@ -1787,6 +1787,54 @@ export const adminRouter = router({
       };
     }),
 
+    /**
+     * Schritt 3b: die Gewichte der drei Scores auf der rekonstruierten Reihe messen.
+     *
+     * Als Mutation, obwohl nichts geschrieben wird: Der Lauf dauert einige
+     * Sekunden und soll auf Knopfdruck geschehen, nicht bei jedem Seitenaufbau.
+     *
+     * ES WIRD NICHTS UEBERNOMMEN. Das Ergebnis ist ein Bericht — ob die
+     * gefundenen Gewichte in den Betrieb gehen, entscheidet ein Mensch, und
+     * `taugt` sagt, ob das ueberhaupt zur Debatte steht.
+     */
+    gewichteBacktest: adminProcedure
+      .input(z.object({
+        /**
+         * Vorwaertshorizont in Monatsstichtagen.
+         *
+         * Bei einem Monat traegt jedes Signal einen vollen Rundlauf von rund
+         * 1.125 % — auf ein Jahr hochgerechnet ueber 13 %. Laengere Horizonte
+         * verteilen dieselben Kosten auf mehr Zeit; der Vergleich zwischen den
+         * Horizonten ist deshalb selbst eine Erkenntnis.
+         */
+        horizontMonate: z.number().int().min(1).max(12).default(1),
+      }))
+      .mutation(async ({ input }) => {
+        const { leseAlleReihen } = await import("../lib/punktInZeitStore");
+        const { beobachtungenAusReihe, sucheGewichte } =
+          await import("../lib/signalGewichteBacktest");
+        const { DEFAULT_SIGNAL_GEWICHTE } = await import("../lib/dreiScoreSignal");
+
+        const begonnen = Date.now();
+        const reihen = await leseAlleReihen();
+        const beobachtungen = [...reihen.values()]
+          .flatMap((r) => beobachtungenAusReihe(r, input.horizontMonate));
+
+        const ergebnis = sucheGewichte(
+          beobachtungen,
+          DEFAULT_SIGNAL_GEWICHTE.default,
+          input.horizontMonate,
+        );
+
+        return {
+          ...ergebnis,
+          horizontMonate: input.horizontMonate,
+          titel: reihen.size,
+          beobachtungen: beobachtungen.length,
+          dauerSekunden: Math.round((Date.now() - begonnen) / 100) / 10,
+        };
+      }),
+
     /** Fortschritt des Laufs aus `datenAktualisieren`. */
     getDatenLaufStatus: adminProcedure.query(() => ({
       aktiv: datenLauf.aktiv,
