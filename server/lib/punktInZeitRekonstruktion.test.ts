@@ -349,3 +349,107 @@ describe("rekonstruiere", () => {
     expect(r.uebersprungen[0]).toContain("EODHD 500");
   });
 });
+
+/**
+ * Der Stillstand bei 107 von 212.
+ *
+ * `alleOffen.slice(0, 25)` nimmt immer dieselben ersten 25 Titel. Scheitern
+ * die, verarbeitet jeder weitere Lauf exakt dieselben — der Fortschritt bleibt
+ * stehen, und zwar ohne dass irgendwo ein Fehler sichtbar würde. Bisher wurde
+ * nur der Fall «kann keine Reihe haben» vermerkt (#262); eine
+ * Zeitüberschreitung fiel durch jedes Raster.
+ */
+describe("rekonstruiere: gescheiterte Titel blockieren die Schlange nicht", () => {
+  const zwanzig = Array.from({ length: 20 }, (_, i) => ({ ticker: `F${i}.SW`, sektor: null }));
+  const frisch = Array.from({ length: 5 }, (_, i) => ({ ticker: `N${i}.SW`, sektor: null }));
+
+  it("vermerkt jeden gescheiterten Abruf mit Grund", async () => {
+    const r = await rekonstruiere(
+      [{ ticker: "ZEIT.SW", sektor: null }, { ticker: "LEER.SW", sektor: null },
+       { ticker: "GUT.SW", sektor: null }],
+      "2023-06-01", "2024-06-30",
+      async (t) => {
+        if (t === "ZEIT.SW") throw new Error("The operation was aborted due to timeout");
+        if (t === "LEER.SW") return null;
+        return FUNDAMENTALS;
+      },
+      async () => TAGESKURSE,
+      () => {},
+    );
+    expect(r.fehlversuche.map((f) => f.ticker).sort()).toEqual(["LEER.SW", "ZEIT.SW"]);
+    expect(r.fehlversuche.find((f) => f.ticker === "ZEIT.SW")!.grund).toContain("timeout");
+    expect(r.fehlversuche.find((f) => f.ticker === "LEER.SW")!.grund).toBe("keine Fundamentaldaten");
+    // Der Titel, der durchkam, gehoert NICHT dazu — sein Vermerk darf weg.
+    expect(r.geglueckt).toEqual(["GUT.SW"]);
+  });
+
+  it("stellt vermerkte Titel hinten an, statt sie erneut vorn zu nehmen", async () => {
+    // Genau der Fall aus der Praxis: 20 gescheiterte Titel stehen vor 5 frischen.
+    // Ohne Nachrang nimmt das Haeppchen zu 5 wieder nur die gescheiterten.
+    const geholt: string[] = [];
+    await rekonstruiere(
+      [...zwanzig, ...frisch],
+      "2023-06-01", "2024-06-30",
+      async (t) => { geholt.push(t); return FUNDAMENTALS; },
+      async () => TAGESKURSE,
+      () => {}, undefined, new Set(), 5,
+      new Map(zwanzig.map((t) => [t.ticker, 1])),
+    );
+    expect(geholt).toEqual(frisch.map((t) => t.ticker));
+  });
+
+  it("nimmt sie wieder dran, sobald die uebrigen durch sind", async () => {
+    // Nachrang ist KEIN Ausschluss. Eine Zeitueberschreitung sagt nichts ueber
+    // den Titel — er muss seine zweite Chance bekommen.
+    const geholt: string[] = [];
+    await rekonstruiere(
+      zwanzig,
+      "2023-06-01", "2024-06-30",
+      async (t) => { geholt.push(t); return FUNDAMENTALS; },
+      async () => TAGESKURSE,
+      () => {}, undefined, new Set(), 5,
+      new Map(zwanzig.map((t) => [t.ticker, 3])),
+    );
+    expect(geholt).toHaveLength(5);
+  });
+
+  it("sortiert die selten Gescheiterten vor die hartnaeckigen", async () => {
+    const geholt: string[] = [];
+    await rekonstruiere(
+      [{ ticker: "OFT.SW", sektor: null }, { ticker: "SELTEN.SW", sektor: null }],
+      "2023-06-01", "2024-06-30",
+      async (t) => { geholt.push(t); return FUNDAMENTALS; },
+      async () => TAGESKURSE,
+      () => {}, undefined, new Set(), 1,
+      new Map([["OFT.SW", 7], ["SELTEN.SW", 1]]),
+    );
+    expect(geholt).toEqual(["SELTEN.SW"]);
+  });
+
+  it("sagt es, wenn KEIN Titel des Haeppchens durchkam", async () => {
+    // Ein Lauf, in dem nichts gelingt, sah bisher aus wie ein langsamer.
+    const meldungen: string[] = [];
+    const r = await rekonstruiere(
+      frisch,
+      "2023-06-01", "2024-06-30",
+      async () => null,
+      async () => TAGESKURSE,
+      (m) => meldungen.push(m),
+    );
+    expect(r.geglueckt).toEqual([]);
+    expect(r.meldungen.join(" ")).toContain("KEIN Titel");
+    expect(r.fehlversuche).toHaveLength(5);
+  });
+
+  it("laesst die Reihenfolge unberuehrt, wenn nichts vermerkt ist", async () => {
+    const geholt: string[] = [];
+    await rekonstruiere(
+      frisch,
+      "2023-06-01", "2024-06-30",
+      async (t) => { geholt.push(t); return FUNDAMENTALS; },
+      async () => TAGESKURSE,
+      () => {},
+    );
+    expect(geholt).toEqual(frisch.map((t) => t.ticker));
+  });
+});

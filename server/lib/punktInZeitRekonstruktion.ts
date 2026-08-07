@@ -36,6 +36,16 @@ export interface RekonstruktionsErgebnis {
   zuletzt: string | null;
   /** Titel, die geprüft wurden und keine Reihe liefern können (ETF, Fonds, …). */
   ohneReihe: string[];
+  /**
+   * Titel, deren Abruf diesmal scheiterte — mit Grund.
+   *
+   * Anders als `ohneReihe` ist das KEIN Ausschluss: Eine Zeitüberschreitung
+   * sagt nichts über den Titel. Der Aufrufer merkt sie sich nur, um sie beim
+   * nächsten Lauf ans Ende der Warteschlange zu stellen.
+   */
+  fehlversuche: { ticker: string; grund: string }[];
+  /** Titel, die diesmal durchkamen — ihr Fehlversuch-Vermerk darf weg. */
+  geglueckt: string[];
 }
 
 /** Kurs am oder unmittelbar vor einem Stichtag. */
@@ -129,10 +139,26 @@ export async function rekonstruiere(
    * hintereinander kommen damit ans Ziel, wo ein langer scheitert.
    */
   maxTitel: number = 25,
+  /**
+   * Titel, deren Abruf schon einmal scheiterte, mit der Zahl der Versuche.
+   *
+   * Sie werden NICHT übersprungen — sie rutschen ans Ende der Warteschlange.
+   * Ohne das nahm jeder Lauf dieselben ersten 25 Titel; scheiterten die, kam
+   * der Fortschritt nie über diesen Punkt hinaus, ohne dass irgendwo ein
+   * Fehler sichtbar wurde.
+   */
+  nachrangig: Map<string, number> = new Map(),
 ): Promise<RekonstruktionsErgebnis> {
   const stichtage = monatsStichtage(von, bis);
   const alleOffen = tickers.filter((t) => !bereitsErfasst.has(t.ticker));
-  const offen = alleOffen.slice(0, Math.max(1, maxTitel));
+
+  // Stabil sortieren: unbelastete Titel zuerst, danach die schon gescheiterten,
+  // die seltener gescheiterten vor den öfter gescheiterten. `sort` ist in
+  // Node stabil, die ursprüngliche Reihenfolge bleibt innerhalb einer Stufe.
+  const warteschlange = [...alleOffen].sort(
+    (a, b) => (nachrangig.get(a.ticker) ?? 0) - (nachrangig.get(b.ticker) ?? 0),
+  );
+  const offen = warteschlange.slice(0, Math.max(1, maxTitel));
   melde(`${tickers.length} Titel, ${stichtage.length} Stichtage (${von} bis ${bis}).`
     + (bereitsErfasst.size ? ` ${tickers.length - alleOffen.length} erledigt, ${alleOffen.length} offen.` : "")
     + (alleOffen.length > offen.length ? ` Dieser Lauf nimmt ${offen.length}.` : ""));
@@ -145,6 +171,8 @@ export async function rekonstruiere(
   const ohneReihe: string[] = [];
   const uebersprungen: string[] = [];
   const meldungen: string[] = [];
+  const fehlversuche: { ticker: string; grund: string }[] = [];
+  const geglueckt: string[] = [];
 
   for (let i = 0; i < offen.length; i++) {
     const { ticker, sektor } = offen[i];
@@ -162,9 +190,20 @@ export async function rekonstruiere(
 
     try {
       const fundamentals = await holeFundamentals(ticker);
-      if (!fundamentals) { uebersprungen.push(`${ticker} (keine Fundamentaldaten)`); continue; }
+      if (!fundamentals) {
+        uebersprungen.push(`${ticker} (keine Fundamentaldaten)`);
+        // Fehlversuch, NICHT Ausschluss: Ein leeres Ergebnis kann am Titel
+        // liegen oder an der Gegenstelle. Der Vermerk verschiebt ihn nur nach
+        // hinten, damit er den Häppchen-Anfang nicht dauerhaft besetzt.
+        fehlversuche.push({ ticker, grund: "keine Fundamentaldaten" });
+        continue;
+      }
       const kurse = await holeKurse(ticker);
-      if (!kurse.length) { uebersprungen.push(`${ticker} (keine Kurse)`); continue; }
+      if (!kurse.length) {
+        uebersprungen.push(`${ticker} (keine Kurse)`);
+        fehlversuche.push({ ticker, grund: "keine Kurse" });
+        continue;
+      }
 
       const saetze = reiheFuerTitel(ticker, fundamentals, kurse, stichtage, sektor, meldefristTage);
       if (!saetze.length) {
@@ -174,8 +213,11 @@ export async function rekonstruiere(
       }
 
       zeilen += await haltefestHistorie(saetze);
+      geglueckt.push(ticker);
     } catch (e) {
-      uebersprungen.push(`${ticker} (${(e as Error).message})`);
+      const grund = (e as Error).message || "unbekannt";
+      uebersprungen.push(`${ticker} (${grund})`);
+      fehlversuche.push({ ticker, grund });
     } finally {
       // `finally`, nicht danach: Die `continue`-Zweige oben springen sonst an
       // der Meldung vorbei — ausgerechnet bei den übersprungenen Titeln, über
@@ -203,9 +245,19 @@ export async function rekonstruiere(
   melde(`Fertig: ${zeilen} Zeilen aus ${offen.length - uebersprungen.length} neu geholten Titeln.`
     + (nochOffen > 0 ? ` NOCH ${nochOffen} OFFEN — erneut starten.` : " Alle Titel erfasst."));
 
+  // Ein Lauf, in dem KEIN Titel durchkam, ist etwas anderes als ein langsamer
+  // Lauf — und ohne diesen Satz sehen beide gleich aus. Genau daran blieb der
+  // Fortschritt bei 107 von 212 stehen, ohne dass es benannt wurde.
+  if (offen.length && !geglueckt.length) {
+    meldungen.push(
+      `KEIN Titel dieses Häppchens kam durch. Alle ${offen.length} sind vermerkt und rutschen `
+      + `ans Ende der Warteschlange — der nächste Lauf nimmt andere. Kommt das mehrfach vor, `
+      + `liegt es an der Datenquelle, nicht an den Titeln.`);
+  }
+
   return {
     titel: offen.length - uebersprungen.length,
     zeilen, uebersprungen, meldungen, bereitsVorhanden, nochOffen, zuletzt,
-    ohneReihe,
+    ohneReihe, fehlversuche, geglueckt,
   };
 }

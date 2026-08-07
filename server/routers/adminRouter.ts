@@ -1658,7 +1658,9 @@ export const adminRouter = router({
         void (async () => {
           try {
             const { rekonstruiere } = await import("../lib/punktInZeitRekonstruktion");
-            const { tickerMitReihe, tickerOhneReihe, merkeOhneReihe } = await import("../lib/punktInZeitStore");
+            const { tickerMitReihe, tickerOhneReihe, merkeOhneReihe,
+                    fehlversuche, merkeFehlversuche, loescheFehlversuche } =
+              await import("../lib/punktInZeitStore");
             const { activeCurated } = await import("../lib/stockUniverse");
             const { ENV } = await import("../_core/env");
             const { toEodhdSymbol } = await import("../lib/eodhdSymbol");
@@ -1704,7 +1706,10 @@ export const adminRouter = router({
               async (t) => {
                 const r = await fetch(
                   `https://eodhd.com/api/eod/${symbol(t)}?api_token=${apiKey}&from=${kursVon}&to=${input.bis}&fmt=json`,
-                  { signal: AbortSignal.timeout(15_000) });
+                  // 30 statt 15 Sekunden: Die Reihe reicht seit dem Kursvorlauf
+                  // 500 Tage weiter zurueck, die Antwort ist entsprechend
+                  // groesser. Eine Zeitueberschreitung kostet den ganzen Titel.
+                  { signal: AbortSignal.timeout(30_000) });
                 if (!r.ok) return [];
                 const d = await r.json();
                 return Array.isArray(d)
@@ -1740,11 +1745,27 @@ export const adminRouter = router({
                   ])
                 : new Set<string>(),
               input.maxTitel,
+              // Schon einmal gescheiterte Titel ans Ende der Schlange.
+              //
+              // NICHT ueberspringen: Eine Zeitueberschreitung sagt nichts ueber
+              // den Titel. Aber solange sie vorn stehen, nimmt jeder Lauf
+              // dieselben 25 und der Fortschritt bleibt stehen.
+              input.fortsetzen
+                ? new Map([...await fehlversuche(input.von, input.bis)]
+                    .map(([t, f]) => [t, f.versuche] as [string, number]))
+                : new Map<string, number>(),
             );
             // Die Erkenntnis «dieser Titel kann keine Reihe haben» festhalten,
             // sonst steht er beim naechsten Lauf wieder vorn in der Schlange.
             if (ergebnis.ohneReihe.length) {
               await merkeOhneReihe(ergebnis.ohneReihe, input.von, input.bis);
+            }
+            if (ergebnis.fehlversuche.length) {
+              await merkeFehlversuche(ergebnis.fehlversuche, input.von, input.bis);
+            }
+            // Wer durchkam, verliert seinen Vermerk — sonst bliebe er ewig nachrangig.
+            if (ergebnis.geglueckt.length) {
+              await loescheFehlversuche(ergebnis.geglueckt, input.von, input.bis);
             }
             rekonstruktion.meldungen.push(...ergebnis.meldungen);
             rekonstruktion.nochOffen = ergebnis.nochOffen;
@@ -1762,10 +1783,28 @@ export const adminRouter = router({
       }),
 
     /** Fortschritt und Umfang der Score-Historie. */
-    getRekonstruktionStatus: adminProcedure.query(async () => {
-      const { historienUmfang } = await import("../lib/punktInZeitStore");
+    getRekonstruktionStatus: adminProcedure
+      .input(z.object({
+        von: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        bis: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      }).optional())
+      .query(async ({ input }) => {
+      const { historienUmfang, fehlversuche } = await import("../lib/punktInZeitStore");
       const { vorwaertsUmfang } = await import("../lib/bewertungVorwaertsStore");
+      // Gescheiterte Titel sichtbar machen. Ohne diese Zahl sieht ein Lauf, der
+      // reihenweise am Abruf scheitert, aus wie einer, der einfach langsam ist.
+      const gescheitert = input?.von && input?.bis
+        ? await fehlversuche(input.von, input.bis)
+        : new Map<string, { versuche: number; grund: string | null }>();
       return {
+        fehlversuche: {
+          anzahl: gescheitert.size,
+          /** Die hartnaeckigsten zuerst — sie sagen am ehesten, woran es liegt. */
+          liste: [...gescheitert.entries()]
+            .sort((a, b) => b[1].versuche - a[1].versuche)
+            .slice(0, 8)
+            .map(([ticker, f]) => ({ ticker, versuche: f.versuche, grund: f.grund })),
+        },
         aktiv: rekonstruktion.aktiv,
         /** Laeuft laenger als erlaubt — der Startknopf gibt trotzdem wieder frei. */
         haengt: laufGiltAlsTot(),

@@ -347,6 +347,112 @@ export async function merkeOhneReihe(tickers: string[], von: string, bis: string
   }
 }
 
+/**
+ * Titel, deren Abruf scheiterte — Zeitüberschreitung, HTTP-Fehler, keine Antwort.
+ *
+ * Der Unterschied zu `stock_scores_ohne_reihe` ist der ganze Punkt: Dort steht
+ * «kann keine Reihe haben», hier «hat es diesmal nicht geklappt». Ein
+ * Fehlversuch darf einen Titel deshalb NICHT ausschliessen — er verschiebt ihn
+ * nur ans Ende der Warteschlange.
+ *
+ * Ohne dieses Gedächtnis stand ein gescheiterter Titel bei jedem Lauf wieder
+ * ganz vorn: `alleOffen.slice(0, 25)` nimmt immer dieselben ersten 25. Scheitern
+ * die, verarbeitet jeder weitere Lauf exakt dieselben 25 Titel und der
+ * Fortschritt bleibt stehen — bei 107 von 212, ohne dass irgendwo ein Fehler
+ * sichtbar würde. Dieselbe Falle wie #262, damals nur für ETFs geschlossen.
+ */
+let fehlversuchGeprueft = false;
+
+async function stelleFehlversuchTabelleSicher(db: any): Promise<void> {
+  if (fehlversuchGeprueft) return;
+  const { sql } = await import("drizzle-orm");
+  await db.execute(sql.raw(`CREATE TABLE IF NOT EXISTS \`stock_scores_fehlversuch\` (
+    \`ticker\` varchar(24) NOT NULL,
+    \`von\` varchar(10) NOT NULL,
+    \`bis\` varchar(10) NOT NULL,
+    \`versuche\` smallint NOT NULL DEFAULT 1,
+    \`grund\` varchar(255),
+    \`zuletzt\` timestamp NOT NULL DEFAULT (now()),
+    PRIMARY KEY (\`ticker\`, \`von\`, \`bis\`)
+  )`));
+  fehlversuchGeprueft = true;
+}
+
+export async function merkeFehlversuche(
+  eintraege: { ticker: string; grund: string }[],
+  von: string,
+  bis: string,
+): Promise<number> {
+  if (!eintraege.length) return 0;
+  try {
+    const { getDb } = await import("../db");
+    const db = await getDb();
+    if (!db) return 0;
+    await stelleFehlversuchTabelleSicher(db);
+    const { sql } = await import("drizzle-orm");
+    const werte = eintraege.map((e) => sql`(${e.ticker}, ${von}, ${bis}, 1, ${e.grund.slice(0, 250)})`);
+    await db.execute(sql`
+      INSERT INTO stock_scores_fehlversuch (ticker, von, bis, versuche, grund)
+      VALUES ${sql.join(werte, sql`, `)}
+      ON DUPLICATE KEY UPDATE
+        versuche = versuche + 1, grund = VALUES(grund), zuletzt = now()`);
+    return eintraege.length;
+  } catch (e) {
+    console.warn("[PunktInZeit] Fehlversuch-Vermerk fehlgeschlagen (non-fatal):", (e as Error).message);
+    return 0;
+  }
+}
+
+/** Gescheiterte Titel mit Zahl der Versuche — je öfter gescheitert, desto weiter hinten. */
+export async function fehlversuche(
+  von: string,
+  bis: string,
+): Promise<Map<string, { versuche: number; grund: string | null }>> {
+  const aus = new Map<string, { versuche: number; grund: string | null }>();
+  try {
+    const { getDb } = await import("../db");
+    const db = await getDb();
+    if (!db) return aus;
+    await stelleFehlversuchTabelleSicher(db);
+    const { sql } = await import("drizzle-orm");
+    const rows: any = await db.execute(sql`
+      SELECT ticker, versuche, grund FROM stock_scores_fehlversuch
+      WHERE von = ${von} AND bis = ${bis}`);
+    const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
+    for (const r of liste as any[]) {
+      aus.set(String(r.ticker), {
+        versuche: Number(r.versuche ?? 1),
+        grund: r.grund === null || r.grund === undefined ? null : String(r.grund),
+      });
+    }
+    return aus;
+  } catch {
+    return aus;
+  }
+}
+
+/** Vermerk löschen, sobald ein Titel doch durchkam — sonst bliebe er ewig nachrangig. */
+export async function loescheFehlversuche(
+  tickers: string[],
+  von: string,
+  bis: string,
+): Promise<void> {
+  if (!tickers.length) return;
+  try {
+    const { getDb } = await import("../db");
+    const db = await getDb();
+    if (!db) return;
+    await stelleFehlversuchTabelleSicher(db);
+    const { sql } = await import("drizzle-orm");
+    await db.execute(sql`
+      DELETE FROM stock_scores_fehlversuch
+      WHERE von = ${von} AND bis = ${bis}
+        AND ticker IN (${sql.join(tickers.map((t) => sql`${t}`), sql`, `)})`);
+  } catch (e) {
+    console.warn("[PunktInZeit] Fehlversuch-Loeschung fehlgeschlagen (non-fatal):", (e as Error).message);
+  }
+}
+
 export async function tickerOhneReihe(von: string, bis: string): Promise<Set<string>> {
   const aus = new Set<string>();
   try {
