@@ -23,9 +23,10 @@ export default function AdminDashboard() {
   // Punkt-in-Zeit-Rekonstruktion. Die Endpunkte gibt es seit #253 — eine
   // Bedienung dafuer fehlte, weshalb der Lauf nur ueber die API ausloesbar war
   // und sein Fortschritt nirgends sichtbar.
-  const rekoStatus = trpc.admin.getRekonstruktionStatus.useQuery(undefined, {
-    refetchInterval: (query) => (query.state.data?.aktiv ? 5_000 : false),
-  });
+  const rekoStatus = trpc.admin.getRekonstruktionStatus.useQuery(
+    { von: rekoVon, bis: rekoBis },
+    { refetchInterval: (query) => (query.state.data?.aktiv ? 5_000 : false) },
+  );
   const starteReko = trpc.admin.starteRekonstruktion.useMutation({
     onSuccess: (d) => {
       if (d.gestartet) toast.success("Rekonstruktion gestartet", { description: "Der Fortschritt erscheint unten." });
@@ -423,6 +424,24 @@ export default function AdminDashboard() {
           )}
           {rekoStatus.data?.zuletzt && rekoStatus.data?.aktiv && (
             <p className="text-[11px] text-muted-foreground">Zuletzt begonnen: {rekoStatus.data.zuletzt}</p>
+          )}
+
+          {/* Gescheiterte Abrufe. Ohne diese Zeile sieht ein Lauf, der reihenweise
+              am Abruf scheitert, aus wie einer, der einfach langsam ist — genau so
+              blieb der Fortschritt bei 107 von 212 stehen, ohne dass es auffiel. */}
+          {(rekoStatus.data?.fehlversuche.anzahl ?? 0) > 0 && (
+            <div className="text-xs text-amber-400 space-y-1">
+              <p>
+                {rekoStatus.data!.fehlversuche.anzahl} Titel mit gescheitertem Abruf — sie stehen
+                am Ende der Warteschlange und werden erneut versucht, sobald die übrigen durch sind.
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {rekoStatus.data!.fehlversuche.liste
+                  .map((f) => `${f.ticker} (${f.versuche}× — ${f.grund ?? "unbekannt"})`)
+                  .join(", ")}
+                {rekoStatus.data!.fehlversuche.anzahl > rekoStatus.data!.fehlversuche.liste.length ? " …" : ""}
+              </p>
+            </div>
           )}
           {rekoStatus.data?.haengt && (
             <p className="text-xs text-amber-400">
