@@ -60,6 +60,15 @@ export const MIN_SIGNALE = 100;
  */
 export const MAX_UEBERANPASSUNG = 1.3;
 
+/**
+ * Darunter ist der Prüfzeitraum auffällig freundlicher als das Training.
+ *
+ * Kein Ausschlussgrund, aber ein Vorbehalt: Ein Fund, der ausserhalb seines
+ * Trainings doppelt so gut abschneidet, hat kaum ein besonders robustes Muster
+ * gefunden — die beiden Zeiträume sind schlicht verschieden.
+ */
+export const MIN_UEBERANPASSUNG = 0.7;
+
 export interface Beobachtung {
   ticker: string;
   datum: string;
@@ -294,9 +303,37 @@ function pruefeTauglichkeit(
     maengel.push(`am Trainingszeitraum angepasst (Verhältnis ${ueberanpassung.toFixed(2)})`);
   }
 
-  return maengel.length
-    ? { taugt: false, hinweis: `Nicht übernehmen: ${maengel.join("; ")}.` }
-    : { taugt: true, hinweis: null };
+  if (maengel.length) {
+    return { taugt: false, hinweis: `Nicht übernehmen: ${maengel.join("; ")}.` };
+  }
+
+  /**
+   * Ein Verhältnis WEIT UNTER 1 ist ebenfalls ein Warnzeichen — die Prüfung
+   * hatte diese Schwelle zuerst nicht.
+   *
+   * Sie fragte nur, ob der Fund im Prüfzeitraum schlechter abschneidet als im
+   * Training. Fällt er dort deutlich BESSER aus, heisst das nicht «besonders
+   * gut», sondern: Die beiden Zeiträume sind sehr verschieden. Der Vorsprung
+   * kann dann dem Fenster gehören und nicht den Gewichten. In der Praxis kam
+   * genau das vor — Verhältnis 0.53 bei einem als übernehmbar gemeldeten Satz.
+   *
+   * Kein Ausschluss: Der Satz besteht die vier Bedingungen. Aber wer ihn
+   * übernimmt, soll wissen, worauf er sich verlässt.
+   */
+  if (pruefung.signal.sharpe > 0
+      && (trainingSharpe <= 0 || ueberanpassung < MIN_UEBERANPASSUNG)) {
+    const grund = trainingSharpe <= 0
+      ? `im Trainingszeitraum verlor auch der beste Kandidat (Sharpe ${trainingSharpe.toFixed(2)})`
+      : `im Prüfzeitraum lief es deutlich besser als im Training `
+        + `(Verhältnis ${ueberanpassung.toFixed(2)})`;
+    return {
+      taugt: true,
+      hinweis: `Mit Vorbehalt: ${grund}. Die beiden Zeiträume sind sehr verschieden — `
+        + `der Vorsprung kann am Fenster liegen und nicht an den Gewichten.`,
+    };
+  }
+
+  return { taugt: true, hinweis: null };
 }
 
 /**

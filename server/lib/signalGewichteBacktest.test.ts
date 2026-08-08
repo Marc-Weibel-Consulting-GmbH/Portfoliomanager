@@ -16,6 +16,7 @@ import {
   sucheGewichte,
   KAUF_SCHWELLE,
   MIN_SIGNALE,
+  MIN_UEBERANPASSUNG,
   IN_SAMPLE_ANTEIL,
   type ReihenZeile,
 } from "./signalGewichteBacktest";
@@ -274,6 +275,28 @@ describe("sucheGewichte", () => {
   it("erklärt den Fund für tauglich, wenn er die Prüfung besteht", () => {
     const e = sucheGewichte(beob, DEFAULT_SIGNAL_GEWICHTE.default);
     expect(e.taugt).toBe(true);
+  });
+
+  it("setzt einen Vorbehalt, wenn der Prüfzeitraum viel freundlicher war als das Training", () => {
+    // Aus der Praxis: Verhältnis 0.53 bei einem als übernehmbar gemeldeten
+    // Satz. Die erste Fassung der Prüfung sah darin nichts — sie fragte nur
+    // nach dem umgekehrten Fall. Ein Fund, der ausserhalb seines Trainings
+    // doppelt so gut läuft, hat aber kaum ein robustes Muster gefunden.
+    const schwach = weltMitTimingEffekt(11, 0.02);
+    const stark = weltMitTimingEffekt(11, 0.30);
+    // Erste Hälfte der Stichtage aus der schwachen, zweite aus der starken Welt.
+    const alle = [...schwach, ...stark].flatMap((r) => beobachtungenAusReihe(r));
+    const daten = [...new Set(alle.map((b) => b.datum))].sort();
+    const grenze = daten[Math.floor(daten.length * 0.8) - 1];
+    const gemischt = [
+      ...schwach.flatMap((r) => beobachtungenAusReihe(r)).filter((b) => b.datum <= grenze),
+      ...stark.flatMap((r) => beobachtungenAusReihe(r)).filter((b) => b.datum > grenze),
+    ];
+
+    const e = sucheGewichte(gemischt, DEFAULT_SIGNAL_GEWICHTE.default);
+    expect(e.ueberanpassung).toBeLessThan(MIN_UEBERANPASSUNG);
+    expect(e.taugt).toBe(true);          // kein Ausschluss …
+    expect(e.hinweis).toContain("Vorbehalt");  // … aber benannt
   });
 });
 
