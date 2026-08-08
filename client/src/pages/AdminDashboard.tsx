@@ -51,6 +51,13 @@ export default function AdminDashboard() {
   });
   const [jahreOffen, setJahreOffen] = useState(false);
 
+  // Die Messung, die zur Anwendung passt: die besten N halten. Alle Kandidaten
+  // in einem Lauf — sonst braucht jede Frage eine eigene Runde.
+  const [positionen, setPositionen] = useState(25);
+  const rangTest = trpc.admin.rangTest.useMutation({
+    onError: (err) => toast.error("Rangtest fehlgeschlagen", { description: err.message }),
+  });
+
   // Der eine Knopf. Der Lauf selbst dauert Minuten und läuft auf dem Server;
   // hier wird nur der Fortschritt geholt — und nur solange er läuft.
   const datenLauf = trpc.admin.getDatenLaufStatus.useQuery(undefined, {
@@ -732,6 +739,121 @@ export default function AdminDashboard() {
                 desselben Stichtags gemessen, beide Seiten tragen denselben Rundlauf, er kürzt sich
                 weg. Ein IC um 0.03–0.05 gilt für einen einzelnen Faktor bereits als brauchbar; um 0
                 heisst kein Zusammenhang.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Der Rangtest: die besten N halten. Die Messung, die zur Anwendung
+            passt — «alles über 60» und «alles kaufen» tut kein Depot. */}
+        <div className="p-4 bg-muted/30 rounded-lg border space-y-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="min-w-[260px]">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-emerald-400" />Die besten N halten
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Nach Rang auswählen, den Horizont halten, gegen das gleichgewichtete Universum —
+                mit echter Wechselquote und deren Kosten. Alle Kandidaten in einem Lauf.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                className="bg-background border rounded px-2 py-1.5 text-sm"
+                value={positionen}
+                onChange={(e) => setPositionen(Number(e.target.value))}
+                disabled={rangTest.isPending}
+              >
+                {[10, 15, 20, 25, 30, 40].map((n) => (
+                  <option key={n} value={n}>{n} Positionen</option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                className="gap-2"
+                disabled={rangTest.isPending}
+                onClick={() => rangTest.mutate({ horizontMonate: horizont, positionen })}
+              >
+                {rangTest.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <TrendingUp className="h-4 w-4" />}
+                {rangTest.isPending ? "Rechnet..." : "Rangtest"}
+              </Button>
+            </div>
+          </div>
+
+          {rangTest.data && (
+            <div className="space-y-3 border-t pt-3">
+              <p className="text-xs text-muted-foreground">
+                {rangTest.data.titel} Titel · {rangTest.data.positionen} Positionen ·{" "}
+                {rangTest.data.horizontMonate} Monat
+                {rangTest.data.horizontMonate > 1 ? "e" : ""} Haltedauer ·{" "}
+                {rangTest.data.ergebnisse[0]?.periodenJeSpur ?? 0} unabhängige Perioden je Spur ·{" "}
+                {rangTest.data.dauerSekunden}s
+              </p>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead className="text-muted-foreground">
+                    <tr>
+                      <th className="text-left font-normal py-1">Auswahl nach</th>
+                      <th className="text-right font-normal">Ø Auswahl</th>
+                      <th className="text-right font-normal">Ø Universum</th>
+                      <th className="text-right font-normal">Vorsprung netto</th>
+                      <th className="text-right font-normal">Streuung Startmonat</th>
+                      <th className="text-right font-normal">Umschlag</th>
+                      <th className="text-right font-normal">vorn</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rangTest.data.ergebnisse.map((r) => {
+                      // Grün nur, wenn der Vorsprung grösser ist als die Streuung
+                      // über die Startmonate. Sonst hängt er am Startmonat.
+                      const robust = Math.abs(r.ueberschussNachKosten) > r.spurStreuung;
+                      const gut = robust && r.ueberschussNachKosten > 0;
+                      return (
+                        <tr key={r.bezeichnung} className="border-t">
+                          <td className="py-1.5">{r.bezeichnung}</td>
+                          <td className="text-right tabular-nums">{r.auswahl.toFixed(2)} %</td>
+                          <td className="text-right tabular-nums text-muted-foreground">
+                            {r.universum.toFixed(2)} %
+                          </td>
+                          <td className={`text-right tabular-nums font-medium ${
+                            gut ? "text-emerald-400"
+                              : robust && r.ueberschussNachKosten < 0 ? "text-red-400"
+                              : "text-muted-foreground"}`}>
+                            {r.ueberschussNachKosten >= 0 ? "+" : ""}
+                            {r.ueberschussNachKosten.toFixed(2)}
+                          </td>
+                          <td className="text-right tabular-nums text-muted-foreground">
+                            ±{r.spurStreuung.toFixed(2)}
+                          </td>
+                          <td className="text-right tabular-nums text-muted-foreground">
+                            {Math.round(r.umschlag * 100)} %
+                          </td>
+                          <td className="text-right tabular-nums text-muted-foreground">
+                            {Math.round(r.anteilVorn * 100)} %
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {rangTest.data.ergebnisse[0] && (
+                <p className="text-xs text-muted-foreground">
+                  {rangTest.data.ergebnisse[0].klartext}
+                </p>
+              )}
+
+              <p className="text-[11px] text-muted-foreground">
+                Der Vorsprung ist nur dann farbig, wenn er grösser ist als die Streuung über die
+                Startmonate — sonst hängt er davon ab, in welchem Monat man begonnen hätte, nicht
+                vom Verfahren. Kosten treffen nur den gewechselten Teil des Depots. Die
+                <strong> Gegenprobe</strong> wählt die schlechtesten statt der besten: Zeigt ein
+                Score etwas an, muss ihre Zeile spiegelbildlich schlechter sein. Ist sie es nicht,
+                misst die Auswahl nichts.
               </p>
             </div>
           )}

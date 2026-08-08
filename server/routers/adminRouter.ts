@@ -1915,6 +1915,66 @@ export const adminRouter = router({
         };
       }),
 
+    /**
+     * Die Messung, die zur Anwendung passt: die besten N Titel halten.
+     *
+     * Die Gewichtssuche fragte «kaufe alles ueber 60 gegen kaufe alles», die
+     * Diagnose «ordnet der Score richtig». Beides ging am Depot vorbei — es
+     * haelt zwanzig bis dreissig Titel und zahlt fuer jede Umschichtung.
+     *
+     * ALLE KANDIDATEN IN EINEM LAUF: die drei Einzelscores, das heutige
+     * Signal und die Gegenprobe (schlechteste statt beste). Sonst braucht jede
+     * Frage eine eigene Runde, und die Antwort kommt Tage spaeter.
+     */
+    rangTest: adminProcedure
+      .input(z.object({
+        horizontMonate: z.number().int().min(1).max(12).default(12),
+        positionen: z.number().int().min(5).max(60).default(25),
+      }))
+      .mutation(async ({ input }) => {
+        const { leseAlleReihen } = await import("../lib/punktInZeitStore");
+        const { beobachtungenAusReihe } = await import("../lib/signalGewichteBacktest");
+        const { rangTest, rangKlartext } = await import("../lib/rangTest");
+        const { rechneSignal, DEFAULT_SIGNAL_GEWICHTE } = await import("../lib/dreiScoreSignal");
+
+        const begonnen = Date.now();
+        const reihen = await leseAlleReihen();
+        const beobachtungen = [...reihen.values()]
+          .flatMap((r) => beobachtungenAusReihe(r, input.horizontMonate));
+
+        const kandidaten: { bezeichnung: string; bewerter: (b: any) => number | null }[] = [
+          { bezeichnung: "Bewertung", bewerter: (b) => b.bewertung },
+          { bezeichnung: "Qualität", bewerter: (b) => b.qualitaet },
+          { bezeichnung: "Timing", bewerter: (b) => b.timing },
+          {
+            bezeichnung: "Signal heute",
+            bewerter: (b) => rechneSignal({
+              qualitaet: b.qualitaet, bewertung: b.bewertung, timing: b.timing, regime: b.regime,
+            }, DEFAULT_SIGNAL_GEWICHTE).score,
+          },
+          {
+            // Vorzeichenprobe: Die SCHLECHTESTEN 25 nach Bewertung. Zeigt ein
+            // Score etwas an, muss diese Zeile spiegelbildlich schlechter sein.
+            // Ist sie es nicht, misst die Auswahl nichts.
+            bezeichnung: "Gegenprobe: schlechteste nach Bewertung",
+            bewerter: (b) => (b.bewertung === null ? null : -b.bewertung),
+          },
+        ];
+
+        return {
+          horizontMonate: input.horizontMonate,
+          positionen: input.positionen,
+          titel: reihen.size,
+          beobachtungen: beobachtungen.length,
+          dauerSekunden: Math.round((Date.now() - begonnen) / 100) / 10,
+          ergebnisse: kandidaten.map((k) => {
+            const r = rangTest(beobachtungen, k.bewerter, k.bezeichnung,
+              input.positionen, input.horizontMonate);
+            return { ...r, klartext: rangKlartext(r) };
+          }),
+        };
+      }),
+
     /** Fortschritt des Laufs aus `datenAktualisieren`. */
     getDatenLaufStatus: adminProcedure.query(() => ({
       aktiv: datenLauf.aktiv,
