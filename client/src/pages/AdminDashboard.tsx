@@ -49,6 +49,7 @@ export default function AdminDashboard() {
   const scoreDiagnose = trpc.admin.scoreDiagnose.useMutation({
     onError: (err) => toast.error("Diagnose fehlgeschlagen", { description: err.message }),
   });
+  const [jahreOffen, setJahreOffen] = useState(false);
 
   // Der eine Knopf. Der Lauf selbst dauert Minuten und läuft auf dem Server;
   // hier wird nur der Fortschritt geholt — und nur solange er läuft.
@@ -614,13 +615,30 @@ export default function AdminDashboard() {
 
           {scoreDiagnose.data && (
             <div className="space-y-4 border-t pt-3">
-              <p className="text-xs text-muted-foreground">
-                {scoreDiagnose.data.titel} Titel ·{" "}
-                {scoreDiagnose.data.beobachtungen.toLocaleString("de-CH")} Beobachtungen ·{" "}
-                {scoreDiagnose.data.horizontMonate} Monat
-                {scoreDiagnose.data.horizontMonate > 1 ? "e" : ""} Horizont ·{" "}
-                {scoreDiagnose.data.dauerSekunden}s
-              </p>
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <p className="text-xs text-muted-foreground">
+                  {scoreDiagnose.data.titel} Titel ·{" "}
+                  {scoreDiagnose.data.beobachtungen.toLocaleString("de-CH")} Beobachtungen ·{" "}
+                  {scoreDiagnose.data.horizontMonate} Monat
+                  {scoreDiagnose.data.horizontMonate > 1 ? "e" : ""} Horizont ·{" "}
+                  {scoreDiagnose.data.dauerSekunden}s
+                </p>
+                <Button variant="ghost" size="sm" className="h-7 gap-1 text-xs"
+                  onClick={() => setJahreOffen((v) => !v)}>
+                  {jahreOffen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                  Nach Jahren
+                </Button>
+              </div>
+              {jahreOffen && (
+                <p className="text-[11px] text-amber-400/80">
+                  Ein Mittelwert über zehn Jahre kann aus allen Jahren stammen oder aus zweien — für
+                  eine heutige Entscheidung ist das der ganze Unterschied.
+                  {scoreDiagnose.data.horizontMonate > 1
+                    ? ` Bei ${scoreDiagnose.data.horizontMonate} Monaten Horizont überlappen die Fenster
+                       ausserdem: Die Stichtage sind keine unabhängigen Beobachtungen.`
+                    : ""}
+                </p>
+              )}
 
               {scoreDiagnose.data.scores.map((s) => {
                 const name = { qualitaet: "Qualität", bewertung: "Bewertung", timing: "Timing" }[s.feld];
@@ -663,6 +681,48 @@ export default function AdminDashboard() {
                         </div>
                       );
                     })()}
+
+                    {/* Nach Jahren. Die entscheidende Gegenprobe: Ein IC von
+                        0.069 über zehn Jahre kann aus allen Jahren kommen oder
+                        aus zweien — im Mittelwert sieht beides gleich aus, für
+                        eine heutige Entscheidung ist es der ganze Unterschied.
+                        Die Zwölfmonatsfenster überlappen ausserdem, 115
+                        Stichtage sind also eher zehn unabhängige Beobachtungen. */}
+                    {jahreOffen && s.jahre.length > 0 && (
+                      <div className="overflow-x-auto">
+                        <table className="text-[11px] w-full">
+                          <thead className="text-muted-foreground">
+                            <tr>
+                              <th className="text-left font-normal py-0.5">Jahr</th>
+                              {s.jahre.map((j) => (
+                                <th key={j.jahr} className="text-right font-normal px-1">{j.jahr}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-t">
+                              <td className="py-0.5 text-muted-foreground">IC</td>
+                              {s.jahre.map((j) => (
+                                <td key={j.jahr} className={`text-right px-1 tabular-nums ${
+                                  j.ic === null ? "text-muted-foreground"
+                                    : j.ic > 0.02 ? "text-emerald-400"
+                                    : j.ic < -0.02 ? "text-red-400" : "text-muted-foreground"}`}>
+                                  {j.ic === null ? "—" : j.ic.toFixed(2)}
+                                </td>
+                              ))}
+                            </tr>
+                            <tr className="border-t text-muted-foreground">
+                              <td className="py-0.5">Ø Markt</td>
+                              {s.jahre.map((j) => (
+                                <td key={j.jahr} className="text-right px-1 tabular-nums">
+                                  {j.basis.toFixed(0)}
+                                </td>
+                              ))}
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 );
               })}
