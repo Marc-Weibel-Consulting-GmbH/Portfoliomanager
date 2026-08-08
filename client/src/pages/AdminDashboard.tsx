@@ -43,6 +43,13 @@ export default function AdminDashboard() {
     onError: (err) => toast.error("Backtest fehlgeschlagen", { description: err.message }),
   });
 
+  // Die vorgelagerte Frage: Ordnet ein Score die Titel innerhalb desselben
+  // Monats überhaupt richtig? Ohne diese Auskunft sagt die Gewichtssuche nur,
+  // welcher von 171 Kandidaten gewonnen hat — nicht, ob es etwas zu gewinnen gab.
+  const scoreDiagnose = trpc.admin.scoreDiagnose.useMutation({
+    onError: (err) => toast.error("Diagnose fehlgeschlagen", { description: err.message }),
+  });
+
   // Der eine Knopf. Der Lauf selbst dauert Minuten und läuft auf dem Server;
   // hier wird nur der Fortschritt geholt — und nur solange er läuft.
   const datenLauf = trpc.admin.getDatenLaufStatus.useQuery(undefined, {
@@ -575,6 +582,99 @@ export default function AdminDashboard() {
               </div>
             );
           })()}
+        </div>
+
+        {/* Die vorgelagerte Frage. Die Gewichtssuche misst eine Schwellenregel
+            gegen «alles kaufen» und mischt damit Auswahl und Zeitpunkt. Hier
+            wird quer je Stichtag gerechnet: alle Titel desselben Monats
+            nebeneinander, jede Rendite gegen den Monatsdurchschnitt. */}
+        <div className="p-4 bg-muted/30 rounded-lg border space-y-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="min-w-[260px]">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <Gauge className="h-4 w-4 text-emerald-400" />Scores diagnostizieren
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Ordnet ein Score die Titel innerhalb desselben Monats richtig? Gemessen quer je
+                Stichtag gegen den Monatsdurchschnitt — der Markteffekt fällt heraus.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="gap-2"
+              disabled={scoreDiagnose.isPending}
+              onClick={() => scoreDiagnose.mutate({ horizontMonate: horizont })}
+            >
+              {scoreDiagnose.isPending
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Gauge className="h-4 w-4" />}
+              {scoreDiagnose.isPending ? "Rechnet..." : "Diagnostizieren"}
+            </Button>
+          </div>
+
+          {scoreDiagnose.data && (
+            <div className="space-y-4 border-t pt-3">
+              <p className="text-xs text-muted-foreground">
+                {scoreDiagnose.data.titel} Titel ·{" "}
+                {scoreDiagnose.data.beobachtungen.toLocaleString("de-CH")} Beobachtungen ·{" "}
+                {scoreDiagnose.data.horizontMonate} Monat
+                {scoreDiagnose.data.horizontMonate > 1 ? "e" : ""} Horizont ·{" "}
+                {scoreDiagnose.data.dauerSekunden}s
+              </p>
+
+              {scoreDiagnose.data.scores.map((s) => {
+                const name = { qualitaet: "Qualität", bewertung: "Bewertung", timing: "Timing" }[s.feld];
+                // Ab |IC| 0.02 überhaupt der Rede wert — darunter ist es Rauschen.
+                const traegt = s.ic !== null && Math.abs(s.ic) >= 0.02
+                  && (s.icPositivAnteil >= 0.55 || s.icPositivAnteil <= 0.45);
+                return (
+                  <div key={s.feld} className="space-y-2">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className="text-sm font-medium">{name}</span>
+                      <Badge variant="outline" className={traegt
+                        ? "text-emerald-400 border-emerald-500/50"
+                        : "text-muted-foreground"}>
+                        IC {s.ic !== null ? s.ic.toFixed(3) : "—"}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        {Math.round(s.icPositivAnteil * 100)} % der Stichtage gleichgerichtet ·
+                        Dezilspanne {s.spanne !== null ? `${s.spanne.toFixed(1)} Pkt` : "—"} ·
+                        {s.stichtage} Stichtage
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{s.klartext}</p>
+
+                    {/* Dezile als Balken: die Form sagt mehr als jede Kennzahl.
+                        Monoton steigend = Information, Zickzack = Zufall. */}
+                    {s.dezile.length > 0 && (() => {
+                      const max = Math.max(...s.dezile.map((d) => Math.abs(d.ueberschuss)), 0.01);
+                      return (
+                        <div className="flex items-end gap-1 h-16" title="Überschuss je Dezil">
+                          {s.dezile.map((d) => (
+                            <div key={d.dezil} className="flex-1 flex flex-col justify-end h-full">
+                              <div
+                                className={`w-full rounded-sm ${d.ueberschuss >= 0
+                                  ? "bg-emerald-500/60" : "bg-red-500/60"}`}
+                                style={{ height: `${(Math.abs(d.ueberschuss) / max) * 100}%` }}
+                                title={`Dezil ${d.dezil}: ${d.ueberschuss.toFixed(2)} Pkt (n=${d.n})`}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              })}
+
+              <p className="text-[11px] text-muted-foreground">
+                Keine Handelskosten in dieser Rechnung — der Überschuss wird gegen den Querschnitt
+                desselben Stichtags gemessen, beide Seiten tragen denselben Rundlauf, er kürzt sich
+                weg. Ein IC um 0.03–0.05 gilt für einen einzelnen Faktor bereits als brauchbar; um 0
+                heisst kein Zusammenhang.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Backfill-Status */}

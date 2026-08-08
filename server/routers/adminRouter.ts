@@ -1874,6 +1874,47 @@ export const adminRouter = router({
         };
       }),
 
+    /**
+     * Steckt in den einzelnen Scores ueberhaupt Auswahlinformation?
+     *
+     * Die Gewichtssuche beantwortet das NICHT: Sie misst eine Schwellenregel
+     * gegen «alles kaufen» und mischt damit Auswahl und Zeitpunkt. Hier wird
+     * QUER JE STICHTAG gerechnet — alle Titel desselben Monats nebeneinander,
+     * jede Rendite gegen den Monatsdurchschnitt. Der Markteffekt faellt heraus,
+     * uebrig bleibt die Ordnungsleistung des Scores.
+     *
+     * Ohne diese Auskunft laesst sich nicht entscheiden, ob 3c ueberhaupt eine
+     * Grundlage hat: Regimeeigene Gewichte an einem Modell ohne Substanz waeren
+     * nur mehr Stellschrauben.
+     */
+    scoreDiagnose: adminProcedure
+      .input(z.object({
+        horizontMonate: z.number().int().min(1).max(12).default(1),
+      }))
+      .mutation(async ({ input }) => {
+        const { leseAlleReihen } = await import("../lib/punktInZeitStore");
+        const { beobachtungenAusReihe } = await import("../lib/signalGewichteBacktest");
+        const { diagnostiziere, jeJahr, klartext } = await import("../lib/scoreDiagnose");
+        type ScoreFeld = import("../lib/scoreDiagnose").ScoreFeld;
+
+        const begonnen = Date.now();
+        const reihen = await leseAlleReihen();
+        const beobachtungen = [...reihen.values()]
+          .flatMap((r) => beobachtungenAusReihe(r, input.horizontMonate));
+
+        const felder: ScoreFeld[] = ["qualitaet", "bewertung", "timing"];
+        return {
+          horizontMonate: input.horizontMonate,
+          titel: reihen.size,
+          beobachtungen: beobachtungen.length,
+          dauerSekunden: Math.round((Date.now() - begonnen) / 100) / 10,
+          scores: felder.map((feld) => {
+            const d = diagnostiziere(beobachtungen, feld);
+            return { ...d, klartext: klartext(d), jahre: jeJahr(beobachtungen, feld) };
+          }),
+        };
+      }),
+
     /** Fortschritt des Laufs aus `datenAktualisieren`. */
     getDatenLaufStatus: adminProcedure.query(() => ({
       aktiv: datenLauf.aktiv,
