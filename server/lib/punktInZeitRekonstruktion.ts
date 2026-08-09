@@ -13,7 +13,7 @@
 import { beschneideFundamentals, monatsStichtage, MELDEFRIST_TAGE } from "./punktInZeit";
 import { kennzahlenPerStichtag } from "./punktInZeitKennzahlen";
 import { berechneQualitaet, berechneBewertung } from "./dreiScores";
-import { haltefestHistorie, type HistorienSatz } from "./punktInZeitStore";
+import { haltefestHistorie, FASSUNG, type HistorienSatz } from "./punktInZeitStore";
 import { timingUndRegimeAm } from "./punktInZeitTiming";
 
 /** Pause vor jedem Titel, in Millisekunden. */
@@ -46,6 +46,16 @@ export interface RekonstruktionsErgebnis {
   fehlversuche: { ticker: string; grund: string }[];
   /** Titel, die diesmal durchkamen — ihr Fehlversuch-Vermerk darf weg. */
   geglueckt: string[];
+}
+
+/** Nur die Zahlen — `sektor` ist ein Text und gehört nicht in die Kennzahlen. */
+function zahlenAus(o: Record<string, unknown>): Record<string, number | null> {
+  const aus: Record<string, number | null> = {};
+  for (const [k, v] of Object.entries(o)) {
+    if (v === null) aus[k] = null;
+    else if (typeof v === "number" && Number.isFinite(v)) aus[k] = v;
+  }
+  return aus;
 }
 
 /** Kurs am oder unmittelbar vor einem Stichtag. */
@@ -87,6 +97,26 @@ export function reiheFuerTitel(
 
     const q = berechneQualitaet(k.qualitaet, k.piotroski);
     const b = berechneBewertung(k.bewertung);
+
+    /**
+     * Bewertung als `scoreGemessen`, nicht als `score`.
+     *
+     * `score` verlangt 60 % Abdeckung. Das bereinigte PEG trägt 0.45 davon und
+     * ist rückwirkend nicht zu haben — eine Wachstumsschätzung von heute gehört
+     * nicht in eine Rechnung von damals. FCF-Rendite und Dividende ergeben
+     * 0.55, knapp darunter. Ergebnis der ersten Fassung: Der Bewertungs-Score
+     * war für JEDEN Titel ausser Finanzwerten `null`, die über ihren eigenen
+     * Zweig laufen. Aus 212 Titeln je Stichtag wurden 20 bis 40 — und alles,
+     * was auf dieser Spalte gemessen wurde, galt nur für Banken und
+     * Versicherer, ohne dass es irgendwo dastand.
+     *
+     * `scoreGemessen` ist dieselbe Rechnung ohne die Schätzfaktoren, auf die
+     * verbleibenden normiert. Genau für diesen Fall wurde es in #254 gebaut.
+     * Der Rückfall auf `score` gilt den Finanzwerten: Dort gibt es keinen
+     * Schätzfaktor, beide Werte sind gleich.
+     */
+    const bewertung = b.scoreGemessen ?? b.score;
+
     // Der dritte Score kommt aus derselben Kursreihe, die schon geholt ist —
     // ohne ihn liessen sich die Signal-Gewichte gar nicht optimieren.
     const t = timingUndRegimeAm(kurse, datum);
@@ -94,13 +124,18 @@ export function reiheFuerTitel(
       ticker,
       datum,
       qualitaet: q.gesamt,
-      bewertung: b.score,
+      bewertung,
       fScore: k.piotroski.score,
       fScoreBerechenbar: k.piotroski.berechenbar,
       kurs,
       timing: t.timing,
       timingAbdeckung: t.abdeckung,
       regime: t.regime,
+      fassung: FASSUNG,
+      // Die Eingangsgrössen mitschreiben. Ohne sie zwingt jede Änderung an
+      // einer Score-Formel zu einem vollständigen neuen Abruf über alle
+      // Titel — beim Bewertungs-Fehler genau einmal zu viel.
+      kennzahlen: { ...k.qualitaet, ...zahlenAus(k.bewertung) },
       belegt: k.belegt,
       meldefristTage,
     });
