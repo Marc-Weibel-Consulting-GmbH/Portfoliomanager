@@ -68,6 +68,19 @@ export interface Diagnose {
   spanne: number | null;
   stichtage: number;
   beobachtungen: number;
+  /**
+   * Ø Titel JE STICHTAG mit belegtem Score — die Zahl, an der ich den
+   * Bewertungs-Fehler übersehen habe.
+   *
+   * Ausgewiesen war nur die Gesamtzahl der Beobachtungen. Dass der
+   * Bewertungs-Score in der ersten Fassung der Rekonstruktion nur für
+   * Finanzwerte berechenbar war und die Diagnose damit 30 statt 212 Titel je
+   * Monat sah, stand nirgends — der IC von 0.069 galt für Banken und
+   * Versicherer, nicht für das Universum.
+   */
+  titelJeStichtag: number;
+  /** Anteil am Universum je Stichtag, 0–1. Deutlich unter 1 heisst: Ausschnitt. */
+  abdeckung: number;
   /** Warum keine Aussage möglich ist — leer, wenn eine vorliegt. */
   hinweis: string | null;
 }
@@ -132,13 +145,22 @@ export function diagnostiziere(
   feld: ScoreFeld,
   dezilZahl = 10,
 ): Diagnose {
+  // Das Universum je Stichtag — ALLE Beobachtungen, auch die ohne diesen
+  // Score. Ohne diesen Nenner sieht ein Ausschnitt aus wie ein Querschnitt.
+  const universum = new Map<string, number>();
+  for (const b of beobachtungen ?? []) {
+    if (!b?.datum) continue;
+    universum.set(b.datum, (universum.get(b.datum) ?? 0) + 1);
+  }
+
   const gruppen = [...jeStichtag(beobachtungen, feld).entries()]
     .filter(([, liste]) => liste.length >= MIN_TITEL_JE_STICHTAG)
     .sort((a, b) => a[0].localeCompare(b[0]));
 
   const leer: Diagnose = {
     feld, dezile: [], ic: null, icStreuung: 0, icPositivAnteil: 0,
-    spanne: null, stichtage: 0, beobachtungen: 0, hinweis: null,
+    spanne: null, stichtage: 0, beobachtungen: 0,
+    titelJeStichtag: 0, abdeckung: 0, hinweis: null,
   };
 
   if (!gruppen.length) {
@@ -201,6 +223,11 @@ export function diagnostiziere(
     spanne: oben && unten && oben.n && unten.n ? oben.ueberschuss - unten.ueberschuss : null,
     stichtage: gruppen.length,
     beobachtungen: beobachtungenGesamt,
+    titelJeStichtag: Math.round(beobachtungenGesamt / gruppen.length),
+    abdeckung: (() => {
+      const moeglich = gruppen.reduce((s, [datum]) => s + (universum.get(datum) ?? 0), 0);
+      return moeglich > 0 ? parseFloat((beobachtungenGesamt / moeglich).toFixed(3)) : 0;
+    })(),
     hinweis: null,
   };
 }
@@ -259,20 +286,28 @@ export function klartext(d: Diagnose): string {
   if (d.hinweis) return d.hinweis;
   if (d.ic === null) return "Keine Rangkorrelation berechenbar.";
 
+  // Die Warnung zuerst. Ein IC, der auf einem Fünftel des Universums beruht,
+  // ist eine Aussage über dieses Fünftel — nicht über die Titelauswahl.
+  const ausschnitt = d.abdeckung < 0.5
+    ? `NUR EIN AUSSCHNITT: ${d.titelJeStichtag} von rund `
+      + `${Math.round(d.titelJeStichtag / Math.max(d.abdeckung, 0.001))} Titeln je Stichtag `
+      + `haben diesen Score. Was folgt, gilt für diesen Teil, nicht für das Universum. `
+    : "";
+
   const richtung = d.ic > 0 ? "höhere" : "niedrigere";
   const bestaendig = d.icPositivAnteil >= 0.55 || d.icPositivAnteil <= 0.45;
 
   if (Math.abs(d.ic) < 0.02) {
-    return `Kein erkennbarer Zusammenhang (IC ${d.ic.toFixed(3)}, `
+    return ausschnitt + `Kein erkennbarer Zusammenhang (IC ${d.ic.toFixed(3)}, `
       + `${Math.round(d.icPositivAnteil * 100)} % der Stichtage positiv). `
       + `Der Score ordnet die Titel innerhalb eines Monats nicht besser als der Zufall.`;
   }
   if (!bestaendig) {
-    return `Im Mittel ein Zusammenhang (IC ${d.ic.toFixed(3)}), aber unbeständig — `
+    return ausschnitt + `Im Mittel ein Zusammenhang (IC ${d.ic.toFixed(3)}), aber unbeständig — `
       + `nur ${Math.round(d.icPositivAnteil * 100)} % der Stichtage zeigen dieselbe Richtung. `
       + `Das ist eher ein paar starke Monate als eine tragfähige Regel.`;
   }
-  return `${richtung} Werte gingen mit besseren Folgerenditen einher `
+  return ausschnitt + `${richtung} Werte gingen mit besseren Folgerenditen einher `
     + `(IC ${d.ic.toFixed(3)}, ${Math.round(d.icPositivAnteil * 100)} % der Stichtage in dieser Richtung, `
     + `Dezilspanne ${d.spanne !== null ? d.spanne.toFixed(1) : "—"} Punkte).`;
 }

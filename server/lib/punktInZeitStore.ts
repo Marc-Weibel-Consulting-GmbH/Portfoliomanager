@@ -12,7 +12,34 @@
  * ob eine Zahl belastbar war oder aus zwei Kennzahlen hochgerechnet.
  */
 
+/**
+ * Fassung der Rechnung, die eine Zeile erzeugt hat.
+ *
+ * 1 — erste Rekonstruktion. Der Bewertungs-Score steht dort für die meisten
+ *     Titel auf `null`: Er braucht 60 % Abdeckung, das bereinigte PEG trägt
+ *     0.45 davon und ist rückwirkend nicht zu haben. FCF-Rendite und Dividende
+ *     ergeben 0.55 — knapp zu wenig. Nur Finanzwerte kamen über ihren eigenen
+ *     Zweig durch. Aus 212 Titeln je Stichtag wurden so 20 bis 40.
+ * 2 — Bewertung als `scoreGemessen` (dieselbe Rechnung ohne die Schätzfaktoren,
+ *     auf die übrigen normiert) und die Roh-Kennzahlen daneben.
+ *
+ * Ersetzt die frühere Behelfsprüfung «hat die Zeile ein Regime». Bei der
+ * nächsten Formeländerung genügt eine neue Nummer.
+ */
+export const FASSUNG = 2;
+
 let tabelleGeprueft = false;
+
+/** JSON aus der Datenbank — MySQL liefert je nach Treiber Objekt oder Text. */
+function leseKennzahlen(v: unknown): Record<string, number | null> | null {
+  if (v === null || v === undefined) return null;
+  if (typeof v === "object") return v as Record<string, number | null>;
+  try {
+    return JSON.parse(String(v));
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Spalten, die nach der ersten Fassung dazugekommen sind.
@@ -26,6 +53,9 @@ const NACHGETRAGENE_SPALTEN: { name: string; ddl: string }[] = [
   { name: "timing", ddl: "ADD `timing` decimal(6,2)" },
   { name: "timingAbdeckung", ddl: "ADD `timingAbdeckung` decimal(4,3)" },
   { name: "regime", ddl: "ADD `regime` varchar(24)" },
+  // Fassung 2: Bewertung als `scoreGemessen` und die Roh-Kennzahlen daneben.
+  { name: "fassung", ddl: "ADD `fassung` tinyint" },
+  { name: "kennzahlen", ddl: "ADD `kennzahlen` json" },
 ];
 
 async function stelleTabelleSicher(db: any): Promise<void> {
@@ -42,6 +72,8 @@ async function stelleTabelleSicher(db: any): Promise<void> {
     \`timing\` decimal(6,2),
     \`timingAbdeckung\` decimal(4,3),
     \`regime\` varchar(24),
+    \`fassung\` tinyint,
+    \`kennzahlen\` json,
     \`belegt\` tinyint NOT NULL DEFAULT 0,
     \`meldefristTage\` smallint NOT NULL DEFAULT 90,
     \`erfasstAm\` timestamp NOT NULL DEFAULT (now()),
@@ -78,6 +110,27 @@ export interface HistorienSatz {
   timingAbdeckung: number | null;
   /** Regime-Schlüssel der Engine an diesem Stichtag, oder `default`. */
   regime: string | null;
+  /**
+   * Fassung der Rechnung, die diese Zeile erzeugt hat.
+   *
+   * 1 = erste Rekonstruktion, 2 = Bewertung als `scoreGemessen` mit
+   * Roh-Kennzahlen. Ersetzt die frühere Behelfsprüfung «hat die Zeile ein
+   * Regime»: Bei der nächsten Formeländerung genügt eine neue Nummer.
+   */
+  fassung: number;
+  /**
+   * Die Roh-Kennzahlen dieses Stichtags.
+   *
+   * Der eigentliche Grund für diese Spalte: Bisher standen nur die fertigen
+   * Scores in der Tabelle. Jede Änderung an einer Score-Formel zwang deshalb
+   * zu einem vollständigen neuen Abruf über alle Titel — beim
+   * Bewertungs-Fehler genau einmal zu viel. Mit den Eingangsgrössen daneben
+   * ist eine Formeländerung künftig eine reine Neuberechnung.
+   *
+   * Als JSON und nicht als zwölf Spalten: Eine weitere Kennzahl soll keine
+   * Wanderung durch Schema, Schreib- und Lesepfad auslösen.
+   */
+  kennzahlen: Record<string, number | null> | null;
   belegt: number;
   meldefristTage: number;
 }
@@ -101,17 +154,19 @@ export async function haltefestHistorie(saetze: HistorienSatz[]): Promise<number
         sql`(${s.ticker}, ${s.datum}, ${s.qualitaet}, ${s.bewertung}, ${s.fScore},
              ${s.fScoreBerechenbar}, ${s.kurs}, ${s.timing ?? null},
              ${s.timingAbdeckung ?? null}, ${s.regime ?? null},
+             ${s.fassung}, ${s.kennzahlen ? JSON.stringify(s.kennzahlen) : null},
              ${s.belegt}, ${s.meldefristTage})`);
       await db.execute(sql`
         INSERT INTO stock_scores_history
           (ticker, datum, qualitaet, bewertung, fScore, fScoreBerechenbar, kurs,
-           timing, timingAbdeckung, regime, belegt, meldefristTage)
+           timing, timingAbdeckung, regime, fassung, kennzahlen, belegt, meldefristTage)
         VALUES ${sql.join(werte, sql`, `)}
         ON DUPLICATE KEY UPDATE
           qualitaet = VALUES(qualitaet), bewertung = VALUES(bewertung),
           fScore = VALUES(fScore), fScoreBerechenbar = VALUES(fScoreBerechenbar),
           kurs = VALUES(kurs), timing = VALUES(timing),
           timingAbdeckung = VALUES(timingAbdeckung), regime = VALUES(regime),
+          fassung = VALUES(fassung), kennzahlen = VALUES(kennzahlen),
           belegt = VALUES(belegt),
           meldefristTage = VALUES(meldefristTage), erfasstAm = now()`);
       geschrieben += teil.length;
@@ -143,9 +198,9 @@ export async function leseAlleReihen(): Promise<Map<string, HistorienSatz[]>> {
     const { sql } = await import("drizzle-orm");
     const rows: any = await db.execute(sql`
       SELECT ticker, datum, qualitaet, bewertung, fScore, fScoreBerechenbar, kurs,
-             timing, timingAbdeckung, regime, belegt, meldefristTage
+             timing, timingAbdeckung, regime, fassung, kennzahlen, belegt, meldefristTage
       FROM stock_scores_history
-      WHERE regime IS NOT NULL
+      WHERE fassung >= ${FASSUNG}
       ORDER BY ticker ASC, datum ASC`);
     const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
     const num = (v: unknown) => (v === null || v === undefined ? null : parseFloat(String(v)));
@@ -163,6 +218,8 @@ export async function leseAlleReihen(): Promise<Map<string, HistorienSatz[]>> {
         timing: num(r.timing),
         timingAbdeckung: num(r.timingAbdeckung),
         regime: r.regime === null || r.regime === undefined ? null : String(r.regime),
+        fassung: Number(r.fassung ?? 1),
+        kennzahlen: leseKennzahlen(r.kennzahlen),
         belegt: Number(r.belegt ?? 0),
         meldefristTage: Number(r.meldefristTage ?? 90),
       });
@@ -184,7 +241,7 @@ export async function leseHistorie(ticker: string): Promise<HistorienSatz[]> {
     const { sql } = await import("drizzle-orm");
     const rows: any = await db.execute(sql`
       SELECT ticker, datum, qualitaet, bewertung, fScore, fScoreBerechenbar, kurs,
-             timing, timingAbdeckung, regime, belegt, meldefristTage
+             timing, timingAbdeckung, regime, fassung, kennzahlen, belegt, meldefristTage
       FROM stock_scores_history WHERE ticker = ${ticker} ORDER BY datum ASC`);
     const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
     const num = (v: unknown) => (v === null || v === undefined ? null : parseFloat(String(v)));
@@ -199,6 +256,8 @@ export async function leseHistorie(ticker: string): Promise<HistorienSatz[]> {
       timing: num(r.timing),
       timingAbdeckung: num(r.timingAbdeckung),
       regime: r.regime === null || r.regime === undefined ? null : String(r.regime),
+      fassung: Number(r.fassung ?? 1),
+      kennzahlen: leseKennzahlen(r.kennzahlen),
       belegt: Number(r.belegt ?? 0),
       meldefristTage: Number(r.meldefristTage ?? 90),
     }));
@@ -233,7 +292,7 @@ export async function historienUmfang(): Promise<{
     const rows: any = await db.execute(sql`
       SELECT COUNT(*) AS zeilen, COUNT(DISTINCT ticker) AS titel,
              MIN(datum) AS von, MAX(datum) AS bis,
-             COUNT(DISTINCT CASE WHEN regime IS NOT NULL THEN ticker END) AS titelMitRegime,
+             COUNT(DISTINCT CASE WHEN fassung >= 2 THEN ticker END) AS titelMitRegime,
              SUM(CASE WHEN timing IS NOT NULL THEN 1 ELSE 0 END) AS zeilenMitTiming
       FROM stock_scores_history`);
     const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
@@ -288,7 +347,7 @@ export async function tickerMitReihe(
     const { sql } = await import("drizzle-orm");
     const rows: any = await db.execute(sql`
       SELECT ticker, COUNT(*) AS n FROM stock_scores_history
-      WHERE datum >= ${von} AND datum <= ${bis} AND regime IS NOT NULL
+      WHERE datum >= ${von} AND datum <= ${bis} AND fassung >= ${FASSUNG}
       GROUP BY ticker HAVING n >= ${mindestZeilen}`);
     const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
     for (const r of liste as any[]) aus.add(String(r.ticker));

@@ -171,6 +171,32 @@ describe("jeJahr", () => {
   });
 });
 
+describe("diagnostiziere macht sichtbar, auf wie vielen Titeln es beruht", () => {
+  it("nennt die Titel je Stichtag und die Abdeckung", () => {
+    const d = diagnostiziere(welt({ monate: 24, titel: 60 }), "qualitaet");
+    expect(d.titelJeStichtag).toBe(60);
+    expect(d.abdeckung).toBe(1);
+  });
+
+  it("warnt, wenn der Score nur einen Ausschnitt des Universums abdeckt", () => {
+    // Genau der Fall aus der Praxis: Der Bewertungs-Score war nur für
+    // Finanzwerte berechenbar. Die Diagnose sah 30 statt 212 Titel je Monat
+    // und wies nur die Gesamtzahl der Beobachtungen aus — der IC galt für
+    // einen Ausschnitt, ohne dass es irgendwo stand.
+    const b = welt({ monate: 24, titel: 100 }).map((x, i) =>
+      (i % 100) < 25 ? x : { ...x, bewertung: null });
+    const d = diagnostiziere(b, "bewertung");
+    expect(d.titelJeStichtag).toBe(25);
+    expect(d.abdeckung).toBeCloseTo(0.25, 2);
+    expect(klartext(d)).toContain("NUR EIN AUSSCHNITT");
+  });
+
+  it("warnt NICHT, wenn der Score das Universum abdeckt", () => {
+    const d = diagnostiziere(welt({ monate: 24, titel: 60 }), "qualitaet");
+    expect(klartext(d)).not.toContain("AUSSCHNITT");
+  });
+});
+
 describe("klartext", () => {
   it("nennt fehlenden Zusammenhang beim Namen", () => {
     const d = diagnostiziere(welt({ effekt: 0, marktSchwankung: 10 }), "qualitaet");

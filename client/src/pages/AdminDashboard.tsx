@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain, RefreshCw, CheckCircle2, XCircle, TrendingUp, FlaskConical, AlertTriangle, Clock, Database, Upload, Zap, ScrollText, Settings, Calculator, SlidersHorizontal, Camera, Bell, Search, MessageSquare, Gauge, Globe, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { adminGroups, type AdminKachel } from "@/lib/adminNavigation";
@@ -35,6 +35,30 @@ export default function AdminDashboard() {
     },
     onError: (err) => toast.error("Fehler", { description: err.message }),
   });
+
+  /**
+   * Häppchen selbsttätig nachlegen.
+   *
+   * Der Lauf arbeitet in Portionen zu 25 Titeln, weil ein langer Lauf in dieser
+   * Umgebung stirbt. Bei 243 Titeln sind das zehn Klicks — und beim dritten
+   * Durchgang wegen einer Formelkorrektur ist das schlicht Schikane. Die
+   * Portionierung bleibt, das Nachlegen übernimmt der Browser.
+   *
+   * Bewusst als abschaltbarer Schalter und nicht als festes Verhalten: Wer
+   * einen einzelnen Durchgang beobachten will, soll das können.
+   */
+  const [autoWeiter, setAutoWeiter] = useState(true);
+  useEffect(() => {
+    const s = rekoStatus.data;
+    if (!autoWeiter || !s) return;
+    if (s.aktiv || s.haengt) return;
+    if ((s.nochOffen ?? 0) <= 0) return;
+    if (starteReko.isPending) return;
+    const t = setTimeout(() => {
+      starteReko.mutate({ von: rekoVon, bis: rekoBis, fortsetzen: true, maxTitel: 25 });
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [autoWeiter, rekoStatus.data, starteReko, rekoVon, rekoBis]);
 
   // Schritt 3b: Gewichte auf der rekonstruierten Reihe messen. Rechnet einige
   // Sekunden, schreibt nichts — das Ergebnis ist ein Bericht, keine Übernahme.
@@ -365,6 +389,22 @@ export default function AdminDashboard() {
             </div>
           </div>
 
+          {/* Selbsttätiges Nachlegen. Die Portionierung zu 25 Titeln bleibt —
+              ein langer Lauf stirbt in dieser Umgebung —, aber zehn Klicks
+              nacheinander sind kein Bedienkonzept. */}
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={autoWeiter}
+              onChange={(e) => setAutoWeiter(e.target.checked)}
+              className="accent-emerald-500"
+            />
+            Häppchen selbsttätig nachlegen, bis alle Titel erfasst sind
+            {autoWeiter && (rekoStatus.data?.nochOffen ?? 0) > 0
+              ? ` — noch ${rekoStatus.data!.nochOffen} offen, Seite offen lassen`
+              : ""}
+          </label>
+
           {/* Umfang: was tatsaechlich in der Datenbank steht. Ueberlebt einen
               Neustart, im Gegensatz zu den Meldungen darunter. */}
           {rekoStatus.data?.umfang && (
@@ -666,6 +706,15 @@ export default function AdminDashboard() {
                         Dezilspanne {s.spanne !== null ? `${s.spanne.toFixed(1)} Pkt` : "—"} ·
                         {s.stichtage} Stichtage
                       </span>
+                      {/* Die Abdeckung gehört neben den IC, nicht ins Kleingedruckte:
+                          Ein Wert auf einem Fünftel des Universums ist eine Aussage
+                          über dieses Fünftel. Genau daran ist mir der Bewertungs-
+                          Fehler durchgerutscht. */}
+                      <Badge variant="outline" className={s.abdeckung < 0.5
+                        ? "text-amber-400 border-amber-500/50" : "text-muted-foreground"}>
+                        {s.titelJeStichtag} Titel je Stichtag
+                        {s.abdeckung < 1 ? ` (${Math.round(s.abdeckung * 100)} %)` : ""}
+                      </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">{s.klartext}</p>
 
@@ -788,7 +837,10 @@ export default function AdminDashboard() {
                 {rangTest.data.titel} Titel · {rangTest.data.positionen} Positionen ·{" "}
                 {rangTest.data.horizontMonate} Monat
                 {rangTest.data.horizontMonate > 1 ? "e" : ""} Haltedauer ·{" "}
-                {rangTest.data.ergebnisse[0]?.periodenJeSpur ?? 0} unabhängige Perioden je Spur ·{" "}
+                {/* Nicht die erste Zeile nehmen: Ist ihr Score kaum belegt,
+                    steht dort 0, und der ganze Lauf sieht leer aus. */}
+                {Math.max(0, ...rangTest.data.ergebnisse.map((r) => r.periodenJeSpur))}{" "}
+                unabhängige Perioden je Spur ·{" "}
                 {rangTest.data.dauerSekunden}s
               </p>
 

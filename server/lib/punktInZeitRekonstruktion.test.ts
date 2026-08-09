@@ -10,6 +10,7 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("./punktInZeitStore", () => ({
   haltefestHistorie: async (s: unknown[]) => s.length,
+  FASSUNG: 2,
 }));
 
 import { kursAm, reiheFuerTitel, rekonstruiere } from "./punktInZeitRekonstruktion";
@@ -163,6 +164,31 @@ describe("reiheFuerTitel mit täglichen Kursen", () => {
     // 0.90 statt 1.0 — der LPPL-Wert ist rückwirkend nicht rekonstruierbar.
     // Ohne diese Zahl sähe die Reihe später aus wie eine vollständige Messung.
     for (const r of reihe) expect(r.timingAbdeckung).toBe(0.9);
+  });
+
+  it("liefert einen Bewertungs-Score OHNE das rückwirkend fehlende PEG", () => {
+    // Der Fehler der ersten Fassung: `berechneBewertung().score` verlangt 60 %
+    // Abdeckung, das PEG trägt 0.45 davon und ist rückwirkend nicht zu haben.
+    // FCF-Rendite und Dividende ergeben 0.55 — der Score fiel für jeden Titel
+    // ausser Finanzwerten auf null, und alles, was auf dieser Spalte gemessen
+    // wurde, galt nur für Banken und Versicherer.
+    for (const r of reihe) {
+      expect(r.bewertung, `Stichtag ${r.datum}`).not.toBeNull();
+    }
+  });
+
+  it("schreibt die Roh-Kennzahlen mit, damit eine Formeländerung keinen neuen Abruf kostet", () => {
+    for (const r of reihe) {
+      expect(r.fassung).toBe(2);
+      expect(r.kennzahlen).not.toBeNull();
+      // Die Eingangsgrössen beider Scores, und keine Texte.
+      expect(Object.keys(r.kennzahlen!)).toEqual(
+        expect.arrayContaining(["roic", "kgv", "fcfRendite", "dividendenrendite"]));
+      expect(r.kennzahlen).not.toHaveProperty("sektor");
+      for (const v of Object.values(r.kennzahlen!)) {
+        expect(v === null || typeof v === "number").toBe(true);
+      }
+    }
   });
 
   it("bewertet jeden Stichtag mit dem Kursstand von damals", () => {
