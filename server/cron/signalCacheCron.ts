@@ -433,20 +433,6 @@ export async function refreshSignalCache(): Promise<void> {
                           lpplPenalty, regime: regimeKey },
                         blendConfig,
                       );
-                      const { qualitaetsBand, bewertungsBand } = await import("../lib/dreiScores");
-                      dreiScoreSaetze.push({
-                        ticker: stock.ticker,
-                        qualitaet: q.gesamt,
-                        qualitaetBand: qualitaetsBand(q.gesamt),
-                        niveau: q.niveau.score,
-                        richtung: q.richtung.score,
-                        fScore: q.richtung.fScore,
-                        fScoreBerechenbar: q.richtung.berechenbar,
-                        bewertung: b.score,
-                        bewertungBand: bewertungsBand(b.score),
-                        abdeckungNiveau: q.niveau.abdeckung,
-                        abdeckungBewertung: b.abdeckung,
-                      });
                       vorwaertsSaetze.push({
                         ticker: stock.ticker,
                         datum: heuteTag,
@@ -494,6 +480,29 @@ export async function refreshSignalCache(): Promise<void> {
                       if (sig.score !== null && sig.label && sig.grade) {
                         dreiSignal = { score: sig.score, label: sig.label, grade: sig.grade };
                       }
+
+                      // Alle fuenf Werte aus DEMSELBEN Lauf ablegen — die
+                      // Titelansicht liest sie hier, nicht aus einer zweiten
+                      // Formel (STRATEGIE_DREI_SCORES.md, Abschnitt 2).
+                      const { qualitaetsBand, bewertungsBand } = await import("../lib/dreiScores");
+                      dreiScoreSaetze.push({
+                        ticker: stock.ticker,
+                        qualitaet: q.gesamt,
+                        qualitaetBand: qualitaetsBand(q.gesamt),
+                        niveau: q.niveau.score,
+                        richtung: q.richtung.score,
+                        fScore: q.richtung.fScore,
+                        fScoreBerechenbar: q.richtung.berechenbar,
+                        bewertung: b.score,
+                        bewertungBand: bewertungsBand(b.score),
+                        abdeckungNiveau: q.niveau.abdeckung,
+                        abdeckungBewertung: b.abdeckung,
+                        timing: t.score,
+                        timingAbdeckung: t.abdeckung,
+                        regime: regimeKey,
+                        signalScore: sig.score,
+                        signalLabel: sig.label,
+                      });
                     } catch { /* Schattenrechnung darf den echten Lauf nie stoeren */ }
                   }
 

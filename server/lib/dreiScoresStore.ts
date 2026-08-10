@@ -26,6 +26,23 @@
 
 let tabelleGeprueft = false;
 
+/**
+ * Timing und Signal kamen nachträglich dazu (STRATEGIE_DREI_SCORES.md, Abschnitt 3).
+ *
+ * Vorher las die Titelansicht das «Signal» aus dem alten
+ * `tradingview.stockScoring`-Pfad — Momentum + Qualität − LPPL — während die
+ * Empfehlung daneben längst aus den drei Scores kam. Zwei Formeln auf einer
+ * Seite. Jetzt liegen alle drei Scores UND das abgeleitete Signal in derselben
+ * Zeile, geschrieben vom selben Cron-Lauf, aus derselben Rechnung.
+ */
+const NACHGETRAGENE_SPALTEN: { name: string; ddl: string }[] = [
+  { name: "timing", ddl: "ADD `timing` decimal(6,2)" },
+  { name: "timingAbdeckung", ddl: "ADD `timingAbdeckung` decimal(5,3)" },
+  { name: "regime", ddl: "ADD `regime` varchar(24)" },
+  { name: "signalScore", ddl: "ADD `signalScore` decimal(6,2)" },
+  { name: "signalLabel", ddl: "ADD `signalLabel` varchar(16)" },
+];
+
 async function stelleTabelleSicher(db: any): Promise<void> {
   if (tabelleGeprueft) return;
   const { sql } = await import("drizzle-orm");
@@ -41,9 +58,27 @@ async function stelleTabelleSicher(db: any): Promise<void> {
     \`bewertungBand\` varchar(24),
     \`abdeckungNiveau\` decimal(5,3),
     \`abdeckungBewertung\` decimal(5,3),
+    \`timing\` decimal(6,2),
+    \`timingAbdeckung\` decimal(5,3),
+    \`regime\` varchar(24),
+    \`signalScore\` decimal(6,2),
+    \`signalLabel\` varchar(16),
     \`berechnetAm\` timestamp NOT NULL DEFAULT (now()),
     PRIMARY KEY (\`ticker\`)
   )`));
+
+  for (const spalte of NACHGETRAGENE_SPALTEN) {
+    const res: any = await db.execute(sql`
+      SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'stock_scores'
+        AND COLUMN_NAME = ${spalte.name}`);
+    const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
+    if (Number((liste as any[])[0]?.cnt ?? 0) === 0) {
+      await db.execute(sql.raw(`ALTER TABLE \`stock_scores\` ${spalte.ddl}`));
+    }
+  }
+
   tabelleGeprueft = true;
 }
 
@@ -59,6 +94,15 @@ export interface GespeicherteScores {
   bewertungBand: string;
   abdeckungNiveau: number;
   abdeckungBewertung: number;
+  /** Timing-Score 0–100 aus der Kursreihe (`berechneTiming`), null wenn zu wenig Historie. */
+  timing: number | null;
+  /** Belegtes Timing-Gewicht 0–1. */
+  timingAbdeckung: number | null;
+  /** Regime-Schlüssel, mit dem das Signal gewichtet wurde. */
+  regime: string | null;
+  /** Das abgeleitete Signal aus `rechneSignal` — die EINE Signal-Formel. */
+  signalScore: number | null;
+  signalLabel: string | null;
 }
 
 /** Non-fatal: Scheitert das Schreiben, bleibt der Signallauf unberührt. */
@@ -76,17 +120,22 @@ export async function haltefestScores(saetze: GespeicherteScores[]): Promise<{ g
       await db.execute(sql`
         INSERT INTO stock_scores
           (ticker, qualitaet, qualitaetBand, niveau, richtung, fScore, fScoreBerechenbar,
-           bewertung, bewertungBand, abdeckungNiveau, abdeckungBewertung, berechnetAm)
+           bewertung, bewertungBand, abdeckungNiveau, abdeckungBewertung,
+           timing, timingAbdeckung, regime, signalScore, signalLabel, berechnetAm)
         VALUES
           (${s.ticker}, ${s.qualitaet}, ${s.qualitaetBand}, ${s.niveau}, ${s.richtung},
            ${s.fScore}, ${s.fScoreBerechenbar}, ${s.bewertung}, ${s.bewertungBand},
-           ${s.abdeckungNiveau}, ${s.abdeckungBewertung}, NOW())
+           ${s.abdeckungNiveau}, ${s.abdeckungBewertung},
+           ${s.timing}, ${s.timingAbdeckung}, ${s.regime}, ${s.signalScore}, ${s.signalLabel}, NOW())
         ON DUPLICATE KEY UPDATE
           qualitaet = VALUES(qualitaet), qualitaetBand = VALUES(qualitaetBand),
           niveau = VALUES(niveau), richtung = VALUES(richtung),
           fScore = VALUES(fScore), fScoreBerechenbar = VALUES(fScoreBerechenbar),
           bewertung = VALUES(bewertung), bewertungBand = VALUES(bewertungBand),
           abdeckungNiveau = VALUES(abdeckungNiveau), abdeckungBewertung = VALUES(abdeckungBewertung),
+          timing = VALUES(timing), timingAbdeckung = VALUES(timingAbdeckung),
+          regime = VALUES(regime), signalScore = VALUES(signalScore),
+          signalLabel = VALUES(signalLabel),
           berechnetAm = NOW()
       `);
       geschrieben++;
@@ -132,6 +181,11 @@ export async function leseScores(tickers: string[]): Promise<Map<string, Gespeic
         bewertungBand: r.bewertungBand ?? "nicht beurteilbar",
         abdeckungNiveau: zahl(r.abdeckungNiveau) ?? 0,
         abdeckungBewertung: zahl(r.abdeckungBewertung) ?? 0,
+        timing: zahl(r.timing),
+        timingAbdeckung: zahl(r.timingAbdeckung),
+        regime: r.regime ?? null,
+        signalScore: zahl(r.signalScore),
+        signalLabel: r.signalLabel ?? null,
       });
     }
     return leer;
