@@ -302,6 +302,13 @@
       "when": 1785489613579,
       "tag": "0042_vengeful_scarlet_witch",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "5",
+      "when": 1786351086715,
+      "tag": "0043_slim_tenebrous",
+      "breakpoints": true
     }
   ]
 }

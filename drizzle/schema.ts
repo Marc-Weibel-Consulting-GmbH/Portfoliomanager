@@ -1714,3 +1714,39 @@ export const researchSignals = mysqlTable("research_signals", {
 });
 export type ResearchSignal = typeof researchSignals.$inferSelect;
 export type InsertResearchSignal = typeof researchSignals.$inferInsert;
+
+/**
+ * Quartalsweise Hyperscaler-Capex-Daten (MSFT, GOOGL, META, AMZN, ORCL).
+ * Quelle: SEC 10-Q / 10-K Filings + Earnings Releases.
+ * Wird für den KI-Boom-Regime-Indikator (Issue #271) verwendet.
+ * Kumulativer Capex ab Q1 2023 (KI-Boom-Start) als Regime-Trigger ($2.5 Bio. Schwelle).
+ */
+export const hyperscalerCapex = mysqlTable("hyperscaler_capex", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Unternehmen: MSFT, GOOGL, META, AMZN, ORCL */
+  company: varchar("company", { length: 16 }).notNull(),
+  /** Quartal: z.B. '2023-Q1', '2024-Q4' */
+  quarter: varchar("quarter", { length: 8 }).notNull(),
+  /** Kalender-Jahr des Quartals */
+  calendarYear: int("calendarYear").notNull(),
+  /** Kalender-Quartal (1-4) */
+  calendarQuarter: int("calendarQuarter").notNull(),
+  /** Letzter Monat des Quartals (für Zeitreihen-Joins mit historicalPrices) */
+  periodEndDate: varchar("periodEndDate", { length: 10 }).notNull(),
+  /** Capex in Milliarden USD (Cash PP&E + Finance Leases) */
+  capexBillionUsd: decimal("capexBillionUsd", { precision: 8, scale: 3 }).notNull(),
+  /** Nur Cash PP&E (ohne Finance Leases) in Mrd. USD */
+  cashCapexBillionUsd: decimal("cashCapexBillionUsd", { precision: 8, scale: 3 }),
+  /** Finance Lease ROU Assets in Mrd. USD */
+  financeLeasesBillionUsd: decimal("financeLeasesBillionUsd", { precision: 8, scale: 3 }),
+  /** Datenquelle: 'sec_10q', 'sec_10k', 'earnings_release', 'analyst_estimate' */
+  dataSource: varchar("dataSource", { length: 32 }).notNull().default('sec_10q'),
+  /** Notizen / Kommentare */
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  companyQuarterUnique: unique("company_quarter_unique").on(table.company, table.quarter),
+}));
+export type HyperscalerCapex = typeof hyperscalerCapex.$inferSelect;
+export type InsertHyperscalerCapex = typeof hyperscalerCapex.$inferInsert;
