@@ -181,6 +181,87 @@ describe("rangTest zeigt die Abhängigkeit vom Startmonat", () => {
   });
 });
 
+describe("rangTest branchenneutral", () => {
+  /**
+   * Eine Welt, in der der Score NUR die Branche trifft.
+   *
+   * «Günstig» ist hier gleichbedeutend mit «Branche A», und Branche A läuft
+   * schlecht. Innerhalb einer Branche sagt der Score nichts. Genau die Lage,
+   * die in den echten Daten vermutet wird: Der günstige Korb besteht aus
+   * Finanz und Energie, der teure aus Technologie.
+   */
+  const BRANCHE = (t: string) => (Number(t.slice(1)) % 2 === 0 ? "A" : "B");
+  const nurBranche = (() => {
+    const z = lcg(13);
+    const aus: Beobachtung[] = [];
+    for (const datum of stichtage(120)) {
+      for (let t = 0; t < 100; t++) {
+        const inA = t % 2 === 0;
+        aus.push({
+          ticker: `T${t}`, datum,
+          // Branche A durchgehend hoch bewertet, B tief — innerhalb der
+          // Branche rein zufällig.
+          qualitaet: 50, bewertung: (inA ? 70 : 30) + z() * 10, timing: 50,
+          regime: "default",
+          vorwaertsRendite: (inA ? -8 : 8) + (z() - 0.5) * 6,
+        });
+      }
+    }
+    return aus;
+  })();
+
+  it("misst ohne Zentrierung die Branchenwette", () => {
+    const r = rangTest(nurBranche, nachBewertung, "Bewertung", 25, 12, BRANCHE, false);
+    expect(r.ueberschussNachKosten).toBeLessThan(-5);
+    // Der Korb besteht praktisch nur aus der einen Branche — genau das ist die
+    // Zahl, die den Streit entscheidet.
+    expect(r.sektoren[0].sektor).toBe("A");
+    expect(r.sektoren[0].anteil).toBeGreaterThan(0.9);
+  });
+
+  it("lässt den Nachteil verschwinden, wenn je Branche zentriert wird", () => {
+    const r = rangTest(nurBranche, nachBewertung, "Bewertung", 25, 12, BRANCHE, true);
+    expect(r.branchenneutral).toBe(true);
+    expect(Math.abs(r.ueberschussNachKosten)).toBeLessThan(2);
+    // Und der Korb ist jetzt gemischt statt einseitig.
+    expect(r.sektoren[0].anteil).toBeLessThan(0.75);
+  });
+
+  it("lässt einen echten Titeleffekt INNERHALB der Branche bestehen", () => {
+    // Gegenprobe: Erklärt der Score die Rendite innerhalb der Branche, darf
+    // die Zentrierung ihn nicht wegrechnen.
+    const z = lcg(17);
+    const echt: Beobachtung[] = [];
+    for (const datum of stichtage(120)) {
+      for (let t = 0; t < 100; t++) {
+        const inA = t % 2 === 0;
+        const bew = z() * 100;
+        echt.push({
+          ticker: `T${t}`, datum,
+          qualitaet: 50, bewertung: bew, timing: 50, regime: "default",
+          // Branchenversatz PLUS echter Zusammenhang zum Score.
+          vorwaertsRendite: (inA ? -8 : 8) + (bew - 50) * 0.15 + (z() - 0.5) * 6,
+        });
+      }
+    }
+    const r = rangTest(echt, nachBewertung, "Bewertung", 25, 12, BRANCHE, true);
+    expect(r.ueberschussNachKosten).toBeGreaterThan(2);
+  });
+
+  it("weist die Branchenzusammensetzung auch ohne Zentrierung aus", () => {
+    const r = rangTest(welt({ monate: 60 }), nachBewertung, "Bewertung", 25, 1, BRANCHE, false);
+    const summe = r.sektoren.reduce((s, x) => s + x.anteil, 0);
+    expect(summe).toBeGreaterThan(0.99);
+    expect(summe).toBeLessThan(1.01);
+  });
+
+  it("kommt ohne Branchenauskunft zurecht", () => {
+    const r = rangTest(welt({ monate: 60 }), nachBewertung, "Bewertung", 25, 1);
+    expect(r.sektoren).toEqual([]);
+    expect(r.branchenneutral).toBe(false);
+  });
+});
+
 describe("rangTest: Ränder", () => {
   it("verträgt eine leere Eingabe", () => {
     const r = rangTest([], nachBewertung, "Bewertung");

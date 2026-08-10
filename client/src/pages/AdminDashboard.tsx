@@ -855,6 +855,7 @@ export default function AdminDashboard() {
                       <th className="text-right font-normal">Streuung Startmonat</th>
                       <th className="text-right font-normal">Umschlag</th>
                       <th className="text-right font-normal">vorn</th>
+                      <th className="text-left font-normal pl-3">Grösste Branchen der Auswahl</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -885,6 +886,17 @@ export default function AdminDashboard() {
                           </td>
                           <td className="text-right tabular-nums text-muted-foreground">
                             {Math.round(r.anteilVorn * 100)} %
+                          </td>
+                          {/* Die Spalte, die den eigentlichen Streit entscheidet:
+                              Steht im «günstigen» Korb zur Hälfte Finanz und
+                              Energie, misst der Vorsprung eine Branchenwette und
+                              nicht die Titelauswahl. */}
+                          <td className="pl-3 text-muted-foreground text-[11px]">
+                            {r.sektoren.length
+                              ? r.sektoren.slice(0, 3)
+                                  .map((x) => `${x.sektor} ${Math.round(x.anteil * 100)} %`)
+                                  .join(" · ")
+                              : "—"}
                           </td>
                         </tr>
                       );
