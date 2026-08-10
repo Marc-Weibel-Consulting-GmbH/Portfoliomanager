@@ -24,9 +24,21 @@ export interface DreiScores {
   qualitaet: QualitaetsScore & { band: string };
   bewertung: TeilScore & { band: string };
   timing: {
-    /** 0–100 aus `stocks.signalScore`, `null` wenn nicht gesetzt. */
+    /** 0–100 aus `berechneTiming` (Kursreihe), `null` wenn zu wenig Historie. */
     score: number | null;
+    /** Belegtes Timing-Gewicht 0–1, wenn bekannt. */
+    abdeckung: number | null;
     hinweis: string;
+  };
+  /**
+   * Das abgeleitete Signal — die EINE Formel (`rechneSignal`), dieselbe, die
+   * die Empfehlung im Signal-Cache bestimmt. Die Titelansicht zeigt es als
+   * Farbskala unter den drei Kreisen (STRATEGIE_DREI_SCORES.md, Abschnitt 3).
+   */
+  signal: {
+    score: number | null;
+    label: string | null;
+    klartext: string;
   };
   /** Der bisherige Einzelscore, zum Vergleich während der Umstellung. */
   bisher: number | null;
@@ -51,7 +63,6 @@ export async function getDreiScores(ticker: string): Promise<DreiScores> {
   // Dividendenrendite und die bisherigen Scores stehen in der DB, nicht in der
   // EODHD-Antwort. Fehlt die Datenbank, tragen die übrigen Faktoren.
   let dividendenrendite: number | null = null;
-  let signalScore: number | null = null;
   let bisher: number | null = null;
   let sektor: string | null = null;
   try {
@@ -63,7 +74,6 @@ export async function getDreiScores(ticker: string): Promise<DreiScores> {
       const [row] = await db
         .select({
           dividendYield: stocks.dividendYield,
-          signalScore: stocks.signalScore,
           score: stocks.score,
           sector: stocks.sector,
         })
@@ -72,7 +82,6 @@ export async function getDreiScores(ticker: string): Promise<DreiScores> {
         .limit(1);
       if (row) {
         dividendenrendite = zahl(row.dividendYield);
-        signalScore = zahl(row.signalScore);
         bisher = zahl(row.score);
         sektor = row.sector ?? null;
       }
@@ -104,16 +113,24 @@ export async function getDreiScores(ticker: string): Promise<DreiScores> {
     sektor,
   });
 
+  // Timing braucht die Kursreihe; die liegt hier nicht vor. Der Cron traegt
+  // sie stuendlich nach — bis dahin rechnet das Signal aus Qualitaet und
+  // Bewertung (65 % Gewicht, ueber der Mindestabdeckung) statt gar nicht.
+  const { rechneSignal } = await import("./dreiScoreSignal");
+  const sig = rechneSignal({
+    qualitaet: qualitaet.gesamt, bewertung: bewertung.score, timing: null, regime: null,
+  });
+
   return {
     ticker,
     qualitaet: { ...qualitaet, band: qualitaetsBand(qualitaet.gesamt) },
     bewertung: { ...bewertung, band: bewertungsBand(bewertung.score) },
     timing: {
-      score: signalScore,
-      hinweis: signalScore === null
-        ? "Kein Signal-Score hinterlegt"
-        : "Aus dem bestehenden Signal-Score — misst den Zeitpunkt, nicht das Unternehmen",
+      score: null,
+      abdeckung: null,
+      hinweis: "Noch nicht berechnet — der stündliche Lauf trägt das Timing nach",
     },
+    signal: { score: sig.score, label: sig.label, klartext: sig.klartext },
     bisher,
   };
 }
@@ -130,7 +147,6 @@ async function leseVorberechnet(ticker: string): Promise<DreiScores | null> {
     const treffer = (await leseScores([ticker])).get(ticker);
     if (!treffer) return null;
 
-    let signalScore: number | null = null;
     let bisher: number | null = null;
     try {
       const { getDb } = await import("../db");
@@ -139,12 +155,9 @@ async function leseVorberechnet(ticker: string): Promise<DreiScores | null> {
         const { stocks } = await import("../../drizzle/schema");
         const { eq } = await import("drizzle-orm");
         const [row] = await db
-          .select({ signalScore: stocks.signalScore, score: stocks.score })
+          .select({ score: stocks.score })
           .from(stocks).where(eq(stocks.ticker, ticker)).limit(1);
-        if (row) {
-          signalScore = zahl(row.signalScore);
-          bisher = zahl(row.score);
-        }
+        if (row) bisher = zahl(row.score);
       }
     } catch { /* Ohne DB tragen die vorberechneten Werte allein. */ }
 
@@ -169,10 +182,18 @@ async function leseVorberechnet(ticker: string): Promise<DreiScores | null> {
         faktoren: [],
       },
       timing: {
-        score: signalScore,
-        hinweis: signalScore === null
-          ? "Kein Signal-Score hinterlegt"
-          : "Aus dem bestehenden Signal-Score — misst den Zeitpunkt, nicht das Unternehmen",
+        score: treffer.timing,
+        abdeckung: treffer.timingAbdeckung,
+        hinweis: treffer.timing === null
+          ? "Zu wenig Kurshistorie für einen Timing-Score"
+          : "Momentum, RSI, 52-Wochen-Lage und Blasensignal — misst den Zeitpunkt, nicht das Unternehmen",
+      },
+      signal: {
+        score: treffer.signalScore,
+        label: treffer.signalLabel,
+        klartext: treffer.signalLabel === null
+          ? "Zu wenige Scores für ein Signal"
+          : `Aus den drei Scores, gewichtet nach Marktlage (${treffer.regime ?? "neutral"})`,
       },
       bisher,
     };

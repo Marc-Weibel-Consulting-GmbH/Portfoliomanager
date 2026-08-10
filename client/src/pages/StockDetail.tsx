@@ -13,6 +13,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { TradingViewWidget, ADVANCED_CHART_CONFIG, TECHNICAL_ANALYSIS_CONFIG, COMPANY_FINANCIALS_CONFIG } from "@/components/TradingViewWidget";
 import TradingViewSignalsTab from "@/components/stock/TradingViewSignalsTab";
 import StockScoringWidget from "@/components/stock/StockScoringWidget";
+import SignalSkala from "@/components/stock/SignalSkala";
 import BubbleRiskCard from "@/components/stock/BubbleRiskCard";
 import AnalystConsensusCard from "@/components/stock/AnalystConsensusCard";
 import StockBriefingCard from "@/components/stock/StockBriefingCard";
@@ -232,14 +233,10 @@ export default function StockDetail() {
   );
   const utils = trpc.useUtils();
 
-  // Signal-Score (Strategie) für den Header-Kreis neben dem Qualitäts-Score.
-  const { data: signalScoringData } = trpc.tradingview.stockScoring.useQuery(
-    { symbol: ticker },
-    { enabled: !!ticker, staleTime: 5 * 60 * 1000, retry: false }
-  );
-  const signalScoring = (signalScoringData as any)?.json ?? signalScoringData;
-  const signalScore: number | null =
-    typeof signalScoring?.combinedScore === "number" ? signalScoring.combinedScore : null;
+  // Das Signal kommt aus `dreiScores.signal` — derselben Rechnung, die auch
+  // die Empfehlung im Signal-Cache bestimmt. Vorher las der Header hier
+  // `tradingview.stockScoring` (Momentum + Qualität − LPPL): zwei Formeln auf
+  // einer Seite, die sich widersprechen konnten (STRATEGIE_DREI_SCORES.md).
 
   // Echte Kauf-Transaktion (Mockup S.07: "Kaufen" → Portfolio-Picker → Transaktion)
   const createTransaction = trpc.portfolioTransactions.create.useMutation({
@@ -544,15 +541,14 @@ export default function StockDetail() {
                 </Button>
               </div>
             </div>
-            {/* Drei getrennte Achsen statt einer Zahl:
-                  Qualitaet  — Ist das ein gutes Unternehmen?  (kursunabhaengig)
-                  Bewertung  — Ist der Preis angemessen?       (hoch = guenstig)
-                  Signal     — Was tun?                         (Empfehlung)
+            {/* Drei Kreise, ein abgeleitetes Signal (STRATEGIE_DREI_SCORES.md §3):
+                  Qualitaet — Ist das ein gutes Unternehmen?  (kursunabhaengig)
+                  Bewertung — Ist der Preis angemessen?       (hoch = guenstig)
+                  Timing    — Stimmt der Zeitpunkt?           (aus der Kursreihe)
 
-                Das Signal heisst bewusst nicht «Timing»: Es enthaelt noch einen
-                Qualitaetsanteil von 35 bis 75 Prozent je nach Regime. Ob der
-                herausgeloest wird, entscheidet die Schattenmessung (#241). Bis
-                dahin waere «Timing» eine falsche Beschriftung. */}
+                Das Signal erscheint NICHT als vierter Kreis, sondern als Skala
+                darunter: Es ist keine vierte Messung, sondern eine Rechnung
+                aus den dreien. */}
             <div className="flex flex-col items-center gap-1">
               <ScoreCircle
                 score={dreiScores ? dreiScores.qualitaet.gesamt : score}
@@ -573,14 +569,29 @@ export default function StockDetail() {
                 <span className="text-[10px] text-gray-500">{dreiScores.bewertung.band}</span>
               </div>
             )}
-            {signalScore !== null && (
+            {dreiScores && (
               <div className="flex flex-col items-center gap-1">
-                <ScoreCircle score={signalScore} onClick={() => setShowSignalExplanation(true)} />
-                <span className="text-xs text-gray-400">Signal</span>
+                <ScoreCircle
+                  score={dreiScores.timing.score}
+                  onClick={() => setShowSignalExplanation(true)}
+                />
+                <span className="text-xs text-gray-400">Timing</span>
               </div>
             )}
           </div>
         </div>
+
+        {/* Das abgeleitete Signal — Skala mit Marker und Zonen. */}
+        {dreiScores && (
+          <div className="mb-6 max-w-xl ml-auto">
+            <SignalSkala
+              score={dreiScores.signal.score}
+              label={dreiScores.signal.label}
+              klartext={dreiScores.signal.klartext}
+              onClick={() => setShowSignalExplanation(true)}
+            />
+          </div>
+        )}
 
         {/* KI-Einzeltitel-Briefing (Earnings-Hub-Stil) — on-demand */}
         <StockBriefingCard ticker={ticker} />
@@ -1112,7 +1123,17 @@ export default function StockDetail() {
                 Signal.
               </p>
 
-              <StockScoringWidget ticker={ticker} />
+              {/* Die alte Zusammensetzung nur noch zugeklappt: Sie entscheidet
+                  nicht mehr, und offen dargestellt las sie sich wie eine
+                  zweite, konkurrierende Signal-Formel. */}
+              <details className="mt-2">
+                <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-300">
+                  Frühere Zusammensetzung anzeigen (Momentum + Qualität − LPPL, entscheidet nicht mehr)
+                </summary>
+                <div className="mt-3">
+                  <StockScoringWidget ticker={ticker} />
+                </div>
+              </details>
             </div>
           </div>
         )}
