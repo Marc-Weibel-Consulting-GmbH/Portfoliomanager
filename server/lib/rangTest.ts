@@ -73,6 +73,17 @@ export interface RangErgebnis {
   spurStreuung: number;
   spuren: SpurErgebnis[];
   jahre: { jahr: number; ueberschuss: number; auswahl: number; universum: number; perioden: number }[];
+  /**
+   * Woraus die Auswahl bestand — die häufigsten Branchen, absteigend.
+   *
+   * Die Zahl, die den eigentlichen Streit entscheidet: Wählt der Score die
+   * falschen BRANCHEN oder innerhalb einer Branche die falschen TITEL? Steht
+   * im «günstigen» Korb zur Hälfte Finanz und Energie, misst der Vorsprung
+   * vor allem die Branchenwette, nicht die Titelauswahl.
+   */
+  sektoren: { sektor: string; anteil: number }[];
+  /** Wurde der Score je Branche zentriert, bevor rangiert wurde? */
+  branchenneutral: boolean;
   hinweis: string | null;
 }
 
@@ -83,7 +94,7 @@ const LEER = (bezeichnung: string, positionen: number, horizontMonate: number, h
   bezeichnung, positionen, horizontMonate,
   perioden: 0, periodenJeSpur: 0, auswahl: 0, universum: 0, ueberschuss: 0,
   umschlag: 0, ueberschussNachKosten: 0, anteilVorn: 0, spurStreuung: 0,
-  spuren: [], jahre: [], hinweis,
+  spuren: [], jahre: [], sektoren: [], branchenneutral: false, hinweis,
 });
 
 interface Auswertung {
@@ -105,6 +116,21 @@ export function rangTest(
   bezeichnung: string,
   positionen = STANDARD_POSITIONEN,
   horizontMonate = 1,
+  /** Branche eines Titels. Ohne sie entfällt die Branchenauswertung. */
+  sektorVon: (ticker: string) => string | null = () => null,
+  /**
+   * Den Score je Branche zentrieren, bevor rangiert wird.
+   *
+   * Damit trennt sich die entscheidende Frage: Wählt der Score die falschen
+   * BRANCHEN oder innerhalb einer Branche die falschen TITEL? Ohne
+   * Zentrierung besteht der «günstige» Korb aus Finanz, Energie und Telekom
+   * und der «teure» aus Technologie — gemessen wird dann eine Branchenwette.
+   *
+   * Zentriert heisst: Vom Score jedes Titels wird der Branchendurchschnitt
+   * DESSELBEN Stichtags abgezogen. Übrig bleibt, wie günstig ein Titel
+   * GEGENÜBER SEINESGLEICHEN ist.
+   */
+  branchenneutral = false,
 ): RangErgebnis {
   const h = Math.max(1, horizontMonate);
 
@@ -117,6 +143,35 @@ export function rangTest(
     jeDatum.get(b.datum)!.push(b);
   }
 
+  /**
+   * Der Rangwert eines Titels an einem Stichtag.
+   *
+   * Ohne Zentrierung der Score selbst. Mit Zentrierung der Abstand zum
+   * Branchendurchschnitt. Eine Branche mit einem einzigen Titel ergibt 0 —
+   * sie kann weder bevorzugt noch benachteiligt werden, was richtig ist.
+   */
+  function rangwerte(liste: Beobachtung[]): Map<Beobachtung, number> {
+    const aus = new Map<Beobachtung, number>();
+    if (!branchenneutral) {
+      for (const b of liste) aus.set(b, bewerter(b) as number);
+      return aus;
+    }
+    const summen = new Map<string, { summe: number; n: number }>();
+    for (const b of liste) {
+      const s = sektorVon(b.ticker) ?? "—";
+      const e = summen.get(s) ?? { summe: 0, n: 0 };
+      e.summe += bewerter(b) as number;
+      e.n += 1;
+      summen.set(s, e);
+    }
+    for (const b of liste) {
+      const s = sektorVon(b.ticker) ?? "—";
+      const e = summen.get(s)!;
+      aus.set(b, (bewerter(b) as number) - e.summe / e.n);
+    }
+    return aus;
+  }
+
   const daten = [...jeDatum.keys()].sort()
     .filter((d) => jeDatum.get(d)!.length >= positionen * 2);
   if (daten.length < h + 1) {
@@ -126,6 +181,7 @@ export function rangTest(
 
   const spuren: SpurErgebnis[] = [];
   const alleAuswertungen: Auswertung[] = [];
+  const sektorZaehler = new Map<string, number>();
 
   // Eine Spur je möglichem Startmonat. In sich überlappungsfrei.
   for (let versatz = 0; versatz < h; versatz++) {
@@ -138,8 +194,13 @@ export function rangTest(
 
     for (const datum of spurDaten) {
       const liste = jeDatum.get(datum)!;
-      const sortiert = [...liste].sort((a, b) => (bewerter(b) as number) - (bewerter(a) as number));
+      const werte = rangwerte(liste);
+      const sortiert = [...liste].sort((a, b) => werte.get(b)! - werte.get(a)!);
       const gewaehlt = sortiert.slice(0, positionen);
+      for (const b of gewaehlt) {
+        const s = sektorVon(b.ticker);
+        if (s) sektorZaehler.set(s, (sektorZaehler.get(s) ?? 0) + 1);
+      }
 
       const auswahl = gewaehlt.reduce((s, b) => s + b.vorwaertsRendite, 0) / gewaehlt.length;
       const universum = liste.reduce((s, b) => s + b.vorwaertsRendite, 0) / liste.length;
@@ -218,6 +279,15 @@ export function rangTest(
       ueberschuss: mittel(liste.map((a) => a.auswahl - a.universum)),
       perioden: liste.length,
     })),
+    sektoren: (() => {
+      const gesamt = [...sektorZaehler.values()].reduce((s, v) => s + v, 0);
+      if (!gesamt) return [];
+      return [...sektorZaehler.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([sektor, n]) => ({ sektor, anteil: parseFloat((n / gesamt).toFixed(3)) }));
+    })(),
+    branchenneutral,
     hinweis: null,
   };
 }

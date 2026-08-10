@@ -1936,28 +1936,55 @@ export const adminRouter = router({
         const { beobachtungenAusReihe } = await import("../lib/signalGewichteBacktest");
         const { rangTest, rangKlartext } = await import("../lib/rangTest");
         const { rechneSignal, DEFAULT_SIGNAL_GEWICHTE } = await import("../lib/dreiScoreSignal");
+        const { getDb } = await import("../db");
+        const { stocks } = await import("../../drizzle/schema");
 
         const begonnen = Date.now();
         const reihen = await leseAlleReihen();
+
+        // Branche je Titel aus dem Stammsatz.
+        //
+        // Das ist die Branche von HEUTE, nicht die von damals. Sie steht nicht
+        // in der rekonstruierten Reihe, und ein Titel wechselt sie selten —
+        // eine Rueckschau ist es trotzdem, wenn auch eine schwache. Wer eine
+        // Aussage auf die Nachkommastelle braucht, muss sie mitschreiben.
+        const db = await getDb();
+        const sektorTabelle = new Map<string, string>();
+        if (db) {
+          const zeilen = await db.select({ ticker: stocks.ticker, sector: stocks.sector }).from(stocks);
+          for (const z of zeilen) if (z.sector) sektorTabelle.set(z.ticker, z.sector);
+        }
+        const sektorVon = (t: string) => sektorTabelle.get(t) ?? null;
         const beobachtungen = [...reihen.values()]
           .flatMap((r) => beobachtungenAusReihe(r, input.horizontMonate));
 
-        const kandidaten: { bezeichnung: string; bewerter: (b: any) => number | null }[] = [
+        const signal = (b: any) => rechneSignal({
+          qualitaet: b.qualitaet, bewertung: b.bewertung, timing: b.timing, regime: b.regime,
+        }, DEFAULT_SIGNAL_GEWICHTE).score;
+
+        const kandidaten: {
+          bezeichnung: string; bewerter: (b: any) => number | null; neutral?: boolean;
+        }[] = [
           { bezeichnung: "Bewertung", bewerter: (b) => b.bewertung },
           { bezeichnung: "Qualität", bewerter: (b) => b.qualitaet },
           { bezeichnung: "Timing", bewerter: (b) => b.timing },
-          {
-            bezeichnung: "Signal heute",
-            bewerter: (b) => rechneSignal({
-              qualitaet: b.qualitaet, bewertung: b.bewertung, timing: b.timing, regime: b.regime,
-            }, DEFAULT_SIGNAL_GEWICHTE).score,
-          },
+          { bezeichnung: "Signal heute", bewerter: signal },
           {
             // Vorzeichenprobe: Die SCHLECHTESTEN 25 nach Bewertung. Zeigt ein
             // Score etwas an, muss diese Zeile spiegelbildlich schlechter sein.
             // Ist sie es nicht, misst die Auswahl nichts.
             bezeichnung: "Gegenprobe: schlechteste nach Bewertung",
             bewerter: (b) => (b.bewertung === null ? null : -b.bewertung),
+          },
+          // Dieselben Kandidaten, je Branche zentriert. Der Vergleich der
+          // beiden Bloecke trennt die Branchenwette von der Titelauswahl.
+          { bezeichnung: "Bewertung · branchenneutral", bewerter: (b) => b.bewertung, neutral: true },
+          { bezeichnung: "Qualität · branchenneutral", bewerter: (b) => b.qualitaet, neutral: true },
+          { bezeichnung: "Signal heute · branchenneutral", bewerter: signal, neutral: true },
+          {
+            bezeichnung: "Gegenprobe · branchenneutral",
+            bewerter: (b) => (b.bewertung === null ? null : -b.bewertung),
+            neutral: true,
           },
         ];
 
@@ -1967,9 +1994,10 @@ export const adminRouter = router({
           titel: reihen.size,
           beobachtungen: beobachtungen.length,
           dauerSekunden: Math.round((Date.now() - begonnen) / 100) / 10,
+          sektorenBekannt: sektorTabelle.size,
           ergebnisse: kandidaten.map((k) => {
             const r = rangTest(beobachtungen, k.bewerter, k.bezeichnung,
-              input.positionen, input.horizontMonate);
+              input.positionen, input.horizontMonate, sektorVon, k.neutral ?? false);
             return { ...r, klartext: rangKlartext(r) };
           }),
         };
