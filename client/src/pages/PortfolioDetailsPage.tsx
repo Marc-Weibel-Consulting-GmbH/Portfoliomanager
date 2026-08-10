@@ -2159,7 +2159,7 @@ export default function PortfolioDetailsPage() {
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Bisheriger Einzelscore aus P/E, PEG, Beta, Volatilität und Sharpe — er mischt Bewertung und Kursrisiko. Auf der Titelseite stehen Qualität und Bewertung inzwischen getrennt; diese Spalte folgt. «—» heisst: zu wenige Kennzahlen für eine Beurteilung. Klicken zum Sortieren." onClick={() => handleSort('qualityScore')}>
                         <span className={sortKey === 'qualityScore' ? 'text-[#00CFC1]' : 'text-gray-400'}>Bewertung {sortKey === 'qualityScore' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Signal-Score 0-100 (Momentum + Qualität + LPPL) — klicken zum Sortieren" onClick={() => handleSort('signalScore')}>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Signal-Score 0–100 aus Qualität, Bewertung und Timing, gewichtet nach Marktlage — klicken zum Sortieren" onClick={() => handleSort('signalScore')}>
                         <span className={sortKey === 'signalScore' ? 'text-[#00CFC1]' : 'text-gray-400'}>Signal {sortKey === 'signalScore' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
                       <th className="w-16"></th>
@@ -2230,7 +2230,7 @@ export default function PortfolioDetailsPage() {
                           : isCommodityByCategory ? 'Momentum + Trend'
                           : isCryptoByCategory ? 'Momentum + Trend'
                           : isRealEstate ? 'Yield + Momentum'
-                          : 'Momentum + Qualität + LPPL-Risiko';
+                          : 'Signal aus Qualität, Bewertung und Timing';
                         const ytd = parseFloat(h.ytdPerformance || '0');
                         // null/undefined heisst «keine Vergleichsbasis» — nicht 0 %.
                         // Vorher wurde beides zu '0' und die Spalte stand fuer jeden
@@ -2468,7 +2468,7 @@ export default function PortfolioDetailsPage() {
                                               <p className="text-xs text-gray-300">
                                                 {isNonEquity
                                                   ? `Signal basierend auf ${signalDesc}. Höher = stärkeres Kaufsignal.`
-                                                  : 'Kauf-/Verkaufssignal aus Momentum, fundamentaler Qualität und LPPL-Bubble-Risiko. Höher = stärkeres Kaufsignal. Die Einzelteile sehen Sie unter «Score-Komponenten».'}
+                                                  : 'Kauf-/Verkaufssignal aus den drei Scores — Qualität, Bewertung und Timing —, gewichtet nach Marktlage. Höher = stärkeres Kaufsignal. Die drei Teile sehen Sie unter «Score-Komponenten».'}
                                               </p>
                                             </TooltipContent>
                                           </UiTooltip>
@@ -2506,66 +2506,31 @@ export default function PortfolioDetailsPage() {
                                             <ChevronDown className="h-3 w-3 -rotate-90 group-open:rotate-0 transition-transform" />
                                             Score-Komponenten
                                           </summary>
-                                          <div className="grid grid-cols-2 gap-1.5">
-                                            {/* Momentum */}
-                                            <div className="flex items-center justify-between bg-[#0a0f1a] rounded px-2 py-1">
-                                              <span className="text-[10px] text-gray-400">Momentum</span>
-                                              <div className="flex items-center gap-1">
-                                                {sig.momentumScore !== undefined ? (
-                                                  <span className={`text-xs font-mono font-semibold ${(() => {
-                                                    // Handle both old (-1..+1) and new (0..100) DB values
-                                                    const v = sig.momentumScore > 1 ? sig.momentumScore : Math.round((sig.momentumScore + 1) * 50);
-                                                    return v >= 65 ? 'text-emerald-400' : v >= 45 ? 'text-yellow-400' : 'text-red-400';
-                                                  })()}`}>{sig.momentumScore > 1 ? Math.round(sig.momentumScore) : Math.round((sig.momentumScore + 1) * 50)}/100</span>
+                                          <div className="grid grid-cols-3 gap-1.5">
+                                            {/* Die drei Scores, aus denen das Signal entsteht —
+                                                dieselben Werte wie im Kopf der Titelansicht.
+                                                Momentum, RSI usw. stecken im Timing; sie hier
+                                                zusätzlich zu zeigen hiesse, die alten Komponenten
+                                                als zweite Signal-Formel auszustellen. */}
+                                            {([
+                                              ['Qualität', (sig as any).qualitaet],
+                                              ['Bewertung', (sig as any).bewertung],
+                                              ['Timing', (sig as any).timing],
+                                            ] as [string, number | null | undefined][]).map(([name, wert]) => (
+                                              <div key={name} className="flex items-center justify-between bg-[#0a0f1a] rounded px-2 py-1">
+                                                <span className="text-[10px] text-gray-400">{name}</span>
+                                                {wert != null ? (
+                                                  <span className={`text-xs font-mono font-semibold ${
+                                                    wert >= 65 ? 'text-emerald-400' : wert >= 45 ? 'text-yellow-400' : 'text-red-400'
+                                                  }`}>{Math.round(wert)}/100</span>
                                                 ) : <span className="text-xs text-gray-500">—</span>}
-                                                {sig.momentumGrade && sig.momentumGrade !== 'N/A' && (
-                                                  <span className={`text-[10px] font-bold px-1 rounded ${
-                                                    sig.momentumGrade === 'A' ? 'bg-emerald-500/20 text-emerald-400' :
-                                                    sig.momentumGrade === 'B' ? 'bg-[#00CFC1]/20 text-[#00CFC1]' :
-                                                    sig.momentumGrade === 'C' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                    'bg-red-500/20 text-red-400'
-                                                  }`}>{sig.momentumGrade}</span>
-                                                )}
                                               </div>
-                                            </div>
-                                            {/* Qualität (ROE/D-E/FCF/Marge) */}
-                                            <div className="flex items-center justify-between bg-[#0a0f1a] rounded px-2 py-1">
-                                              <span className="text-[10px] text-gray-400">Qualität (Fund.)</span>
-                                              <div className="flex items-center gap-1">
-                                                {sig.qualityScore !== undefined ? (
-                                                  <span className={`text-xs font-mono font-semibold ${(() => {
-                                                    // Handle both old (-1..+1) and new (0..100) DB values
-                                                    const v = sig.qualityScore > 1 ? sig.qualityScore : Math.round((sig.qualityScore + 1) * 50);
-                                                    return v >= 65 ? 'text-emerald-400' : v >= 45 ? 'text-yellow-400' : 'text-red-400';
-                                                  })()}`}>{sig.qualityScore > 1 ? Math.round(sig.qualityScore) : Math.round((sig.qualityScore + 1) * 50)}/100</span>
-                                                ) : <span className="text-xs text-gray-500">—</span>}
-                                                {sig.qualityGrade && sig.qualityGrade !== 'N/A' ? (
-                                                  <span className={`text-[10px] font-bold px-1 rounded ${
-                                                    sig.qualityGrade === 'A' ? 'bg-emerald-500/20 text-emerald-400' :
-                                                    sig.qualityGrade === 'B' ? 'bg-[#00CFC1]/20 text-[#00CFC1]' :
-                                                    sig.qualityGrade === 'C' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                    'bg-red-500/20 text-red-400'
-                                                  }`}>{sig.qualityGrade}</span>
-                                                ) : (
-                                                  <span className="text-[10px] text-gray-500 px-1">N/A</span>
-                                                )}
-                                              </div>
-                                            </div>
+                                            ))}
                                           </div>
-                                          {/* Hinweis wenn Qualitäts-Fundamentaldaten fehlen */}
-                                          {sig.qualityGrade === 'N/A' && (
-                                            <p className="text-[10px] text-amber-400/70 mt-1.5">
-                                              ⚠ ROE/Verschuldung/FCF-Daten fehlen — Qualitäts-Grade nicht berechenbar. Daten unter Admin → Aktien anreichern.
+                                          {(sig as any).qualitaet == null && (sig as any).bewertung == null && (
+                                            <p className="text-[10px] text-gray-500 mt-1.5">
+                                              Scores noch nicht berechnet — der stündliche Lauf trägt sie nach.
                                             </p>
-                                          )}
-                                          {/* LPPL Bubble-Risiko wenn vorhanden */}
-                                          {sig.bubbleScore !== undefined && sig.bubbleScore > 0.1 && (
-                                            <div className="mt-1.5 flex items-center justify-between bg-[#0a0f1a] rounded px-2 py-1">
-                                              <span className="text-[10px] text-gray-400">LPPL Bubble-Risiko</span>
-                                              <span className={`text-xs font-mono ${
-                                                sig.bubbleScore > 0.5 ? 'text-red-400' : sig.bubbleScore > 0.25 ? 'text-yellow-400' : 'text-gray-400'
-                                              }`}>{(sig.bubbleScore * 100).toFixed(0)}%</span>
-                                            </div>
                                           )}
                                         </details>
                                       </div>

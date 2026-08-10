@@ -24,9 +24,7 @@ import { calculateQualityScore, calculateMomentumScore } from '../analytics/qual
 import { runSignalOrchestrator } from '../lib/signals/signalOrchestrator';
 import type { PortfolioAction } from '../lib/signals/types';
 import { computeRegime } from '../lib/signals/regimeEngine';
-import { blendCombinedScore } from '../lib/signalBlend';
 import { regimeMitTotband } from '../lib/signals/regimeMitTotband';
-import { getRegimeBlendConfig } from '../analytics/regimeSignalMemory';
 // SIG-4: gewichtetes Basis-Signal aus dem geteilten Modul (auch vom
 // signalCacheCron genutzt — vorher hatte der Cron eine ungewichtete Kopie).
 import { generateSignal, type BaseSignal, type SignalType, type SignalStrength } from '../lib/baseSignal';
@@ -43,10 +41,17 @@ interface Signal extends BaseSignal {
   qualityScore?: number;
   momentumGrade?: string;
   momentumScore?: number;
-  // Combined Momentum+Quality+LPPL score (same model as tradingview.stockScoring)
+  // Das Signal aus den drei Scores (`rechneSignal`) — die EINE Formel
+  // (STRATEGIE_DREI_SCORES.md §2). Der Feldname bleibt `combinedScore`,
+  // weil Cache-Spalte und Konsumenten ihn seit jeher so führen.
   combinedScore?: number;
   combinedSignal?: string;
   overallGrade?: string;
+  // Die drei Scores selbst, damit die Detailzeilen der Positionsliste die
+  // Zusammensetzung des Signals zeigen können — nicht die alten Komponenten.
+  qualitaet?: number | null;
+  bewertung?: number | null;
+  timing?: number | null;
   // Regime-based signal from the new signal framework
   regimeSignal?: PortfolioAction;
   // B5: Wikifolio-Konsens-Signal
@@ -376,48 +381,63 @@ async function processStock(
       }
     }
 
-    // Step 8a: Compute combined Momentum+Quality+LPPL score (same formula as tradingview.stockScoring)
-    // This ensures consistency between the Signals page and StockDetail page
-    if (signal.momentumScore !== undefined && signal.qualityScore !== undefined) {
-      try {
-        const bScore = signal.bubbleScore ?? 0;
-        const bRegime = signal.bubbleRegime ?? 'normal';
-        const lpplPenalty = bRegime === 'bubble' ? bScore * 0.5 : 0;
+    // Step 8a: das Signal aus den DREI Scores — dieselbe Rechnung wie im
+    // Signal-Cron. Vorher stand hier `blendCombinedScore` (Momentum + Qualität
+    // − LPPL): Ein Cache-Miss lieferte damit ein Signal aus einer ANDEREN
+    // Formel als ein Cache-Treffer, und die Empfehlung eines Titels hing davon
+    // ab, ob der Cron ihn schon besucht hatte (STRATEGIE_DREI_SCORES.md §2).
+    try {
+      const { leseScores } = await import('../lib/dreiScoresStore');
+      const { berechneTiming, rechneSignal } = await import('../lib/dreiScoreSignal');
+      const abgelegt = (await leseScores([ticker])).get(ticker);
 
-        // Track A: regime-abhängige, admin-konfigurierbare Gewichtung Qualität↔Timing.
-        // Bei fehlendem Regime/Config fällt blendCombinedScore auf 50/50 zurück — identisch
-        // zur bisherigen 0.4·mNorm + 0.4·qNorm − lpplPenalty-Formel (verhaltenswahrend).
-        let regimeKey = 'default';
-        // Regime mit Totband (lib/signals/regimeMitTotband.ts).
-        try { regimeKey = regimeMitTotband(prices); } catch { /* Preise zu kurz o. ä. */ }
-        const blendConfig = await getRegimeBlendConfig();
-        const blended = blendCombinedScore(
-          {
-            momentumScore: signal.momentumScore,
-            qualityScore: signal.qualityScore,
-            regime: regimeKey,
-            lpplPenalty,
-          },
-          blendConfig
-        );
+      const positionIn52W = signal.currentPrice > 0
+        && typeof signal.fiftyTwoWeekHigh === 'number' && typeof signal.fiftyTwoWeekLow === 'number'
+        && signal.fiftyTwoWeekHigh > signal.fiftyTwoWeekLow
+        ? (signal.currentPrice - signal.fiftyTwoWeekLow) / (signal.fiftyTwoWeekHigh - signal.fiftyTwoWeekLow)
+        : null;
+      const t = berechneTiming({
+        momentum: signal.momentumScore ?? null,
+        rsi14: signal.rsi14 ?? null,
+        positionIn52W,
+        ytdPerformance: signal.ytdPerformance ?? null,
+        blasenScore: signal.bubbleScore ?? null,
+      });
 
-        signal.combinedScore = blended.combinedScore;
-        signal.overallGrade = blended.grade;
-        signal.combinedSignal = blended.signalLabel;
-        // Override the legacy signal type with the combined model for consistency
-        if (blended.signalLabel === 'STRONG BUY' || blended.signalLabel === 'BUY') {
+      let regimeKey = 'default';
+      try { regimeKey = regimeMitTotband(prices); } catch { /* Preise zu kurz o. ä. */ }
+
+      const sig = rechneSignal({
+        qualitaet: abgelegt?.qualitaet ?? null,
+        bewertung: abgelegt?.bewertung ?? null,
+        timing: t.score,
+        regime: regimeKey,
+      });
+
+      signal.qualitaet = abgelegt?.qualitaet ?? null;
+      signal.bewertung = abgelegt?.bewertung ?? null;
+      signal.timing = t.score;
+
+      if (sig.score !== null && sig.label && sig.grade) {
+        signal.combinedScore = sig.score;
+        signal.overallGrade = sig.grade;
+        signal.combinedSignal = sig.label;
+        if (sig.label === 'STRONG BUY' || sig.label === 'BUY') {
           signal.type = 'buy';
-          signal.strength = blended.signalLabel === 'STRONG BUY' ? 'strong' : 'moderate';
-        } else if (blended.signalLabel === 'STRONG SELL' || blended.signalLabel === 'SELL') {
+          signal.strength = sig.label === 'STRONG BUY' ? 'strong' : 'moderate';
+        } else if (sig.label === 'STRONG SELL' || sig.label === 'SELL') {
           signal.type = 'sell';
-          signal.strength = blended.signalLabel === 'STRONG SELL' ? 'strong' : 'moderate';
+          signal.strength = sig.label === 'STRONG SELL' ? 'strong' : 'moderate';
         } else {
           signal.type = 'hold';
           signal.strength = 'moderate';
         }
-      } catch (e) {
-        // Combined scoring failed silently
       }
+      // Reichen die Scores nicht (neuer Titel, Cron noch nie gelaufen), bleibt
+      // `combinedScore` leer. Ehrlicher als eine Zahl aus der alten Formel —
+      // der nächste Cron-Lauf füllt die Lücke.
+    } catch (e) {
+      // Combined scoring failed silently
     }
 
     // Step 8b: Regime-based signal via signalOrchestrator
@@ -692,6 +712,22 @@ export const signalsRouter = router({
 
       // ─── Step 3: Merge and sort ───────────────────────────────────────────
       const signals = [...cachedSignals, ...liveSignals];
+
+      // Die drei Scores an alle Signale hängen — EINE Bulk-Abfrage, kein Abruf
+      // je Titel. Der Cache-Treffer-Pfad (der häufigste) hätte sie sonst nicht,
+      // und die Detailzeile der Positionsliste zeigte «—», obwohl die Werte
+      // vorliegen. Live gerechnete Signale behalten ihr frischeres Timing.
+      try {
+        const { leseScores } = await import('../lib/dreiScoresStore');
+        const abgelegt = await leseScores(signals.map((s) => s.ticker));
+        for (const s of signals) {
+          const a = abgelegt.get(s.ticker);
+          if (!a) continue;
+          if (s.qualitaet === undefined) s.qualitaet = a.qualitaet;
+          if (s.bewertung === undefined) s.bewertung = a.bewertung;
+          if (s.timing === undefined) s.timing = a.timing;
+        }
+      } catch { /* ohne Ablage bleiben die Felder leer — Anzeige zeigt «—» */ }
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
       console.log(`[Signals] Completed ${signals.length}/${stocks.length} stocks in ${elapsed}s`);
 

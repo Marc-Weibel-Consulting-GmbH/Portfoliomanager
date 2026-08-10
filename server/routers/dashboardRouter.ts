@@ -2523,65 +2523,32 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
     }
     const symbols = Array.from(allTickers).slice(0, 15);
     if (symbols.length === 0) return [];
-    const { calculateQualityScore, calculateMomentumScore } = await import('../analytics/qualityMomentumEngine');
-    const { detectBubble } = await import('../analytics/lpplsEngine');
-    const { blendCombinedScore } = await import('../lib/signalBlend');
-    const { getRegimeBlendConfig } = await import('../analytics/regimeSignalMemory');
-    const { computeRegime: computeRegimeForBlend } = await import('../lib/signals/regimeEngine');
-    // Kursreihen aus der historicalPrices-DB (EODHD) statt Live-Yahoo (in Prod blockiert
-    // → sonst «ERROR» pro Titel). Quality-Fundamentals (ROE/FCF) liegen nicht in der DB →
-    // Quality degradiert graziös auf C; Momentum + LPPL bleiben belastbar.
-    const { getDb } = await import('../db');
-    const { historicalPrices } = await import('../../drizzle/schema');
-    const { eq: hpEq, gte: hpGte, and: hpAnd, asc: hpAsc } = await import('drizzle-orm');
-    const db = await getDb();
-    const priceFrom = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const results: any[] = [];
-    for (const rawSymbol of symbols) {
-      const ticker = rawSymbol.toUpperCase();
-      try {
-        let prices: number[] = [];
-        if (db) {
-          const rows = await db
-            .select({ close: historicalPrices.close, adj: historicalPrices.adjustedClose })
-            .from(historicalPrices)
-            .where(hpAnd(hpEq(historicalPrices.ticker, ticker), hpGte(historicalPrices.date, priceFrom)))
-            .orderBy(hpAsc(historicalPrices.date));
-          prices = rows
-            .map((r: any) => parseFloat((r.adj ?? r.close) as any))
-            .filter((v: number) => Number.isFinite(v) && v > 0);
-        }
-        const qualityMetrics: any = {};
-        let momentumResult: any = { score: 0, grade: 'C', trend: 'neutral' };
-        if (prices.length >= 60) { try { momentumResult = calculateMomentumScore({ prices }); } catch (e) { console.warn('[dashboardRouter] calculateMomentumScore fehlgeschlagen:', e); } }
-        let qualityResult: any = { score: 0, grade: 'C' };
-        try { qualityResult = calculateQualityScore(qualityMetrics); } catch (e) { console.warn('[dashboardRouter] calculateQualityScore fehlgeschlagen:', e); }
-        let bubbleScore = 0, bubbleRegime = 'normal';
-        if (prices.length >= 60) { try { const b = detectBubble({ prices }); bubbleScore = b.bubbleScore ?? 0; bubbleRegime = b.regime ?? 'normal'; } catch (e) { console.warn('[dashboardRouter] detectBubble fehlgeschlagen:', e); } }
-        // SIG-1 (Audit 2026-07): zentrale Kombiscore-Formel (blendCombinedScore) statt
-        // der alten Inline-0.8-Formel — identisches Verdikt wie Signale-&-Scores/StockDetail.
-        const lpplPenalty = bubbleRegime === 'bubble' ? bubbleScore * 0.5 : 0;
-        let regimeKey = 'default';
-        if (prices.length >= 60) { try { regimeKey = computeRegimeForBlend(prices).regime; } catch (e) { /* Preise zu kurz */ } }
-        const blended = blendCombinedScore(
-          { momentumScore: momentumResult.score ?? 0, qualityScore: qualityResult.score ?? 0, regime: regimeKey, lpplPenalty },
-          await getRegimeBlendConfig()
-        );
-        results.push({
-          ticker,
-          combinedScore: blended.combinedScore,
-          overallGrade: blended.grade,
-          signal: blended.signalLabel,
-          momentum: { grade: momentumResult.grade, trend: momentumResult.trend },
-          quality: { grade: qualityResult.grade },
-          lppl: { regime: bubbleRegime },
-          error: null,
-        });
-      } catch (err: any) {
-        results.push({ ticker, combinedScore: 0, overallGrade: 'F', signal: 'ERROR', error: (err as Error).message });
-      }
-    }
-        return results.sort((a, b) => b.combinedScore - a.combinedScore);
+
+    // Aus der Ablage statt live gerechnet (STRATEGIE_DREI_SCORES.md §2).
+    //
+    // Vorher rechnete diese Prozedur je Titel die ALTE Formel (Momentum +
+    // Qualität − LPPL) — und zwar mit LEEREN Qualitätskennzahlen, weil die
+    // Fundamentaldaten hier nie geladen wurden: «Qualität» war konstant C,
+    // die Kaufliste faktisch ein Momentum-Ranking unter falschem Namen.
+    // Jetzt kommen Signal und Scores aus `stock_scores` — derselben Rechnung,
+    // die auch Titelseite und Positionsliste zeigen.
+    const tickers = symbols.map((s) => s.toUpperCase());
+    const { leseScores } = await import('../lib/dreiScoresStore');
+    const abgelegt = await leseScores(tickers);
+
+    const results = tickers.map((ticker) => {
+      const s = abgelegt.get(ticker);
+      return {
+        ticker,
+        combinedScore: s?.signalScore ?? null,
+        signal: s?.signalLabel ?? null,
+        qualitaet: s?.qualitaet ?? null,
+        bewertung: s?.bewertung ?? null,
+        timing: s?.timing ?? null,
+        error: null,
+      };
+    });
+    return results.sort((a, b) => (b.combinedScore ?? -1) - (a.combinedScore ?? -1));
   }),
 
   // ============================================================
