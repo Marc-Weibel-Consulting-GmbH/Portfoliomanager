@@ -1963,7 +1963,8 @@ export const adminRouter = router({
         }, DEFAULT_SIGNAL_GEWICHTE).score;
 
         const kandidaten: {
-          bezeichnung: string; bewerter: (b: any) => number | null; neutral?: boolean;
+          bezeichnung: string; bewerter: (b: any) => number | null;
+          neutral?: boolean; behalten?: number;
         }[] = [
           { bezeichnung: "Bewertung", bewerter: (b) => b.bewertung },
           { bezeichnung: "Qualität", bewerter: (b) => b.qualitaet },
@@ -1986,6 +1987,38 @@ export const adminRouter = router({
             bewerter: (b) => (b.bewertung === null ? null : -b.bewertung),
             neutral: true,
           },
+
+          // AUSSCHLUSS statt Auswahl — die andere Frage.
+          //
+          // Gemessen ist, dass die BESTEN zu kaufen verliert. Ob es hilft, die
+          // SCHLECHTESTEN zu meiden, ist damit nicht beantwortet: Ein
+          // Ausschluss ist keine umgekehrte Auswahl. Er haelt fast das ganze
+          // Universum, tauscht nur den Rand und kostet entsprechend wenig.
+          {
+            bezeichnung: "Ohne schlechtestes Zehntel nach Qualität",
+            bewerter: (b) => b.qualitaet, behalten: 0.9,
+          },
+          {
+            bezeichnung: "Ohne schlechtestes Fünftel nach Qualität",
+            bewerter: (b) => b.qualitaet, behalten: 0.8,
+          },
+          {
+            bezeichnung: "Ohne schlechtestes Zehntel nach Bewertung",
+            bewerter: (b) => b.bewertung, behalten: 0.9,
+          },
+          {
+            bezeichnung: "Ohne schlechtestes Zehntel nach Signal",
+            bewerter: signal, behalten: 0.9,
+          },
+          {
+            // Die Probe, die den Test erst aussagekraeftig macht: das BESTE
+            // Zehntel weglassen. Hilft der Ausschluss unten, muss der oben
+            // schaden. Wirken beide gleich, misst der Test nur, dass ein
+            // Zehntel weniger Titel im Korb sind.
+            bezeichnung: "Gegenprobe: ohne BESTES Zehntel nach Qualität",
+            bewerter: (b) => (b.qualitaet === null ? null : -b.qualitaet),
+            behalten: 0.9,
+          },
         ];
 
         return {
@@ -1997,7 +2030,8 @@ export const adminRouter = router({
           sektorenBekannt: sektorTabelle.size,
           ergebnisse: kandidaten.map((k) => {
             const r = rangTest(beobachtungen, k.bewerter, k.bezeichnung,
-              input.positionen, input.horizontMonate, sektorVon, k.neutral ?? false);
+              input.positionen, input.horizontMonate, sektorVon, k.neutral ?? false,
+              k.behalten);
             return { ...r, klartext: rangKlartext(r) };
           }),
         };

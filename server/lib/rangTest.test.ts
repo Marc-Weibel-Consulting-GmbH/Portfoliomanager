@@ -262,6 +262,77 @@ describe("rangTest branchenneutral", () => {
   });
 });
 
+describe("rangTest als Ausschluss statt Auswahl", () => {
+  /**
+   * Der Bestätigungstest zur Strategie: Gemessen ist, dass die BESTEN zu kaufen
+   * verliert. Ob es hilft, die SCHLECHTESTEN zu meiden, ist damit NICHT
+   * beantwortet — ein Ausschluss ist keine umgekehrte Auswahl.
+   *
+   * Die Welt hier trennt beides sauber: Das schlechteste Zehntel stürzt ab,
+   * der Rest verhält sich völlig zufällig. Ein Ausschluss muss hier wirken,
+   * eine Bestenauswahl darf es nicht.
+   */
+  const mitSchrott = (() => {
+    const z = lcg(29);
+    const aus: Beobachtung[] = [];
+    for (const datum of stichtage(120)) {
+      for (let t = 0; t < 100; t++) {
+        const schrott = t < 10;
+        aus.push({
+          ticker: `T${t}`, datum,
+          qualitaet: schrott ? z() * 10 : 20 + z() * 80,
+          bewertung: 50, timing: 50, regime: "default",
+          vorwaertsRendite: (schrott ? -40 : 0) + (z() - 0.5) * 20,
+        });
+      }
+    }
+    return aus;
+  })();
+  const nachQualitaet = (b: Beobachtung) => b.qualitaet;
+
+  it("gewinnt, wenn das schlechteste Zehntel ausgeschlossen wird", () => {
+    const r = rangTest(mitSchrott, nachQualitaet, "ohne schlechtestes Zehntel",
+      25, 12, undefined, false, 0.9);
+    expect(r.anteilBehalten).toBe(0.9);
+    expect(r.ueberschussNachKosten).toBeGreaterThan(2);
+    expect(r.ueberschussNachKosten).toBeGreaterThan(r.spurStreuung);
+  });
+
+  it("hält dabei fast das ganze Universum, nicht 25 Titel", () => {
+    const r = rangTest(mitSchrott, nachQualitaet, "ohne schlechtestes Zehntel",
+      25, 12, undefined, false, 0.9);
+    expect(r.gehalten).toBe(90);
+  });
+
+  it("verursacht kaum Umschlag, weil der Rest gehalten wird", () => {
+    // Der wirtschaftliche Kern: Ein Ausschluss tauscht nur den Rand aus. Wer
+    // die besten 25 kauft, tauscht bei jeder Umschichtung das halbe Depot.
+    const ausschluss = rangTest(mitSchrott, nachQualitaet, "Ausschluss",
+      25, 12, undefined, false, 0.9);
+    const auswahl = rangTest(mitSchrott, nachQualitaet, "Auswahl", 25, 12);
+    expect(ausschluss.umschlag).toBeLessThan(auswahl.umschlag);
+  });
+
+  it("misst den Umschlag am tatsächlich Gehaltenen, nicht an `positionen`", () => {
+    // Sonst käme bei 90 gehaltenen Titeln und 25 als Nenner eine Wechselquote
+    // über 100 % heraus — und die Kosten wären um das Dreifache zu hoch.
+    const r = rangTest(mitSchrott, nachQualitaet, "Ausschluss", 25, 12, undefined, false, 0.9);
+    expect(r.umschlag).toBeLessThanOrEqual(1);
+  });
+
+  it("bringt nichts, wo es nichts auszuschliessen gibt", () => {
+    const r = rangTest(welt({ monate: 120, effekt: 0 }), nachBewertung, "Ausschluss",
+      25, 12, undefined, false, 0.9);
+    expect(Math.abs(r.ueberschussNachKosten)).toBeLessThan(r.spurStreuung + 0.5);
+  });
+
+  it("nennt sich im Klartext Ausschluss und nicht Auswahl", () => {
+    const r = rangTest(mitSchrott, nachQualitaet, "Ausschluss", 25, 12, undefined, false, 0.9);
+    expect(rangKlartext(r)).toContain("Ausschluss");
+    expect(rangKlartext(r)).not.toContain("25 besten");
+  });
+});
+
 describe("rangTest: Ränder", () => {
   it("verträgt eine leere Eingabe", () => {
     const r = rangTest([], nachBewertung, "Bewertung");

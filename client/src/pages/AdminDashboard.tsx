@@ -866,7 +866,15 @@ export default function AdminDashboard() {
                       const gut = robust && r.ueberschussNachKosten > 0;
                       return (
                         <tr key={r.bezeichnung} className="border-t">
-                          <td className="py-1.5">{r.bezeichnung}</td>
+                          <td className="py-1.5">
+                            {r.bezeichnung}
+                            {/* Beim Ausschluss ist die Zahl der gehaltenen Titel
+                                die halbe Aussage: 190 breit gehaltene Positionen
+                                sind etwas ganz anderes als 25 ausgewählte. */}
+                            {r.anteilBehalten !== null && (
+                              <span className="text-muted-foreground"> · {r.gehalten} Titel</span>
+                            )}
+                          </td>
                           <td className="text-right tabular-nums">{r.auswahl.toFixed(2)} %</td>
                           <td className="text-right tabular-nums text-muted-foreground">
                             {r.universum.toFixed(2)} %

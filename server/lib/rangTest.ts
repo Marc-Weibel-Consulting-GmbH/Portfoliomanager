@@ -84,6 +84,10 @@ export interface RangErgebnis {
   sektoren: { sektor: string; anteil: number }[];
   /** Wurde der Score je Branche zentriert, bevor rangiert wurde? */
   branchenneutral: boolean;
+  /** Behaltener Anteil des Universums bei einem Ausschluss, sonst `null`. */
+  anteilBehalten: number | null;
+  /** Ø gehaltene Positionen je Stichtag — beim Ausschluss schwankt das mit dem Universum. */
+  gehalten: number;
   hinweis: string | null;
 }
 
@@ -94,7 +98,8 @@ const LEER = (bezeichnung: string, positionen: number, horizontMonate: number, h
   bezeichnung, positionen, horizontMonate,
   perioden: 0, periodenJeSpur: 0, auswahl: 0, universum: 0, ueberschuss: 0,
   umschlag: 0, ueberschussNachKosten: 0, anteilVorn: 0, spurStreuung: 0,
-  spuren: [], jahre: [], sektoren: [], branchenneutral: false, hinweis,
+  spuren: [], jahre: [], sektoren: [], branchenneutral: false,
+  anteilBehalten: null, gehalten: 0, hinweis,
 });
 
 interface Auswertung {
@@ -131,8 +136,23 @@ export function rangTest(
    * GEGENÜBER SEINESGLEICHEN ist.
    */
   branchenneutral = false,
+  /**
+   * Statt einer festen Positionszahl diesen ANTEIL des Universums behalten.
+   *
+   * Die andere Frage, und für ein Privatdepot die wichtigere: Gemessen ist,
+   * dass die BESTEN zu kaufen verliert. Ob es hilft, die SCHLECHTESTEN zu
+   * meiden, ist damit nicht beantwortet — ein Ausschluss ist keine umgekehrte
+   * Auswahl. Wer das schlechteste Zehntel weglässt und den Rest breit hält,
+   * trifft eine ganz andere Wette als wer die besten 25 kauft.
+   *
+   * `0.9` heisst: schlechtestes Zehntel raus, 90 % gleichgewichtet halten.
+   * `undefined` lässt es bei `positionen`.
+   */
+  anteilBehalten?: number,
 ): RangErgebnis {
   const h = Math.max(1, horizontMonate);
+  const anteil = anteilBehalten !== undefined && anteilBehalten > 0 && anteilBehalten < 1
+    ? anteilBehalten : null;
 
   const jeDatum = new Map<string, Beobachtung[]>();
   for (const b of beobachtungen ?? []) {
@@ -172,16 +192,20 @@ export function rangTest(
     return aus;
   }
 
+  // Beim Ausschluss reicht ein kleineres Universum: Wer 90 % behält, braucht
+  // keine 2 × 25 Titel, sondern nur genug, dass ein Zehntel überhaupt etwas ist.
+  const mindestTitel = anteil ? Math.max(20, Math.ceil(1 / (1 - anteil)) * 4) : positionen * 2;
   const daten = [...jeDatum.keys()].sort()
-    .filter((d) => jeDatum.get(d)!.length >= positionen * 2);
+    .filter((d) => jeDatum.get(d)!.length >= mindestTitel);
   if (daten.length < h + 1) {
     return LEER(bezeichnung, positionen, h,
-      `Zu wenige Stichtage mit mindestens ${positionen * 2} Titeln (${daten.length}).`);
+      `Zu wenige Stichtage mit mindestens ${mindestTitel} Titeln (${daten.length}).`);
   }
 
   const spuren: SpurErgebnis[] = [];
   const alleAuswertungen: Auswertung[] = [];
   const sektorZaehler = new Map<string, number>();
+  const gehaltenSumme = { summe: 0, n: 0 };
 
   // Eine Spur je möglichem Startmonat. In sich überlappungsfrei.
   for (let versatz = 0; versatz < h; versatz++) {
@@ -196,7 +220,12 @@ export function rangTest(
       const liste = jeDatum.get(datum)!;
       const werte = rangwerte(liste);
       const sortiert = [...liste].sort((a, b) => werte.get(b)! - werte.get(a)!);
-      const gewaehlt = sortiert.slice(0, positionen);
+      // Beim Ausschluss richtet sich die Zahl nach dem Universum dieses
+      // Stichtags — es schwankt, und ein fester Wert hiesse mal 88, mal 95 %.
+      const nimm = anteil ? Math.max(1, Math.round(sortiert.length * anteil)) : positionen;
+      const gewaehlt = sortiert.slice(0, nimm);
+      gehaltenSumme.summe += gewaehlt.length;
+      gehaltenSumme.n += 1;
       for (const b of gewaehlt) {
         const s = sektorVon(b.ticker);
         if (s) sektorZaehler.set(s, (sektorZaehler.get(s) ?? 0) + 1);
@@ -211,7 +240,7 @@ export function rangTest(
       // der Aufbau des Depots ist kein Umschlag.
       const umschlag = vorige === null
         ? null
-        : [...jetzt].filter((t) => !vorige!.has(t)).length / positionen;
+        : [...jetzt].filter((t) => !vorige!.has(t)).length / jetzt.size;
       vorige = jetzt;
 
       auswertungen.push({ datum, auswahl, universum, umschlag });
@@ -288,6 +317,8 @@ export function rangTest(
         .map(([sektor, n]) => ({ sektor, anteil: parseFloat((n / gesamt).toFixed(3)) }));
     })(),
     branchenneutral,
+    anteilBehalten: anteil,
+    gehalten: gehaltenSumme.n ? Math.round(gehaltenSumme.summe / gehaltenSumme.n) : 0,
     hinweis: null,
   };
 }
@@ -305,20 +336,24 @@ export function rangKlartext(r: RangErgebnis): string {
 
   const richtung = r.ueberschussNachKosten >= 0 ? "vorn" : "hinten";
   const betrag = Math.abs(r.ueberschussNachKosten).toFixed(2);
+  // Ein Ausschluss ist keine Auswahl — «die 191 besten» wäre irreführend.
+  const wer = r.anteilBehalten !== null
+    ? `Der Rest nach Ausschluss (${Math.round((1 - r.anteilBehalten) * 100)} % weg)`
+    : `Die ${r.positionen} besten`;
 
   if (r.periodenJeSpur < 5) {
     return `Nur ${r.periodenJeSpur} unabhängige Perioden je Spur — zu wenig für eine Aussage. `
-      + `Die ${r.positionen} besten lagen nach Kosten um ${betrag} Punkte ${richtung}.`;
+      + `${wer} lag nach Kosten um ${betrag} Punkte ${richtung}.`;
   }
 
   const robust = Math.abs(r.ueberschussNachKosten) > r.spurStreuung;
   if (!robust) {
-    return `Die ${r.positionen} besten lagen nach Kosten um ${betrag} Punkte ${richtung} — `
+    return `${wer} lag nach Kosten um ${betrag} Punkte ${richtung} — `
       + `aber die Streuung über die Startmonate ist mit ${r.spurStreuung.toFixed(2)} Punkten grösser. `
       + `Das Ergebnis hängt davon ab, in welchem Monat man begonnen hätte, nicht vom Verfahren.`;
   }
 
-  return `Die ${r.positionen} besten lagen nach Kosten um ${betrag} Punkte ${richtung}, `
+  return `${wer} lag nach Kosten um ${betrag} Punkte ${richtung}, `
     + `in ${Math.round(r.anteilVorn * 100)} % der Perioden vor dem Universum. `
     + `Streuung über die Startmonate ${r.spurStreuung.toFixed(2)} Punkte, `
     + `Umschlag ${Math.round(r.umschlag * 100)} % je Umschichtung.`;
