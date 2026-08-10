@@ -164,7 +164,7 @@ function getCriterionExplanation(criterion: string, signal: any): {
     const score = numVal ?? signal.combinedScore;
     return {
       title: criterion,
-      summary: `Der kombinierte Score von ${score != null ? score : '—'}/100 bewertet die Aktie nach Momentum (technische Analyse), Qualität (Fundamentaldaten) und LPPL-Risikomodell (Blasenerkennung). ${score != null && score >= 70 ? 'Ein Score ≥ 70 ist ein starkes Kaufsignal.' : score != null && score >= 55 ? 'Ein Score von 55–70 deutet auf ein moderates Kaufsignal hin.' : 'Ein Score unter 55 ist neutral bis bärisch.'}`,
+      summary: `Das Signal von ${score != null ? score : '—'}/100 entsteht aus den drei Scores — Qualität (Unternehmen), Bewertung (Preis) und Timing (Zeitpunkt) —, gewichtet nach Marktlage. ${score != null && score >= 70 ? 'Ein Score ≥ 70 ist ein starkes Kaufsignal.' : score != null && score >= 55 ? 'Ein Score von 55–70 deutet auf ein moderates Kaufsignal hin.' : 'Ein Score unter 55 ist neutral bis bärisch.'}`,
       factors: [
         { label: "Score", value: score != null ? `${score}/100` : "—", sentiment: score != null && score >= 65 ? "positive" : score != null && score >= 45 ? "neutral" : "negative" },
         { label: "Stark", value: "≥ 70", sentiment: "positive" },

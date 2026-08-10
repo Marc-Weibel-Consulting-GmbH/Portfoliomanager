@@ -1,6 +1,6 @@
 /**
  * Kaufsignale — Aktien-Sektion (F-14), geroutet unter /aktien/signale.
- * Alle Titel aus der Empfehlungsliste (Strategie-Scoring: Momentum + Qualität + LPPL)
+ * Alle Titel aus der Empfehlungsliste — Signal aus Qualität, Bewertung und Timing
  * mit aktueller Kaufempfehlung (STRONG BUY / BUY), plus Empfehlungs-Historie
  * (signals.getHistory aus signal_history inkl. Benchmark/Alpha).
  * Die portfolio-basierten Positions-Signale leben neu als Subtab im Portfolio.
@@ -71,8 +71,8 @@ export default function Signals() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Kaufsignale</h1>
           <p className="text-muted-foreground mt-1">
-            Titel aus der Empfehlungsliste mit aktueller Kaufempfehlung — Strategie-Score aus
-            Momentum, Qualität und LPPL.
+            Titel aus der Empfehlungsliste mit aktueller Kaufempfehlung — das Signal entsteht aus
+            Qualität, Bewertung und Timing, gewichtet nach Marktlage.
           </p>
         </div>
 
@@ -109,15 +109,16 @@ export default function Signals() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-semibold text-lg font-mono">{s.ticker}</span>
                           <SignalBadge signal={s.signal} />
-                          <Badge variant="outline" className="text-xs font-mono">{s.overallGrade}</Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          Momentum {s.momentum?.grade ?? "–"} · Qualität {s.quality?.grade ?? "–"} · LPPL {s.lppl?.regime ?? "–"}
+                          Qualität {s.qualitaet != null ? Math.round(s.qualitaet) : "–"} ·
+                          Bewertung {s.bewertung != null ? Math.round(s.bewertung) : "–"} ·
+                          Timing {s.timing != null ? Math.round(s.timing) : "–"}
                         </p>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-xs text-muted-foreground">Score (M+Q+LPPL)</p>
+                      <p className="text-xs text-muted-foreground">Signal</p>
                       <p className={`text-xl font-bold font-mono ${
                         s.combinedScore >= 70 ? "text-emerald-500" : "text-[#00CFC1]"
                       }`}>{s.combinedScore}<span className="text-sm text-muted-foreground">/100</span></p>
