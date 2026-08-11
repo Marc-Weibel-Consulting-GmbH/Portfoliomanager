@@ -1106,7 +1106,13 @@ export default function PortfolioBuilderWizard() {
                           <span className="text-sm text-gray-400">Cash-Reserve</span>
                         </div>
                       )}
-                      <span className="text-xs text-gray-500 ml-auto self-center">historisch geschätzt</span>
+                      <span className="text-xs text-gray-500 ml-auto self-center">
+                        {/* Nachprüfbare Basis statt blosses «historisch geschätzt» —
+                            die Rendite ist ein Langfrist-Mittel, kein Jahresversprechen. */}
+                        {(autoProposal as any).metrics?.basisJahreMedian != null
+                          ? `historisch geschätzt · Ø ${(autoProposal as any).metrics.basisJahreMedian} J. Kurshistorie`
+                          : 'historisch geschätzt'}
+                      </span>
                     </div>
                     {/* Anlageklassen-Mischung des Vorschlags (Multi-Asset-Sleeve, vor Cash-Quote) */}
                     {(autoProposal as any).assetAllocation && (

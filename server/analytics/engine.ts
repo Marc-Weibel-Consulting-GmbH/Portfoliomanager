@@ -234,20 +234,27 @@ async function fetchReturnsWithDates(
         prices.map(async (p, i) => p * (await getFxRate(dates[i], pair))),
       );
     }
-    // Titel überspringen wenn FX-Konversion ungültige Preise erzeugt hat
-    // (z.B. getFxRate liefert 0 für fehlende NOKCHF/CADCHF-Kurse).
-    const validPrices = prices.filter((p) => Number.isFinite(p) && p > 0);
-    if (validPrices.length < prices.length * 0.9) {
-      // Mehr als 10% ungültige Preise → Titel ausschliessen
-      continue;
+    // Ungültige Punkte (fehlender FX-Kurs → Preis 0, R-10) EINZELN verwerfen
+    // statt den ganzen Titel: Bei langen Fenstern beginnt die FX-Historie oft
+    // später als die Kursreihe — vorher flog ein Fremdwährungstitel dann komplett
+    // raus (>10 %-Regel), jetzt behält er sein gültiges Teilfenster. Renditen
+    // entstehen nur zwischen nahe beieinanderliegenden Handelstagen (≤ 7
+    // Kalendertage), nie über eine Datenlücke hinweg — ein Sprung über Monate
+    // wäre sonst eine einzelne «Tagesrendite» von ±zig Prozent.
+    const punkte: Array<{ date: string; price: number }> = [];
+    for (let i = 0; i < prices.length; i++) {
+      if (Number.isFinite(prices[i]) && prices[i] > 0) punkte.push({ date: dates[i], price: prices[i] });
     }
+    const MAX_LUECKE_MS = 7 * 24 * 60 * 60 * 1000;
     const retDates: string[] = [];
     const returns: number[] = [];
-    for (let i = 1; i < prices.length; i++) {
-      const ret = prices[i - 1] > 0 ? (prices[i] - prices[i - 1]) / prices[i - 1] : NaN;
-      if (!Number.isFinite(ret)) continue; // Einzelne NaN-Renditen überspringen
+    for (let i = 1; i < punkte.length; i++) {
+      const abstand = new Date(punkte[i].date).getTime() - new Date(punkte[i - 1].date).getTime();
+      if (abstand > MAX_LUECKE_MS) continue;
+      const ret = (punkte[i].price - punkte[i - 1].price) / punkte[i - 1].price;
+      if (!Number.isFinite(ret)) continue;
       returns.push(ret);
-      retDates.push(dates[i]);
+      retDates.push(punkte[i].date);
     }
     if (returns.length < 2) continue;
     out[orig] = { dates: retDates, returns };
@@ -1193,7 +1200,24 @@ export async function optimizePortfolio(input: OptimizeInput) {
   // kombiniert einen markt-konsistenten Gleichgewichts-Prior (Equal-Weight als
   // neutrale Marktgewichtung) mit den historischen Mitteln als unsichere Views zu
   // einer stabileren Posterior-μ. Bei singulärer Kovarianz Fallback aufs rohe μ.
-  const histMeans = available.map((t) => mean(returnsMap[t]) * TRADING_DAYS_YEAR);
+  //
+  // Die Mittel je Titel kommen von der EIGENEN vollen Reihe im Fenster, nicht
+  // von der Datums-Schnittmenge aller Titel: Ein einzelner junger Titel (oder
+  // kurze FX-Historie) würde sonst das Mittelungs-Fenster ALLER Titel auf sein
+  // kurzes Fenster drücken. Die Kovarianz braucht die paarweise Ausrichtung,
+  // Mittelwerte brauchen sie nicht.
+  const histMeans = available.map((t) => mean(datedMap[t].returns) * TRADING_DAYS_YEAR);
+
+  // Womit die Renditeschätzung tatsächlich gerechnet hat — fürs Frontend, damit
+  // «historisch geschätzt» eine nachprüfbare Basis bekommt (Jahre Kurshistorie).
+  const jahreSortiert = available
+    .map((t) => datedMap[t].returns.length / TRADING_DAYS_YEAR)
+    .sort((a, b) => a - b);
+  const renditeBasis = {
+    jahreMin: Math.round(jahreSortiert[0] * 10) / 10,
+    jahreMedian: Math.round(jahreSortiert[Math.floor(jahreSortiert.length / 2)] * 10) / 10,
+    gemeinsameTage: alignedDates.length,
+  };
   const wPrior = new Array(n).fill(1 / n);
   let mu: number[];
   try {
@@ -1286,6 +1310,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
       // Effektiv genutzte gemeinsame Handelstage (Schnittmenge aller Titel) —
       // die Basis, ueber die Rendite/Volatilitaet annualisiert wurden.
       observedDays: alignedDates.length,
+      renditeBasis,
       // HRP ist ein deterministisches Cluster-Verfahren ohne Zufallssuche.
       optimizerEngine: "analytic" as const,
       minPositionChf: MIN_POSITION_CHF_HRP,
@@ -1494,6 +1519,9 @@ export async function optimizePortfolio(input: OptimizeInput) {
     // OPT-7 (additiv): Titel, die mangels Kurshistorie (< 60 Handelstage)
     // NICHT in die Optimierung eingeflossen sind.
     excludedShortHistory,
+    // Basis der Renditeschätzung (Jahre Kurshistorie je Titel, min/median) —
+    // damit «historisch geschätzt» im Frontend nachprüfbar wird.
+    renditeBasis,
     // Herkunft der Gewichte: "exact" = PyPortfolioOpt (analytics_service),
     // "random_search" = TS-Fallback, "analytic" = equal_weight.
     optimizerEngine,

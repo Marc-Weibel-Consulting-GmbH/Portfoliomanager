@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlusCircle, Trash2, Search, X, Info } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 
 // Editierbare Vorschlags-Position. Spiegelt die gleichnamige Struktur im
 // Admin-Protokoll (AdminProposalAnalysis.tsx). TODO: perspektivisch konsolidieren,
@@ -18,6 +19,7 @@ export type EditablePosition = {
   aiReason?: string;
   assetType?: string; // 'stock' | 'etf' | 'bond'
   assetClass?: string; // 'equity' | 'bond' | 'commodity' | 'gold' | 'realestate' | 'crypto'
+  /** `undefined` = noch nicht geladen (ScoreNachlader holt ihn), `null` = nicht berechenbar. */
   combinedScore?: number | null;
   signal?: string;
   /** Titel aus der Universums-Erweiterung (ausserhalb der Kern-Watchlist). */
@@ -38,6 +40,46 @@ const SIGNAL_LABELS: Record<string, { label: string; className: string }> = {
   HOLD: { label: "→ Halten", className: "bg-slate-500/15 text-slate-400" },
   SELL: { label: "↓ Verkaufen", className: "bg-red-500/15 text-red-400" },
 };
+
+/**
+ * Holt Score und Signal für einen manuell hinzugefügten oder getauschten
+ * Titel nach — die KI-Positionen bringen ihre Note mit, Handarbeit vorher
+ * nicht: Die Zeile blieb ohne Note und Signal (bzw. behielt beim Tausch die
+ * Note des ALTEN Titels). Quelle ist dieselbe Drei-Score-Rechnung wie auf
+ * der Titelseite.
+ */
+function ScoreNachlader({
+  ticker,
+  onGeladen,
+}: {
+  ticker: string;
+  onGeladen: (ticker: string, combinedScore: number | null, signal?: string) => void;
+}) {
+  const { data, isError } = trpc.analytics.dreiScores.useQuery(
+    { ticker },
+    { staleTime: 5 * 60 * 1000, retry: 1 },
+  );
+  useEffect(() => {
+    if (data) {
+      const label = data.signal?.label ?? null;
+      const sig = label
+        ? label.includes("BUY") ? "BUY" : label.includes("SELL") ? "SELL" : "HOLD"
+        : undefined;
+      onGeladen(ticker, data.signal?.score ?? null, sig);
+    } else if (isError) {
+      // `null` heisst «versucht, nicht berechenbar» — beendet das Nachladen.
+      onGeladen(ticker, null, undefined);
+    }
+    // onGeladen bewusst nicht in den Dependencies: die Callback-Identität
+    // wechselt mit jedem Render des Elternteils, geladen wird pro Ticker einmal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, isError, ticker]);
+  return (
+    <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-500/10 text-slate-500">
+      Score…
+    </span>
+  );
+}
 
 /** Multi-Asset-Sleeve-Position? (fixer Baustein — keine KI-Aktien-Anpassungen) */
 const isSleevePosition = (p: { assetClass?: string }) => !!(p.assetClass && p.assetClass !== "equity");
@@ -152,7 +194,20 @@ export function ProposalPositionEditor({
       exchangeRateToChf: parseFloat(stock.exchangeRateToChf ?? "1") || 1,
       originalWeightPct: undefined, // kein Original-Vergleich für getauschte Titel
       aiReason: undefined,
+      // Note/Signal gehören zum ALTEN Titel — zurücksetzen, der
+      // ScoreNachlader holt die Werte des neuen Tickers.
+      combinedScore: undefined,
+      signal: undefined,
     } : p));
+  };
+
+  // Score/Signal eines nachgeladenen Tickers in die passende Zeile schreiben.
+  const uebernehmeScore = (ticker: string, combinedScore: number | null, signal?: string) => {
+    onChange(positions.map((p) =>
+      p.ticker === ticker && p.combinedScore === undefined
+        ? { ...p, combinedScore, signal }
+        : p
+    ));
   };
 
   const addFromStock = (stock: any) => {
@@ -243,6 +298,10 @@ export function ProposalPositionEditor({
                 >
                   Note {scoreGrade(p.combinedScore)} · {p.combinedScore.toFixed(1)}
                 </span>
+              )}
+              {/* Manuell hinzugefügte/getauschte Titel: Score nachladen. */}
+              {!isSleevePosition(p) && p.combinedScore === undefined && (
+                <ScoreNachlader ticker={p.ticker} onGeladen={uebernehmeScore} />
               )}
 
               <span className="shrink-0 w-24 text-right text-[11px] text-slate-400 font-mono">
