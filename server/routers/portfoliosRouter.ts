@@ -96,16 +96,20 @@ export const portfoliosRouter = router({
             }
             const priceCHF = priceCHFOrNull;
 
-            // Calculate shares:
-            // - Use stored shares if available (set correctly by handleAcceptProposal after FX fix)
-            // - Fall back to weight-based calculation only when shares are missing/zero
-            //   (legacy portfolios created before the FX fix, or manually-built portfolios)
-            let shares: number = parseFloat(stock.shares || '0');
-            if (!(shares > 0) && investmentAmount > 0 && weight > 0) {
-              shares = priceCHF > 0 ? (investmentAmount * weight) / priceCHF : 0;
-            }
+            // Stückzahlen über die EINE gemeinsame Regel (lib/demoAnteile) —
+            // Kaufpreis statt heutigem Preis, siehe Kommentar in getWithCurrency.
+            const { anteileFuerPosition } = await import("../lib/demoAnteile");
+            const anteil = anteileFuerPosition({
+              gespeicherteStueck: parseFloat(stock.shares || '0'),
+              investmentAmount,
+              gewichtPct: weight * 100,
+              kaufpreisCHF: (parseFloat(stock.avgBuyPriceCHF) || parseFloat(stock.avgBuyPrice) || 0) > 0
+                ? (parseFloat(stock.avgBuyPriceCHF) || parseFloat(stock.avgBuyPrice))
+                : null,
+              heutigerPreisCHF: priceCHF,
+            });
 
-            totalValueCHF += shares * priceCHF;
+            totalValueCHF += anteil.stueck * priceCHF;
           }
 
           // Add cash balance if exists
@@ -537,23 +541,6 @@ export const portfoliosRouter = router({
             // Ensure weight is a number before calling toFixed
             const weight = typeof rawWeight === 'number' ? rawWeight : parseFloat(String(rawWeight)) || defaultWeight;
             
-            // Calculate shares:
-            // - For ALL portfolios: prefer stored shares (from portfolioData.stocks[].shares)
-            //   These are the actual share counts and reflect real market value when multiplied by current price.
-            // - Fallback to weight-based calculation ONLY when shares are 0/missing
-            //   (e.g., old portfolios created before shares were stored)
-            // NOTE: Previously demo portfolios always used weight-based calc, which always returned
-            // investmentAmount as total value (ignoring price changes). This caused the Dashboard vs
-            // Portfolio Detail discrepancy (Dashboard used stored shares, Detail used weight-based).
-            let shares = parseFloat(stock.shares) || 0;
-            if (shares === 0 && portfolio.investmentAmount && priceCHF > 0) {
-              const investmentAmount = parseFloat(portfolio.investmentAmount) || 0;
-              const allocationAmount = investmentAmount * (weight / 100);
-              // allocationAmount is in CHF, priceCHF is in CHF → shares = allocationAmount / priceCHF
-              shares = allocationAmount / priceCHF;
-              // Don't round - keep decimal precision for accurate value calculation
-            }
-            
             // Calculate avgBuyPrice in CHF.
             //
             // STANDARDIZED STORAGE (since fix R-CHF-PRICE):
@@ -600,7 +587,27 @@ export const portfoliosRouter = router({
             const avgBuyPrice = avgBuyPriceCHF;
             // hasBuyPrice: true only when we have a real purchase price (not the fallback)
             const hasBuyPrice = storedAvgBuyPriceCHF > 0 || storedAvgBuyPrice > 0 || (avgBuyPriceLocalMap.get(ticker) ?? 0) > 0;
-            
+
+            // Stückzahlen über die EINE gemeinsame Regel (lib/demoAnteile):
+            // gespeicherte Stückzahlen, sonst Allokation ÷ KAUFPREIS.
+            //
+            // Vorher teilte dieser Pfad durch den HEUTIGEN Preis — der
+            // Positionswert war damit per Definition gleich der Allokation,
+            // das Depot klebte am Einstand, und die Dashboard-Karte (die durch
+            // den Kaufpreis teilt) zeigte eine andere Summe als diese Seite:
+            // 158'520 gegen 149'262 für dasselbe Portfolio. Der Aufruf steht
+            // bewusst HINTER der Kaufpreis-Kette, damit auch die aus
+            // Transaktionen hergeleiteten Kaufpreise greifen.
+            const { anteileFuerPosition } = await import("../lib/demoAnteile");
+            const anteil = anteileFuerPosition({
+              gespeicherteStueck: parseFloat(stock.shares) || 0,
+              investmentAmount: parseFloat(portfolio.investmentAmount) || 0,
+              gewichtPct: weight,
+              kaufpreisCHF: hasBuyPrice ? avgBuyPriceCHF : null,
+              heutigerPreisCHF: priceCHF,
+            });
+            const shares = anteil.stueck;
+
             // Calculate totalValue
             const totalValue = shares * priceCHF;
             
