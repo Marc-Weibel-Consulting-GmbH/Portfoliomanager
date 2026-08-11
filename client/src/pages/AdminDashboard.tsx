@@ -617,12 +617,21 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {screenerStatusQ.data?.lauf?.status === "fehler" && (
+            <p className="text-xs text-amber-400">
+              Lauf gescheitert: {screenerStatusQ.data.lauf.fehler ?? "unbekannter Fehler"} —
+              «Universum sichten» startet einen neuen Lauf.
+            </p>
+          )}
           {screenerStatusQ.data && (
             <p className="text-xs text-muted-foreground">
               Watchlist aktuell: {screenerStatusQ.data.watchlistGroesse.toLocaleString("de-CH")} Titel
               (Richtwert: höchstens ~500).
               {(screenerStatusQ.data.lauf?.fehlgeschlagen ?? 0) > 0
                 ? ` ${screenerStatusQ.data.lauf!.fehlgeschlagen} Titel ohne berechenbaren Score (fehlende Fundamentaldaten).`
+                : ""}
+              {(screenerStatusQ.data.lauf?.zweitkotierungen ?? 0) > 0
+                ? ` ${screenerStatusQ.data.lauf!.zweitkotierungen} Zweitkotierungen aussortiert (nur der Hauptbörsenplatz zählt).`
                 : ""}
             </p>
           )}

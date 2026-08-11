@@ -3277,15 +3277,16 @@ export const adminRouter = router({
       screener.meldungen = ["Universum wird eingesammelt…"];
 
       void (async () => {
+        const { neuerLauf, setzeLaufStatus } = await import("../lib/screenerStore");
+        let laufId: number | null = null;
         try {
-          const { neuerLauf, setzeLaufStatus } = await import("../lib/screenerStore");
           const { sammleUniversum, SCREENER_BOERSEN } = await import("../lib/screenerLauf");
           const parameter = {
             boersen: [...SCREENER_BOERSEN],
             minMarktKapMrd: input.minMarktKapMrd,
             maxJeBoerse: input.maxJeBoerse,
           };
-          const laufId = await neuerLauf(parameter);
+          laufId = await neuerLauf(parameter);
           const ergebnis = await sammleUniversum(laufId, parameter);
           await setzeLaufStatus(laufId, "rechnet", { universum: ergebnis.gesichtet });
           screener.meldungen = [
@@ -3295,6 +3296,12 @@ export const adminRouter = router({
           ];
         } catch (e: any) {
           screener.meldungen.push(`Fehler beim Sammeln: ${e?.message ?? "unbekannt"}`);
+          // Den Lauf als gescheitert markieren — sonst bleibt er im Zustand
+          // «sammelt» stehen und sieht für immer aus, als arbeite er noch.
+          if (laufId) {
+            try { await setzeLaufStatus(laufId, "fehler", { fehler: String(e?.message ?? "unbekannt").slice(0, 480) }); }
+            catch { /* Meldung oben bleibt die Spur */ }
+          }
         } finally {
           screener.aktiv = false;
         }
@@ -3323,7 +3330,7 @@ export const adminRouter = router({
           const ergebnis = await rechneHaeppchen(input.laufId, input.maxTitel);
           screener.meldungen = [
             `Häppchen: ${ergebnis.berechnet} berechnet, ${ergebnis.fehlgeschlagen} fehlgeschlagen, ` +
-            `${ergebnis.nochOffen} noch offen.`,
+            `${ergebnis.zweitkotierungen} Zweitkotierungen aussortiert, ${ergebnis.nochOffen} noch offen.`,
             ...ergebnis.meldungen,
           ];
           if (ergebnis.nochOffen === 0) {
@@ -3344,8 +3351,17 @@ export const adminRouter = router({
   screenerStatus: adminProcedure
     .input(z.object({ topN: z.number().int().min(5).max(100).default(30) }).optional())
     .query(async ({ input }) => {
-      const { letzterLauf, besteKandidaten } = await import("../lib/screenerStore");
+      const { letzterLauf, besteKandidaten, setzeLaufStatus } = await import("../lib/screenerStore");
       const lauf = await letzterLauf();
+      // Verwaister Sammel-Lauf (Prozessneustart oder Abbruch vor der
+      // Statusfortschreibung): ehrlich als gescheitert markieren, sonst sieht
+      // er für immer aus, als arbeite er noch.
+      if (lauf && lauf.status === "sammelt" && !screener.aktiv) {
+        const hinweis = "Sammeln abgebrochen (Prozessneustart oder Fehler) — bitte neuen Lauf starten.";
+        try { await setzeLaufStatus(lauf.id, "fehler", { fehler: hinweis }); } catch { /* Anzeige unten reicht */ }
+        lauf.status = "fehler";
+        lauf.fehler = hinweis;
+      }
       const beste = lauf ? await besteKandidaten(lauf.id, input?.topN ?? 30) : [];
       // Watchlist-Grösse für den Deckel-Hinweis (Ziel: max. ~500 Titel).
       let watchlistGroesse = 0;

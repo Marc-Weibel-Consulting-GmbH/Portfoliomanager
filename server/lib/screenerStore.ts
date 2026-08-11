@@ -85,9 +85,15 @@ function zahl(v: unknown): number | null {
 export async function neuerLauf(parameter: unknown): Promise<number> {
   const db = await dbOderFehler();
   const { sql } = await import("drizzle-orm");
-  await db.execute(sql`INSERT INTO screener_lauf (parameter, status) VALUES (${JSON.stringify(parameter)}, 'sammelt')`);
-  const res: any = await db.execute(sql`SELECT LAST_INSERT_ID() AS id`);
-  const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
+  const res: any = await db.execute(sql`INSERT INTO screener_lauf (parameter, status) VALUES (${JSON.stringify(parameter)}, 'sammelt')`);
+  // insertId direkt aus dem INSERT-Ergebnis — ein separates
+  // SELECT LAST_INSERT_ID() kann im Verbindungs-Pool auf einer ANDEREN
+  // Verbindung landen und eine fremde ID liefern.
+  const kopf = Array.isArray(res) ? res[0] : res;
+  const id = Number(kopf?.insertId ?? 0);
+  if (id > 0) return id;
+  const idRes: any = await db.execute(sql`SELECT MAX(id) AS id FROM screener_lauf`);
+  const liste = Array.isArray(idRes) ? (idRes[0] ?? idRes) : (idRes?.rows ?? []);
   return Number((liste as any[])[0]?.id ?? 0);
 }
 
@@ -106,25 +112,43 @@ export async function setzeLaufStatus(
     WHERE id = ${laufId}`);
 }
 
-/** Kandidaten eines Laufs anlegen (Duplikate je Lauf werden ignoriert). */
+/**
+ * Kandidaten eines Laufs anlegen (Duplikate je Lauf werden ignoriert).
+ *
+ * Zeilenfehler werden übersprungen und gezählt statt den ganzen Lauf zu
+ * kippen — beim ersten Live-Lauf liess EIN gescheiterter INSERT den Lauf
+ * dauerhaft im Zustand «sammelt» hängen, und die Fehlerursache war in der
+ * gekürzten Drizzle-Meldung nicht erkennbar. `ersterFehler` trägt deshalb
+ * die volle Ursache (cause) nach oben.
+ */
 export async function ergaenzeKandidaten(
   laufId: number,
   kandidaten: Array<Omit<ScreenerKandidat, "laufId" | "qualitaet" | "bewertung" | "signalScore" | "signalLabel" | "fehler">>,
-): Promise<number> {
-  if (kandidaten.length === 0) return 0;
+): Promise<{ eingefuegt: number; zeilenFehler: number; ersterFehler: string | null }> {
+  if (kandidaten.length === 0) return { eingefuegt: 0, zeilenFehler: 0, ersterFehler: null };
   const db = await dbOderFehler();
   const { sql } = await import("drizzle-orm");
   let eingefuegt = 0;
+  let zeilenFehler = 0;
+  let ersterFehler: string | null = null;
   for (const k of kandidaten) {
-    const res: any = await db.execute(sql`
-      INSERT IGNORE INTO screener_kandidat
-        (laufId, ticker, name, boerse, sektor, waehrung, marktKap, dividendenrendite, inWatchlist, status)
-      VALUES (${laufId}, ${k.ticker}, ${k.name}, ${k.boerse}, ${k.sektor}, ${k.waehrung},
-              ${k.marktKap}, ${k.dividendenrendite}, ${k.inWatchlist}, ${k.status})`);
-    const betroffen = Array.isArray(res) ? (res[0]?.affectedRows ?? 0) : (res?.affectedRows ?? 0);
-    if (Number(betroffen) > 0) eingefuegt++;
+    try {
+      const res: any = await db.execute(sql`
+        INSERT IGNORE INTO screener_kandidat
+          (laufId, ticker, name, boerse, sektor, waehrung, marktKap, dividendenrendite, inWatchlist, status)
+        VALUES (${laufId}, ${k.ticker}, ${k.name}, ${k.boerse}, ${k.sektor}, ${k.waehrung},
+                ${k.marktKap}, ${k.dividendenrendite}, ${k.inWatchlist}, ${k.status})`);
+      const betroffen = Array.isArray(res) ? (res[0]?.affectedRows ?? 0) : (res?.affectedRows ?? 0);
+      if (Number(betroffen) > 0) eingefuegt++;
+    } catch (err: any) {
+      zeilenFehler++;
+      if (!ersterFehler) {
+        const ursache = err?.cause?.message ? ` — ${err.cause.message}` : "";
+        ersterFehler = `${k.ticker}: ${err?.message ?? "unbekannt"}${ursache}`.slice(0, 400);
+      }
+    }
   }
-  return eingefuegt;
+  return { eingefuegt, zeilenFehler, ersterFehler };
 }
 
 /** Nächste unberechnete Kandidaten (nur die, die nicht schon in der Watchlist stehen). */
@@ -144,7 +168,7 @@ export async function schreibeErgebnis(
   laufId: number,
   ticker: string,
   ergebnis: {
-    status: "berechnet" | "fehler";
+    status: "berechnet" | "fehler" | "zweitkotierung";
     qualitaet?: number | null;
     bewertung?: number | null;
     signalScore?: number | null;
@@ -188,6 +212,8 @@ export interface LaufUebersicht {
   wartend: number;
   berechnet: number;
   fehlgeschlagen: number;
+  /** Aussortierte Zweitkotierungen (Hauptbörse liegt selbst im Universum). */
+  zweitkotierungen: number;
   vorhanden: number;
   uebernommen: number;
   abgelehnt: number;
@@ -216,6 +242,7 @@ export async function letzterLauf(): Promise<LaufUebersicht | null> {
     wartend: zaehler["wartend"] ?? 0,
     berechnet: zaehler["berechnet"] ?? 0,
     fehlgeschlagen: zaehler["fehler"] ?? 0,
+    zweitkotierungen: zaehler["zweitkotierung"] ?? 0,
     vorhanden: zaehler["vorhanden"] ?? 0,
     uebernommen: zaehler["uebernommen"] ?? 0,
     abgelehnt: zaehler["abgelehnt"] ?? 0,
