@@ -259,6 +259,25 @@ async function screenForGap(params: {
 }
 
 /**
+ * EODHD-Screener-Code + Börse → Ticker im Format der `stocks`-Tabelle.
+ * Auch vom Watchlist-Screener (`screenerLauf`) genutzt — eine Zuordnung,
+ * keine Kopien.
+ */
+export function tickerAusScreenerCode(codeRoh: string, exchangeRoh: string): string {
+  const code = (codeRoh || "").trim().toUpperCase();
+  const exch = (exchangeRoh || "").toUpperCase();
+  if (code.includes(".")) return code;
+  if (exch === "SW" || exch === "SWX") return `${code}.SW`;
+  if (exch === "XETRA" || exch === "DE") return `${code}.DE`;
+  if (exch === "PA") return `${code}.PA`;
+  if (exch === "LSE") return `${code}.L`;
+  if (exch === "AS") return `${code}.AS`;
+  if (exch === "MI") return `${code}.MI`;
+  // US: kein Suffix
+  return code;
+}
+
+/**
  * Konvertiert einen EODHD-Screener-Eintrag in einen ExternalCandidate.
  */
 function toExternalCandidate(
@@ -266,18 +285,8 @@ function toExternalCandidate(
   gapReason: string,
   closesGap: string
 ): ExternalCandidate {
-  const code = (item.code || "").trim().toUpperCase();
   const exch = (item.exchange || "").toUpperCase();
-
-  // Ticker-Format anpassen
-  let ticker = code;
-  if (exch === "SW" || exch === "SWX") ticker = code.includes(".") ? code : `${code}.SW`;
-  else if (exch === "XETRA" || exch === "DE") ticker = code.includes(".") ? code : `${code}.DE`;
-  else if (exch === "PA") ticker = code.includes(".") ? code : `${code}.PA`;
-  else if (exch === "LSE") ticker = code.includes(".") ? code : `${code}.L`;
-  else if (exch === "AS") ticker = code.includes(".") ? code : `${code}.AS`;
-  else if (exch === "MI") ticker = code.includes(".") ? code : `${code}.MI`;
-  // US: kein Suffix
+  const ticker = tickerAusScreenerCode(item.code || "", item.exchange || "");
 
   return {
     ticker,
