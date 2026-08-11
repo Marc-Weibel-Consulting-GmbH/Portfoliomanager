@@ -891,13 +891,11 @@ export const dashboardRouter = router({
               }
             }
             demoHoldingsByPortfolio.set(p.id, demoHoldings);
-            // For demo portfolios: do NOT limit by createdAt for Max range
-            // They represent hypothetical allocations that can be backtested further back
-            if (p.createdAt && input.range !== 'Max') {
-              const createdStr = new Date(p.createdAt).toISOString().split('T')[0];
-              if (createdStr < earliestTransactionDate) earliestTransactionDate = createdStr;
-            }
-            // For Max range on demo portfolios, allow going back to the full available history
+            // Demos werden fuer JEDEN Zeitraum zurueckgerechnet, nicht nur fuer
+            // «Max». Vorher wurde YTD/1J/… auf das Erstellungsdatum gekappt:
+            // Ein am 30. Juli angelegtes Demo zeigte unter «YTD» zwoelf Tage.
+            // Ein Demo ist eine hypothetische Allokation — dieselbe Logik, die
+            // «Max» laengst anwendet, gilt auch fuer die kurzen Zeitraeume.
           } catch (e) { console.warn('[dashboardRouter] Parsen von portfolioData (frühestes Datum) fehlgeschlagen:', e); }
         }
       }
@@ -921,12 +919,9 @@ export const dashboardRouter = router({
         }
         // For YTD/1J/3J/5J: do NOT restrict — the loop already skips dates before liveStartDate
       } else if (hasDemoPortfolios && !hasLivePortfolios) {
-        // Pure demo portfolio(s): for Max, use the full available history (startDate from switch)
-        // For other ranges, limit to createdAt (already handled above via earliestTransactionDate)
-        if (input.range !== 'Max' && startDateStr < earliestTransactionDate) {
-          startDateStr = earliestTransactionDate;
-        }
-        // For Max range: keep startDateStr as 2020-01-01 (from switch statement)
+        // Reine Demos: der angefragte Zeitraum gilt unveraendert — die
+        // Kurshistorie ist da, und die Rueckrechnung ist fuer YTD so
+        // legitim wie fuer «Max».
       } else {
         // Mixed: fallback to earliest transaction date
         if (startDateStr < earliestTransactionDate) {
@@ -2881,22 +2876,25 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
           if (!currentLivePrice || isNaN(currentLivePrice)) continue; // Skip stocks with invalid prices
           const currency = stockData.currency || 'CHF';
           const weight = parseFloat(stock.weight || '0') / 100;
-          let shares = parseFloat(stock.shares || '0') || 0;
-          if (shares === 0 && investmentAmount > 0 && weight > 0) {
-            // Use ORIGINAL price from portfolioData for share calculation (purchase price)
-            const originalPrice = parseFloat(stock.currentPrice || stock.purchasePrice || '0');
-            const originalPriceCHF = originalPrice > 0 ? await convertToCHF(originalPrice, stock.currency || currency, todayStr) : 0;
-            if (originalPriceCHF > 0) {
-              shares = (investmentAmount * weight) / originalPriceCHF;
-            } else {
-              // Fallback: use current price (will result in value = investmentAmount * weight)
-              const priceCHF = await convertToCHF(currentLivePrice, currency, todayStr);
-              shares = priceCHF > 0 ? (investmentAmount * weight) / priceCHF : 0;
-            }
-          }
-          // Value shares at CURRENT live price
           const priceCHF = await convertToCHF(currentLivePrice, currency, todayStr);
-          currentValue += shares * priceCHF;
+
+          // Stückzahlen über die EINE gemeinsame Regel (lib/demoAnteile).
+          //
+          // Vorher rechnete diese Karte den Kaufpreis aus `stock.currentPrice`
+          // (Stand bei Erstellung, Fremdwährung) mit dem HEUTIGEN Wechselkurs
+          // um — die Depotseite teilte stattdessen durch den heutigen Preis.
+          // Zwei Formeln, zwei Summen: 158'520 hier, 149'262 dort. Jetzt gilt
+          // an beiden Orten der standardisierte CHF-Kaufpreis (avgBuyPriceCHF).
+          const { anteileFuerPosition } = await import('../lib/demoAnteile');
+          const kaufCHF = parseFloat(stock.avgBuyPriceCHF ?? '') || parseFloat(stock.avgBuyPrice ?? '') || 0;
+          const anteil = anteileFuerPosition({
+            gespeicherteStueck: parseFloat(stock.shares || '0') || 0,
+            investmentAmount,
+            gewichtPct: weight * 100,
+            kaufpreisCHF: kaufCHF > 0 ? kaufCHF : null,
+            heutigerPreisCHF: priceCHF,
+          });
+          currentValue += anteil.stueck * priceCHF;
 
         }
         const cashBalance = parseFloat(p.cashBalance || '0') || 0;
