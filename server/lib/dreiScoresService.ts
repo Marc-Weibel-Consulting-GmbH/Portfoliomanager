@@ -52,7 +52,15 @@ function zahl(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export async function getDreiScores(ticker: string): Promise<DreiScores> {
+export async function getDreiScores(
+  ticker: string,
+  /**
+   * Kontext für Titel, die (noch) nicht in der `stocks`-Tabelle stehen —
+   * der Screener kennt Sektor und Dividendenrendite aus der EODHD-Antwort.
+   * Werte aus der Datenbank haben Vorrang.
+   */
+  kontext?: { sektor?: string | null; dividendenrendite?: number | null },
+): Promise<DreiScores> {
   // Zuerst die vorgerechneten Werte: Der stuendliche Signal-Cron legt sie ab.
   // Nur wenn dort nichts steht — neuer Titel, Cron noch nicht gelaufen —, wird
   // live gerechnet. Das spart je Seitenaufruf einen EODHD-Abruf.
@@ -64,9 +72,9 @@ export async function getDreiScores(ticker: string): Promise<DreiScores> {
 
   // Dividendenrendite und die bisherigen Scores stehen in der DB, nicht in der
   // EODHD-Antwort. Fehlt die Datenbank, tragen die übrigen Faktoren.
-  let dividendenrendite: number | null = null;
+  let dividendenrendite: number | null = kontext?.dividendenrendite ?? null;
   let bisher: number | null = null;
-  let sektor: string | null = null;
+  let sektor: string | null = kontext?.sektor ?? null;
   try {
     const { getDb } = await import("../db");
     const db = await getDb();
@@ -83,9 +91,9 @@ export async function getDreiScores(ticker: string): Promise<DreiScores> {
         .where(eq(stocks.ticker, ticker))
         .limit(1);
       if (row) {
-        dividendenrendite = zahl(row.dividendYield);
+        dividendenrendite = zahl(row.dividendYield) ?? dividendenrendite;
         bisher = zahl(row.score);
-        sektor = row.sector ?? null;
+        sektor = row.sector ?? sektor;
       }
     }
   } catch (e) {

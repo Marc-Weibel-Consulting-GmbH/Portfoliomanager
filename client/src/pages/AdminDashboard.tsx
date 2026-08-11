@@ -82,6 +82,48 @@ export default function AdminDashboard() {
     onError: (err) => toast.error("Rangtest fehlgeschlagen", { description: err.message }),
   });
 
+  // Watchlist-Screener: Universum sichten, Scores häppchenweise rechnen, die
+  // besten Kandidaten zur Übernahme vorschlagen. Gleiche Häppchen-Mechanik wie
+  // die Rekonstruktion — kleine Läufe sterben nicht, das Nachlegen übernimmt
+  // der Browser.
+  const [screenerAuto, setScreenerAuto] = useState(true);
+  const screenerStatusQ = trpc.admin.screenerStatus.useQuery({ topN: 30 }, {
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      if (!d) return false;
+      const laufOffen = d.lauf?.status === "sammelt" || d.lauf?.status === "rechnet";
+      return d.aktiv || laufOffen ? 5_000 : false;
+    },
+  });
+  const screenerStart = trpc.admin.screenerStart.useMutation({
+    onSuccess: (d) => {
+      if (d.gestartet) toast.success("Screener gestartet", { description: "Das Universum wird eingesammelt." });
+      else toast.info(d.message);
+      screenerStatusQ.refetch();
+    },
+    onError: (err) => toast.error("Fehler", { description: err.message }),
+  });
+  const screenerRechnen = trpc.admin.screenerRechnen.useMutation({
+    onSuccess: (d) => { if (!d.gestartet) toast.info(d.message); screenerStatusQ.refetch(); },
+    onError: (err) => toast.error("Fehler", { description: err.message }),
+  });
+  const screenerEntscheiden = trpc.admin.screenerEntscheiden.useMutation({
+    onSuccess: (d) => {
+      if (d.ok) toast.success(d.message); else toast.error(d.message);
+      screenerStatusQ.refetch();
+    },
+    onError: (err) => toast.error("Fehler", { description: err.message }),
+  });
+  useEffect(() => {
+    const s = screenerStatusQ.data;
+    if (!screenerAuto || !s?.lauf) return;
+    if (s.aktiv || s.haengt) return;
+    if (s.lauf.status !== "rechnet" || s.lauf.wartend <= 0) return;
+    if (screenerRechnen.isPending) return;
+    const t = setTimeout(() => screenerRechnen.mutate({ laufId: s.lauf!.id, maxTitel: 25 }), 1500);
+    return () => clearTimeout(t);
+  }, [screenerAuto, screenerStatusQ.data, screenerRechnen]);
+
   // Der eine Knopf. Der Lauf selbst dauert Minuten und läuft auf dem Server;
   // hier wird nur der Fortschritt geholt — und nur solange er läuft.
   const datenLauf = trpc.admin.getDatenLaufStatus.useQuery(undefined, {
@@ -508,6 +550,173 @@ export default function AdminDashboard() {
             <p className="text-[11px] text-muted-foreground">
               Beendet {new Date(rekoStatus.data.beendetAm).toLocaleString("de-CH")}
             </p>
+          )}
+        </div>
+
+        {/* Watchlist-Screener: das Gesamtuniversum nach den besten Scores
+            durchsuchen und Kandidaten zur Aufnahme vorschlagen. Gedacht als
+            Ablösung des Gap-Fillings — das bleibt bestehen, bis sich der
+            Screener bewährt hat. Jeder Lauf ist zugleich ein Protokoll: ein
+            Punkt-in-Zeit-Universum für spätere Vorwärtsmessungen. */}
+        <div className="p-4 bg-muted/30 rounded-lg border space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Watchlist-Screener</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Sichtet die grössten Titel der Börsen US, SIX, XETRA, Paris, London, Amsterdam und
+                Mailand (ab 1 Mrd. Marktkapitalisierung) und bewertet neue Titel mit denselben drei
+                Scores wie die Titelseite. Die besten stehen unten zur Übernahme bereit — jede
+                Aufnahme bleibt eine Einzelentscheidung.
+              </p>
+            </div>
+            <Button
+              onClick={() => screenerStart.mutate({ minMarktKapMrd: 1, maxJeBoerse: 700 })}
+              disabled={screenerStart.isPending || (screenerStatusQ.data?.aktiv && !screenerStatusQ.data?.haengt)}
+              variant="outline"
+              className="gap-2"
+            >
+              {screenerStatusQ.data?.aktiv
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Search className="h-4 w-4" />}
+              {screenerStatusQ.data?.aktiv ? "Läuft..." : "Universum sichten"}
+            </Button>
+          </div>
+
+          {screenerStatusQ.data?.lauf && (
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-3 border-t pt-3 text-sm">
+              <div>
+                <span className="text-muted-foreground text-xs">Lauf</span>
+                <div className="font-bold">#{screenerStatusQ.data.lauf.id}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Gesichtet</span>
+                <div className="font-bold">{screenerStatusQ.data.lauf.universum.toLocaleString("de-CH")}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Bereits erfasst</span>
+                <div className="font-bold">{screenerStatusQ.data.lauf.vorhanden.toLocaleString("de-CH")}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Berechnet</span>
+                <div className="font-bold">{screenerStatusQ.data.lauf.berechnet.toLocaleString("de-CH")}</div>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Noch offen</span>
+                <div className={`font-bold ${screenerStatusQ.data.lauf.wartend > 0 ? "text-amber-400" : ""}`}>
+                  {screenerStatusQ.data.lauf.wartend.toLocaleString("de-CH")}
+                </div>
+              </div>
+              <div>
+                <span className="text-muted-foreground text-xs">Übernommen / abgelehnt</span>
+                <div className="font-bold">
+                  {screenerStatusQ.data.lauf.uebernommen} / {screenerStatusQ.data.lauf.abgelehnt}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {screenerStatusQ.data && (
+            <p className="text-xs text-muted-foreground">
+              Watchlist aktuell: {screenerStatusQ.data.watchlistGroesse.toLocaleString("de-CH")} Titel
+              (Richtwert: höchstens ~500).
+              {(screenerStatusQ.data.lauf?.fehlgeschlagen ?? 0) > 0
+                ? ` ${screenerStatusQ.data.lauf!.fehlgeschlagen} Titel ohne berechenbaren Score (fehlende Fundamentaldaten).`
+                : ""}
+            </p>
+          )}
+
+          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={screenerAuto}
+              onChange={(e) => setScreenerAuto(e.target.checked)}
+              className="accent-emerald-500"
+            />
+            Häppchen selbsttätig nachlegen, bis alle Kandidaten bewertet sind
+            {screenerAuto && (screenerStatusQ.data?.lauf?.wartend ?? 0) > 0
+              ? ` — noch ${screenerStatusQ.data!.lauf!.wartend} offen, Seite offen lassen`
+              : ""}
+          </label>
+
+          {screenerStatusQ.data?.meldungen && screenerStatusQ.data.meldungen.length > 0 && (
+            <div className="bg-black/50 rounded p-3 max-h-32 overflow-y-auto font-mono text-xs text-green-400 border-t">
+              {screenerStatusQ.data.meldungen.map((m, i) => (
+                <div key={i} className={m.includes("Fehler") ? "text-amber-400" : ""}>{m}</div>
+              ))}
+            </div>
+          )}
+
+          {(screenerStatusQ.data?.beste?.length ?? 0) > 0 && (
+            <div className="border-t pt-3 space-y-2">
+              <p className="text-xs font-medium">
+                Beste Kandidaten (nach Signal-Score) — nicht in der Watchlist
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-muted-foreground text-left">
+                      <th className="py-1 pr-3">Ticker</th>
+                      <th className="py-1 pr-3">Name</th>
+                      <th className="py-1 pr-3">Börse</th>
+                      <th className="py-1 pr-3">Sektor</th>
+                      <th className="py-1 pr-3 text-right">Qualität</th>
+                      <th className="py-1 pr-3 text-right">Bewertung</th>
+                      <th className="py-1 pr-3 text-right">Signal</th>
+                      <th className="py-1 pr-3"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {screenerStatusQ.data!.beste.map((k) => (
+                      <tr key={k.ticker} className="border-t border-white/5">
+                        <td className="py-1.5 pr-3 font-mono">{k.ticker}</td>
+                        <td className="py-1.5 pr-3 max-w-[220px] truncate">{k.name ?? "—"}</td>
+                        <td className="py-1.5 pr-3">{k.boerse ?? "—"}</td>
+                        <td className="py-1.5 pr-3 max-w-[140px] truncate">{k.sektor ?? "—"}</td>
+                        <td className="py-1.5 pr-3 text-right font-mono">
+                          {k.qualitaet != null ? Math.round(k.qualitaet) : "—"}
+                        </td>
+                        <td className="py-1.5 pr-3 text-right font-mono">
+                          {k.bewertung != null ? Math.round(k.bewertung) : "—"}
+                        </td>
+                        <td className="py-1.5 pr-3 text-right font-mono font-bold">
+                          {k.signalScore != null ? Math.round(k.signalScore) : "—"}
+                          {k.signalLabel ? ` (${k.signalLabel})` : ""}
+                        </td>
+                        <td className="py-1.5 pr-0 text-right whitespace-nowrap">
+                          {k.status === "uebernommen" ? (
+                            <Badge variant="outline" className="text-emerald-400 border-emerald-500/40">übernommen</Badge>
+                          ) : k.status === "abgelehnt" ? (
+                            <Badge variant="outline" className="text-muted-foreground">abgelehnt</Badge>
+                          ) : (
+                            <span className="inline-flex gap-1">
+                              <Button
+                                size="sm" variant="outline" className="h-6 px-2 text-[11px]"
+                                disabled={screenerEntscheiden.isPending}
+                                onClick={() => screenerEntscheiden.mutate({ laufId: k.laufId, ticker: k.ticker, entscheidung: "uebernehmen" })}
+                              >
+                                Übernehmen
+                              </Button>
+                              <Button
+                                size="sm" variant="ghost" className="h-6 px-2 text-[11px] text-muted-foreground"
+                                disabled={screenerEntscheiden.isPending}
+                                onClick={() => screenerEntscheiden.mutate({ laufId: k.laufId, ticker: k.ticker, entscheidung: "ablehnen" })}
+                              >
+                                Ablehnen
+                              </Button>
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Timing fehlt den Kandidaten noch (keine Kurshistorie vor der Übernahme) — das Signal
+                rechnet aus Qualität und Bewertung. Nach der Übernahme lädt die Kurshistorie nach,
+                der stündliche Lauf ergänzt Timing und Signal.
+              </p>
+            </div>
           )}
         </div>
 

@@ -97,6 +97,19 @@ function laufGiltAlsTot(): boolean {
     && Date.now() - rekonstruktion.gestartetAm > LAUF_GILT_ALS_TOT_MS;
 }
 
+/** In-Prozess-Zustand des Watchlist-Screeners — gleiches Muster wie oben. */
+const screener: {
+  aktiv: boolean;
+  gestartetAm: number | null;
+  meldungen: string[];
+} = { aktiv: false, gestartetAm: null, meldungen: [] };
+
+function screenerGiltAlsTot(): boolean {
+  return screener.aktiv
+    && screener.gestartetAm !== null
+    && Date.now() - screener.gestartetAm > LAUF_GILT_ALS_TOT_MS;
+}
+
 export const adminRouter = router({
     /**
      * L-18: Echte Plattform-KPIs statt hartkodierter Platzhalter-Nullen.
@@ -3241,5 +3254,147 @@ export const adminRouter = router({
     await db.insert(categories).values(defaults);
     return { success: true, seeded: defaults.length };
   }),
+
+  // ─── Watchlist-Screener ────────────────────────────────────────────────────
+  // Sucht im Gesamtuniversum die Titel mit den besten Scores und schlägt sie
+  // zur Aufnahme in die Watchlist vor (screenerLauf.ts). Perspektivisch der
+  // Ersatz für das Gap-Filling — das bleibt bestehen, bis sich der Screener
+  // bewährt hat; die Ablösung ist eine eigene Entscheidung.
+
+  /** Stufe 1: Lauf anlegen und Universum im Hintergrund einsammeln. */
+  screenerStart: adminProcedure
+    .input(z.object({
+      minMarktKapMrd: z.number().min(0.1).max(100).default(1),
+      /** Hoechstens so viele Titel je Boerse sichten (EODHD-Screener, absteigend nach Marktkap). */
+      maxJeBoerse: z.number().int().min(100).max(1000).default(700),
+    }))
+    .mutation(async ({ input }) => {
+      if (screener.aktiv && !screenerGiltAlsTot()) {
+        return { gestartet: false, message: "Läuft bereits." };
+      }
+      screener.aktiv = true;
+      screener.gestartetAm = Date.now();
+      screener.meldungen = ["Universum wird eingesammelt…"];
+
+      void (async () => {
+        try {
+          const { neuerLauf, setzeLaufStatus } = await import("../lib/screenerStore");
+          const { sammleUniversum, SCREENER_BOERSEN } = await import("../lib/screenerLauf");
+          const parameter = {
+            boersen: [...SCREENER_BOERSEN],
+            minMarktKapMrd: input.minMarktKapMrd,
+            maxJeBoerse: input.maxJeBoerse,
+          };
+          const laufId = await neuerLauf(parameter);
+          const ergebnis = await sammleUniversum(laufId, parameter);
+          await setzeLaufStatus(laufId, "rechnet", { universum: ergebnis.gesichtet });
+          screener.meldungen = [
+            `Lauf ${laufId}: ${ergebnis.gesichtet} Titel gesichtet, ` +
+            `${ergebnis.neu} neu, ${ergebnis.bereitsInWatchlist} bereits erfasst.`,
+            ...ergebnis.meldungen,
+          ];
+        } catch (e: any) {
+          screener.meldungen.push(`Fehler beim Sammeln: ${e?.message ?? "unbekannt"}`);
+        } finally {
+          screener.aktiv = false;
+        }
+      })();
+
+      return { gestartet: true, message: "Sammeln gestartet." };
+    }),
+
+  /** Stufe 2: das nächste Häppchen Kandidaten mit den drei Scores bewerten. */
+  screenerRechnen: adminProcedure
+    .input(z.object({
+      laufId: z.number().int(),
+      maxTitel: z.number().int().min(1).max(100).default(25),
+    }))
+    .mutation(async ({ input }) => {
+      if (screener.aktiv && !screenerGiltAlsTot()) {
+        return { gestartet: false, message: "Läuft bereits." };
+      }
+      screener.aktiv = true;
+      screener.gestartetAm = Date.now();
+
+      void (async () => {
+        try {
+          const { rechneHaeppchen } = await import("../lib/screenerLauf");
+          const { setzeLaufStatus } = await import("../lib/screenerStore");
+          const ergebnis = await rechneHaeppchen(input.laufId, input.maxTitel);
+          screener.meldungen = [
+            `Häppchen: ${ergebnis.berechnet} berechnet, ${ergebnis.fehlgeschlagen} fehlgeschlagen, ` +
+            `${ergebnis.nochOffen} noch offen.`,
+            ...ergebnis.meldungen,
+          ];
+          if (ergebnis.nochOffen === 0) {
+            await setzeLaufStatus(input.laufId, "fertig");
+            screener.meldungen.push("Alle Kandidaten berechnet.");
+          }
+        } catch (e: any) {
+          screener.meldungen.push(`Fehler beim Rechnen: ${e?.message ?? "unbekannt"}`);
+        } finally {
+          screener.aktiv = false;
+        }
+      })();
+
+      return { gestartet: true, message: "Häppchen gestartet." };
+    }),
+
+  /** Zustand + jüngster Lauf + beste Kandidaten für die Admin-Karte. */
+  screenerStatus: adminProcedure
+    .input(z.object({ topN: z.number().int().min(5).max(100).default(30) }).optional())
+    .query(async ({ input }) => {
+      const { letzterLauf, besteKandidaten } = await import("../lib/screenerStore");
+      const lauf = await letzterLauf();
+      const beste = lauf ? await besteKandidaten(lauf.id, input?.topN ?? 30) : [];
+      // Watchlist-Grösse für den Deckel-Hinweis (Ziel: max. ~500 Titel).
+      let watchlistGroesse = 0;
+      try {
+        const { getDb } = await import("../db");
+        const db = await getDb();
+        if (db) {
+          const { stocks } = await import("../../drizzle/schema");
+          const { count } = await import("drizzle-orm");
+          const res = await db.select({ cnt: count() }).from(stocks);
+          watchlistGroesse = Number(res[0]?.cnt ?? 0);
+        }
+      } catch { /* Anzeige-Detail — ohne Zahl weiterliefern */ }
+      return {
+        aktiv: screener.aktiv,
+        haengt: screenerGiltAlsTot(),
+        meldungen: screener.meldungen.slice(-12),
+        lauf,
+        beste,
+        watchlistGroesse,
+      };
+    }),
+
+  /** Entscheidung je Kandidat: in die Watchlist übernehmen oder ablehnen. */
+  screenerEntscheiden: adminProcedure
+    .input(z.object({
+      laufId: z.number().int(),
+      ticker: z.string().min(1),
+      entscheidung: z.enum(["uebernehmen", "ablehnen"]),
+    }))
+    .mutation(async ({ input }) => {
+      const { setzeEntscheidung, besteKandidaten } = await import("../lib/screenerStore");
+      if (input.entscheidung === "ablehnen") {
+        await setzeEntscheidung(input.laufId, input.ticker, "abgelehnt");
+        return { ok: true, message: `${input.ticker} abgelehnt.` };
+      }
+      const kandidaten = await besteKandidaten(input.laufId, 1000);
+      const k = kandidaten.find((x) => x.ticker === input.ticker);
+      if (!k) return { ok: false, message: "Kandidat nicht gefunden oder noch nicht berechnet." };
+      const { uebernimmKandidat } = await import("../lib/screenerLauf");
+      const ergebnis = await uebernimmKandidat({
+        ticker: k.ticker, name: k.name, sektor: k.sektor, waehrung: k.waehrung,
+        marktKap: k.marktKap, dividendenrendite: k.dividendenrendite, laufId: input.laufId,
+      });
+      if (!ergebnis.uebernommen) {
+        return { ok: false, message: ergebnis.grund ?? "Übernahme nicht möglich." };
+      }
+      await setzeEntscheidung(input.laufId, input.ticker, "uebernommen");
+      return { ok: true, message: `${input.ticker} in die Watchlist übernommen — Kurshistorie wird nachgeladen.` };
+    }),
 });
 
