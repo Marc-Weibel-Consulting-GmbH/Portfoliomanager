@@ -26,6 +26,24 @@ const EODHD_BASE_URL = "https://eodhd.com/api";
 /** Börsen des Anlageuniversums (EODHD-Exchange-Codes). */
 export const SCREENER_BOERSEN = ["us", "sw", "xetra", "pa", "lse", "as", "mi"] as const;
 
+/**
+ * Welche Exchange-Codes eine Antwort tragen darf, wenn nach dieser Börse
+ * gefragt wurde. Doppelter Boden zum Filter in der Anfrage: Beim ersten
+ * Live-Lauf ignorierte der EODHD-Screener den Börsen-Parameter und lieferte
+ * eine globale Liste — sortiert nach roher Marktkapitalisierung standen dann
+ * Vietnamesische-Dong- und Argentinische-Peso-Titel (numerisch riesig) zuoberst.
+ * Was nicht zur angefragten Börse gehört, wird deshalb hier verworfen.
+ */
+export const ERLAUBTE_EXCHANGE_CODES: Record<string, string[]> = {
+  us: ["US", "NYSE", "NASDAQ", "AMEX", "BATS"],
+  sw: ["SW", "SWX", "VX"],
+  xetra: ["XETRA", "DE", "F"],
+  pa: ["PA"],
+  lse: ["LSE", "L"],
+  as: ["AS"],
+  mi: ["MI"],
+};
+
 /** Seitengrösse des EODHD-Screeners (API-Maximum 100). */
 const SEITE = 100;
 
@@ -60,13 +78,21 @@ export async function sammleUniversum(
   const gesehen = new Map<string, RohKandidat>();
 
   for (const boerse of parameter.boersen) {
+    const erlaubt = ERLAUBTE_EXCHANGE_CODES[boerse] ?? [boerse.toUpperCase()];
     let jeBoerse = 0;
+    let fremde = 0;
     for (let offset = 0; offset < parameter.maxJeBoerse; offset += SEITE) {
-      const filters = [`market_capitalization>=${Math.round(parameter.minMarktKapMrd * 1e9)}`];
+      // Die Börse gehört als Filter-Tripel IN `filters` — ein eigener
+      // `exchange=`-Parameter wird vom Screener-Endpunkt ignoriert (so kam
+      // beim ersten Lauf die globale Liste zurück, siehe oben).
+      const filters = [
+        ["market_capitalization", ">=", Math.round(parameter.minMarktKapMrd * 1e9)],
+        ["exchange", "=", boerse],
+      ];
       const url =
         `${EODHD_BASE_URL}/screener?api_token=${apiKey}` +
         `&sort=market_capitalization.desc&limit=${SEITE}&offset=${offset}` +
-        `&exchange=${boerse}&filters_json=${encodeURIComponent(JSON.stringify(filters))}`;
+        `&filters=${encodeURIComponent(JSON.stringify(filters))}`;
       let items: any[];
       try {
         const resp = await retryFetch(url, {}, { maxRetries: 2, baseDelay: 1000 });
@@ -78,12 +104,14 @@ export async function sammleUniversum(
       }
       if (items.length === 0) break;
       for (const item of items) {
+        const exch = String(item.exchange || "").toUpperCase();
+        if (!erlaubt.includes(exch)) { fremde++; continue; }
         const ticker = tickerAusScreenerCode(item.code || "", item.exchange || boerse);
         if (!ticker || gesehen.has(ticker)) continue;
         gesehen.set(ticker, {
           ticker,
           name: item.name ?? null,
-          boerse: (item.exchange || boerse).toUpperCase(),
+          boerse: exch,
           sektor: item.sector ?? null,
           waehrung: item.currency ?? null,
           marktKap: Number.isFinite(item.market_capitalization) ? item.market_capitalization : null,
@@ -93,7 +121,19 @@ export async function sammleUniversum(
       }
       if (items.length < SEITE) break; // letzte Seite
     }
-    meldungen.push(`Börse ${boerse}: ${jeBoerse} Titel`);
+    meldungen.push(
+      `Börse ${boerse}: ${jeBoerse} Titel` +
+      (fremde > 0 ? ` (${fremde} fremde Börsen-Einträge verworfen)` : ""),
+    );
+  }
+
+  // Wenn ALLES verworfen wurde, stimmt die Anfrage nicht — das soll man sehen,
+  // statt einen leeren Lauf für ein leeres Universum zu halten.
+  if (gesehen.size === 0) {
+    throw new Error(
+      "Der EODHD-Screener lieferte keinen einzigen Titel der angefragten Börsen — " +
+      "Filterformat prüfen. Meldungen: " + meldungen.join(" | "),
+    );
   }
 
   // Bestehende Watchlist markieren — die wird vom Cron ohnehin gerechnet.
@@ -127,6 +167,20 @@ export interface RechenErgebnis {
   meldungen: string[];
 }
 
+/** Zeitlimit je Titel — ein hängender Fundamentaldaten-Abruf darf nicht das
+ *  ganze Häppchen (und damit den «aktiv»-Zustand) blockieren. */
+const TITEL_TIMEOUT_MS = 25_000;
+/** Zeitbudget je Häppchen — danach wird sauber beendet statt weitergerechnet. */
+const HAEPPCHEN_BUDGET_MS = 150_000;
+
+function mitTimeout<T>(p: Promise<T>, ms: number, was: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Zeitüberschreitung (${was}, ${ms / 1000}s)`)), ms)),
+  ]);
+}
+
 /**
  * Stufe 2: das nächste Häppchen unberechneter Kandidaten mit den drei Scores
  * bewerten. Klein halten — lange Läufe sterben (gleiches Muster wie die
@@ -138,15 +192,24 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
 
   const offen = await offeneKandidaten(laufId, maxTitel);
   const meldungen: string[] = [];
+  const start = Date.now();
   let berechnet = 0;
   let fehlgeschlagen = 0;
 
   for (const k of offen) {
+    if (Date.now() - start > HAEPPCHEN_BUDGET_MS) {
+      meldungen.push("Zeitbudget des Häppchens erreicht — Rest folgt im nächsten Durchgang.");
+      break;
+    }
     try {
-      const scores = await getDreiScores(k.ticker, {
-        sektor: k.sektor,
-        dividendenrendite: k.dividendenrendite,
-      });
+      const scores = await mitTimeout(
+        getDreiScores(k.ticker, {
+          sektor: k.sektor,
+          dividendenrendite: k.dividendenrendite,
+        }),
+        TITEL_TIMEOUT_MS,
+        k.ticker,
+      );
       await schreibeErgebnis(laufId, k.ticker, {
         status: "berechnet",
         qualitaet: scores.qualitaet.gesamt,
