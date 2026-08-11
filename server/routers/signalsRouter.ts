@@ -751,6 +751,11 @@ export const signalsRouter = router({
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) return [];
+      // Die drei Score-Spalten sind nachgetragen; ohne diesen Schritt scheitert
+      // das SELECT (Drizzle zählt alle Schema-Spalten auf), solange der
+      // tägliche Snapshot-Lauf sie noch nicht angelegt hat.
+      const { stelleSnapshotSpaltenSicher } = await import("../scheduled/scoreSnapshotScheduled");
+      await stelleSnapshotSpaltenSicher(db);
       const rows = await db
         .select()
         .from(stockScoreSnapshot)

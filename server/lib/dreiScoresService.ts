@@ -28,6 +28,8 @@ export interface DreiScores {
     score: number | null;
     /** Belegtes Timing-Gewicht 0–1, wenn bekannt. */
     abdeckung: number | null;
+    /** Faktorwerte (Momentum, RSI, …), sofern abgelegt. */
+    faktoren?: { name: string; wert: number | null; punkte: number | null; gewicht: number }[];
     hinweis: string;
   };
   /**
@@ -128,6 +130,7 @@ export async function getDreiScores(ticker: string): Promise<DreiScores> {
     timing: {
       score: null,
       abdeckung: null,
+      faktoren: [],
       hinweis: "Noch nicht berechnet — der stündliche Lauf trägt das Timing nach",
     },
     signal: { score: sig.score, label: sig.label, klartext: sig.klartext },
@@ -166,7 +169,13 @@ async function leseVorberechnet(ticker: string): Promise<DreiScores | null> {
       qualitaet: {
         gesamt: treffer.qualitaet,
         band: treffer.qualitaetBand,
-        niveau: { score: treffer.niveau, abdeckung: treffer.abdeckungNiveau, faktoren: [] },
+        // Die abgelegten Faktorwerte — der Erklaerdialog zeigt damit die
+        // Zahlen DIESES Titels, nicht nur die generische Zusammensetzung.
+        niveau: {
+          score: treffer.niveau,
+          abdeckung: treffer.abdeckungNiveau,
+          faktoren: (treffer.qualitaetFaktoren as any) ?? [],
+        },
         richtung: {
           score: treffer.richtung,
           fScore: treffer.fScore,
@@ -179,11 +188,12 @@ async function leseVorberechnet(ticker: string): Promise<DreiScores | null> {
         score: treffer.bewertung,
         band: treffer.bewertungBand,
         abdeckung: treffer.abdeckungBewertung,
-        faktoren: [],
+        faktoren: (treffer.bewertungFaktoren as any) ?? [],
       },
       timing: {
         score: treffer.timing,
         abdeckung: treffer.timingAbdeckung,
+        faktoren: (treffer.timingFaktoren as any) ?? [],
         hinweis: treffer.timing === null
           ? "Zu wenig Kurshistorie für einen Timing-Score"
           : "Momentum, RSI, 52-Wochen-Lage und Blasensignal — misst den Zeitpunkt, nicht das Unternehmen",

@@ -41,6 +41,12 @@ const NACHGETRAGENE_SPALTEN: { name: string; ddl: string }[] = [
   { name: "regime", ddl: "ADD `regime` varchar(24)" },
   { name: "signalScore", ddl: "ADD `signalScore` decimal(6,2)" },
   { name: "signalLabel", ddl: "ADD `signalLabel` varchar(16)" },
+  // Die Faktorwerte hinter den Scores. Ohne sie zeigte der Erklaerdialog nur
+  // die GENERISCHE Zusammensetzung (ROIC 25 % …), nie die Zahlen des Titels —
+  // der vorgerechnete Pfad lieferte `faktoren: []`.
+  { name: "qualitaetFaktoren", ddl: "ADD `qualitaetFaktoren` json" },
+  { name: "bewertungFaktoren", ddl: "ADD `bewertungFaktoren` json" },
+  { name: "timingFaktoren", ddl: "ADD `timingFaktoren` json" },
 ];
 
 async function stelleTabelleSicher(db: any): Promise<void> {
@@ -63,6 +69,9 @@ async function stelleTabelleSicher(db: any): Promise<void> {
     \`regime\` varchar(24),
     \`signalScore\` decimal(6,2),
     \`signalLabel\` varchar(16),
+    \`qualitaetFaktoren\` json,
+    \`bewertungFaktoren\` json,
+    \`timingFaktoren\` json,
     \`berechnetAm\` timestamp NOT NULL DEFAULT (now()),
     PRIMARY KEY (\`ticker\`)
   )`));
@@ -103,6 +112,10 @@ export interface GespeicherteScores {
   /** Das abgeleitete Signal aus `rechneSignal` — die EINE Signal-Formel. */
   signalScore: number | null;
   signalLabel: string | null;
+  /** Faktorwerte je Score (Name, Rohwert, Punkte, Gewicht, Hinweis) — für die Erklärdialoge. */
+  qualitaetFaktoren: unknown[] | null;
+  bewertungFaktoren: unknown[] | null;
+  timingFaktoren: unknown[] | null;
 }
 
 /** Non-fatal: Scheitert das Schreiben, bleibt der Signallauf unberührt. */
@@ -121,12 +134,16 @@ export async function haltefestScores(saetze: GespeicherteScores[]): Promise<{ g
         INSERT INTO stock_scores
           (ticker, qualitaet, qualitaetBand, niveau, richtung, fScore, fScoreBerechenbar,
            bewertung, bewertungBand, abdeckungNiveau, abdeckungBewertung,
-           timing, timingAbdeckung, regime, signalScore, signalLabel, berechnetAm)
+           timing, timingAbdeckung, regime, signalScore, signalLabel,
+           qualitaetFaktoren, bewertungFaktoren, timingFaktoren, berechnetAm)
         VALUES
           (${s.ticker}, ${s.qualitaet}, ${s.qualitaetBand}, ${s.niveau}, ${s.richtung},
            ${s.fScore}, ${s.fScoreBerechenbar}, ${s.bewertung}, ${s.bewertungBand},
            ${s.abdeckungNiveau}, ${s.abdeckungBewertung},
-           ${s.timing}, ${s.timingAbdeckung}, ${s.regime}, ${s.signalScore}, ${s.signalLabel}, NOW())
+           ${s.timing}, ${s.timingAbdeckung}, ${s.regime}, ${s.signalScore}, ${s.signalLabel},
+           ${s.qualitaetFaktoren ? JSON.stringify(s.qualitaetFaktoren) : null},
+           ${s.bewertungFaktoren ? JSON.stringify(s.bewertungFaktoren) : null},
+           ${s.timingFaktoren ? JSON.stringify(s.timingFaktoren) : null}, NOW())
         ON DUPLICATE KEY UPDATE
           qualitaet = VALUES(qualitaet), qualitaetBand = VALUES(qualitaetBand),
           niveau = VALUES(niveau), richtung = VALUES(richtung),
@@ -136,6 +153,9 @@ export async function haltefestScores(saetze: GespeicherteScores[]): Promise<{ g
           timing = VALUES(timing), timingAbdeckung = VALUES(timingAbdeckung),
           regime = VALUES(regime), signalScore = VALUES(signalScore),
           signalLabel = VALUES(signalLabel),
+          qualitaetFaktoren = VALUES(qualitaetFaktoren),
+          bewertungFaktoren = VALUES(bewertungFaktoren),
+          timingFaktoren = VALUES(timingFaktoren),
           berechnetAm = NOW()
       `);
       geschrieben++;
@@ -146,6 +166,18 @@ export async function haltefestScores(saetze: GespeicherteScores[]): Promise<{ g
     return { geschrieben: 0 };
   }
 }
+
+/** JSON aus der DB — je nach Treiber Objekt oder Text. */
+const leseJson = (v: unknown): unknown[] | null => {
+  if (v === null || v === undefined) return null;
+  if (Array.isArray(v)) return v;
+  try {
+    const p = JSON.parse(String(v));
+    return Array.isArray(p) ? p : null;
+  } catch {
+    return null;
+  }
+};
 
 const zahl = (v: unknown): number | null => {
   if (v === null || v === undefined) return null;
@@ -186,6 +218,9 @@ export async function leseScores(tickers: string[]): Promise<Map<string, Gespeic
         regime: r.regime ?? null,
         signalScore: zahl(r.signalScore),
         signalLabel: r.signalLabel ?? null,
+        qualitaetFaktoren: leseJson(r.qualitaetFaktoren),
+        bewertungFaktoren: leseJson(r.bewertungFaktoren),
+        timingFaktoren: leseJson(r.timingFaktoren),
       });
     }
     return leer;

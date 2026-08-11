@@ -14,6 +14,7 @@ import { TradingViewWidget, ADVANCED_CHART_CONFIG, TECHNICAL_ANALYSIS_CONFIG, CO
 import TradingViewSignalsTab from "@/components/stock/TradingViewSignalsTab";
 import StockScoringWidget from "@/components/stock/StockScoringWidget";
 import SignalSkala from "@/components/stock/SignalSkala";
+import ScoreCircle from "@/components/stock/ScoreCircle";
 import BubbleRiskCard from "@/components/stock/BubbleRiskCard";
 import AnalystConsensusCard from "@/components/stock/AnalystConsensusCard";
 import StockBriefingCard from "@/components/stock/StockBriefingCard";
@@ -31,69 +32,6 @@ import {
 } from "recharts";
 
 type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "10Y" | "YTD" | "All";
-
-// Score circle component with explanation
-function ScoreCircle({ score, onClick }: { score: number | null; onClick?: () => void }) {
-  const circumference = 2 * Math.PI * 40;
-  // `null` heisst «nicht beurteilbar» und ist etwas anderes als eine schlechte
-  // Note. Der Ring bleibt dann leer und die Mitte zeigt einen Strich.
-  const strokeDashoffset = score === null ? circumference : circumference - (score / 100) * circumference;
-  
-  // UX2-7: Farbskala deckungsgleich mit der erklärten Notenskala im
-  // Score-Dialog (>80 Ausgezeichnet · 61–80 Gut · 41–60 Mittel · ≤40 Schwach).
-  const getColor = (score: number | null) => {
-    if (score === null) return "#334155";
-    if (score > 80) return "#00CFC1";
-    if (score > 60) return "#eab308";
-    if (score > 40) return "#fb923c";
-    return "#ef4444";
-  };
-  
-  return (
-    <div 
-      className={`relative w-20 h-20 ${onClick ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-      onClick={onClick}
-      title={onClick ? "Klicken für Score-Erklärung" : ""}
-    >
-      <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-        {/* Background circle */}
-        <circle
-          cx="50"
-          cy="50"
-          r="40"
-          fill="none"
-          stroke="#1a1f2e"
-          strokeWidth="8"
-        />
-        {/* Progress circle */}
-        <circle
-          cx="50"
-          cy="50"
-          r="40"
-          fill="none"
-          stroke={getColor(score)}
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={strokeDashoffset}
-          className="transition-all duration-500"
-        />
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center">
-        {score === null ? (
-          <span className="text-xl font-bold text-gray-500" title="Zu wenige Kennzahlen für eine Beurteilung">—</span>
-        ) : (
-          <>
-            {/* Ganze Zahlen: Die Nachkommastelle suggeriert eine Genauigkeit,
-                die keine der Eingangsgrössen hergibt. */}
-            <span className="text-xl font-bold text-white">{Math.round(score)}</span>
-            <span className="text-xs text-gray-400">/100</span>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // Metric card component with rating
 function MetricCard({ label, value, suffix = "", rating }: { label: string; value: string | number; suffix?: string; rating?: "good" | "neutral" | "bad" }) {
@@ -1123,6 +1061,35 @@ export default function StockDetail() {
                 Signal.
               </p>
 
+              {dreiScores?.timing.faktoren?.length ? (
+                <div className="rounded-md border border-white/10 overflow-hidden mb-4">
+                  <p className="font-semibold text-white text-xs px-3 py-2 bg-white/5">
+                    Timing für diesen Titel — {dreiScores.timing.score !== null
+                      ? `${Math.round(dreiScores.timing.score)}/100` : "—"}
+                  </p>
+                  <table className="w-full text-xs">
+                    <tbody>
+                      {dreiScores.timing.faktoren.map((f) => (
+                        <tr key={f.name} className="border-t border-white/5">
+                          <td className="px-3 py-1.5 text-gray-300">{f.name}
+                            <span className="text-gray-600"> · {Math.round(f.gewicht * 100)}%</span>
+                          </td>
+                          <td className="px-2 py-1.5 text-right text-gray-400 font-mono">
+                            {f.wert !== null && f.wert !== undefined ? Number(f.wert).toFixed(2) : "—"}
+                          </td>
+                          <td className={`px-3 py-1.5 text-right font-mono font-semibold ${
+                            f.punkte === null ? "text-gray-600"
+                              : f.punkte >= 65 ? "text-emerald-400"
+                              : f.punkte >= 45 ? "text-yellow-400" : "text-red-400"}`}>
+                            {f.punkte !== null ? `${Math.round(f.punkte)}/100` : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+
               {/* Die alte Zusammensetzung nur noch zugeklappt: Sie entscheidet
                   nicht mehr, und offen dargestellt las sie sich wie eine
                   zweite, konkurrierende Signal-Formel. */}
@@ -1140,7 +1107,7 @@ export default function StockDetail() {
 
         {showScoreExplanation && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#0f1420] border border-[#00CFC1]/30 rounded-lg max-w-md w-full p-6 relative">
+            <div className="bg-[#0f1420] border border-[#00CFC1]/30 rounded-lg max-w-md w-full p-6 relative max-h-[85vh] overflow-y-auto">
               <button
                 onClick={() => setShowScoreExplanation(false)}
                 className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
@@ -1169,6 +1136,36 @@ export default function StockDetail() {
                   sobald allein der Kurs sich bewegt. Dividendenrendite, KGV und Momentum ändern sich
                   mit dem Kurs — sie stehen deshalb bei der Bewertung beziehungsweise beim Signal.
                 </p>
+
+                {dreiScores?.qualitaet.niveau.faktoren?.length ? (
+                  <div className="rounded-md border border-white/10 overflow-hidden">
+                    <p className="font-semibold text-white text-xs px-3 py-2 bg-white/5">
+                      Für diesen Titel — Niveau {dreiScores.qualitaet.niveau.score !== null
+                        ? Math.round(dreiScores.qualitaet.niveau.score) : "—"}/100 ·
+                      F-Score {dreiScores.qualitaet.richtung.fScore}/9
+                    </p>
+                    <table className="w-full text-xs">
+                      <tbody>
+                        {dreiScores.qualitaet.niveau.faktoren.map((f: any) => (
+                          <tr key={f.name} className="border-t border-white/5">
+                            <td className="px-3 py-1.5 text-gray-300">{f.name}
+                              <span className="text-gray-600"> · {Math.round(f.gewicht * 100)}%</span>
+                            </td>
+                            <td className="px-2 py-1.5 text-right text-gray-400 font-mono">
+                              {f.wert !== null && f.wert !== undefined ? Number(f.wert).toFixed(1) : "—"}
+                            </td>
+                            <td className={`px-3 py-1.5 text-right font-mono font-semibold ${
+                              f.punkte === null ? "text-gray-600"
+                                : f.punkte >= 65 ? "text-emerald-400"
+                                : f.punkte >= 45 ? "text-yellow-400" : "text-red-400"}`}>
+                              {f.punkte !== null ? `${Math.round(f.punkte)}/100` : "—"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : null}
 
                 <div>
                   <p className="font-semibold text-white mb-1">Niveau — 60 %: Ist das Geschäft gut?</p>

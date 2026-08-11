@@ -24,6 +24,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+// Dieselbe Score-Darstellung wie im Kopf der Titelansicht (drei Kreise + Skala).
+import ScoreCircle from "@/components/stock/ScoreCircle";
+import SignalSkala from "@/components/stock/SignalSkala";
 import {
   Select,
   SelectContent,
@@ -738,32 +741,62 @@ function ScoreHistorySparkline({ ticker }: { ticker: string }) {
     );
   }
 
-  const chartData = history.map((row) => ({
+  // Die drei Scores plus das abgeleitete Signal — dieselben Reihen wie auf der
+  // Titelseite. Der alte schmale Einzelscore (`qualityScore`) wird nicht mehr
+  // geplottet: er stand hier fälschlich als «Qualität» im Chart. Ältere
+  // Snapshot-Zeilen tragen die drei Scores noch nicht — dort bleiben die
+  // Linien einfach leer.
+  const chartData = history.map((row: any) => ({
     date: row.snapshotDate,
-    qualität: row.qualityScore ?? null,
+    qualitaet: row.qualitaet ?? null,
+    bewertung: row.bewertung ?? null,
+    timing: row.timing ?? null,
     signal: row.combinedScore ?? null,
   }));
+  // Y-Achse auf den Datenbereich statt fix 0–100 — bei fixer Skala waren
+  // Bewegungen von wenigen Punkten kaum sichtbar.
+  const alleWerte = chartData.flatMap((r) => [r.qualitaet, r.bewertung, r.timing, r.signal]).filter((v): v is number => v != null);
+  const yMin = alleWerte.length ? Math.max(0, Math.floor((Math.min(...alleWerte) - 3) / 5) * 5) : 0;
+  const yMax = alleWerte.length ? Math.min(100, Math.ceil((Math.max(...alleWerte) + 3) / 5) * 5) : 100;
+
+  const LINIEN: Array<{ key: string; name: string; farbe: string; breite: number }> = [
+    { key: 'qualitaet', name: 'Qualität', farbe: '#00CFC1', breite: 1.5 },
+    { key: 'bewertung', name: 'Bewertung', farbe: '#a78bfa', breite: 1.5 },
+    { key: 'timing', name: 'Timing', farbe: '#60a5fa', breite: 1.5 },
+    { key: 'signal', name: 'Signal', farbe: '#f59e0b', breite: 2 },
+  ];
 
   return (
     <div className="mt-3 bg-[#0f1420] border border-white/10 rounded-lg p-3">
       <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Score-Verlauf ({history.length} Tage)</p>
-      <ResponsiveContainer width="100%" height={80}>
-        <LineChart data={chartData} margin={{ top: 2, right: 4, left: -30, bottom: 0 }}>
-          <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#6b7280' }} tickFormatter={(v) => v.slice(5)} />
-          <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#6b7280' }} />
-          <Tooltip
-            contentStyle={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 11 }}
-            labelStyle={{ color: '#9ca3af' }}
-            formatter={(value: any, name: string) => [value !== null ? `${value}/100` : '–', name === 'qualität' ? 'Qualität' : 'Signal']}
-          />
-          <Line type="monotone" dataKey="qualität" stroke="#00CFC1" strokeWidth={1.5} dot={false} connectNulls />
-          <Line type="monotone" dataKey="signal" stroke="#f59e0b" strokeWidth={1.5} dot={false} connectNulls />
-        </LineChart>
-      </ResponsiveContainer>
-      <div className="flex gap-4 mt-1">
-        <span className="flex items-center gap-1 text-xs text-gray-400"><span className="inline-block w-3 h-0.5 bg-[#00CFC1]"></span>Qualität</span>
-        <span className="flex items-center gap-1 text-xs text-gray-400"><span className="inline-block w-3 h-0.5 bg-amber-400"></span>Signal</span>
+      <div className="max-w-md">
+        <ResponsiveContainer width="100%" height={180}>
+          <LineChart data={chartData} margin={{ top: 2, right: 4, left: -25, bottom: 0 }}>
+            <XAxis dataKey="date" tick={{ fontSize: 9, fill: '#6b7280' }} tickFormatter={(v) => v.slice(5)} />
+            <YAxis domain={[yMin, yMax]} tick={{ fontSize: 9, fill: '#6b7280' }} />
+            <Tooltip
+              contentStyle={{ background: '#0f1420', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, fontSize: 11 }}
+              labelStyle={{ color: '#9ca3af' }}
+              formatter={(value: any, name: string) => [value !== null ? `${value}/100` : '–', LINIEN.find((l) => l.key === name)?.name ?? name]}
+            />
+            {LINIEN.map((l) => (
+              <Line key={l.key} type="monotone" dataKey={l.key} stroke={l.farbe} strokeWidth={l.breite} dot={false} connectNulls />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
       </div>
+      <div className="flex gap-4 mt-1 flex-wrap">
+        {LINIEN.map((l) => (
+          <span key={l.key} className="flex items-center gap-1 text-xs text-gray-400">
+            <span className="inline-block w-3 h-0.5" style={{ background: l.farbe }}></span>{l.name}
+          </span>
+        ))}
+      </div>
+      {chartData.every((r) => r.qualitaet == null && r.bewertung == null && r.timing == null) && (
+        <p className="text-[10px] text-gray-500 mt-1.5">
+          Qualität, Bewertung und Timing werden seit der Umstellung täglich mitgeschrieben — die Linien füllen sich ab jetzt Tag für Tag.
+        </p>
+      )}
     </div>
   );
 }
@@ -2156,7 +2189,7 @@ export default function PortfolioDetailsPage() {
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="YTD = seit Jahresbeginn" onClick={() => handleSort('ytd')}>
                         <span className={sortKey === 'ytd' ? 'text-[#00CFC1]' : 'text-gray-400'}>YTD {sortKey === 'ytd' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Bisheriger Einzelscore aus P/E, PEG, Beta, Volatilität und Sharpe — er mischt Bewertung und Kursrisiko. Auf der Titelseite stehen Qualität und Bewertung inzwischen getrennt; diese Spalte folgt. «—» heisst: zu wenige Kennzahlen für eine Beurteilung. Klicken zum Sortieren." onClick={() => handleSort('qualityScore')}>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Bewertungs-Score 0–100 aus dem Drei-Score-Konzept — wie günstig der Titel im Verhältnis zu Gewinn, Wachstum und Substanz bewertet ist; derselbe Wert wie auf der Titelseite. Für Obligationen, Gold, Rohstoffe und Krypto steht hier der technische Einzelscore. «—» heisst: zu wenige Kennzahlen für eine Beurteilung. Klicken zum Sortieren." onClick={() => handleSort('qualityScore')}>
                         <span className={sortKey === 'qualityScore' ? 'text-[#00CFC1]' : 'text-gray-400'}>Bewertung {sortKey === 'qualityScore' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Signal-Score 0–100 aus Qualität, Bewertung und Timing, gewichtet nach Marktlage — klicken zum Sortieren" onClick={() => handleSort('signalScore')}>
@@ -2196,8 +2229,10 @@ export default function PortfolioDetailsPage() {
                           if (!Number.isFinite(aVal)) aVal = sortDir === 'desc' ? -Infinity : Infinity;
                           if (!Number.isFinite(bVal)) bVal = sortDir === 'desc' ? -Infinity : Infinity;
                         } else if (sortKey === 'qualityScore') {
-                          aVal = a.qualityScore ?? -1;
-                          bVal = b.qualityScore ?? -1;
+                          // Neuer Bewertungs-Score; alter Einzelscore nur als
+                          // Rückfall für Titel ohne drei Scores (Nicht-Aktien).
+                          aVal = signalMap.get(a.ticker)?.bewertung ?? a.qualityScore ?? -1;
+                          bVal = signalMap.get(b.ticker)?.bewertung ?? b.qualityScore ?? -1;
                         } else if (sortKey === 'signalScore') {
                           aVal = signalMap.get(a.ticker)?.combinedScore ?? -1;
                           bVal = signalMap.get(b.ticker)?.combinedScore ?? -1;
@@ -2245,7 +2280,11 @@ export default function PortfolioDetailsPage() {
                           : (parseFloat(h.shares || '0') * (h.currentPriceCHF || 0));
                         const isExpanded = expandedTicker === h.ticker;
                         const sig = signalMap.get(h.ticker);
-                        const qualScore = h.qualityScore ?? null;
+                        // Spalte «Bewertung»: für Aktien der Bewertungs-Score aus dem
+                        // Drei-Score-Konzept (wie auf der Titelseite); für Nicht-Aktien
+                        // weiterhin der technische Einzelscore — dafür gibt es keine
+                        // drei Scores.
+                        const qualScore = isNonEquity ? (h.qualityScore ?? null) : (sig?.bewertung ?? null);
                         const signalScore = sig?.combinedScore ?? null;
                         const qualColor = qualScore === null ? 'text-gray-500' : qualScore >= 70 ? 'text-emerald-400' : qualScore >= 50 ? 'text-[#00CFC1]' : qualScore >= 35 ? 'text-yellow-400' : 'text-red-400';
                         const sigColor = signalScore === null ? 'text-gray-500' : signalScore >= 70 ? 'text-emerald-400' : signalScore >= 55 ? 'text-[#00CFC1]' : signalScore >= 45 ? 'text-yellow-400' : 'text-red-400';
@@ -2426,7 +2465,35 @@ export default function PortfolioDetailsPage() {
                                   <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
                                     <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Scores & Signal</h4>
 
-                                    {/* Haupt-Scores: Bewertung + Signal nebeneinander */}
+                                    {/* Aktien: dieselbe Darstellung wie im Kopf der Titelansicht —
+                                        drei Kreise für die Messungen, darunter das ABGELEITETE
+                                        Signal als Skala (STRATEGIE_DREI_SCORES.md §3). */}
+                                    {!isNonEquity ? (
+                                      <div>
+                                        <div className="flex items-start justify-around mb-4">
+                                          {([
+                                            ['Qualität', sig?.qualitaet],
+                                            ['Bewertung', sig?.bewertung],
+                                            ['Timing', sig?.timing],
+                                          ] as [string, number | null | undefined][]).map(([name, wert]) => (
+                                            <div key={name} className="flex flex-col items-center gap-1">
+                                              <ScoreCircle score={wert ?? null} size="sm" />
+                                              <span className="text-[10px] text-gray-400">{name}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                        <SignalSkala score={sig?.combinedScore ?? null} label={sig?.combinedSignal ?? null} />
+                                        {sig && sig.qualitaet == null && sig.bewertung == null && (
+                                          <p className="text-[10px] text-gray-500 mt-2">
+                                            Scores noch nicht berechnet — der stündliche Lauf trägt sie nach.
+                                          </p>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <>
+                                    {/* Nicht-Aktien (Obligationen, Gold, Rohstoffe, Krypto, Immobilien):
+                                        technischer Score + Signal wie bisher — das Drei-Score-Konzept
+                                        gilt nur für Aktien. */}
                                     <div className="grid grid-cols-2 gap-3 mb-3">
                                       <div className="bg-[#0a0f1a] rounded-md p-2.5">
                                         <div className="flex items-center gap-1.5 mb-1">
@@ -2480,60 +2547,26 @@ export default function PortfolioDetailsPage() {
                                       </div>
                                     </div>
 
-                                    {/* Signal-Typ + Komponenten */}
+                                    {/* Signal-Typ + Stärke (nur Nicht-Aktien — bei Aktien zeigt die Skala die Zone) */}
                                     {sig && (
-                                      <div className="space-y-2">
-                                        <div className="flex items-center justify-between">
-                                          <div>
-                                            <p className="text-xs text-gray-400 mb-0.5">Signal-Typ</p>
-                                            <Badge className={`text-xs ${
-                                              sig.type === 'buy' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                                              sig.type === 'sell' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                                              'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                                            }`}>
-                                              {sig.type === 'buy' ? 'Kaufen' : sig.type === 'sell' ? 'Verkaufen' : 'Halten'}
-                                            </Badge>
-                                          </div>
-                                          <div className="text-right">
-                                            <p className="text-xs text-gray-400 mb-0.5">Stärke</p>
-                                            <p className="text-xs text-white">{sig.strength === 'strong' ? 'Stark' : sig.strength === 'moderate' ? 'Mittel' : 'Schwach'}</p>
-                                          </div>
+                                      <div className="flex items-center justify-between">
+                                        <div>
+                                          <p className="text-xs text-gray-400 mb-0.5">Signal-Typ</p>
+                                          <Badge className={`text-xs ${
+                                            sig.type === 'buy' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                            sig.type === 'sell' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                                            'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                                          }`}>
+                                            {sig.type === 'buy' ? 'Kaufen' : sig.type === 'sell' ? 'Verkaufen' : 'Halten'}
+                                          </Badge>
                                         </div>
-
-                                        {/* Komponenten-Breakdown — standardmässig eingeklappt (Details-Toggle) */}
-                                        <details className="border-t border-white/5 pt-2 group">
-                                          <summary className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5 cursor-pointer hover:text-gray-300 flex items-center gap-1 list-none select-none [&::-webkit-details-marker]:hidden">
-                                            <ChevronDown className="h-3 w-3 -rotate-90 group-open:rotate-0 transition-transform" />
-                                            Score-Komponenten
-                                          </summary>
-                                          <div className="grid grid-cols-3 gap-1.5">
-                                            {/* Die drei Scores, aus denen das Signal entsteht —
-                                                dieselben Werte wie im Kopf der Titelansicht.
-                                                Momentum, RSI usw. stecken im Timing; sie hier
-                                                zusätzlich zu zeigen hiesse, die alten Komponenten
-                                                als zweite Signal-Formel auszustellen. */}
-                                            {([
-                                              ['Qualität', (sig as any).qualitaet],
-                                              ['Bewertung', (sig as any).bewertung],
-                                              ['Timing', (sig as any).timing],
-                                            ] as [string, number | null | undefined][]).map(([name, wert]) => (
-                                              <div key={name} className="flex items-center justify-between bg-[#0a0f1a] rounded px-2 py-1">
-                                                <span className="text-[10px] text-gray-400">{name}</span>
-                                                {wert != null ? (
-                                                  <span className={`text-xs font-mono font-semibold ${
-                                                    wert >= 65 ? 'text-emerald-400' : wert >= 45 ? 'text-yellow-400' : 'text-red-400'
-                                                  }`}>{Math.round(wert)}/100</span>
-                                                ) : <span className="text-xs text-gray-500">—</span>}
-                                              </div>
-                                            ))}
-                                          </div>
-                                          {(sig as any).qualitaet == null && (sig as any).bewertung == null && (
-                                            <p className="text-[10px] text-gray-500 mt-1.5">
-                                              Scores noch nicht berechnet — der stündliche Lauf trägt sie nach.
-                                            </p>
-                                          )}
-                                        </details>
+                                        <div className="text-right">
+                                          <p className="text-xs text-gray-400 mb-0.5">Stärke</p>
+                                          <p className="text-xs text-white">{sig.strength === 'strong' ? 'Stark' : sig.strength === 'moderate' ? 'Mittel' : 'Schwach'}</p>
+                                        </div>
                                       </div>
+                                    )}
+                                      </>
                                     )}
                                   </div>
                                   {/* Fundamentals Panel — ACS-1: asset-class-aware metrics */}
