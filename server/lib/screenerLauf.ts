@@ -180,8 +180,54 @@ export async function sammleUniversum(
 export interface RechenErgebnis {
   berechnet: number;
   fehlgeschlagen: number;
+  zweitkotierungen: number;
   nochOffen: number;
   meldungen: string[];
+}
+
+/**
+ * Ticker auf eine vergleichbare Form bringen (Suffix-Aliasse der EODHD-Welt:
+ * XETRA≙DE, LSE≙L, SWX≙SW; US-Ticker tragen bei uns kein Suffix).
+ */
+export function vergleichsTicker(t: string): string {
+  const up = (t || "").trim().toUpperCase();
+  const punkt = up.lastIndexOf(".");
+  const [code, suffix] = punkt > 0 ? [up.slice(0, punkt), up.slice(punkt + 1)] : [up, "US"];
+  const s = suffix === "XETRA" ? "DE" : suffix === "LSE" ? "L" : suffix === "SWX" ? "SW" : suffix;
+  return `${code}.${s}`;
+}
+
+/** Börsen-Suffixe (normalisiert), die zu unserem Universum gehören. */
+const UNIVERSUM_SUFFIXE = new Set(["US", "SW", "DE", "PA", "L", "AS", "MI"]);
+
+/**
+ * Hauptkotierung eines Titels laut EODHD (`General::PrimaryTicker`), z. B.
+ * NVDA.SW → NVDA.US. `null` wenn unbekannt.
+ */
+async function hauptkotierung(ticker: string): Promise<string | null> {
+  if (!ENV.eodhdApiKey) return null;
+  const symbol = ticker.includes(".") ? ticker : `${ticker}.US`;
+  const url = `${EODHD_BASE_URL}/fundamentals/${encodeURIComponent(symbol)}` +
+    `?api_token=${ENV.eodhdApiKey}&filter=General::PrimaryTicker&fmt=json`;
+  const resp = await retryFetch(url, {}, { maxRetries: 1, baseDelay: 500 });
+  const data: unknown = await resp.json();
+  return typeof data === "string" && data.trim() ? data.trim().toUpperCase() : null;
+}
+
+/**
+ * Ist der Kandidat eine Zweitkotierung, deren Hauptbörse SELBST in unserem
+ * Universum liegt? Dann gehört das Original in die Watchlist, nicht das
+ * Duplikat (NVDA.SW → NVDA). Liegt die Hauptbörse ausserhalb (z. B. Tokio),
+ * bleibt der Kandidat zulässig — ein ADR ist dann die zugängliche Kotierung.
+ */
+export function istVerzichtbareZweitkotierung(ticker: string, primaer: string | null): { ja: boolean; hauptboerse?: string } {
+  if (!primaer) return { ja: false };
+  const kandidat = vergleichsTicker(ticker);
+  const haupt = vergleichsTicker(primaer);
+  if (kandidat === haupt) return { ja: false };
+  const hauptSuffix = haupt.slice(haupt.lastIndexOf(".") + 1);
+  if (!UNIVERSUM_SUFFIXE.has(hauptSuffix)) return { ja: false };
+  return { ja: true, hauptboerse: haupt };
 }
 
 /** Zeitlimit je Titel — ein hängender Fundamentaldaten-Abruf darf nicht das
@@ -212,6 +258,7 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
   const start = Date.now();
   let berechnet = 0;
   let fehlgeschlagen = 0;
+  let zweitkotierungen = 0;
 
   for (const k of offen) {
     if (Date.now() - start > HAEPPCHEN_BUDGET_MS) {
@@ -219,6 +266,21 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
       break;
     }
     try {
+      // Pro Titel nur der Hauptbörsenplatz: Zweitkotierungen, deren Original
+      // selbst in unserem Universum liegt, werden aussortiert statt bewertet.
+      // Scheitert die Abfrage, wird normal weitergerechnet — lieber ein
+      // Duplikat zu viel im Vorschlag als ein Titel grundlos verworfen.
+      const primaer = await mitTimeout(hauptkotierung(k.ticker), TITEL_TIMEOUT_MS, `${k.ticker} Hauptkotierung`)
+        .catch(() => null);
+      const zweit = istVerzichtbareZweitkotierung(k.ticker, primaer);
+      if (zweit.ja) {
+        await schreibeErgebnis(laufId, k.ticker, {
+          status: "zweitkotierung",
+          fehler: `Hauptbörse: ${zweit.hauptboerse}`,
+        });
+        zweitkotierungen++;
+        continue;
+      }
       const scores = await mitTimeout(
         getDreiScores(k.ticker, {
           sektor: k.sektor,
@@ -250,7 +312,7 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
   const nochOffen = (await offeneKandidaten(laufId, 1)).length > 0
     ? (await zaehleOffene(laufId))
     : 0;
-  return { berechnet, fehlgeschlagen, nochOffen, meldungen: meldungen.slice(0, 10) };
+  return { berechnet, fehlgeschlagen, zweitkotierungen, nochOffen, meldungen: meldungen.slice(0, 10) };
 }
 
 async function zaehleOffene(laufId: number): Promise<number> {

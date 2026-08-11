@@ -3330,7 +3330,7 @@ export const adminRouter = router({
           const ergebnis = await rechneHaeppchen(input.laufId, input.maxTitel);
           screener.meldungen = [
             `Häppchen: ${ergebnis.berechnet} berechnet, ${ergebnis.fehlgeschlagen} fehlgeschlagen, ` +
-            `${ergebnis.nochOffen} noch offen.`,
+            `${ergebnis.zweitkotierungen} Zweitkotierungen aussortiert, ${ergebnis.nochOffen} noch offen.`,
             ...ergebnis.meldungen,
           ];
           if (ergebnis.nochOffen === 0) {

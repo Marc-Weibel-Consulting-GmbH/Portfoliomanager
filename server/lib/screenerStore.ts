@@ -168,7 +168,7 @@ export async function schreibeErgebnis(
   laufId: number,
   ticker: string,
   ergebnis: {
-    status: "berechnet" | "fehler";
+    status: "berechnet" | "fehler" | "zweitkotierung";
     qualitaet?: number | null;
     bewertung?: number | null;
     signalScore?: number | null;
@@ -212,6 +212,8 @@ export interface LaufUebersicht {
   wartend: number;
   berechnet: number;
   fehlgeschlagen: number;
+  /** Aussortierte Zweitkotierungen (Hauptbörse liegt selbst im Universum). */
+  zweitkotierungen: number;
   vorhanden: number;
   uebernommen: number;
   abgelehnt: number;
@@ -240,6 +242,7 @@ export async function letzterLauf(): Promise<LaufUebersicht | null> {
     wartend: zaehler["wartend"] ?? 0,
     berechnet: zaehler["berechnet"] ?? 0,
     fehlgeschlagen: zaehler["fehler"] ?? 0,
+    zweitkotierungen: zaehler["zweitkotierung"] ?? 0,
     vorhanden: zaehler["vorhanden"] ?? 0,
     uebernommen: zaehler["uebernommen"] ?? 0,
     abgelehnt: zaehler["abgelehnt"] ?? 0,

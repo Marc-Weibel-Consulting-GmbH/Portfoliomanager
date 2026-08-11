@@ -630,6 +630,9 @@ export default function AdminDashboard() {
               {(screenerStatusQ.data.lauf?.fehlgeschlagen ?? 0) > 0
                 ? ` ${screenerStatusQ.data.lauf!.fehlgeschlagen} Titel ohne berechenbaren Score (fehlende Fundamentaldaten).`
                 : ""}
+              {(screenerStatusQ.data.lauf?.zweitkotierungen ?? 0) > 0
+                ? ` ${screenerStatusQ.data.lauf!.zweitkotierungen} Zweitkotierungen aussortiert (nur der Hauptbörsenplatz zählt).`
+                : ""}
             </p>
           )}
 
