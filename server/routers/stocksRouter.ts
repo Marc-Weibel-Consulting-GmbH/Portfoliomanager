@@ -199,22 +199,64 @@ export const stocksRouter = router({
         const price = num(stock.currentPrice);
         const hi = num(stock.week52High);
         const lo = num(stock.week52Low);
+        const heute = new Date().toISOString().slice(0, 10);
+
+        // Ein Termin in der Vergangenheit ist KEIN «nächster Katalysator».
+        // EODHD liefert teils veraltete Trend-Daten; ungefiltert stand dann
+        // «Nächste Zahlen: 2024-09-30» im Briefing, und das Modell erklärte
+        // umständlich, der Termin sei nicht relevant. Weglassen statt erklären.
+        const terminGueltig = insights.nextEarningsDate !== null && insights.nextEarningsDate >= heute;
+        const earnings = {
+          ...insights,
+          nextEarningsDate: terminGueltig ? insights.nextEarningsDate : null,
+          nextEpsEstimate: terminGueltig ? insights.nextEpsEstimate : null,
+          nextRevenueEstimate: terminGueltig ? insights.nextRevenueEstimate : null,
+        };
+
+        // Die drei Scores und das Signal aus derselben Quelle wie die Seite —
+        // `stocks.signalScore` war der ALTE Score und widersprach der Anzeige
+        // daneben (Briefing «50 neutral», Seite «Halten · 55»).
+        let scores: { qualitaet: number | null; bewertung: number | null; timing: number | null;
+                      signalScore: number | null; signalLabel: string | null } | null = null;
+        try {
+          const { leseScores } = await import("../lib/dreiScoresStore");
+          const a = (await leseScores([input.ticker])).get(input.ticker);
+          if (a) scores = { qualitaet: a.qualitaet, bewertung: a.bewertung, timing: a.timing,
+                            signalScore: a.signalScore, signalLabel: a.signalLabel };
+        } catch { /* ohne Ablage bleibt scores null — der Punkt entfällt im Text */ }
+
+        // Analysten-Zahlen vorrechnen, statt sie dem Modell als Rohdaten zu
+        // ueberlassen: Das Kursziel-Potenzial stand sonst mal gar nicht, mal
+        // falsch gerundet im Text.
+        const kursziel = insights.analyst?.targetPrice ?? null;
+        const potenzialPct = kursziel !== null && price ? Math.round(((kursziel - price) / price) * 1000) / 10 : null;
+
         const data = {
           name: stock.companyName, ticker: stock.ticker, sector: stock.sector, currency: stock.currency,
           price, week52High: hi, week52Low: lo,
           nearHighPct: price != null && hi ? Math.round((price / hi) * 100) : null,
           peRatio: num(stock.peRatio), pegRatio: num(stock.pegRatio), dividendYieldPct: num(stock.dividendYield),
           beta: num(stock.beta), ytdPct: num(stock.ytdPerformance),
-          signalScore: stock.signalScore ?? null, signal: stock.signalType ?? null,
+          scores,
           moat: [stock.moat1, stock.moat2, stock.moat3].filter(Boolean),
-          today: new Date().toISOString().slice(0, 10),
-          earnings: insights,
+          today: heute,
+          earnings,
+          kursziel, potenzialPct,
         };
 
         const models = await getProposalModelConfig();
         const { result } = await invokeProposalAgent(models.text, {
-          system: "Du bist ein erfahrener Schweizer Aktienanalyst. Du gibst Privatanlegern 50+ eine EHRLICHE, ausgewogene Einschätzung zu einer Einzelaktie — verständlich, aber fundiert. Du entscheidest NICHT für den Anleger, sondern lieferst das Bild und die Abwägung. Antworte immer auf Deutsch.",
-          user: `Erstelle ein kompaktes Aktien-Briefing zu ${data.name} (${data.ticker}), ca. 160-230 Wörter, in klaren kurzen Absätzen mit diesen Punkten — nutze NUR die gelieferten Daten, erfinde keine Zahlen; fehlt ein Wert, lass ihn weg:\n1. Kurs & Bewertung: aktueller Kurs, Nähe zum 52-Wochen-Hoch/Tief, ob eher günstig oder teuer (KGV/PEG/Dividende).\n2. Qualität: Geschäftsmodell/Burggraben, Signal-Einschätzung.\n3. Earnings-Trackrecord: wie oft in den letzten Quartalen die Erwartungen geschlagen wurden (Beats/Misses, grösste Surprise).\n4. Nächster Katalysator: falls ein Earnings-Termin bekannt ist, nenne ihn samt Konsens (EPS/Umsatz) und weise auf das Event-Risk hin (Kurssprung möglich), besonders wenn der Termin nahe am heutigen Datum (${data.today}) liegt.\n5. Analysten-Stimmung: Kursziel vs. aktueller Kurs (Auf-/Abwärtspotenzial in %), Rating-Verteilung.\n6. Zum Schluss eine klare Abwägung: 2-3 Punkte dafür (✅) und 2-3 dagegen (⚠️).\nSchliesse mit einem Satz, dass die Entscheidung beim Anleger liegt.\n\nDaten:\n${JSON.stringify(data)}`,
+          system: [
+            "Du bist ein erfahrener Schweizer Aktienanalyst und schreibst für Privatanleger 50+ auf dem sprachlichen Niveau des Wirtschaftsteils der NZZ: präzises, natürliches Deutsch, kurze Sätze, keine Anglizismen (nicht «switching costs», sondern «Wechselkosten»).",
+            "EHRLICH und ausgewogen — du entscheidest nicht für den Anleger, du lieferst das Bild.",
+            "Eiserne Regeln:",
+            "- Nutze NUR gelieferte Daten. Erfinde keine Zahlen.",
+            "- Fehlt ein Wert, LASS DEN PUNKT KOMMENTARLOS WEG. Niemals über fehlende Daten klagen («Leider fehlen…», «Ohne genaue Ziele ist es schwierig…») — das ist Füllstoff.",
+            "- Keine Schlussfloskel wie «Die Entscheidung liegt beim Anleger» — dieser Hinweis steht bereits unter dem Briefing.",
+            "- Deute jede Zahl nur EINMAL und widerspruchsfrei (ein PEG ist nicht erst «weder günstig noch teuer» und später «relativ hoch»).",
+            "- Erwähne einen Earnings-Termin nur, wenn das Feld nextEarningsDate belegt ist.",
+          ].join("\n"),
+          user: `Erstelle ein kompaktes Aktien-Briefing zu ${data.name} (${data.ticker}), ca. 160-220 Wörter, in klaren kurzen Absätzen:\n1. Kurs & Bewertung: aktueller Kurs, Nähe zum 52-Wochen-Hoch/Tief, Einordnung über KGV/PEG/Dividende — mit EINER klaren Aussage, ob eher günstig, fair oder teuer.\n2. Qualität & Signal: Geschäftsmodell/Burggraben; die drei Scores (Qualität/Bewertung/Timing, je 0-100) und das daraus abgeleitete Signal (signalLabel), sofern in \u00abscores\u00bb belegt.\n3. Earnings-Trackrecord: Beats/Misses der letzten Quartale, grösste Überraschung.\n4. Nächster Termin: NUR falls nextEarningsDate belegt ist — Datum, Konsens (EPS/Umsatz), Hinweis auf mögliche Kursreaktion.\n5. Analysten: Kursziel ${data.kursziel ?? "—"} gegen Kurs (Potenzial ${data.potenzialPct ?? "—"} %), Rating-Verteilung — sofern belegt.\n6. Abwägung: 2-3 Punkte dafür (✅), 2-3 dagegen (⚠️) — konkret, keine Datenverfügbarkeit als Contra-Punkt.\n\nDaten:\n${JSON.stringify(data)}`,
           schema: { name: "stock_briefing", strict: true, schema: { type: "object", properties: { briefing: { type: "string" } }, required: ["briefing"], additionalProperties: false } },
           maxTokens: 1600,
         });
