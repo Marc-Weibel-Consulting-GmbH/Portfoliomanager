@@ -144,7 +144,12 @@ export default function StockBriefingCard({ ticker }: { ticker: string }) {
                 {data.earnings.beatCount}/{data.earnings.surprises.length} Quartale übertroffen
               </span>
             )}
-            {data?.earnings?.nextEarningsDate && (
+            {/* Nur ein KUENFTIGER Termin ist «Nächste Zahlen» — EODHD liefert
+                teils veraltete Trend-Daten; der Server filtert seit dem
+                Briefing-Umbau, dieser Guard schuetzt zusaetzlich gecachte
+                Antworten von davor. */}
+            {data?.earnings?.nextEarningsDate
+              && data.earnings.nextEarningsDate >= new Date().toISOString().slice(0, 10) && (
               <span className="inline-flex items-center gap-1 text-xs rounded-md bg-amber-500/10 text-amber-300 px-2 py-1">
                 <CalendarClock className="h-3.5 w-3.5" />
                 Nächste Zahlen: {data.earnings.nextEarningsDate}
