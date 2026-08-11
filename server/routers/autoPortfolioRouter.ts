@@ -262,16 +262,23 @@ export const autoPortfolioRouter = router({
         .select({
           ticker: stockSignalCache.ticker,
           combinedScore: stockSignalCache.combinedScore,
+          signalType: stockSignalCache.signalType,
           updatedAt: stockSignalCache.updatedAt,
         })
         .from(stockSignalCache)
         .where(inArray(stockSignalCache.ticker, universeTickers));
       const CACHE_MAX_AGE_MS = 48 * 60 * 60 * 1000;
       const cacheScoreMap = new Map<string, number>();
+      // Kauf-/Halten-Badge aus derselben Quelle wie der Score: Der Cache trägt
+      // seit der Umstellung das Drei-Score-Signal. `stocks.signalType` dagegen
+      // schreibt weiterhin der alte `calcSignalScore`-Refresh — die Badges im
+      // Vorschlag konnten dadurch der Titelseite widersprechen.
+      const cacheSignalMap = new Map<string, string>();
       for (const r of cacheRows) {
         const score = r.combinedScore != null ? parseFloat(String(r.combinedScore)) : NaN;
         const fresh = r.updatedAt instanceof Date ? Date.now() - r.updatedAt.getTime() < CACHE_MAX_AGE_MS : true;
         if (Number.isFinite(score) && fresh) cacheScoreMap.set(r.ticker.toUpperCase(), score);
+        if (r.signalType && fresh) cacheSignalMap.set(r.ticker.toUpperCase(), r.signalType);
       }
       let cacheFallbackCount = 0;
       console.log(`[buildProposal] signal cache scores: ${cacheScoreMap.size}/${universeTickers.length} frisch`);
@@ -283,7 +290,7 @@ export const autoPortfolioRouter = router({
           const cachedCombined = cacheScoreMap.get(s.ticker.toUpperCase());
           if (cachedCombined === undefined) cacheFallbackCount++;
           const rawScore = cachedCombined ?? wl?.signalScore ?? s.signalScore ?? 50;
-          const signalType = wl?.signalType ?? s.signalType ?? "hold";
+          const signalType = cacheSignalMap.get(s.ticker.toUpperCase()) ?? wl?.signalType ?? s.signalType ?? "hold";
           // Normalize signal to uppercase for consistency
           const signal = signalType === "buy" ? "BUY" : signalType === "sell" ? "SELL" : "HOLD";
           // Derive momentum/quality grades from score ranges
@@ -560,12 +567,21 @@ export const autoPortfolioRouter = router({
       let weightingEngine: "exact" | "random_search" | "analytic" | null = null;
       // Erwartete Kennzahlen des optimierten Vorschlags (vorher weggeworfen —
       // der Kunde sah einen Vorschlag ohne «was darf ich erwarten?»).
-      let proposalMetrics: { expectedReturnPct: number; volatilityPct: number; sharpe: number } | null = null;
+      let proposalMetrics: {
+        expectedReturnPct: number; volatilityPct: number; sharpe: number;
+        basisJahreMedian?: number; basisJahreMin?: number;
+      } | null = null;
       try {
         const { optimizePortfolio } = await import("../analytics/engine");
         const opt = await optimizePortfolio({
           tickers: selectedTickers,
           method,
+          // «~22 % Rendite p.a.» aus nur einem Jahr Kurshistorie ist keine
+          // vernünftige Jahresrendite — ein starkes Einzeljahr wird zur
+          // Dauererwartung hochgerechnet. Zehn Jahre (2520 Handelstage) als
+          // Schätzfenster; Titel mit kürzerer Historie tragen bei, was sie
+          // haben (Mittel je Titel auf der eigenen Reihe, s. engine.ts).
+          lookbackDays: 2520,
           minPositionWeight: params.minPositionWeight,
           maxPositionWeight: params.maxPositionWeight,
           // Dynamischer risikofreier Zinssatz aus FRED DGS10 (statt hardcoded 2%)
@@ -590,6 +606,8 @@ export const autoPortfolioRouter = router({
             expectedReturnPct: Math.round(rawReturn * 1000) / 10,
             volatilityPct: Math.round(rawVol * 1000) / 10,
             sharpe: rawSharpe,
+            basisJahreMedian: (opt as any).renditeBasis?.jahreMedian,
+            basisJahreMin: (opt as any).renditeBasis?.jahreMin,
           };
         } else {
           console.warn(`[buildProposal] Optimierer lieferte NaN-Kennzahlen (return=${rawReturn}, vol=${rawVol}, sharpe=${rawSharpe}) — proposalMetrics auf null gesetzt`);
@@ -891,7 +909,7 @@ export const autoPortfolioRouter = router({
           `Sektor-Gewichte: ${sectorWeights.map((s) => `${s.name} ${s.weightPct.toFixed(1)}%`).join(", ")} (Limit je Sektor: ${rules.maxSectorPercent}%)`,
           `Fremdwährungsanteil: ${fxWeightPct.toFixed(1)}% (Limit: ${maxFxExposurePct}%)`,
           proposalMetrics
-            ? `Erwartete Kennzahlen (optimiert, historisch geschätzt): Rendite ${proposalMetrics.expectedReturnPct.toFixed(1)}% p.a., Volatilität ${proposalMetrics.volatilityPct.toFixed(1)}%, Sharpe ${proposalMetrics.sharpe.toFixed(2)}`
+            ? `Erwartete Kennzahlen (optimiert, historisch geschätzt${proposalMetrics.basisJahreMedian != null ? ` aus ${proposalMetrics.basisJahreMedian} Jahren Kurshistorie` : ''}): Rendite ${proposalMetrics.expectedReturnPct.toFixed(1)}% p.a., Volatilität ${proposalMetrics.volatilityPct.toFixed(1)}%, Sharpe ${proposalMetrics.sharpe.toFixed(2)}`
             : `Gewichtung: Score-Fallback (Optimierung nicht möglich)`,
           `Auswahl-Qualitätsstufe: ${qualityTier}`,
           ...(usFundamentals.length > 0
