@@ -1174,6 +1174,11 @@ export const stockScoreSnapshot = mysqlTable("stock_score_snapshot", {
   signalStrength: mysqlEnum("signalStrength", ["strong", "moderate", "weak"]).default("weak"),
   overallGrade: varchar("overallGrade", { length: 5 }),
   currentPrice: varchar("currentPrice", { length: 50 }),
+  // Die drei Scores des Drei-Score-Konzepts (STRATEGIE_DREI_SCORES.md) —
+  // nachgetragene Spalten, selbstheilend angelegt in scoreSnapshotScheduled.
+  qualitaet: int("qualitaet"),
+  bewertung: int("bewertung"),
+  timing: int("timing"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 }, (t) => ({
   tickerDateIdx: index("ix_score_snapshot_ticker_date").on(t.ticker, t.snapshotDate),

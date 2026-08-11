@@ -502,6 +502,11 @@ export async function refreshSignalCache(): Promise<void> {
                         regime: regimeKey,
                         signalScore: sig.score,
                         signalLabel: sig.label,
+                        // Die Faktorwerte hinter den Scores — die Erklaerdialoge
+                        // zeigen sonst nur die generische Zusammensetzung.
+                        qualitaetFaktoren: q.niveau.faktoren,
+                        bewertungFaktoren: b.faktoren,
+                        timingFaktoren: t.faktoren,
                       });
                     } catch { /* Schattenrechnung darf den echten Lauf nie stoeren */ }
                   }
