@@ -117,7 +117,9 @@ export default function AdminDashboard() {
   useEffect(() => {
     const s = screenerStatusQ.data;
     if (!screenerAuto || !s?.lauf) return;
-    if (s.aktiv || s.haengt) return;
+    // Einen HÄNGENDEN Lauf neu anstossen statt ewig zu warten — der Server
+    // gibt den Zustand nach der Totzeit ohnehin frei (screenerGiltAlsTot).
+    if (s.aktiv && !s.haengt) return;
     if (s.lauf.status !== "rechnet" || s.lauf.wartend <= 0) return;
     if (screenerRechnen.isPending) return;
     const t = setTimeout(() => screenerRechnen.mutate({ laufId: s.lauf!.id, maxTitel: 25 }), 1500);
