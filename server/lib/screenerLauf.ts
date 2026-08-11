@@ -106,6 +106,11 @@ export async function sammleUniversum(
       for (const item of items) {
         const exch = String(item.exchange || "").toUpperCase();
         if (!erlaubt.includes(exch)) { fremde++; continue; }
+        // LSE-Codes mit führender «0» sind Zweitkotierungen des International
+        // Order Book (z. B. 0QYI = Netflix) — dieselbe Sorte Doppellistung wie
+        // die CEDEARs: Das Original gehört ins Universum, nicht das Zertifikat.
+        const codeRoh = String(item.code || "").trim().toUpperCase();
+        if (boerse === "lse" && codeRoh.startsWith("0")) { fremde++; continue; }
         const ticker = tickerAusScreenerCode(item.code || "", item.exchange || boerse);
         if (!ticker || gesehen.has(ticker)) continue;
         gesehen.set(ticker, {
@@ -149,7 +154,19 @@ export async function sammleUniversum(
     const inWatchlist = vorhandeneSet.has(k.ticker.toUpperCase()) ? 1 : 0;
     return { ...k, inWatchlist, status: inWatchlist ? "vorhanden" : "wartend" };
   });
-  await ergaenzeKandidaten(laufId, kandidaten);
+  const ablage = await ergaenzeKandidaten(laufId, kandidaten);
+  if (ablage.zeilenFehler > 0) {
+    meldungen.push(
+      `${ablage.zeilenFehler} Kandidaten nicht ablegbar` +
+      (ablage.ersterFehler ? ` — erster Fehler: ${ablage.ersterFehler}` : ""),
+    );
+  }
+  if (ablage.eingefuegt === 0 && kandidaten.some((k) => k.status === "wartend")) {
+    throw new Error(
+      "Kein einziger Kandidat liess sich ablegen." +
+      (ablage.ersterFehler ? ` Erster Fehler: ${ablage.ersterFehler}` : ""),
+    );
+  }
 
   const bereitsInWatchlist = kandidaten.filter((k) => k.inWatchlist).length;
   return {

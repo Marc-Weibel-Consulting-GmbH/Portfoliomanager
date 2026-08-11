@@ -617,6 +617,12 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {screenerStatusQ.data?.lauf?.status === "fehler" && (
+            <p className="text-xs text-amber-400">
+              Lauf gescheitert: {screenerStatusQ.data.lauf.fehler ?? "unbekannter Fehler"} —
+              «Universum sichten» startet einen neuen Lauf.
+            </p>
+          )}
           {screenerStatusQ.data && (
             <p className="text-xs text-muted-foreground">
               Watchlist aktuell: {screenerStatusQ.data.watchlistGroesse.toLocaleString("de-CH")} Titel
