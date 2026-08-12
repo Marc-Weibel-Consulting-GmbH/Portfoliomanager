@@ -42,10 +42,27 @@ async function stelleTabellenSicher(db: any): Promise<void> {
     \`bewertung\` decimal(6,2),
     \`signalScore\` decimal(6,2),
     \`signalLabel\` varchar(16),
+    \`qualitaetFaktoren\` json,
+    \`bewertungFaktoren\` json,
     \`fehler\` varchar(255),
     \`berechnetAm\` timestamp NULL,
     PRIMARY KEY (\`laufId\`, \`ticker\`)
   )`));
+
+  // Die Faktor-Spalten kamen nachträglich dazu — ohne sie lassen sich die
+  // Kandidaten-Scores nicht nachprüfen (nur Endzahlen, keine Herleitung).
+  // Selbstheilend, weil der Deploy keine Migrationen ausführt.
+  for (const name of ["qualitaetFaktoren", "bewertungFaktoren"]) {
+    const res: any = await db.execute(sql`
+      SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'screener_kandidat'
+        AND COLUMN_NAME = ${name}`);
+    const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
+    if (Number((liste as any[])[0]?.cnt ?? 0) === 0) {
+      await db.execute(sql.raw(`ALTER TABLE \`screener_kandidat\` ADD \`${name}\` json`));
+    }
+  }
   tabellenGeprueft = true;
 }
 
@@ -73,6 +90,9 @@ export interface ScreenerKandidat {
   bewertung: number | null;
   signalScore: number | null;
   signalLabel: string | null;
+  /** Faktorwerte hinter den Scores (Name, Rohwert, Punkte, Gewicht) — die Herleitung zum Nachprüfen. */
+  qualitaetFaktoren: unknown[] | null;
+  bewertungFaktoren: unknown[] | null;
   fehler: string | null;
 }
 
@@ -123,7 +143,7 @@ export async function setzeLaufStatus(
  */
 export async function ergaenzeKandidaten(
   laufId: number,
-  kandidaten: Array<Omit<ScreenerKandidat, "laufId" | "qualitaet" | "bewertung" | "signalScore" | "signalLabel" | "fehler">>,
+  kandidaten: Array<Omit<ScreenerKandidat, "laufId" | "qualitaet" | "bewertung" | "signalScore" | "signalLabel" | "qualitaetFaktoren" | "bewertungFaktoren" | "fehler">>,
 ): Promise<{ eingefuegt: number; zeilenFehler: number; ersterFehler: string | null }> {
   if (kandidaten.length === 0) return { eingefuegt: 0, zeilenFehler: 0, ersterFehler: null };
   const db = await dbOderFehler();
@@ -151,17 +171,48 @@ export async function ergaenzeKandidaten(
   return { eingefuegt, zeilenFehler, ersterFehler };
 }
 
-/** Nächste unberechnete Kandidaten (nur die, die nicht schon in der Watchlist stehen). */
+/**
+ * Nächste unberechnete Kandidaten — börsenweise ABWECHSELND (je Börse nach
+ * Marktkapitalisierung absteigend). Vorher strikt nach Marktkapitalisierung
+ * über alle Börsen: Die US-Riesen kamen zuerst dran, und bis der Lauf durch
+ * war, zeigten die «besten Kandidaten» ausschliesslich US-Titel.
+ */
 export async function offeneKandidaten(laufId: number, maxTitel: number): Promise<ScreenerKandidat[]> {
   const db = await dbOderFehler();
   const { sql } = await import("drizzle-orm");
   const res: any = await db.execute(sql`
-    SELECT * FROM screener_kandidat
-    WHERE laufId = ${laufId} AND status = 'wartend'
-    ORDER BY marktKap DESC
+    SELECT * FROM (
+      SELECT k.*, ROW_NUMBER() OVER (PARTITION BY boerse ORDER BY marktKap DESC) AS rangJeBoerse
+      FROM screener_kandidat k
+      WHERE laufId = ${laufId} AND status = 'wartend'
+    ) t
+    ORDER BY rangJeBoerse, marktKap DESC
     LIMIT ${maxTitel}`);
   const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
   return (liste as any[]).map(mappeKandidat);
+}
+
+/**
+ * Verteilung der bereits berechneten Kandidaten je Börse — damit sichtbar ist,
+ * ob ein einseitiges Zwischenbild («nur US») schlicht Rechenreihenfolge ist.
+ */
+export async function verteilungJeBoerse(laufId: number): Promise<Array<{ boerse: string; berechnet: number; wartend: number }>> {
+  const db = await dbOderFehler();
+  const { sql } = await import("drizzle-orm");
+  const res: any = await db.execute(sql`
+    SELECT boerse,
+           SUM(CASE WHEN status = 'berechnet' THEN 1 ELSE 0 END) AS berechnet,
+           SUM(CASE WHEN status = 'wartend' THEN 1 ELSE 0 END) AS wartend
+    FROM screener_kandidat
+    WHERE laufId = ${laufId}
+    GROUP BY boerse
+    ORDER BY berechnet DESC`);
+  const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
+  return (liste as any[]).map((r) => ({
+    boerse: String(r.boerse ?? "?"),
+    berechnet: Number(r.berechnet ?? 0),
+    wartend: Number(r.wartend ?? 0),
+  }));
 }
 
 export async function schreibeErgebnis(
@@ -173,6 +224,8 @@ export async function schreibeErgebnis(
     bewertung?: number | null;
     signalScore?: number | null;
     signalLabel?: string | null;
+    qualitaetFaktoren?: unknown[] | null;
+    bewertungFaktoren?: unknown[] | null;
     fehler?: string;
   },
 ): Promise<void> {
@@ -185,6 +238,8 @@ export async function schreibeErgebnis(
         bewertung = ${ergebnis.bewertung ?? null},
         signalScore = ${ergebnis.signalScore ?? null},
         signalLabel = ${ergebnis.signalLabel ?? null},
+        qualitaetFaktoren = ${ergebnis.qualitaetFaktoren ? JSON.stringify(ergebnis.qualitaetFaktoren) : null},
+        bewertungFaktoren = ${ergebnis.bewertungFaktoren ? JSON.stringify(ergebnis.bewertungFaktoren) : null},
         fehler = ${ergebnis.fehler?.slice(0, 250) ?? null},
         berechnetAm = now()
     WHERE laufId = ${laufId} AND ticker = ${ticker}`);
@@ -262,6 +317,16 @@ export async function besteKandidaten(laufId: number, limit: number): Promise<Sc
   return (liste as any[]).map(mappeKandidat);
 }
 
+/** JSON-Spalten kommen je nach Treiber als Objekt oder Text zurück. */
+function leseJson(v: unknown): unknown[] | null {
+  if (v == null) return null;
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string") {
+    try { const p = JSON.parse(v); return Array.isArray(p) ? p : null; } catch { return null; }
+  }
+  return null;
+}
+
 function mappeKandidat(r: any): ScreenerKandidat {
   return {
     laufId: Number(r.laufId),
@@ -278,6 +343,8 @@ function mappeKandidat(r: any): ScreenerKandidat {
     bewertung: zahl(r.bewertung),
     signalScore: zahl(r.signalScore),
     signalLabel: r.signalLabel ?? null,
+    qualitaetFaktoren: leseJson(r.qualitaetFaktoren),
+    bewertungFaktoren: leseJson(r.bewertungFaktoren),
     fehler: r.fehler ?? null,
   };
 }

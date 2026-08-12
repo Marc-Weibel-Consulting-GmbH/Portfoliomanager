@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain, RefreshCw, CheckCircle2, XCircle, TrendingUp, FlaskConical, AlertTriangle, Clock, Database, Upload, Zap, ScrollText, Settings, Calculator, SlidersHorizontal, Camera, Bell, Search, MessageSquare, Gauge, Globe, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { adminGroups, type AdminKachel } from "@/lib/adminNavigation";
@@ -87,6 +87,8 @@ export default function AdminDashboard() {
   // die Rekonstruktion — kleine Läufe sterben nicht, das Nachlegen übernimmt
   // der Browser.
   const [screenerAuto, setScreenerAuto] = useState(true);
+  // Aufgeklappter Kandidat (Ticker) — zeigt die Faktorwerte hinter den Scores.
+  const [screenerDetail, setScreenerDetail] = useState<string | null>(null);
   const screenerStatusQ = trpc.admin.screenerStatus.useQuery({ topN: 30 }, {
     refetchInterval: (query) => {
       const d = query.state.data;
@@ -636,6 +638,15 @@ export default function AdminDashboard() {
             </p>
           )}
 
+          {/* Verteilung je Börse — ein «nur US»-Zwischenbild ist meist nur
+              Rechenreihenfolge; hier sieht man, wie weit jede Börse ist. */}
+          {(screenerStatusQ.data?.jeBoerse?.length ?? 0) > 0 && (
+            <p className="text-xs text-muted-foreground">
+              Berechnet je Börse:{" "}
+              {screenerStatusQ.data!.jeBoerse.map((b) => `${b.boerse} ${b.berechnet}${b.wartend > 0 ? `/${b.berechnet + b.wartend}` : ""}`).join(" · ")}
+            </p>
+          )}
+
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
             <input
               type="checkbox"
@@ -678,7 +689,12 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody>
                     {screenerStatusQ.data!.beste.map((k) => (
-                      <tr key={k.ticker} className="border-t border-white/5">
+                      <Fragment key={k.ticker}>
+                      <tr
+                        className="border-t border-white/5 cursor-pointer hover:bg-white/[0.03]"
+                        onClick={() => setScreenerDetail(screenerDetail === k.ticker ? null : k.ticker)}
+                        title="Klicken für die Faktorwerte hinter den Scores"
+                      >
                         <td className="py-1.5 pr-3 font-mono">{k.ticker}</td>
                         <td className="py-1.5 pr-3 max-w-[220px] truncate">{k.name ?? "—"}</td>
                         <td className="py-1.5 pr-3">{k.boerse ?? "—"}</td>
@@ -703,14 +719,14 @@ export default function AdminDashboard() {
                               <Button
                                 size="sm" variant="outline" className="h-6 px-2 text-[11px]"
                                 disabled={screenerEntscheiden.isPending}
-                                onClick={() => screenerEntscheiden.mutate({ laufId: k.laufId, ticker: k.ticker, entscheidung: "uebernehmen" })}
+                                onClick={(e) => { e.stopPropagation(); screenerEntscheiden.mutate({ laufId: k.laufId, ticker: k.ticker, entscheidung: "uebernehmen" }); }}
                               >
                                 Übernehmen
                               </Button>
                               <Button
                                 size="sm" variant="ghost" className="h-6 px-2 text-[11px] text-muted-foreground"
                                 disabled={screenerEntscheiden.isPending}
-                                onClick={() => screenerEntscheiden.mutate({ laufId: k.laufId, ticker: k.ticker, entscheidung: "ablehnen" })}
+                                onClick={(e) => { e.stopPropagation(); screenerEntscheiden.mutate({ laufId: k.laufId, ticker: k.ticker, entscheidung: "ablehnen" }); }}
                               >
                                 Ablehnen
                               </Button>
@@ -718,6 +734,50 @@ export default function AdminDashboard() {
                           )}
                         </td>
                       </tr>
+                      {/* Die Herleitung: Faktorwerte hinter Qualität und Bewertung —
+                          dieselben Zahlen, die auch die Erklärdialoge der Titelseite
+                          zeigen. Ohne sie liesse sich kein Score nachprüfen. */}
+                      {screenerDetail === k.ticker && (
+                        <tr key={`${k.ticker}-detail`} className="border-t border-white/5 bg-black/30">
+                          <td colSpan={8} className="py-2 px-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {([
+                                ["Qualität — Faktoren", (k as any).qualitaetFaktoren],
+                                ["Bewertung — Faktoren", (k as any).bewertungFaktoren],
+                              ] as [string, any[] | null][]).map(([titel, faktoren]) => (
+                                <div key={titel}>
+                                  <p className="text-[11px] font-medium text-muted-foreground mb-1">{titel}</p>
+                                  {Array.isArray(faktoren) && faktoren.length > 0 ? (
+                                    <table className="w-full text-[11px]">
+                                      <tbody>
+                                        {faktoren.map((f: any, i: number) => (
+                                          <tr key={i} className="border-t border-white/5">
+                                            <td className="py-0.5 pr-2">
+                                              {f?.name ?? "—"}
+                                              {Number.isFinite(f?.gewicht) ? <span className="text-muted-foreground"> · {Math.round(f.gewicht * 100)}%</span> : null}
+                                            </td>
+                                            <td className="py-0.5 pr-2 text-right font-mono">
+                                              {f?.wert != null && Number.isFinite(Number(f.wert)) ? Number(f.wert).toFixed(2) : "—"}
+                                            </td>
+                                            <td className="py-0.5 text-right font-mono">
+                                              {f?.punkte != null && Number.isFinite(Number(f.punkte)) ? `${Math.round(Number(f.punkte))}/100` : "—"}
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  ) : (
+                                    <p className="text-[11px] text-muted-foreground">
+                                      Keine Faktorwerte abgelegt — Kandidat wurde vor dieser Erweiterung berechnet.
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>

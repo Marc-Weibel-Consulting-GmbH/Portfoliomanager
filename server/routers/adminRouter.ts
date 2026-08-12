@@ -3351,7 +3351,7 @@ export const adminRouter = router({
   screenerStatus: adminProcedure
     .input(z.object({ topN: z.number().int().min(5).max(100).default(30) }).optional())
     .query(async ({ input }) => {
-      const { letzterLauf, besteKandidaten, setzeLaufStatus } = await import("../lib/screenerStore");
+      const { letzterLauf, besteKandidaten, setzeLaufStatus, verteilungJeBoerse } = await import("../lib/screenerStore");
       const lauf = await letzterLauf();
       // Verwaister Sammel-Lauf (Prozessneustart oder Abbruch vor der
       // Statusfortschreibung): ehrlich als gescheitert markieren, sonst sieht
@@ -3363,6 +3363,7 @@ export const adminRouter = router({
         lauf.fehler = hinweis;
       }
       const beste = lauf ? await besteKandidaten(lauf.id, input?.topN ?? 30) : [];
+      const jeBoerse = lauf ? await verteilungJeBoerse(lauf.id) : [];
       // Watchlist-Grösse für den Deckel-Hinweis (Ziel: max. ~500 Titel).
       let watchlistGroesse = 0;
       try {
@@ -3381,6 +3382,7 @@ export const adminRouter = router({
         meldungen: screener.meldungen.slice(-12),
         lauf,
         beste,
+        jeBoerse,
         watchlistGroesse,
       };
     }),

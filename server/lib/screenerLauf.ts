@@ -295,6 +295,10 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         bewertung: scores.bewertung.score,
         signalScore: scores.signal.score,
         signalLabel: scores.signal.label,
+        // Die Herleitung gehört ins Protokoll — nur mit den Faktorwerten
+        // lässt sich nachprüfen, ob ein Score korrekt zustande kam.
+        qualitaetFaktoren: scores.qualitaet.niveau?.faktoren ?? null,
+        bewertungFaktoren: scores.bewertung.faktoren ?? null,
       });
       berechnet++;
     } catch (err) {
