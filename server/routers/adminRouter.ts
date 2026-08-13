@@ -3349,9 +3349,9 @@ export const adminRouter = router({
 
   /** Zustand + jüngster Lauf + beste Kandidaten für die Admin-Karte. */
   screenerStatus: adminProcedure
-    .input(z.object({ topN: z.number().int().min(5).max(100).default(30) }).optional())
+    .input(z.object({ topN: z.number().int().min(5).max(500).default(30) }).optional())
     .query(async ({ input }) => {
-      const { letzterLauf, besteKandidaten, setzeLaufStatus, verteilungJeBoerse } = await import("../lib/screenerStore");
+      const { letzterLauf, besteKandidaten, setzeLaufStatus, verteilungJeBoerse, zaehleOhneHerleitung } = await import("../lib/screenerStore");
       const lauf = await letzterLauf();
       // Verwaister Sammel-Lauf (Prozessneustart oder Abbruch vor der
       // Statusfortschreibung): ehrlich als gescheitert markieren, sonst sieht
@@ -3364,6 +3364,7 @@ export const adminRouter = router({
       }
       const beste = lauf ? await besteKandidaten(lauf.id, input?.topN ?? 30) : [];
       const jeBoerse = lauf ? await verteilungJeBoerse(lauf.id) : [];
+      const ohneHerleitung = lauf ? await zaehleOhneHerleitung(lauf.id) : 0;
       // Watchlist-Grösse für den Deckel-Hinweis (Ziel: max. ~500 Titel).
       let watchlistGroesse = 0;
       try {
@@ -3383,8 +3384,25 @@ export const adminRouter = router({
         lauf,
         beste,
         jeBoerse,
+        ohneHerleitung,
         watchlistGroesse,
       };
+    }),
+
+  /**
+   * Alle berechneten Kandidaten zurück in die Warteschlange legen — das
+   * Auto-Nachlegen rechnet sie mit dem aktuellen Stand neu (Herleitung,
+   * ADR-/Zweitkotierungs-Prüfung).
+   */
+  screenerNeuBerechnen: adminProcedure
+    .input(z.object({ laufId: z.number().int() }))
+    .mutation(async ({ input }) => {
+      const { stelleBerechneteZurueck, setzeLaufStatus } = await import("../lib/screenerStore");
+      const zurueck = await stelleBerechneteZurueck(input.laufId);
+      if (zurueck > 0) await setzeLaufStatus(input.laufId, "rechnet");
+      return { zurueck, message: zurueck > 0
+        ? `${zurueck} Kandidaten neu in der Warteschlange — das Nachlegen rechnet sie mit Herleitung und ADR-Filter.`
+        : "Keine berechneten Kandidaten gefunden." };
     }),
 
   /** Entscheidung je Kandidat: in die Watchlist übernehmen oder ablehnen. */

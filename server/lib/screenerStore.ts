@@ -193,6 +193,39 @@ export async function offeneKandidaten(laufId: number, maxTitel: number): Promis
 }
 
 /**
+ * Alle BERECHNETEN Kandidaten zurück in die Warteschlange legen — das
+ * Nachlegen rechnet sie mit dem aktuellen Stand neu (Faktor-Herleitung,
+ * ADR-/Zweitkotierungs-Prüfung). Nötig, wenn ein Lauf begann, bevor eine
+ * dieser Regeln deployed war. Entscheidungen (übernommen/abgelehnt) bleiben
+ * unangetastet; der Fundamentaldaten-Cache macht den zweiten Durchgang
+ * deutlich schneller als den ersten.
+ */
+export async function stelleBerechneteZurueck(laufId: number): Promise<number> {
+  const db = await dbOderFehler();
+  const { sql } = await import("drizzle-orm");
+  const res: any = await db.execute(sql`
+    UPDATE screener_kandidat
+    SET status = 'wartend', qualitaet = NULL, bewertung = NULL,
+        signalScore = NULL, signalLabel = NULL,
+        qualitaetFaktoren = NULL, bewertungFaktoren = NULL,
+        fehler = NULL, berechnetAm = NULL
+    WHERE laufId = ${laufId} AND status = 'berechnet'`);
+  const kopf = Array.isArray(res) ? res[0] : res;
+  return Number(kopf?.affectedRows ?? 0);
+}
+
+/** Wie viele berechnete Kandidaten tragen keine Faktor-Herleitung? */
+export async function zaehleOhneHerleitung(laufId: number): Promise<number> {
+  const db = await dbOderFehler();
+  const { sql } = await import("drizzle-orm");
+  const res: any = await db.execute(sql`
+    SELECT COUNT(*) AS anzahl FROM screener_kandidat
+    WHERE laufId = ${laufId} AND status = 'berechnet' AND qualitaetFaktoren IS NULL`);
+  const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
+  return Number((liste as any[])[0]?.anzahl ?? 0);
+}
+
+/**
  * Verteilung der bereits berechneten Kandidaten je Börse — damit sichtbar ist,
  * ob ein einseitiges Zwischenbild («nur US») schlicht Rechenreihenfolge ist.
  */
