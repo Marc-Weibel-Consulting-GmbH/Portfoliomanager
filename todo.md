@@ -509,3 +509,11 @@
 - [x] Secrets-Scan über Arbeitsbaum und Git-Historie sowie Dependency-/Lizenz-Audit durchführen
 - [x] Systemdokumentation mit dem Code abgleichen und dokumentierte Abweichungen erfassen
 - [x] Baseline-Bericht, detaillierten Prüfplan für Phase 1 und offene Rückfragen zur Freigabe vorlegen
+
+## Kritisches Repository-Audit — Phase 1: Fachliche und quantitative Korrektheit (2026-08-13)
+- [x] Einheitenvertrag und handgerechnete Referenzfälle für Renditen, Risiken, Kosten, Bewertungen und Scores festlegen
+- [x] Score-, Signal- und Regime-Pipeline auf Gewichte, Schwellen, Skalierungen und Null-Semantik prüfen
+- [x] Risiko-, Performance-, Optimierungs- und Kostenmodule mit deterministischen Referenzreihen prüfen
+- [x] Punkt-in-Zeit-Datenflüsse auf Look-Ahead-, Survivorship-, Split-, Dividenden- und FX-Bias prüfen
+- [x] Numerische Grenzfälle und parallele Code-Pfade auf Einheiten-/Vorzeichen-/Datums-Konsistenz prüfen
+- [x] Alle Phase-1-Befunde mit Beleg, Falsch-positiv-Check, Fix-Vorschlag und Verifikation zur Freigabe vorlegen

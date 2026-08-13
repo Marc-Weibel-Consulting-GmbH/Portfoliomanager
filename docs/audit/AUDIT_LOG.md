@@ -6,12 +6,18 @@
 
 | ID | Phase | Titel | Status | Beleg / nächster Schritt |
 |---|---:|---|---|---|
-| P0-01 | 0 | Reproduzierbare technische Baseline | wartet auf dein OK | Installation, Build und TypeScript erfolgreich; vollständige Vitest-Suite mit 11 Fehlern in 3 Dateien. Siehe `PHASE_0_BASELINE.md`. |
-| P0-02 | 0 | Architektur- und Modul-Inventur | wartet auf dein OK | 209 Client-, 442 Server- und 46 Drizzle-Quelldateien; Integrations- und Job-Inventur dokumentiert. |
-| P0-03 | 0 | Secrets-Scan | wartet auf dein OK | Kein Treffer für die geprüften Schlüssel-Signaturen im Arbeitsbaum oder in der erreichbaren Historie; vertiefter Secret-Scanner bleibt Teil von Phase 5. |
-| P0-04 | 0 | Dependency-, Lizenz- und Schwachstellen-Audit | wartet auf dein OK | `pnpm audit`: 114 Befunde, davon 3 kritisch; Lizenznachweise mit Unknown-/Unlicense-Einträgen. Keine Abhängigkeitsänderung vorgenommen. |
-| P0-05 | 0 | Dokumentationsdrift | wartet auf dein OK | Keine eigenständige A3-Systemübersicht gefunden; PR-Status aus dem Auftragsdokument ist teilweise überholt. |
-| P0-06 | 0 | Phase-1-Prüfplan | wartet auf dein OK | Modulreihenfolge, Prüfinvarianten und Beleganforderungen in `PHASE_0_BASELINE.md` festgehalten. |
+| P0-01 | 0 | Reproduzierbare technische Baseline | abgeschlossen | Installation, Build und TypeScript erfolgreich; vollständige Vitest-Suite mit 11 Fehlern in 3 Dateien. Siehe `PHASE_0_BASELINE.md`. |
+| P0-02 | 0 | Architektur- und Modul-Inventur | abgeschlossen | 209 Client-, 442 Server- und 46 Drizzle-Quelldateien; Integrations- und Job-Inventur dokumentiert. |
+| P0-03 | 0 | Secrets-Scan | abgeschlossen | Kein Treffer für die geprüften Schlüssel-Signaturen im Arbeitsbaum oder in der erreichbaren Historie; vertiefter Secret-Scanner bleibt Teil von Phase 5. |
+| P0-04 | 0 | Dependency-, Lizenz- und Schwachstellen-Audit | abgeschlossen | `pnpm audit`: 114 Befunde, davon 3 kritisch; Lizenznachweise mit Unknown-/Unlicense-Einträgen. Keine Abhängigkeitsänderung vorgenommen. |
+| P0-05 | 0 | Dokumentationsdrift | abgeschlossen | Keine eigenständige A3-Systemübersicht gefunden; PR-Status aus dem Auftragsdokument ist teilweise überholt. |
+| P0-06 | 0 | Phase-1-Prüfplan | abgeschlossen | Modulreihenfolge, Prüfinvarianten und Beleganforderungen in `PHASE_0_BASELINE.md` festgehalten. |
+| F1-01 | 1 | Einheiten- und Referenzfallvertrag | abgeschlossen | Kennzahlskalen, Vorzeichen, Datumsbasis und Sollformeln gegen zentrale Module und Referenzfälle abgeglichen. |
+| F1-02 | 1 | Score-, Signal- und Regime-Pipeline | abgeschlossen | Blending, Abdeckung, Regime-Aliase und Risk Overlay gegen 43 zielgerichtete Tests und Referenzfälle geprüft. |
+| F1-03 | 1 | Risiko und Performance | abgeschlossen mit Freigabe-Gate | Sortino-Zielinkonsistenz (F1-01) und TTWROR-Kappung (F1-02) sind reproduziert und warten auf Produktentscheidungen. |
+| F1-04 | 1 | Optimierung, Benchmarks und Kosten | abgeschlossen | HRP, Multi-Asset, Kosten- und Composite-Benchmark gegen 75 zielgerichtete Tests geprüft. |
+| F1-05 | 1 | Punkt-in-Zeit und Look-Ahead | abgeschlossen mit Freigabe-Gate | Gleicher Meldetag wird als verfügbar behandelt (F1-03); konservative Zensurregel zur Freigabe vorgelegt. |
+| F1-06 | 1 | Befundbericht und Fix-Gates | abgeschlossen | `PHASE_1_FINDINGS.md` und `PHASE_1_REPORT.md` enthalten Ursache, Gegenprobe, Falsch-positiv-Check und Abnahmekriterium. |
 
 ## Statusdefinitionen
 
@@ -21,4 +27,4 @@ Ein Punkt wird erst mit reproduzierbarem Beleg, Gegenprobe und — sofern sichtb
 
 ## Phase-0-Entscheidungspunkt
 
-**Keine fachlichen Fixes und keine produktionswirksamen Änderungen wurden vorgenommen.** Phase 1 startet erst nach deiner ausdrücklichen Annahme des Baseline-Berichts und des Prüfplans.
+**Phase 0 wurde am 13. August 2026 ausdrücklich angenommen.** Phase 1 erstellt zunächst nur Befunde und Verifikationspläne; fachliche Fixes bleiben bis zu deiner separaten Freigabe gesperrt.
