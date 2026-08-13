@@ -501,3 +501,11 @@
 - [x] Admin Dashboard: Manual signal cache refill trigger ("Scores neu berechnen" button)
 - [x] Admin Settings: Configurable scoring weights for non-equity asset classes (DB-backed, sliders per class: Obligationen, Gold, Rohstoffe, Krypto, Immobilien)
 - [x] Watchlist table: Asset-class-specific column values (Rendite instead of P/E, YTD instead of PEG for non-equity)
+
+## Kritisches Repository-Audit — Phase 0 (2026-08-13)
+- [x] Audit-Branch `audit/phase-0-baseline` und fortlaufendes `docs/audit/AUDIT_LOG.md` anlegen
+- [x] Reproduzierbare technische Baseline dokumentieren: Installation, Build, TypeScript und vollständige Test-Suite
+- [x] Architektur-, Modul-, Abhängigkeits- und Externe-Dienste-Inventur erstellen
+- [x] Secrets-Scan über Arbeitsbaum und Git-Historie sowie Dependency-/Lizenz-Audit durchführen
+- [x] Systemdokumentation mit dem Code abgleichen und dokumentierte Abweichungen erfassen
+- [x] Baseline-Bericht, detaillierten Prüfplan für Phase 1 und offene Rückfragen zur Freigabe vorlegen
