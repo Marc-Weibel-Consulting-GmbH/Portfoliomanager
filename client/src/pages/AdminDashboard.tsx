@@ -89,7 +89,9 @@ export default function AdminDashboard() {
   const [screenerAuto, setScreenerAuto] = useState(true);
   // Aufgeklappter Kandidat (Ticker) — zeigt die Faktorwerte hinter den Scores.
   const [screenerDetail, setScreenerDetail] = useState<string | null>(null);
-  const screenerStatusQ = trpc.admin.screenerStatus.useQuery({ topN: 30 }, {
+  // Wie viele Kandidaten die Tabelle zeigt — «Mehr anzeigen» erweitert schrittweise.
+  const [screenerTopN, setScreenerTopN] = useState(30);
+  const screenerStatusQ = trpc.admin.screenerStatus.useQuery({ topN: screenerTopN }, {
     refetchInterval: (query) => {
       const d = query.state.data;
       if (!d) return false;
@@ -114,6 +116,10 @@ export default function AdminDashboard() {
       if (d.ok) toast.success(d.message); else toast.error(d.message);
       screenerStatusQ.refetch();
     },
+    onError: (err) => toast.error("Fehler", { description: err.message }),
+  });
+  const screenerNeuBerechnen = trpc.admin.screenerNeuBerechnen.useMutation({
+    onSuccess: (d) => { toast.success(d.message); screenerStatusQ.refetch(); },
     onError: (err) => toast.error("Fehler", { description: err.message }),
   });
   useEffect(() => {
@@ -647,6 +653,24 @@ export default function AdminDashboard() {
             </p>
           )}
 
+          {/* Kandidaten aus Läufen vor der Protokoll-Erweiterung tragen nur die
+              Endzahlen — ohne Herleitung lässt sich kein Score nachprüfen. */}
+          {(screenerStatusQ.data?.ohneHerleitung ?? 0) > 0 && (
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-amber-400">
+                {screenerStatusQ.data!.ohneHerleitung} berechnete Kandidaten ohne Faktor-Herleitung
+                (vor der Protokoll-Erweiterung gerechnet).
+              </p>
+              <Button
+                size="sm" variant="outline" className="h-6 px-2 text-[11px]"
+                disabled={screenerNeuBerechnen.isPending || !screenerStatusQ.data?.lauf}
+                onClick={() => screenerNeuBerechnen.mutate({ laufId: screenerStatusQ.data!.lauf!.id })}
+              >
+                Mit Herleitung neu rechnen
+              </Button>
+            </div>
+          )}
+
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
             <input
               type="checkbox"
@@ -672,6 +696,10 @@ export default function AdminDashboard() {
             <div className="border-t pt-3 space-y-2">
               <p className="text-xs font-medium">
                 Beste Kandidaten (nach Signal-Score) — nicht in der Watchlist
+                <span className="text-muted-foreground font-normal">
+                  {" "}· zeige {screenerStatusQ.data!.beste.length}
+                  {screenerStatusQ.data?.lauf ? ` von ${screenerStatusQ.data.lauf.berechnet + screenerStatusQ.data.lauf.uebernommen + screenerStatusQ.data.lauf.abgelehnt} berechneten` : ""}
+                </span>
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
@@ -782,6 +810,16 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
+              {/* Alle Berechneten sind erreichbar — die Tabelle wächst schrittweise,
+                  statt bei 30 abzuschneiden. */}
+              {screenerStatusQ.data!.beste.length >= screenerTopN && screenerTopN < 500 && (
+                <Button
+                  size="sm" variant="outline" className="h-7 px-3 text-xs w-full"
+                  onClick={() => setScreenerTopN((n) => Math.min(500, n + 100))}
+                >
+                  Mehr anzeigen (+100)
+                </Button>
+              )}
               <p className="text-[11px] text-muted-foreground">
                 Timing fehlt den Kandidaten noch (keine Kurshistorie vor der Übernahme) — das Signal
                 rechnet aus Qualität und Bewertung. Nach der Übernahme lädt die Kurshistorie nach,

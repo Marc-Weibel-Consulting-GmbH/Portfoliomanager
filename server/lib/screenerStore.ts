@@ -193,6 +193,35 @@ export async function offeneKandidaten(laufId: number, maxTitel: number): Promis
 }
 
 /**
+ * Berechnete Kandidaten OHNE abgelegte Faktor-Herleitung (aus Läufen vor der
+ * Protokoll-Erweiterung) zurück in die Warteschlange legen — das Nachlegen
+ * rechnet sie dann mit Herleitung neu. Entscheidungen (übernommen/abgelehnt)
+ * bleiben unangetastet.
+ */
+export async function stelleOhneHerleitungZurueck(laufId: number): Promise<number> {
+  const db = await dbOderFehler();
+  const { sql } = await import("drizzle-orm");
+  const res: any = await db.execute(sql`
+    UPDATE screener_kandidat
+    SET status = 'wartend', qualitaet = NULL, bewertung = NULL,
+        signalScore = NULL, signalLabel = NULL, fehler = NULL, berechnetAm = NULL
+    WHERE laufId = ${laufId} AND status = 'berechnet' AND qualitaetFaktoren IS NULL`);
+  const kopf = Array.isArray(res) ? res[0] : res;
+  return Number(kopf?.affectedRows ?? 0);
+}
+
+/** Wie viele berechnete Kandidaten tragen keine Faktor-Herleitung? */
+export async function zaehleOhneHerleitung(laufId: number): Promise<number> {
+  const db = await dbOderFehler();
+  const { sql } = await import("drizzle-orm");
+  const res: any = await db.execute(sql`
+    SELECT COUNT(*) AS anzahl FROM screener_kandidat
+    WHERE laufId = ${laufId} AND status = 'berechnet' AND qualitaetFaktoren IS NULL`);
+  const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
+  return Number((liste as any[])[0]?.anzahl ?? 0);
+}
+
+/**
  * Verteilung der bereits berechneten Kandidaten je Börse — damit sichtbar ist,
  * ob ein einseitiges Zwischenbild («nur US») schlicht Rechenreihenfolge ist.
  */
