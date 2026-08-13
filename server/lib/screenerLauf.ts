@@ -111,6 +111,9 @@ export async function sammleUniversum(
         // die CEDEARs: Das Original gehört ins Universum, nicht das Zertifikat.
         const codeRoh = String(item.code || "").trim().toUpperCase();
         if (boerse === "lse" && codeRoh.startsWith("0")) { fremde++; continue; }
+        // ADRs/Zertifikate schon am Namen aussortieren — spart die
+        // Hauptkotierungs-Abfrage in Stufe 2 für die offensichtlichen Fälle.
+        if (ADR_NAMENSMUSTER.test(String(item.name || ""))) { fremde++; continue; }
         const ticker = tickerAusScreenerCode(item.code || "", item.exchange || boerse);
         if (!ticker || gesehen.has(ticker)) continue;
         gesehen.set(ticker, {
@@ -197,8 +200,12 @@ export function vergleichsTicker(t: string): string {
   return `${code}.${s}`;
 }
 
-/** Börsen-Suffixe (normalisiert), die zu unserem Universum gehören. */
-const UNIVERSUM_SUFFIXE = new Set(["US", "SW", "DE", "PA", "L", "AS", "MI"]);
+/**
+ * ADR-/Zertifikats-typische Namensmuster (American Depositary Receipts/Shares,
+ * CEDEARs, CDRs). Billiger Vorfilter vor der teuren Hauptkotierungs-Abfrage —
+ * und die einzige Handhabe für Altbestände ohne erneuten API-Abruf.
+ */
+export const ADR_NAMENSMUSTER = /\bADRs?\b|\bADS\b|American Depositary|CEDEAR|\bCDR\b|\bDRC\b/i;
 
 /**
  * Hauptkotierung eines Titels laut EODHD (`General::PrimaryTicker`), z. B.
@@ -215,18 +222,17 @@ async function hauptkotierung(ticker: string): Promise<string | null> {
 }
 
 /**
- * Ist der Kandidat eine Zweitkotierung, deren Hauptbörse SELBST in unserem
- * Universum liegt? Dann gehört das Original in die Watchlist, nicht das
- * Duplikat (NVDA.SW → NVDA). Liegt die Hauptbörse ausserhalb (z. B. Tokio),
- * bleibt der Kandidat zulässig — ein ADR ist dann die zugängliche Kotierung.
+ * Ist der Kandidat eine Zweitkotierung — also nicht selbst die Hauptkotierung?
+ * Dann fliegt er raus: Zweitkotierungen im Universum (NVDA.SW), aber auch ADRs
+ * mit Hauptbörse ausserhalb (SK Hynix, NetEase). Die frühere ADR-Ausnahme ist
+ * auf Wunsch gestrichen — pro Firma zählt nur der Hauptbörsenplatz, und liegt
+ * der ausserhalb der sieben Börsen, gehört die Firma nicht ins Universum.
  */
 export function istVerzichtbareZweitkotierung(ticker: string, primaer: string | null): { ja: boolean; hauptboerse?: string } {
   if (!primaer) return { ja: false };
   const kandidat = vergleichsTicker(ticker);
   const haupt = vergleichsTicker(primaer);
   if (kandidat === haupt) return { ja: false };
-  const hauptSuffix = haupt.slice(haupt.lastIndexOf(".") + 1);
-  if (!UNIVERSUM_SUFFIXE.has(hauptSuffix)) return { ja: false };
   return { ja: true, hauptboerse: haupt };
 }
 
@@ -266,10 +272,20 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
       break;
     }
     try {
-      // Pro Titel nur der Hauptbörsenplatz: Zweitkotierungen, deren Original
-      // selbst in unserem Universum liegt, werden aussortiert statt bewertet.
-      // Scheitert die Abfrage, wird normal weitergerechnet — lieber ein
-      // Duplikat zu viel im Vorschlag als ein Titel grundlos verworfen.
+      // Pro Titel nur der Hauptbörsenplatz — ADRs und Zweitkotierungen werden
+      // aussortiert statt bewertet. Erst der billige Namenstest (fängt auch
+      // Altbestände aus Läufen vor dem Sammel-Filter), dann die
+      // Hauptkotierungs-Abfrage. Scheitert die Abfrage, wird normal
+      // weitergerechnet — lieber ein Duplikat zu viel als ein Titel grundlos
+      // verworfen.
+      if (ADR_NAMENSMUSTER.test(k.name ?? "")) {
+        await schreibeErgebnis(laufId, k.ticker, {
+          status: "zweitkotierung",
+          fehler: "ADR/Zertifikat (Namensmuster)",
+        });
+        zweitkotierungen++;
+        continue;
+      }
       const primaer = await mitTimeout(hauptkotierung(k.ticker), TITEL_TIMEOUT_MS, `${k.ticker} Hauptkotierung`)
         .catch(() => null);
       const zweit = istVerzichtbareZweitkotierung(k.ticker, primaer);

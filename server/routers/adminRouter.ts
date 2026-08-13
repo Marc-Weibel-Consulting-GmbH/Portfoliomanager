@@ -3390,19 +3390,19 @@ export const adminRouter = router({
     }),
 
   /**
-   * Berechnete Kandidaten ohne Faktor-Herleitung (aus Läufen vor der
-   * Protokoll-Erweiterung) zurück in die Warteschlange legen — das
-   * Auto-Nachlegen rechnet sie mit Herleitung neu.
+   * Alle berechneten Kandidaten zurück in die Warteschlange legen — das
+   * Auto-Nachlegen rechnet sie mit dem aktuellen Stand neu (Herleitung,
+   * ADR-/Zweitkotierungs-Prüfung).
    */
   screenerNeuBerechnen: adminProcedure
     .input(z.object({ laufId: z.number().int() }))
     .mutation(async ({ input }) => {
-      const { stelleOhneHerleitungZurueck, setzeLaufStatus } = await import("../lib/screenerStore");
-      const zurueck = await stelleOhneHerleitungZurueck(input.laufId);
+      const { stelleBerechneteZurueck, setzeLaufStatus } = await import("../lib/screenerStore");
+      const zurueck = await stelleBerechneteZurueck(input.laufId);
       if (zurueck > 0) await setzeLaufStatus(input.laufId, "rechnet");
       return { zurueck, message: zurueck > 0
-        ? `${zurueck} Kandidaten neu in der Warteschlange — das Nachlegen rechnet sie mit Herleitung.`
-        : "Keine Kandidaten ohne Herleitung gefunden." };
+        ? `${zurueck} Kandidaten neu in der Warteschlange — das Nachlegen rechnet sie mit Herleitung und ADR-Filter.`
+        : "Keine berechneten Kandidaten gefunden." };
     }),
 
   /** Entscheidung je Kandidat: in die Watchlist übernehmen oder ablehnen. */

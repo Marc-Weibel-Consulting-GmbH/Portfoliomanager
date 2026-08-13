@@ -653,20 +653,22 @@ export default function AdminDashboard() {
             </p>
           )}
 
-          {/* Kandidaten aus Läufen vor der Protokoll-Erweiterung tragen nur die
-              Endzahlen — ohne Herleitung lässt sich kein Score nachprüfen. */}
-          {(screenerStatusQ.data?.ohneHerleitung ?? 0) > 0 && (
-            <div className="flex items-center gap-3">
-              <p className="text-xs text-amber-400">
-                {screenerStatusQ.data!.ohneHerleitung} berechnete Kandidaten ohne Faktor-Herleitung
-                (vor der Protokoll-Erweiterung gerechnet).
-              </p>
+          {/* Nachrechnen: Lief ein Teil des Laufs, bevor Herleitungs-Speicherung
+              oder ADR-Filter deployed waren, fehlen den Berechneten diese
+              Prüfungen — hier alles zurück in die Warteschlange legen. */}
+          {(screenerStatusQ.data?.lauf?.berechnet ?? 0) > 0 && (
+            <div className="flex items-center gap-3 flex-wrap">
+              {(screenerStatusQ.data?.ohneHerleitung ?? 0) > 0 && (
+                <p className="text-xs text-amber-400">
+                  {screenerStatusQ.data!.ohneHerleitung} berechnete Kandidaten ohne Faktor-Herleitung.
+                </p>
+              )}
               <Button
                 size="sm" variant="outline" className="h-6 px-2 text-[11px]"
                 disabled={screenerNeuBerechnen.isPending || !screenerStatusQ.data?.lauf}
                 onClick={() => screenerNeuBerechnen.mutate({ laufId: screenerStatusQ.data!.lauf!.id })}
               >
-                Mit Herleitung neu rechnen
+                Alle neu rechnen (Herleitung & ADR-Filter)
               </Button>
             </div>
           )}
