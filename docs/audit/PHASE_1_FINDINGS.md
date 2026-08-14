@@ -1,7 +1,7 @@
 # Phase 1 — Befunde und Gegenproben
 
 **Stand:** 13. August 2026  
-**Status:** in Prüfung — keine produktiven Änderungen und keine Fixes vorgenommen.
+**Status:** F1-03 verifiziert behoben; F1-01 und F1-02 warten weiterhin auf eine separate Produktentscheidung.
 
 ## F1-01 — Sortino-Ratio verwendet zwei unterschiedliche Mindestziele
 
@@ -48,23 +48,20 @@ Vor einer Änderung muss entschieden werden, ob die Anwendung:
 2. eine Datenqualitätsregel anwendet, die die Beobachtung verwirft statt die Rendite zu verändern; oder
 3. Kappung als bewusstes Produktmodell beibehält, sie aber in Ergebnis, Audit-Trail und UI sichtbar offenlegt.
 
-## F1-03 — Punkt-in-Zeit-Filter lässt Meldungen am Entscheidungsstichtag bereits zu
+## F1-03 — Punkt-in-Zeit-Filter liess Meldungen am Entscheidungsstichtag bereits zu — **verifiziert behoben**
 
 | Feld | Nachweis |
 |---|---|
-| **Einstufung** | **hoch** — kann historische Score-Optimierung und Backtests bei Meldungen nach Handelsschluss verzerren. |
-| **Codebeleg** | `server/lib/punktInZeit.ts:56–70` akzeptiert einen `filing_date`, wenn er `<= stichtag` ist. `server/lib/punktInZeitRekonstruktion.ts:89–92` verwendet diesen gleichen Stichtag direkt für Fundamentals und Schlusskurs. |
-| **Reproduktion** | `abschlussVerfuegbarAm("2024-03-31", "2024-05-01", "2024-05-01")` ergibt **true**. Ein Filing mit unbekannter Uhrzeit wird also zusammen mit dem Schlusskurs desselben Handelstags für die Score-Zeile verwendet. |
-| **Auswirkungspfad** | `server/lib/signalGewichteBacktest.ts:108–139` verwendet die Monatszeile für die Vorwärtsrendite ab genau diesem `kurs` (`(k1-k0)/k0`). Wird das Filing nach Börsenschluss publiziert, ist der Datensatz zeitlich nicht handelbar, beeinflusst aber die Auswahl/Optimierung. |
-| **Falsch-positiv-Check** | Die bestehenden Tests schützen korrekt davor, Kurse **nach** dem Stichtag zu verwenden (`punktInZeitRekonstruktion.test.ts:25–39`). Sie enthalten keinen Test für Filing-Meldungen am selben Tag und keine Tageszeitinformation. Der Code verfügt über keine explizite Annahme „vor Börsenschluss“. |
+| **Einstufung vor Fix** | **hoch** — konnte historische Score-Optimierung und Backtests bei Meldungen nach Handelsschluss verzerren. |
+| **Fehlerbild** | `filing_date <= stichtag` akzeptierte ein Filing am gleichen Kalendertag. Gleichzeitig konnte ein Monatsstichtag am Wochenende liegen, während Score und Vorwärtsrendite den Schlusskurs des vorausgehenden Freitags verwendeten. |
+| **Fix** | `server/lib/punktInZeit.ts` verlangt jetzt für `filing_date`, Frist-Fallbacks und `reportDate` eine **strikt frühere** Verfügbarkeit (`<`). `server/lib/punktInZeitRekonstruktion.ts` zensiert Fundamentals gegen das Datum der tatsächlich verwendeten letzten Kurszeile, nicht gegen einen nachgelagerten Kalendermonatsletzten. |
+| **Roter Test** | Vor der Änderung schlugen zwei Tests fehl: Same-Day-Filing und Same-Day-Quartalsbericht wurden jeweils fälschlich zugelassen. |
+| **Verifikation** | Die neuen Tests bestätigen: gleicher Tag ausgeschlossen, Folgetag zugelassen; Wochenend-Stichtag löst korrekt auf den letzten Handelstag auf. 80 zielgerichtete Punkt-in-Zeit-/Rekonstruktions-/Backtest-Tests bestanden. |
+| **Regressionscheck** | TypeScript und Produktions-Build bestanden. Die Gesamtsuite zeigt weiterhin ausschliesslich die 11 bereits in Phase 0 bekannten, unabhängigen Fehler (Schweizer Formatvertrag sowie externe TradingView-/Sornette-Integrationstests). |
 
-### Ursachenhypothese
+### Verbleibende Annahme
 
-Die Stichtagslogik arbeitet nur mit Kalendertagen. Ohne verlässlichen Veröffentlichungszeitpunkt ist „gleicher Kalendertag“ nicht gleichbedeutend mit „vor der handelbaren Entscheidung bekannt“. Die vorhandene 90-Tage-Fallbackfrist löst diesen Fall nicht, weil sie bei vorhandenem `filing_date` nicht greift.
-
-### Fix-Gate
-
-Vor jeder Änderung wird ein roter Test ergänzt, der ein Filing am Stichtag zurückweist. Als konservativer, look-ahead-freier Standard bietet sich an, Fundamentals erst **ab dem nächsten Handelstag** zu verwenden, sofern der Provider keine verlässliche Uhrzeit und Handelsplatz-Zeitzone liefert. Wenn später zeitgestempelte Quellendaten vorliegen, kann diese Regel gezielt präzisiert werden.
+Die Regel ist bewusst konservativ: Bei einem Kalenderdatum ohne verlässliche Uhrzeit wird ein Filing erst nach Ablauf dieses Tages verwendbar. Sobald ein Datenanbieter geprüfte Veröffentlichungszeitpunkte inklusive Handelsplatz-Zeitzone liefert, kann die Anwendung eine präzisere Intraday-Regel ergänzen. Ohne diese Daten bleibt die Next-Trading-Day-Zensur der sichere Standard.
 
 ## Gegenproben und abgegrenzte Nicht-Befunde
 

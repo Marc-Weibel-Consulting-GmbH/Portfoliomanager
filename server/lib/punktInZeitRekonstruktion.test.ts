@@ -13,7 +13,7 @@ vi.mock("./punktInZeitStore", () => ({
   FASSUNG: 2,
 }));
 
-import { kursAm, reiheFuerTitel, rekonstruiere } from "./punktInZeitRekonstruktion";
+import { kursAm, kursZeileAm, reiheFuerTitel, rekonstruiere } from "./punktInZeitRekonstruktion";
 
 const KURSE = [
   { date: "2024-03-27", close: 20 },
@@ -23,6 +23,10 @@ const KURSE = [
 ];
 
 describe("kursAm", () => {
+  it("liefert für einen Wochenend-Stichtag den tatsächlichen letzten Handelstag", () => {
+    expect(kursZeileAm(KURSE, "2024-03-31")).toEqual({ date: "2024-03-28", close: 21 });
+  });
+
   it("nimmt den letzten Handelstag vor dem Stichtag", () => {
     expect(kursAm(KURSE, "2024-03-31")).toBe(21);
   });

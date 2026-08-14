@@ -58,18 +58,26 @@ function zahlenAus(o: Record<string, unknown>): Record<string, number | null> {
   return aus;
 }
 
+/** Letzter handelbarer Kurs am oder vor einem Stichtag. */
+export function kursZeileAm(
+  reihe: { date: string; close: number }[],
+  stichtag: string,
+): { date: string; close: number } | null {
+  // Rückwärts suchen: An einem Monatsletzten, der auf ein Wochenende fällt,
+  // gilt der letzte Handelstag davor. Ein Kurs von NACH dem Stichtag wäre
+  // Rückschau — deshalb ausschliesslich rückwärts.
+  for (let i = reihe.length - 1; i >= 0; i--) {
+    if (reihe[i].date <= stichtag && reihe[i].close > 0) return reihe[i];
+  }
+  return null;
+}
+
 /** Kurs am oder unmittelbar vor einem Stichtag. */
 export function kursAm(
   reihe: { date: string; close: number }[],
   stichtag: string,
 ): number | null {
-  // Rückwärts suchen: An einem Monatsletzten, der auf ein Wochenende fällt,
-  // gilt der letzte Handelstag davor. Ein Kurs von NACH dem Stichtag wäre
-  // Rückschau — deshalb ausschliesslich rückwärts.
-  for (let i = reihe.length - 1; i >= 0; i--) {
-    if (reihe[i].date <= stichtag && reihe[i].close > 0) return reihe[i].close;
-  }
-  return null;
+  return kursZeileAm(reihe, stichtag)?.close ?? null;
 }
 
 /**
@@ -87,8 +95,17 @@ export function reiheFuerTitel(
 ): HistorienSatz[] {
   const saetze: HistorienSatz[] = [];
   for (const datum of stichtage) {
-    const beschnitten = beschneideFundamentals(fundamentals, datum, meldefristTage);
-    const kurs = kursAm(kurse, datum);
+    const kursZeile = kursZeileAm(kurse, datum);
+    const kurs = kursZeile?.close ?? null;
+    /**
+     * Ein Monatsletzter kann auf ein Wochenende oder einen Feiertag fallen.
+     * Score und Vorwärtsrendite referenzieren dann den letzten Handelsschluss
+     * davor. Fundamentals müssen gegen genau diesen effektiven Handelstag
+     * zensiert werden: Ein Filing am Freitag nach Börsenschluss darf nicht in
+     * eine Sonntagszeile einfliessen, deren `kurs` ebenfalls vom Freitag ist.
+     */
+    const datenStichtag = kursZeile?.date ?? datum;
+    const beschnitten = beschneideFundamentals(fundamentals, datenStichtag, meldefristTage);
     const k = kennzahlenPerStichtag({ beschnitten, kurs, sektor });
 
     // Ohne jede Kennzahl entstünde eine Zeile, die nichts aussagt — die

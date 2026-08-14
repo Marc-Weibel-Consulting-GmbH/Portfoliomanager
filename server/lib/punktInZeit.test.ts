@@ -21,6 +21,14 @@ describe("abschlussVerfuegbarAm", () => {
     expect(abschlussVerfuegbarAm("2023-12-31", "2024-02-15", "2024-02-01")).toBe(false);
   });
 
+  it("schliesst ein Filing am gleichen Kalendertag ohne Uhrzeit aus", () => {
+    // Der Provider liefert nur ein Datum, aber keine Veröffentlichungszeit.
+    // Der Schlusskurs dieses Tages darf deshalb nicht von einem potenziell
+    // nach Börsenschluss publizierten Filing beeinflusst werden.
+    expect(abschlussVerfuegbarAm("2023-12-31", "2024-02-15", "2024-02-15")).toBe(false);
+    expect(abschlussVerfuegbarAm("2023-12-31", "2024-02-15", "2024-02-16")).toBe(true);
+  });
+
   it("der Bilanzstichtag allein macht einen Abschluss nicht verfügbar", () => {
     // Genau der Fehler, um den es geht: Der Abschluss per 31.12. liegt am
     // 1.1. noch nicht vor.
@@ -119,6 +127,19 @@ describe("beschneideFundamentals", () => {
     const b = beschneideFundamentals(antwort, "2024-12-31");
     // Bericht zum Q4 erschien erst am 04.02.2025.
     expect(Object.keys(b.Earnings.History)).toEqual(["2024-09-30"]);
+  });
+
+  it("schliesst einen Quartalsbericht am gleichen Stichtag ohne Uhrzeit aus", () => {
+    const daten = {
+      Earnings: {
+        History: {
+          "2024-06-30": { epsActual: 0.6, reportDate: "2024-07-25" },
+        },
+      },
+    };
+
+    expect(Object.keys(beschneideFundamentals(daten, "2024-07-25").Earnings.History)).toEqual([]);
+    expect(Object.keys(beschneideFundamentals(daten, "2024-07-26").Earnings.History)).toEqual(["2024-06-30"]);
   });
 
   it("beschneidet die EPS-Jahresreihe über die Meldefrist", () => {

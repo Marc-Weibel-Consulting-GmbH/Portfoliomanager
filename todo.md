@@ -517,3 +517,9 @@
 - [x] Punkt-in-Zeit-Datenflüsse auf Look-Ahead-, Survivorship-, Split-, Dividenden- und FX-Bias prüfen
 - [x] Numerische Grenzfälle und parallele Code-Pfade auf Einheiten-/Vorzeichen-/Datums-Konsistenz prüfen
 - [x] Alle Phase-1-Befunde mit Beleg, Falsch-positiv-Check, Fix-Vorschlag und Verifikation zur Freigabe vorlegen
+
+## Audit-Remediation — F1-03 Punkt-in-Zeit (2026-08-13)
+- [x] Separaten Branch für F1-03 anlegen und roten Test für ein Filing am gleichen Stichtag schreiben
+- [x] Fundamentals ohne Zeitstempel erst ab folgendem Handelstag als verfügbar behandeln
+- [x] Historische Score-Reihe und Vorwärtsrendite auf den konservativen Verfügbarkeitsvertrag gegenprüfen
+- [x] Zielgerichtete Tests, Gesamt-Suite, TypeScript und Build ausführen sowie Audit-Nachweis aktualisieren

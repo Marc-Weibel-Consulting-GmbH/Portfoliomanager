@@ -47,11 +47,14 @@ function alsDatum(wert: unknown): number | null {
 }
 
 /**
- * War dieser Abschluss am Stichtag veröffentlicht?
+ * War dieser Abschluss vor dem Stichtag veröffentlicht?
  *
- * `filingDate` hat Vorrang. Fehlt es, gilt Periodenende + `MELDEFRIST_TAGE`.
- * Ist nicht einmal das Periodenende lesbar, lautet die Antwort «nein» — ein
- * undatierter Abschluss darf nicht in eine datierte Rechnung.
+ * EODHD liefert für Filings nur ein Datum und keine Uhrzeit. Ein Filing am
+ * gleichen Kalendertag kann nach Börsenschluss erschienen sein und darf den
+ * Schlusskurs beziehungsweise das handelbare Signal dieses Tages deshalb nicht
+ * beeinflussen. `filingDate` hat Vorrang; ohne Uhrzeit gilt es frühestens am
+ * folgenden Handelstag. Fehlt es, gilt dieselbe konservative Behandlung für
+ * Periodenende + `MELDEFRIST_TAGE`.
  */
 export function abschlussVerfuegbarAm(
   periodenEnde: string,
@@ -63,11 +66,11 @@ export function abschlussVerfuegbarAm(
   if (stich === null) return false;
 
   const gemeldet = alsDatum(filingDate);
-  if (gemeldet !== null) return gemeldet <= stich;
+  if (gemeldet !== null) return gemeldet < stich;
 
   const ende = alsDatum(periodenEnde);
   if (ende === null) return false;
-  return ende + meldefristTage * 86_400_000 <= stich;
+  return ende + meldefristTage * 86_400_000 < stich;
 }
 
 /** Behält aus einer nach Periodenende geschlüsselten Sammlung nur, was am Stichtag bekannt war. */
@@ -143,7 +146,9 @@ function beschneideQuartalsberichte(
       const ende = alsDatum(periode);
       return ende === null ? null : ende + 45 * 86_400_000;
     })();
-    if (stand !== null && stand <= stich) aus[periode] = eintrag;
+    // Wie bei `filing_date`: Ohne Veröffentlichungszeit darf ein Bericht am
+    // selben Kalendertag nicht für dessen Schlusskurs/Signal verwendet werden.
+    if (stand !== null && stand < stich) aus[periode] = eintrag;
   }
   return aus;
 }

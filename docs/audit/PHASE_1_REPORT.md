@@ -15,7 +15,7 @@ Der zweite bestätigte Befund betrifft die Sortino-Ratio. Bei einem positiven ri
 
 | Priorität | Befund | Konsequenz | Freigabe vor Fix nötig |
 |---:|---|---|---|
-| Hoch | **F1-03** — gleiche Meldetage gelten als Punkt-in-Zeit-verfügbar | potenzieller Look-Ahead in historischer Score-Reihe und Gewichtssuche | Ja: konservativer Stichtagsvertrag „nächster Handelstag“ bestätigen. |
+| Behoben | **F1-03** — gleiche Meldetage galten als Punkt-in-Zeit-verfügbar | konservative Next-Trading-Day-Zensur ist implementiert und verifiziert | Nein; bei Zeitstempeldaten später optional präzisieren. |
 | Hoch | **F1-01** — Sortino-Mindestziel inkonsistent | Risiko- und Model-Selection-Score kann nahe Kandidaten falsch reihen | Ja: target-aware oder zero-target Definition verbindlich festlegen. |
 | Mittel | **F1-02** — TTWROR-Tageskappung | gemeldete historische Performance kann von den Eingangsdaten abweichen | Ja: Datenqualitäts- statt Renditekappungsmodell entscheiden. |
 
@@ -43,6 +43,10 @@ Der zweite bestätigte Befund betrifft die Sortino-Ratio. Bei einem positiven ri
 ## Nicht als Befund klassifizierte Punkte
 
 Die Prüfung hat mehrere scheinbare Inkonsistenzen abgegrenzt, die **nicht** als unmittelbarer Produktionsfehler eingestuft werden. Die Multi-Asset-Benchmark renormiert bei ausreichender Abdeckung bewusst und weist die Abdeckung transparent aus. Das Kostenmodell berechnet im Vorschlags-Outcome einen einmaligen Portfolioaufbau; es behauptet keine vollständige Umschichtungsabrechnung. Der parallele `tickerScoring`-Helper ist nach der Aufrufanalyse derzeit kein kundenwirksamer Pfad. Das LPPL-Risiko wird nicht über die Regimekonfidenz, sondern über das nachgelagerte Risk Overlay handlungswirksam gedämpft.
+
+## Aktualisierung: F1-03-Remediation
+
+Die Freigabe für F1-03 wurde umgesetzt. Datumsgenaue Filings, Frist-Fallbacks und Quartalsberichte mit unbekannter Uhrzeit werden erst **nach** ihrem Kalenderdatum zugelassen. Zusätzlich verwendet die Rekonstruktion den tatsächlichen letzten Handelstag als Zensurstichtag, wenn ein Monatsletzter auf ein Wochenende oder einen Feiertag fällt. Dadurch können Filings nach Handelsschluss am letzten Handelstag nicht mehr in die gleiche Score-/Renditezeile einfliessen.
 
 ## Freigabevorschlag für punktuelle Remediations
 
