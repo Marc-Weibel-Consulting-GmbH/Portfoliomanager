@@ -20,6 +20,7 @@
 import { ENV } from "../_core/env";
 import { retryFetch } from "../_core/retryUtil";
 import { tickerAusScreenerCode } from "./universeExpansion";
+import { alsProzent } from "./dividendenrendite";
 
 const EODHD_BASE_URL = "https://eodhd.com/api";
 
@@ -123,7 +124,12 @@ export async function sammleUniversum(
           sektor: item.sector ?? null,
           waehrung: item.currency ?? null,
           marktKap: Number.isFinite(item.market_capitalization) ? item.market_capitalization : null,
-          dividendenrendite: Number.isFinite(item.dividend_yield) ? item.dividend_yield : null,
+          // Der EODHD-Screener liefert die Dividendenrendite als BRUCH (0.03 =
+          // 3 %); Ablage und Bewertungs-Formel führen Prozent. Ohne die
+          // Umrechnung bekam Roche für 3 % Dividende 1 von 100 Punkten.
+          dividendenrendite: Number.isFinite(item.dividend_yield)
+            ? alsProzent(item.dividend_yield * 100, `screener/${ticker}`)
+            : null,
         });
         jeBoerse++;
       }
@@ -297,10 +303,17 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         zweitkotierungen++;
         continue;
       }
+      // Übergangsheilung: Vor dem Prozent-Fix wurden Kandidaten mit der
+      // Dividendenrendite als Bruch abgelegt (0.03 statt 3). Werte unter 0.3
+      // werden deshalb als Bruch gelesen — echte Renditen unter 0.3 % sind
+      // praktisch inexistent (wer so wenig ausschüttet, schüttet nichts aus).
+      const divRendite = k.dividendenrendite != null && k.dividendenrendite > 0 && k.dividendenrendite < 0.3
+        ? alsProzent(k.dividendenrendite * 100, `screener-altbestand/${k.ticker}`)
+        : k.dividendenrendite;
       const scores = await mitTimeout(
         getDreiScores(k.ticker, {
           sektor: k.sektor,
-          dividendenrendite: k.dividendenrendite,
+          dividendenrendite: divRendite,
         }),
         TITEL_TIMEOUT_MS,
         k.ticker,
