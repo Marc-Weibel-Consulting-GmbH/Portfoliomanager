@@ -415,10 +415,12 @@ export async function refreshSignalCache(): Promise<void> {
                         bruttomarge: qmCache.grossMargin,
                         ertragsdeckung: qmCache.ertragsdeckung,
                         epsStabilitaet: qmCache.epsStabilityScore,
+                        epsStabilitaetHinweis: qmCache.epsStabilitaetHinweis,
                         netDebtToEbitda: qmCache.netDebtToEbitda,
                       }, qmCache.piotroski);
                       const b = berechneBewertung({
                         adjustedPeg: qmCache.adjustedPeg,
+                        pegHinweis: qmCache.adjustedPegHinweis,
                         kgv: qmCache.forwardPE ?? qmCache.trailingPE,
                         fcfRendite: qmCache.fcfYield,
                         dividendenrendite: num(stockRow?.dividendYield),

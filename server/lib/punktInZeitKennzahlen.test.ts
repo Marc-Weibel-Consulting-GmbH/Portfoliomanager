@@ -146,10 +146,11 @@ describe("kennzahlenPerStichtag", () => {
 
 describe("stabilitaetAusReihe", () => {
   it("hält dieselbe Skala wie qualityMetricsService", () => {
-    // Beide Stellen rechnen dieselbe Grösse. Driften sie auseinander,
-    // optimiert der Backtest gegen eine Kennzahl, die live nicht existiert.
+    // Beide Stellen rechnen dieselbe Grösse (seit Befund 1 über das gemeinsame
+    // Modul `gewinnStabilitaet`). Driften sie auseinander, optimiert der
+    // Backtest gegen eine Kennzahl, die live nicht existiert.
     const reihe = [3.00, 3.45, 2.24, 3.14, 3.39, 3.80, 3.61, 4.51, 4.96, 5.85, 6.20];
-    const hier = stabilitaetAusReihe(reihe);
+    const hier = stabilitaetAusReihe(reihe.map((eps, i) => ({ jahr: 2015 + i, eps })));
 
     const alsAntwort = {
       Highlights: {}, Valuation: {}, Financials: {},
@@ -163,6 +164,8 @@ describe("stabilitaetAusReihe", () => {
   });
 
   it("gibt null bei zu kurzer Reihe", () => {
-    expect(stabilitaetAusReihe([1, 2, 3])).toBeNull();
+    expect(stabilitaetAusReihe([
+      { jahr: 2024, eps: 1 }, { jahr: 2025, eps: 2 }, { jahr: 2026, eps: 3 },
+    ])).toBeNull();
   });
 });

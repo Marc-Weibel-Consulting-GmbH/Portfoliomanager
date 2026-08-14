@@ -44,15 +44,26 @@ async function stelleTabellenSicher(db: any): Promise<void> {
     \`signalLabel\` varchar(16),
     \`qualitaetFaktoren\` json,
     \`bewertungFaktoren\` json,
+    \`qualitaetNiveau\` decimal(6,2),
+    \`qualitaetRichtung\` decimal(6,2),
+    \`fScore\` tinyint,
     \`fehler\` varchar(255),
     \`berechnetAm\` timestamp NULL,
     PRIMARY KEY (\`laufId\`, \`ticker\`)
   )`));
 
-  // Die Faktor-Spalten kamen nachträglich dazu — ohne sie lassen sich die
-  // Kandidaten-Scores nicht nachprüfen (nur Endzahlen, keine Herleitung).
-  // Selbstheilend, weil der Deploy keine Migrationen ausführt.
-  for (const name of ["qualitaetFaktoren", "bewertungFaktoren"]) {
+  // Nachträglich dazugekommene Spalten — ohne sie lassen sich die
+  // Kandidaten-Scores nicht nachprüfen (nur Endzahlen, keine Herleitung; die
+  // Qualitäts-Kopfzahl braucht Niveau UND Richtung, Befund 3 der
+  // Scoring-Prüfung). Selbstheilend, weil der Deploy keine Migrationen ausführt.
+  const nachgetragen: Array<[string, string]> = [
+    ["qualitaetFaktoren", "json"],
+    ["bewertungFaktoren", "json"],
+    ["qualitaetNiveau", "decimal(6,2)"],
+    ["qualitaetRichtung", "decimal(6,2)"],
+    ["fScore", "tinyint"],
+  ];
+  for (const [name, typ] of nachgetragen) {
     const res: any = await db.execute(sql`
       SELECT COUNT(*) AS cnt FROM information_schema.COLUMNS
       WHERE TABLE_SCHEMA = DATABASE()
@@ -60,7 +71,7 @@ async function stelleTabellenSicher(db: any): Promise<void> {
         AND COLUMN_NAME = ${name}`);
     const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
     if (Number((liste as any[])[0]?.cnt ?? 0) === 0) {
-      await db.execute(sql.raw(`ALTER TABLE \`screener_kandidat\` ADD \`${name}\` json`));
+      await db.execute(sql.raw(`ALTER TABLE \`screener_kandidat\` ADD \`${name}\` ${typ}`));
     }
   }
   tabellenGeprueft = true;
@@ -93,6 +104,10 @@ export interface ScreenerKandidat {
   /** Faktorwerte hinter den Scores (Name, Rohwert, Punkte, Gewicht) — die Herleitung zum Nachprüfen. */
   qualitaetFaktoren: unknown[] | null;
   bewertungFaktoren: unknown[] | null;
+  /** Die zwei Säulen der Qualität (Niveau 60 %, Richtung 40 %) — nötig, um die Kopfzahl nachzurechnen. */
+  qualitaetNiveau: number | null;
+  qualitaetRichtung: number | null;
+  fScore: number | null;
   fehler: string | null;
 }
 
@@ -143,7 +158,9 @@ export async function setzeLaufStatus(
  */
 export async function ergaenzeKandidaten(
   laufId: number,
-  kandidaten: Array<Omit<ScreenerKandidat, "laufId" | "qualitaet" | "bewertung" | "signalScore" | "signalLabel" | "qualitaetFaktoren" | "bewertungFaktoren" | "fehler">>,
+  kandidaten: Array<Omit<ScreenerKandidat,
+    "laufId" | "qualitaet" | "bewertung" | "signalScore" | "signalLabel"
+    | "qualitaetFaktoren" | "bewertungFaktoren" | "qualitaetNiveau" | "qualitaetRichtung" | "fScore" | "fehler">>,
 ): Promise<{ eingefuegt: number; zeilenFehler: number; ersterFehler: string | null }> {
   if (kandidaten.length === 0) return { eingefuegt: 0, zeilenFehler: 0, ersterFehler: null };
   const db = await dbOderFehler();
@@ -259,6 +276,9 @@ export async function schreibeErgebnis(
     signalLabel?: string | null;
     qualitaetFaktoren?: unknown[] | null;
     bewertungFaktoren?: unknown[] | null;
+    qualitaetNiveau?: number | null;
+    qualitaetRichtung?: number | null;
+    fScore?: number | null;
     fehler?: string;
   },
 ): Promise<void> {
@@ -273,6 +293,9 @@ export async function schreibeErgebnis(
         signalLabel = ${ergebnis.signalLabel ?? null},
         qualitaetFaktoren = ${ergebnis.qualitaetFaktoren ? JSON.stringify(ergebnis.qualitaetFaktoren) : null},
         bewertungFaktoren = ${ergebnis.bewertungFaktoren ? JSON.stringify(ergebnis.bewertungFaktoren) : null},
+        qualitaetNiveau = ${ergebnis.qualitaetNiveau ?? null},
+        qualitaetRichtung = ${ergebnis.qualitaetRichtung ?? null},
+        fScore = ${ergebnis.fScore ?? null},
         fehler = ${ergebnis.fehler?.slice(0, 250) ?? null},
         berechnetAm = now()
     WHERE laufId = ${laufId} AND ticker = ${ticker}`);
@@ -378,6 +401,9 @@ function mappeKandidat(r: any): ScreenerKandidat {
     signalLabel: r.signalLabel ?? null,
     qualitaetFaktoren: leseJson(r.qualitaetFaktoren),
     bewertungFaktoren: leseJson(r.bewertungFaktoren),
+    qualitaetNiveau: zahl(r.qualitaetNiveau),
+    qualitaetRichtung: zahl(r.qualitaetRichtung),
+    fScore: zahl(r.fScore),
     fehler: r.fehler ?? null,
   };
 }

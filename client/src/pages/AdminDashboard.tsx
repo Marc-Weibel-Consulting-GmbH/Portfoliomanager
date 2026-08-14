@@ -770,6 +770,17 @@ export default function AdminDashboard() {
                       {screenerDetail === k.ticker && (
                         <tr key={`${k.ticker}-detail`} className="border-t border-white/5 bg-black/30">
                           <td colSpan={8} className="py-2 px-3">
+                            {/* Die 60/40-Klammer der Qualität: Die Faktortabelle unten ist
+                                nur das Niveau — erst mit der Richtung (F-Score) lässt sich
+                                die Kopfzahl nachrechnen. */}
+                            {(k as any).qualitaetNiveau != null && (k as any).qualitaetRichtung != null && k.qualitaet != null && (
+                              <p className="text-[11px] text-muted-foreground font-mono mb-2">
+                                Qualität: Niveau {Number((k as any).qualitaetNiveau).toFixed(1)} × 60 %
+                                {" + "}Richtung {Number((k as any).qualitaetRichtung).toFixed(1)}
+                                {(k as any).fScore != null ? ` (F-Score ${(k as any).fScore}/9)` : ""} × 40 %
+                                {" = "}{Number(k.qualitaet).toFixed(1)}
+                              </p>
+                            )}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {([
                                 ["Qualität — Faktoren", (k as any).qualitaetFaktoren],

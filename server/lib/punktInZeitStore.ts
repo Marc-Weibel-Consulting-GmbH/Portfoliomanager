@@ -26,11 +26,14 @@
  *     PEG 0.45 → 0.35, FCF 0.35 → 0.30): Das PEG bestrafte billige
  *     Wenig-Wächser, ohne dass die Billigkeit selbst je Punkte bekam — der
  *     KGV-Deckel wirkte nur nach oben.
+ * 4 — Gewinnstabilität robust (`gewinnStabilitaet`): nur benachbarte
+ *     Geschäftsjahre gepaart, Raten bei ±100 % gekappt — Lückenraten und
+ *     Artefaktjahre nullten den Faktor (Befund 1 der Scoring-Prüfung).
  *
  * Ersetzt die frühere Behelfsprüfung «hat die Zeile ein Regime». Bei der
  * nächsten Formeländerung genügt eine neue Nummer.
  */
-export const FASSUNG = 3;
+export const FASSUNG = 4;
 
 let tabelleGeprueft = false;
 

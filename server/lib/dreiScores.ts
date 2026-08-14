@@ -138,6 +138,8 @@ export interface QualitaetsEingang {
   ertragsdeckung: number | null;
   /** 0–100, aus `qualityMetricsService.epsStabilityScore`. */
   epsStabilitaet: number | null;
+  /** Belegtext zur Stabilität (Raten + Streuung) — erscheint im Faktor-Hinweis. */
+  epsStabilitaetHinweis?: string | null;
   /** Nettoverschuldung ÷ EBITDA. */
   netDebtToEbitda: number | null;
 }
@@ -176,8 +178,14 @@ export function berechneNiveau(e: QualitaetsEingang): TeilScore {
       wert: e.roic,
       punkte: punkteAus(e.roic, 4, 25),
       gewicht: 0.25,
+      // Sekundärbefund der Scoring-Prüfung: Definition NOPAT ÷ (Eigenkapital +
+      // Nettoschulden). Bei Netto-Cash-Gesellschaften schrumpft der Nenner —
+      // Werte weit über 50 % messen dann die Kasse, nicht das Geschäft. Auf
+      // die Punkte wirkt sich das nicht aus (ab 25 % gilt ohnehin die
+      // Bestnote), aber der Rohwert braucht die Einordnung.
       hinweis: e.roic === null ? "nicht verfügbar"
-        : `${e.roic.toFixed(1)} % — ${e.roic >= 15 ? "deutlich über den Kapitalkosten" : e.roic >= 8 ? "über den Kapitalkosten" : "knapp oder darunter"}`,
+        : `${e.roic.toFixed(1)} % — ${e.roic >= 15 ? "deutlich über den Kapitalkosten" : e.roic >= 8 ? "über den Kapitalkosten" : "knapp oder darunter"}`
+          + (e.roic >= 50 ? " · Achtung: sehr hohe Werte entstehen meist durch einen kleinen Kapitalnenner (Netto-Cash), Definition NOPAT ÷ (Eigenkapital + Nettoschulden)" : ""),
     },
     {
       name: "Betriebsmarge",
@@ -204,8 +212,9 @@ export function berechneNiveau(e: QualitaetsEingang): TeilScore {
       punkte: e.epsStabilitaet === null ? null : Math.max(0, Math.min(100, e.epsStabilitaet)),
       gewicht: 0.15,
       hinweis: e.epsStabilitaet === null ? "nicht verfügbar"
-        : e.epsStabilitaet >= 70 ? "sehr gleichmässige Gewinne"
-        : e.epsStabilitaet >= 40 ? "schwankende Gewinne" : "stark schwankende Gewinne",
+        : (e.epsStabilitaet >= 70 ? "sehr gleichmässige Gewinne"
+          : e.epsStabilitaet >= 40 ? "schwankende Gewinne" : "stark schwankende Gewinne")
+          + (e.epsStabilitaetHinweis ? ` · ${e.epsStabilitaetHinweis}` : ""),
     },
     {
       name: "Verschuldung",
@@ -268,11 +277,47 @@ export function berechneQualitaet(e: QualitaetsEingang, piotroski: PiotroskiErge
   };
 }
 
+/**
+ * Die Qualitäts-Rechnung als Satz — Befund 3 der Scoring-Prüfung.
+ *
+ * Die sechs angezeigten Faktoren sind nur das NIVEAU (60 %); wer sie
+ * aufsummiert, landet neben der Kopfzahl, weil die Richtung (Piotroski,
+ * 40 %) als eigene Säule dazukommt. Dieser Text macht die Klammer sichtbar,
+ * damit sich der Score aus dem Angezeigten nachrechnen lässt — das ist das
+ * Kernversprechen der Erklärdialoge.
+ */
+export function qualitaetsRechnung(e: {
+  gesamt: number | null;
+  niveau: number | null;
+  richtung: number | null;
+  fScore: number | null;
+}): string | null {
+  if (e.gesamt === null) return null;
+  const pn = Math.round(ANTEIL_NIVEAU * 100);
+  const pr = Math.round(ANTEIL_RICHTUNG * 100);
+  const f = e.fScore !== null ? ` (F-Score ${e.fScore}/9)` : "";
+  if (e.niveau !== null && e.richtung !== null) {
+    return `Niveau ${e.niveau.toFixed(1)} × ${pn} % + Richtung ${e.richtung.toFixed(1)}${f} × ${pr} % = ${e.gesamt.toFixed(1)}`;
+  }
+  if (e.niveau !== null) {
+    return `Nur das Niveau ist belegt — Qualität = Niveau ${e.niveau.toFixed(1)}`;
+  }
+  if (e.richtung !== null) {
+    return `Nur die Richtung ist belegt — Qualität = Richtung ${e.richtung.toFixed(1)}${f}`;
+  }
+  return null;
+}
+
 // ─── Bewertung ────────────────────────────────────────────────────────────────
 
 export interface BewertungsEingang {
   /** Qualitäts- und volatilitätsbereinigtes PEG. */
   adjustedPeg: number | null;
+  /**
+   * Warum das PEG fehlt (Ausblendgrund aus `bereinigtesPeg`) — erscheint als
+   * Faktor-Hinweis, damit «kein Wert» von «kein Wert, weil …» unterscheidbar ist.
+   */
+  pegHinweis?: string | null;
   /** Forward-KGV, ersatzweise trailing. */
   kgv: number | null;
   /** % freier Cashflow ÷ Marktkapitalisierung. */
@@ -398,7 +443,7 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
       wert: e.adjustedPeg,
       punkte: pegPunkte,
       gewicht: 0.35,
-      hinweis: e.adjustedPeg === null ? "nicht verfügbar"
+      hinweis: e.adjustedPeg === null ? (e.pegHinweis ?? "nicht verfügbar")
         : `${e.adjustedPeg.toFixed(2)} — Bewertung im Verhältnis zum Wachstum${richtungsText}`,
     },
     // KGV auch als eigener Faktor, nicht nur als Deckel (FASSUNG 3): Das PEG

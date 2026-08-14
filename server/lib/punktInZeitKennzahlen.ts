@@ -24,6 +24,7 @@
  */
 
 import { berechnePiotroski } from "./piotroski";
+import { stabilitaetAusJahresEps } from "./gewinnStabilitaet";
 
 function zahl(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
@@ -79,28 +80,14 @@ function cagr(start: number | null, ende: number | null, jahre: number): number 
 }
 
 /**
- * Gewinnstabilität aus der Streuung der jährlichen Wachstumsraten.
- *
- * Dieselbe Skala wie in `qualityMetricsService` (bis 5 Prozentpunkte Streuung
- * = 100, ab 50 = 0). Bewusst hier nachgebildet statt importiert: Dort steckt
- * sie mitten in einer Funktion, die die ganze EODHD-Antwort verarbeitet.
- * Ändert sich die Skala dort, muss sie hier mitgeführt werden — der Test
- * `haelt dieselbe Skala wie qualityMetricsService` schlägt sonst an.
+ * Gewinnstabilität aus der Streuung der jährlichen Wachstumsraten —
+ * dieselbe Rechnung wie im Live-Pfad (`gewinnStabilitaet`, rein und getestet).
  */
-export function stabilitaetAusReihe(epsJahre: number[]): number | null {
-  const werte = epsJahre.filter((v) => Number.isFinite(v) && v !== 0);
-  if (werte.length < 5) return null;
-  const raten: number[] = [];
-  for (let i = 1; i < werte.length; i++) {
-    if (Math.abs(werte[i - 1]) > 0.001) raten.push((werte[i] - werte[i - 1]) / Math.abs(werte[i - 1]));
-  }
-  if (raten.length < 4) return null;
-  const mittel = raten.reduce((a, b) => a + b, 0) / raten.length;
-  const varianz = raten.reduce((s, v) => s + (v - mittel) ** 2, 0) / (raten.length - 1);
-  const streuungPp = Math.sqrt(varianz) * 100;
-  const OBEN = 5, UNTEN = 50;
-  const anteil = (UNTEN - Math.max(OBEN, Math.min(UNTEN, streuungPp))) / (UNTEN - OBEN);
-  return Math.round(anteil * 100);
+export function stabilitaetAusReihe(epsJahre: Array<{ jahr: number; eps: number | null }>): number | null {
+  // Delegiert an die eine, robuste Rechnung (Befund 1 der Scoring-Prüfung:
+  // keine Raten über Jahreslücken, Kappung bei ±100 %). Die frühere bewusste
+  // Duplikation entfällt — die Rechnung ist jetzt rein importierbar.
+  return stabilitaetAusJahresEps(epsJahre).score;
 }
 
 export function kennzahlenPerStichtag(e: PunktInZeitEingaben): PunktInZeitKennzahlen {
@@ -165,7 +152,10 @@ export function kennzahlenPerStichtag(e: PunktInZeitEingaben): PunktInZeitKennza
   const annual = e.beschnitten?.Earnings?.Annual ?? {};
   const annualKeys = Object.keys(annual).sort();
   const epsReihe = annualKeys.map((k) => zahl(annual[k]?.epsActual)).filter((v): v is number => v !== null);
-  const epsStabilitaet = stabilitaetAusReihe(epsReihe);
+  // Mit Geschäftsjahr, damit keine Rate über eine Datenlücke gebildet wird.
+  const epsStabilitaet = stabilitaetAusReihe(
+    annualKeys.map((k) => ({ jahr: parseInt(k.slice(0, 4), 10), eps: zahl(annual[k]?.epsActual) })),
+  );
   const epsAktuell = epsReihe.at(-1) ?? null;
   const epsVorjahr = epsReihe.at(-2) ?? null;
   const epsVor5 = epsReihe.length >= 6 ? epsReihe.at(-6)! : null;
