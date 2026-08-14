@@ -15,6 +15,19 @@
 | Drawdown | Dezimalzahl `≤ 0` | `riskStats.ts:88–99`, `signals/types.ts:51` | Maximaler Drawdown ist negativ; Anzeige darf sein Vorzeichen nicht still ändern. |
 | Gewicht | Dezimalzahl `[0, 1]` | `riskStats.ts:204–244` | Zielsumme = 1; Minimum und Maximum müssen zusammen zulässig sein. |
 
+## Verbindliche Sortino-Definition (F1-01)
+
+Die Anwendung verwendet die **target-aware Sortino-Ratio**. Für tägliche einfache Renditen `r_t` und den jährlichen risikofreien Satz `rf` gilt die tägliche Mindesthürde `T = rf / 252`.
+
+```text
+Excess return:       e_t = r_t − T
+Annualized return:   mean(e_t) × 252
+Downside deviation:  sqrt(sum(min(0, e_t)^2) / N) × sqrt(252)
+Sortino:             annualized return / downside deviation
+```
+
+Zähler und Downside-Term verwenden damit dieselbe Mindesthürde. Bei `rf = 0` entspricht diese Definition dem bisherigen Nullziel-Fall. Wenn keine Rendite unter der Mindesthürde liegt, bleibt der bestehende Rückgabevertrag `0` als endlicher, neutraler Wert bestehen; die Anwendung erzeugt keine unendlichen Kennzahlen.
+
 ## Handrechenbare Referenzfälle
 
 | ID | Sollfall | Erwartetes Ergebnis | Primäre Prüffläche |
@@ -35,4 +48,3 @@
 | K3 | `tickerScoring.ts` gegenüber `signalBlend.ts:125–142` | Ein paralleler Helper besitzt abweichende Signalbänder; die tatsächlichen Aufrufer und die beabsichtigte Rolle werden vor jeder Bewertung geprüft. | Aufrufer, Persistenz und sichtbare Verbraucher ermitteln; bewusstes Legacy-/Shadow-Verhalten ausschliessen. |
 
 > Ein Punkt wird erst dann als Befund `F1-xx` aufgenommen, wenn der Referenzfall reproduzierbar ausgeführt, die Auswirkungen entlang des tatsächlichen Produktpfads verfolgt und ein Falsch-positiv-Check gegen dokumentierte Entscheidungen abgeschlossen ist.
-

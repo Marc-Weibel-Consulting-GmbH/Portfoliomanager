@@ -31,6 +31,23 @@ describe('riskStats', () => {
       expect(correct).toBeGreaterThan(buggy); // correct Sortino is higher (smaller divisor base)
     });
 
+    it('verwendet den risikofreien Satz als Mindestziel im Zähler und Downside-Term', () => {
+      const rf = 0.02;
+      const dailyTarget = rf / TRADING_DAYS_YEAR;
+      // Alle Tagesrenditen liegen leicht unter der risikofreien Tageshürde,
+      // aber noch über null. Ein zero-target Downside-Term gäbe fälschlich 0.
+      const returns = Array.from({ length: 20 }, () => dailyTarget * 0.9);
+      const excess = returns.map((r) => r - dailyTarget);
+      const expectedDownside =
+        Math.sqrt(excess.reduce((sum, value) => sum + value ** 2, 0) / returns.length) *
+        SQRT_TRADING_DAYS;
+      const expected = (excess.reduce((sum, value) => sum + value, 0) / returns.length * TRADING_DAYS_YEAR) /
+        expectedDownside;
+
+      expect(calcSortino(returns, rf)).toBeCloseTo(expected, 9);
+      expect(calcSortino(returns, rf)).toBeLessThan(0);
+    });
+
     it('returns 0 when there are no negative returns', () => {
       expect(calcSortino([0.01, 0.02, 0.03], 0)).toBe(0);
     });

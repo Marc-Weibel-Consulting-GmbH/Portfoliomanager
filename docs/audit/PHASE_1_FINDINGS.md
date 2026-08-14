@@ -1,31 +1,23 @@
 # Phase 1 — Befunde und Gegenproben
 
 **Stand:** 13. August 2026  
-**Status:** F1-03 verifiziert behoben; F1-01 und F1-02 warten weiterhin auf eine separate Produktentscheidung.
+**Status:** F1-01 und F1-03 verifiziert behoben; F1-02 wartet weiterhin auf eine separate Produktentscheidung.
 
-## F1-01 — Sortino-Ratio verwendet zwei unterschiedliche Mindestziele
+## F1-01 — Sortino-Ratio verwendete zwei unterschiedliche Mindestziele — **verifiziert behoben**
 
 | Feld | Nachweis |
 |---|---|
-| **Einstufung** | **hoch** — kennzahlen- und modellselektionsrelevant; kein direkter Ausführungsbefehl. |
-| **Codebeleg** | `server/analytics/riskStats.ts:51–64` bildet im Zähler Tagesrenditen gegen `rf / 252` ab, bildet den Downside-Term aber aus negativen **Brutto**renditen (`r < 0`) relativ zu null. |
-| **Produktpfad** | `server/analytics/engine.ts:649–650` übergibt einen konfigurierbaren risikofreien Satz an Sharpe und Sortino. `server/lib/signals/modelSelector.ts:197–199` verwendet den Standardwert in der Engine-Selektion; der normierte Sortino-Anteil hat Gewicht 15 % (`235–243`). |
-| **Reproduktion** | 20 konstante Tagesrenditen von `0.9 × (2 % / 252)`: Beobachtete `calcSortino`-Rückgabe **0**. Bei identischem Mindestziel von 2 % p.a. beträgt die target-aware Referenz **−15.8745078664**. |
-| **Folge im Selektor** | Der beobachtete Sortino-Beitrag ist **0.05625**, die target-aware Referenz wird auf **0** normiert. Die Differenz kann damit die Reihenfolge naher Engine-Kandidaten verändern. |
-| **Falsch-positiv-Check** | Die vorhandenen Tests in `riskStats.test.ts:14–37` setzen den risikofreien Satz in ihren Formeltests auf null. Es gibt keinen Test für einen positiven Mindestzins; keine gefundene Produktdefinition verlangt ausdrücklich einen Downside-Term relativ zu null bei gleichzeitigem Überschussrendite-Zähler. |
+| **Einstufung vor Fix** | **hoch** — kennzahlen- und modellselektionsrelevant; kein direkter Ausführungsbefehl. |
+| **Fehlerbild** | Der Zähler verwendete Überschussrenditen gegen `rf / 252`, der Downside-Term jedoch negative Bruttorenditen relativ zu null. |
+| **Verbindliche Definition** | Target-aware Sortino: Zähler und Downside-Deviation verwenden denselben täglichen Mindestzins `rf / 252`. Der Vertrag steht in `PHASE_1_REFERENCE_CONTRACT.md`. |
+| **Fix** | `server/analytics/riskStats.ts` bildet den Downside-Term jetzt aus negativen Überschussrenditen. Die Division erfolgt weiterhin über alle Beobachtungen `N`. |
+| **Roter Test** | 20 konstante Tagesrenditen von `0.9 × (2 % / 252)` ergaben zuvor fälschlich 0 statt der target-aware Referenz **−15.8745078664**. |
+| **Produktpfad** | `server/analytics/engine.ts` übergibt den konfigurierbaren risikofreien Satz an Sharpe und Sortino. `modelSelector.ts` verwendet die korrigierte Standarddefinition in der Engine-Evaluation; der Sortino-Anteil bleibt mit 15 % gewichtet. |
+| **Verifikation** | 16 zielgerichtete Risiko- und Modellselektions-Tests bestanden. Der Modellselektions-Test weist bei positivem `rf` und negativer Überschussrendite explizit einen negativen Sortino aus. |
 
-### Ursachenhypothese
+### Verbleibende Semantik
 
-Die Implementierung kombiniert zwei gebräuchliche Varianten des Sortino, ohne sich für eine zu entscheiden: Überschussrendite im Zähler und Nullschwelle im Downside-Term. Bei `rf = 0` stimmen beide Varianten überein; deshalb decken die aktuellen Tests den Fehler nicht auf.
-
-### Fix-Gate
-
-Vor einem Fix wird ein isolierter roter Test ergänzt, der einen positiven `rf` und Renditen knapp darunter verwendet. Danach ist eine explizite Produktentscheidung erforderlich:
-
-1. **Target-aware Sortino:** Zähler und Downside-Abweichung beide relativ zu `rf / 252`; oder
-2. **Zero-target Sortino:** Zähler und Downside-Abweichung beide relativ zu null.
-
-Für die bestehende API, die bereits einen risikofreien Satz entgegennimmt, ist Option 1 die konsistentere Hypothese. Sie wird jedoch nicht ohne Freigabe implementiert.
+Wenn keine Rendite unter der Mindesthürde liegt, gibt die bestehende API weiterhin `0` statt einer unendlichen Kennzahl zurück. Das ist bewusst als endlicher, neutraler Rückgabewert dokumentiert und verhindert unbeschränkte Werte in UI und Modellselektion.
 
 ## F1-02 — TTWROR kappt tatsächliche Tagesrenditen ohne Kennzeichnung
 

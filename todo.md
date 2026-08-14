@@ -523,3 +523,9 @@
 - [x] Fundamentals ohne Zeitstempel erst ab folgendem Handelstag als verfügbar behandeln
 - [x] Historische Score-Reihe und Vorwärtsrendite auf den konservativen Verfügbarkeitsvertrag gegenprüfen
 - [x] Zielgerichtete Tests, Gesamt-Suite, TypeScript und Build ausführen sowie Audit-Nachweis aktualisieren
+
+## Audit-Remediation — F1-01 Sortino-Ratio (2026-08-14)
+- [x] Target-aware Sortino-Definition als verbindlichen Projektstandard dokumentieren
+- [x] Roten Referenztest für positiven risikofreien Satz und negative Überschussrendite ergänzen
+- [x] Downside-Deviation und Zähler auf dieselbe Tages-Mindesthürde ausrichten
+- [x] Modellselektion, Risikostatistik, Gesamt-Suite, TypeScript und Build gegenprüfen sowie Audit-Nachweis aktualisieren

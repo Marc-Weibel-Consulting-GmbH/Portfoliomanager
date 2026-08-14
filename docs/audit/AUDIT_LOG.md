@@ -14,7 +14,7 @@
 | P0-06 | 0 | Phase-1-Prüfplan | abgeschlossen | Modulreihenfolge, Prüfinvarianten und Beleganforderungen in `PHASE_0_BASELINE.md` festgehalten. |
 | F1-01 | 1 | Einheiten- und Referenzfallvertrag | abgeschlossen | Kennzahlskalen, Vorzeichen, Datumsbasis und Sollformeln gegen zentrale Module und Referenzfälle abgeglichen. |
 | F1-02 | 1 | Score-, Signal- und Regime-Pipeline | abgeschlossen | Blending, Abdeckung, Regime-Aliase und Risk Overlay gegen 43 zielgerichtete Tests und Referenzfälle geprüft. |
-| F1-03 | 1 | Risiko und Performance | abgeschlossen mit Freigabe-Gate | Sortino-Zielinkonsistenz (F1-01) und TTWROR-Kappung (F1-02) sind reproduziert und warten auf Produktentscheidungen. |
+| F1-03 | 1 | Risiko und Performance | teilweise verifiziert | F1-01 target-aware Sortino umgesetzt und mit Risiko-/Modellselektions-Tests verifiziert. F1-02 TTWROR-Kappung bleibt als separates Produktentscheidungs-Gate offen. |
 | F1-04 | 1 | Optimierung, Benchmarks und Kosten | abgeschlossen | HRP, Multi-Asset, Kosten- und Composite-Benchmark gegen 75 zielgerichtete Tests geprüft. |
 | F1-05 | 1 | Punkt-in-Zeit und Look-Ahead | verifiziert | F1-03 umgesetzt: datumsgenaue Filings, Frist-Fallbacks und Quartalsberichte gelten erst nach dem Kalendertag als verfügbar; Rekonstruktion zensiert gegen den effektiven letzten Handelstag. |
 | F1-06 | 1 | Befundbericht und Fix-Gates | abgeschlossen | `PHASE_1_FINDINGS.md` und `PHASE_1_REPORT.md` enthalten Ursache, Gegenprobe, Falsch-positiv-Check und Abnahmekriterium. |

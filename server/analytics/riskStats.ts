@@ -50,11 +50,15 @@ export function calcSharpe(returns: number[], rf = DEFAULT_RISK_FREE_RATE): numb
 
 export function calcSortino(returns: number[], rf = DEFAULT_RISK_FREE_RATE): number {
   if (returns.length === 0) return 0;
-  const excess = returns.map((r) => r - rf / TRADING_DAYS_YEAR);
-  const downside = returns.filter((r) => r < 0);
+  const dailyTarget = rf / TRADING_DAYS_YEAR;
+  // Target-aware contract: Zähler und Downside-Term verwenden dieselbe
+  // Mindesthürde. Ein positiver rf darf keine Rendite knapp darunter als
+  // risikofrei erscheinen lassen.
+  const excess = returns.map((r) => r - dailyTarget);
+  const downside = excess.filter((r) => r < 0);
   if (downside.length === 0) return 0;
   // Downside deviation divides the sum of squared negative returns by the TOTAL
-  // number of observations (N), not by the count of negative days. Dividing by
+  // number of observations (N), not by the count of downside days. Dividing by
   // downside.length overstates the downside deviation and understates Sortino.
   const downsideDev =
     Math.sqrt(downside.reduce((s, v) => s + v ** 2, 0) / returns.length) *

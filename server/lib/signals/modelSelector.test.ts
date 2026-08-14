@@ -24,6 +24,16 @@ function neutralSignal(engine: SignalEngineType): SignalOutput {
   };
 }
 
+function longSignal(engine: SignalEngineType): SignalOutput {
+  return {
+    ...neutralSignal(engine),
+    direction: 1,
+    rawScore: 1,
+    confidence: 0.8,
+    entry: true,
+  };
+}
+
 // Flache Preisreihe (>= 210 Punkte, damit Walk-Forward aktiv ist) — bei
 // direction 0 sind alle Strategie-Renditen 0, die Evaluation ist deterministisch.
 const prices = Array.from({ length: 260 }, () => 100);
@@ -51,5 +61,20 @@ describe("selectBestModel — gelernte Priors (SIG-7)", () => {
     const learned = { mean_reversion: 0.05 };
     const result = selectBestModel(prices, "bull_trend", signals, learned);
     expect(result.selectedEngine).toBe("trend");
+  });
+
+  it("übernimmt bei positivem rf einen negativen target-aware Sortino in die Evaluation", () => {
+    const dailyTarget = 0.02 / 252;
+    const prices = [100];
+    for (let i = 1; i < 260; i++) prices.push(prices[i - 1] * (1 + dailyTarget * 0.9));
+
+    const result = selectBestModel(
+      prices,
+      "bull_trend",
+      new Map<SignalEngineType, SignalOutput>([["trend", longSignal("trend")]]),
+    );
+
+    expect(result.evaluations).toHaveLength(1);
+    expect(result.evaluations[0].sortino).toBeLessThan(0);
   });
 });
