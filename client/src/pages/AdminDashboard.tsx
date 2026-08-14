@@ -792,10 +792,15 @@ export default function AdminDashboard() {
                                     <table className="w-full text-[11px]">
                                       <tbody>
                                         {faktoren.map((f: any, i: number) => (
-                                          <tr key={i} className="border-t border-white/5">
+                                          <tr key={i} className="border-t border-white/5" title={f?.hinweis ?? ""}>
                                             <td className="py-0.5 pr-2">
                                               {f?.name ?? "—"}
                                               {Number.isFinite(f?.gewicht) ? <span className="text-muted-foreground"> · {Math.round(f.gewicht * 100)}%</span> : null}
+                                              {/* Ausgeblendete Faktoren: der Grund gehört sichtbar
+                                                  daneben — ein Strich allein liest sich wie ein Fehler. */}
+                                              {f?.punkte == null && f?.hinweis && (
+                                                <span className="block text-[10px] text-muted-foreground/70">{f.hinweis}</span>
+                                              )}
                                             </td>
                                             <td className="py-0.5 pr-2 text-right font-mono">
                                               {f?.wert != null && Number.isFinite(Number(f.wert)) ? Number(f.wert).toFixed(2) : "—"}

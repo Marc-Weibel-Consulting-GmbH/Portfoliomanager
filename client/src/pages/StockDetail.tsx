@@ -1070,9 +1070,12 @@ export default function StockDetail() {
                   <table className="w-full text-xs">
                     <tbody>
                       {dreiScores.timing.faktoren.map((f) => (
-                        <tr key={f.name} className="border-t border-white/5">
+                        <tr key={f.name} className="border-t border-white/5" title={(f as any).hinweis ?? ""}>
                           <td className="px-3 py-1.5 text-gray-300">{f.name}
                             <span className="text-gray-600"> · {Math.round(f.gewicht * 100)}%</span>
+                            {f.punkte === null && (f as any).hinweis && (
+                              <span className="block text-[10px] text-gray-500">{(f as any).hinweis}</span>
+                            )}
                           </td>
                           <td className="px-2 py-1.5 text-right text-gray-400 font-mono">
                             {f.wert !== null && f.wert !== undefined ? Number(f.wert).toFixed(2) : "—"}
@@ -1147,9 +1150,14 @@ export default function StockDetail() {
                     <table className="w-full text-xs">
                       <tbody>
                         {dreiScores.qualitaet.niveau.faktoren.map((f: any) => (
-                          <tr key={f.name} className="border-t border-white/5">
+                          <tr key={f.name} className="border-t border-white/5" title={f.hinweis ?? ""}>
                             <td className="px-3 py-1.5 text-gray-300">{f.name}
                               <span className="text-gray-600"> · {Math.round(f.gewicht * 100)}%</span>
+                              {/* Ausgeblendete Faktoren: das «Warum» direkt zeigen —
+                                  ein blosser Strich liest sich wie ein Fehler. */}
+                              {f.punkte === null && f.hinweis && (
+                                <span className="block text-[10px] text-gray-500">{f.hinweis}</span>
+                              )}
                             </td>
                             <td className="px-2 py-1.5 text-right text-gray-400 font-mono">
                               {f.wert !== null && f.wert !== undefined ? Number(f.wert).toFixed(1) : "—"}

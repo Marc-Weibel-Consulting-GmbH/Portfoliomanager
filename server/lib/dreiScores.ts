@@ -211,7 +211,8 @@ export function berechneNiveau(e: QualitaetsEingang): TeilScore {
       wert: e.epsStabilitaet,
       punkte: e.epsStabilitaet === null ? null : Math.max(0, Math.min(100, e.epsStabilitaet)),
       gewicht: 0.15,
-      hinweis: e.epsStabilitaet === null ? "nicht verfügbar"
+      hinweis: e.epsStabilitaet === null
+        ? (e.epsStabilitaetHinweis ?? "nicht verfügbar")
         : (e.epsStabilitaet >= 70 ? "sehr gleichmässige Gewinne"
           : e.epsStabilitaet >= 40 ? "schwankende Gewinne" : "stark schwankende Gewinne")
           + (e.epsStabilitaetHinweis ? ` · ${e.epsStabilitaetHinweis}` : ""),

@@ -57,18 +57,22 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
     ({ peg: null, grund, hinweis });
 
   if (e.vendorPeg === null || !Number.isFinite(e.vendorPeg) || e.vendorPeg <= 0) {
-    return leer("peg_fehlt", null); // die Oberfläche zeigt ohnehin «nicht verfügbar»
+    return leer("peg_fehlt", "kein Vendor-PEG von EODHD geliefert");
   }
 
-  // Gleiche Semantik wie pegHistory: das 5j-CAGR führt; liegt es unter der
-  // Schwelle, wird NICHT auf TTM ausgewichen — sonst pickte man sich die
-  // freundlichere von zwei Wachstumszahlen heraus.
-  const wachstum = e.epsWachstum5j ?? e.epsWachstumTTM;
-  if (wachstum === null || !Number.isFinite(wachstum)) {
+  // ANDERS als in pegHistory ist das Wachstum hier nicht der Nenner der
+  // eigenen Rechnung, sondern nur die Plausibilitätsprüfung des
+  // Vendor-Nenners. Dafür genügt, dass IRGENDEINE der beiden Wachstumszahlen
+  // trägt — die strengere «5j führt, kein Ausweichen»-Regel der ersten
+  // Fassung blendete das PEG reihenweise aus, weil das 5j-CAGR oft fehlt
+  // oder von einem einzelnen schwachen Basisjahr gedrückt wird.
+  const belegte = [e.epsWachstum5j, e.epsWachstumTTM]
+    .filter((w): w is number => w !== null && Number.isFinite(w));
+  if (belegte.length === 0) {
     return leer("wachstum_fehlt",
       "PEG ausgeblendet — kein belegtes Gewinnwachstum, der Nenner der Vendor-Zahl ist nicht prüfbar");
   }
-  if (wachstum < MIN_WACHSTUM_FUER_PEG) {
+  if (Math.max(...belegte) < MIN_WACHSTUM_FUER_PEG) {
     return leer("wachstum_zu_gering",
       `PEG sagt hier nichts — Wachstum unter ${MIN_WACHSTUM_FUER_PEG} % p.a. ist eine Division durch fast null`);
   }

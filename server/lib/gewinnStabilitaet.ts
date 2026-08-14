@@ -71,7 +71,15 @@ export function stabilitaetAusJahresEps(
     raten.push(Math.max(-RATEN_KAPPUNG, Math.min(RATEN_KAPPUNG, roh)));
   }
 
-  if (raten.length < MIN_RATEN) return { ...leer, raten };
+  if (raten.length < MIN_RATEN) {
+    // Auch das «Warum nicht» gehört in die Anzeige — sonst steht dort nur ein
+    // Strich, und niemand sieht, ob Daten fehlen oder die Rechnung klemmt.
+    return {
+      ...leer,
+      raten,
+      hinweis: `zu wenig zusammenhängende Jahres-EPS (${raten.length} Jahresraten, benötigt ${MIN_RATEN})`,
+    };
+  }
 
   const mittel = raten.reduce((a, b) => a + b, 0) / raten.length;
   const varianz = raten.reduce((s, v) => s + (v - mittel) ** 2, 0) / (raten.length - 1);

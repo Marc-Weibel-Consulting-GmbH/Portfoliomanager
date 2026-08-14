@@ -38,12 +38,20 @@ describe("bereinigtesPeg", () => {
     expect(r.hinweis).toMatch(/wachstum/i);
   });
 
-  it("blendet unter 2 % Wachstum aus statt eine wertlose Zahl zu liefern", () => {
-    // Gleiche Semantik wie pegHistory: das 5j-CAGR führt; liegt es unter der
-    // Schwelle, wird NICHT auf TTM ausgewichen.
-    const r = bereinigtesPeg({ ...STANDARD, epsWachstum5j: 0.7 });
+  it("blendet aus, wenn ALLE belegten Wachstumszahlen unter 2 % liegen", () => {
+    const r = bereinigtesPeg({ ...STANDARD, epsWachstum5j: 0.7, epsWachstumTTM: 1.1 });
     expect(r.peg).toBeNull();
     expect(r.grund).toBe("wachstum_zu_gering");
+  });
+
+  it("eine tragende Wachstumszahl genügt — das Wachstum ist hier Plausibilitätsprüfung, kein Nenner", () => {
+    // 5j-CAGR schwach (Basisjahr-Effekt), TTM klar über der Schwelle → Wert bleibt.
+    const r = bereinigtesPeg({ ...STANDARD, epsWachstum5j: 0.7, epsWachstumTTM: 12 });
+    expect(r.grund).toBeNull();
+    expect(r.peg).not.toBeNull();
+    // Und umgekehrt: nur das 5j-CAGR belegt und tragfähig.
+    const nur5j = bereinigtesPeg({ ...STANDARD, epsWachstum5j: 6, epsWachstumTTM: null });
+    expect(nur5j.peg).not.toBeNull();
   });
 
   it("blendet absurde Vendor-Werte aus (Befund BCHN: 15.63 → nicht 0/100)", () => {
