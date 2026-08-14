@@ -363,7 +363,12 @@ describe("Kurs-Buchwert nur dort, wo er etwas aussagt", () => {
       kursBuchwert: 42.21, sektor: "Technology",
     });
     expect(r.faktoren.some((f) => f.name === "Kurs-Buchwert")).toBe(false);
-    expect(r.score).toBeGreaterThan(50);
+    // FASSUNG 3: Das KGV traegt jetzt eigenes Gewicht — 35-facher Gewinn gibt
+    // dort 0 Punkte, der Gesamtscore landet bei «ambitioniert» statt «fair».
+    // Entscheidend bleibt: Der Buchwert (42x) hat die Zahl nicht auf null
+    // gezogen, der Score sagt weiterhin etwas aus.
+    expect(r.score).toBeGreaterThan(40);
+    expect(bewertungsBand(r.score)).toBe("ambitioniert");
   });
 });
 

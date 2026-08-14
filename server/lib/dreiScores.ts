@@ -397,15 +397,29 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
       geschaetzt: true,
       wert: e.adjustedPeg,
       punkte: pegPunkte,
-      gewicht: 0.45,
+      gewicht: 0.35,
       hinweis: e.adjustedPeg === null ? "nicht verfügbar"
         : `${e.adjustedPeg.toFixed(2)} — Bewertung im Verhältnis zum Wachstum${richtungsText}`,
+    },
+    // KGV auch als eigener Faktor, nicht nur als Deckel (FASSUNG 3): Das PEG
+    // bestraft billige Wenig-Wächser — ein KGV von 12 bei 4 % Wachstum ergibt
+    // PEG 3 und damit 0 Punkte, und die Billigkeit selbst bekam nirgends
+    // etwas gutgeschrieben. Der Deckel wirkte nur nach oben (teuer begrenzt),
+    // nie nach unten (billig belohnt). Anker grosszügiger als im
+    // Finanzwerte-Zweig, weil Nicht-Finanzwerte strukturell höhere
+    // Multiplikatoren tragen.
+    {
+      name: "KGV",
+      wert: e.kgv,
+      punkte: punkteAus(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 35, 10),
+      gewicht: 0.15,
+      hinweis: e.kgv === null ? "nicht verfügbar" : `${e.kgv.toFixed(1)}-facher Jahresgewinn`,
     },
     {
       name: "Free-Cash-Flow-Rendite",
       wert: e.fcfRendite,
       punkte: punkteAus(e.fcfRendite, 0, 8),
-      gewicht: 0.35,
+      gewicht: 0.30,
       hinweis: e.fcfRendite === null ? "nicht verfügbar" : `${e.fcfRendite.toFixed(1)} % — schwerer zu beschönigen als der Gewinn`,
     },
     { ...dividende, gewicht: 0.20 },
