@@ -22,11 +22,15 @@
  *     Zweig durch. Aus 212 Titeln je Stichtag wurden so 20 bis 40.
  * 2 — Bewertung als `scoreGemessen` (dieselbe Rechnung ohne die Schätzfaktoren,
  *     auf die übrigen normiert) und die Roh-Kennzahlen daneben.
+ * 3 — KGV als eigener Bewertungs-Faktor für Nicht-Finanzwerte (Gewicht 0.15,
+ *     PEG 0.45 → 0.35, FCF 0.35 → 0.30): Das PEG bestrafte billige
+ *     Wenig-Wächser, ohne dass die Billigkeit selbst je Punkte bekam — der
+ *     KGV-Deckel wirkte nur nach oben.
  *
  * Ersetzt die frühere Behelfsprüfung «hat die Zeile ein Regime». Bei der
  * nächsten Formeländerung genügt eine neue Nummer.
  */
-export const FASSUNG = 2;
+export const FASSUNG = 3;
 
 let tabelleGeprueft = false;
 

@@ -39,9 +39,9 @@ describe("Bewertung — gemessen gegen geschätzt", () => {
   });
 
   it("beziffert den geschätzten Anteil", () => {
-    // Standardprofil: PEG 0.45, FCF 0.35, Dividende 0.20 — alle belegt.
+    // Standardprofil (FASSUNG 3): PEG 0.35, KGV 0.15, FCF 0.30, Dividende 0.20 — alle belegt.
     const b = berechneBewertung(STANDARD);
-    expect(b.anteilGeschaetzt).toBeCloseTo(0.45, 2);
+    expect(b.anteilGeschaetzt).toBeCloseTo(0.35, 2);
   });
 
   it("der gemessene Score ignoriert das PEG vollständig", () => {
@@ -55,12 +55,23 @@ describe("Bewertung — gemessen gegen geschätzt", () => {
 
   it("verteilt das Gewicht des PEG auf die übrigen Faktoren", () => {
     const b = berechneBewertung(STANDARD);
-    // Ohne PEG bleiben FCF 0.35 und Dividende 0.20 — normiert 0.636 / 0.364.
-    // Punkte: FCF 5 % → 62.5, Dividende 3 % → 60 (linear 0..5 bzw. 0..8).
+    // Ohne PEG bleiben KGV 0.15, FCF 0.30 und Dividende 0.20 — normiert auf 0.65.
+    const kgv = b.faktoren.find((f) => f.name === "KGV")!.punkte!;
     const fcf = b.faktoren.find((f) => f.name.startsWith("Free-Cash-Flow"))!.punkte!;
     const div = b.faktoren.find((f) => f.name === "Dividendenrendite")!.punkte!;
-    const erwartet = (fcf * 0.35 + div * 0.20) / 0.55;
+    const erwartet = (kgv * 0.15 + fcf * 0.30 + div * 0.20) / 0.65;
     expect(b.scoreGemessen).toBeCloseTo(erwartet, 1);
+  });
+
+  it("gibt einem tiefen KGV Punkte, auch wenn das PEG wegen tiefen Wachstums hoch ist", () => {
+    // Der Fall aus der Praxis (Marc, Beispiel Airbus): billig, aber wenig
+    // Wachstum. Vorher bekam die Billigkeit nirgends etwas gutgeschrieben —
+    // der KGV-Deckel wirkte nur nach oben.
+    const billigOhneWachstum = berechneBewertung({ ...STANDARD, adjustedPeg: 3.5, kgv: 12 });
+    const teuerOhneWachstum = berechneBewertung({ ...STANDARD, adjustedPeg: 3.5, kgv: 34 });
+    const kgvFaktor = billigOhneWachstum.faktoren.find((f) => f.name === "KGV")!;
+    expect(kgvFaktor.punkte).toBeGreaterThan(80);
+    expect(billigOhneWachstum.score!).toBeGreaterThan(teuerOhneWachstum.score!);
   });
 
   it("beim Banken-Profil ist alles gemessen", () => {
@@ -79,15 +90,14 @@ describe("Bewertung — gemessen gegen geschätzt", () => {
     expect(duenn.scoreGemessen).toBeNull();
   });
 
-  it("der gemessene Score kann bestehen, wo der volle scheitert", () => {
-    // Ohne PEG sind nur 55 % des vorgesehenen Gewichts belegt — zu wenig für
-    // den vollen Score. Der gemessene Score wird jedoch AUS SEINEN EIGENEN
-    // Faktoren gebildet, und die sind vollständig da. Das ist gewollt: Für den
-    // Backtest zählt, ob die berichteten Zahlen reichen, nicht ob eine
-    // Schätzung fehlt, die es historisch ohnehin nie gab.
+  it("besteht auch ohne PEG, seit das KGV eigenes Gewicht trägt", () => {
+    // FASSUNG 3: Ohne PEG sind KGV+FCF+Dividende 65 % des Gewichts — über der
+    // Mindestabdeckung. Vorher (55 %) fiel der volle Score aus; jetzt tragen
+    // die gemessenen Faktoren allein. Der gemessene Score bleibt ohnehin da.
     const ohnePeg = berechneBewertung({ ...STANDARD, adjustedPeg: null });
     expect(ohnePeg.anteilGeschaetzt).toBe(0);
-    expect(ohnePeg.score).toBeNull();
+    expect(ohnePeg.score).not.toBeNull();
     expect(ohnePeg.scoreGemessen).not.toBeNull();
+    expect(ohnePeg.score).toBe(ohnePeg.scoreGemessen);
   });
 });

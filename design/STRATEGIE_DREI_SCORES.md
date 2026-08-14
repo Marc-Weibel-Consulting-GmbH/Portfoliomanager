@@ -88,6 +88,17 @@ alle ohne Überlebensverzerrung:
 Gewichte, Schwellen oder die Rolle des Signals neu entschieden. Bis dahin gilt
 dieses Dokument.
 
+## 6. Änderungslog der Rechnung
+
+- **FASSUNG 3 (2026-08):** KGV als eigener Bewertungs-Faktor für
+  Nicht-Finanzwerte (Gewicht 0.15; PEG 0.45 → 0.35, FCF 0.35 → 0.30).
+  Begründung nach Regel 1: Das PEG bestraft billige Wenig-Wächser — KGV 12 bei
+  4 % Wachstum ergibt PEG 3 und damit 0 Punkte —, während die Billigkeit
+  selbst nirgends Punkte bekam; der KGV-Deckel wirkte nur nach oben (teuer
+  begrenzt), nie nach unten (billig belohnt). Nebenwirkung, bewusst in Kauf
+  genommen: Titel ohne PEG erreichen mit KGV+FCF+Dividende jetzt 65 %
+  Abdeckung und bekommen wieder einen vollen Bewertungs-Score.
+
 ## 6. Fahrplan
 
 1. **Frontend-Konsolidierung** — eine Formel überall; drei Kreise + Signalskala
