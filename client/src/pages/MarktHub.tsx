@@ -13,6 +13,7 @@ import { TradingViewWidget, MARKET_OVERVIEW_CONFIG, MARKET_QUOTES_CONFIG, TICKER
 
 import MarketRegimeContent from "./MarketRegimeContent";
 import { KiBoomDashboard } from "@/components/markt/KiBoomDashboard";
+import { RrgKarte } from "@/components/markt/RrgKarte";
 import { FactorETFContent } from "@/components/markt/FactorETFContent";
 import { CapitalFlowsContent } from "@/components/markt/CapitalFlowsContent";
 import NewsroomContent from "./Newsroom";
@@ -405,6 +406,8 @@ function OverviewContent() {
       {/* Tägliches Manus Momentum-Update Bericht */}
       <MarketReportSection />
       <IndicesYtdChart />
+      {/* Sektor-Rotation (RRG) — Beobachtung + tägliche Vorwärts-Aufzeichnung */}
+      <RrgKarte />
       <KIAnalyse />
       <Card className="bg-[#1a1f2e] border-gray-800 overflow-hidden">
         <CardContent className="p-0">

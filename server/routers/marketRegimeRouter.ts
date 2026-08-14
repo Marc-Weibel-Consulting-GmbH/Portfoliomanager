@@ -716,6 +716,17 @@ export const marketRegimeRouter = router({
         chart,
       };
     }),
+
+  /**
+   * Sektor-Rotation (RRG): US-Sektor-ETFs gegen SPY — RS-Ratio (6 Monate),
+   * RS-Momentum (1 Monat), Quadrant und Wochenspur. Reine Anzeige plus
+   * tägliche Aufzeichnung (`rrg_verlauf`) als Vorwärtsreihe; fliesst bewusst
+   * NICHT in Titel-Signal oder Gewichte, bis die Reihe etwas belegt.
+   */
+  getRrg: publicProcedure.query(async () => {
+    const { rrgStand } = await import("../lib/rrgDienst");
+    return rrgStand();
+  }),
 });
 
 export type RegimeHistoryPoint = { date: string; score: number; regime: string };

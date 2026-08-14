@@ -102,6 +102,16 @@ export async function handleScoreSnapshot(req: Request, res: Response) {
     }
 
     console.log(`[scoreSnapshotCron] Saved ${saved} snapshots, skipped ${skipped} (already exist) for ${today}${timedOut ? ' [partial — time limit reached]' : ''}`);
+
+    // Sektor-Rotation (RRG) täglich fortschreiben — die Vorwärtsreihe soll
+    // nicht davon abhängen, ob jemand den Markt-Hub öffnet. Non-fatal.
+    try {
+      const { rrgStand } = await import("../lib/rrgDienst");
+      await rrgStand(); // rechnet, cached und zeichnet die Tageszeilen auf
+    } catch (e) {
+      console.warn("[scoreSnapshotCron] RRG-Aufzeichnung fehlgeschlagen:", (e as Error).message);
+    }
+
     return res.json({ ok: true, saved, skipped, date: today, timedOut });
   } catch (err: any) {
     console.error("[scoreSnapshotCron] Error:", err);
