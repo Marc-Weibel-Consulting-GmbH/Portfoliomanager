@@ -12,6 +12,8 @@
 import { ENV } from "../_core/env";
 import { toEodhdSymbol } from "./eodhdSymbol";
 import { berechnePiotroski, type PiotroskiErgebnis } from "./piotroski";
+import { bereinigtesPeg } from "./bereinigtesPeg";
+import { stabilitaetAusJahresEps } from "./gewinnStabilitaet";
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
 
@@ -20,6 +22,10 @@ export interface QualityMetrics {
   trailingPeg: number | null;
   forwardPeg: number | null;
   adjustedPeg: number | null;
+  /** Warum `adjustedPeg` null ist (Wächter aus `bereinigtesPeg`); null bei belegtem Wert. */
+  adjustedPegGrund: string | null;
+  /** Deutscher Anzeigetext zum Ausblendgrund — für den Faktor-Hinweis. */
+  adjustedPegHinweis: string | null;
   pegQuadrant: PegQuadrant;
   pegQuadrantLabel: string;
 
@@ -39,6 +45,8 @@ export interface QualityMetrics {
   epsVolatility: number | null;     // CV der jährlichen EPS-Wachstumsraten (0–1+)
   /** 0–100 (100 = sehr gleichmässige Gewinne); null = nicht berechenbar. */
   epsStabilityScore: number | null;
+  /** Belegtext zur Stabilität (verwendete Raten + Streuung) — macht die Zahl nachprüfbar. */
+  epsStabilitaetHinweis: string | null;
   surpriseRate: number | null;      // % Quartale mit positivem EPS-Surprise (letzte 8Q)
   netDebtToEbitda: number | null;   // Verschuldungsgrad
 
@@ -105,13 +113,6 @@ function resolveEodhdTicker(ticker: string): string {
   }
   // Dann zentrale EODHD-Mapping anwenden
   return toEodhdSymbol(resolved);
-}
-
-function calcStdDev(values: number[]): number {
-  if (values.length < 2) return 0;
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (values.length - 1);
-  return Math.sqrt(variance);
 }
 
 function calcCAGR(startValue: number, endValue: number, years: number): number | null {
@@ -241,51 +242,24 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
     epsGrowth5y = calcCAGR(eps5yAgo ?? 0, epsLatest ?? 0, 5);
   }
 
-  // ── Historische Gewinnvolatilität (EPS-CV) ────────────────────────────────
-  // Verwende jährliche EPS-Wachstumsraten der letzten 10 Jahre
+  // ── Historische Gewinnvolatilität und -stabilität ────────────────────────
+  // Rechnung in `gewinnStabilitaet` (rein, getestet): nur benachbarte
+  // Geschäftsjahre werden gepaart, Raten bei ±100 % gekappt — Befund 1 der
+  // Scoring-Prüfung (Lückenraten und Artefaktjahre nullten den Faktor).
+  // null heisst weiterhin «nicht berechenbar», niemals eine erfundene 0.
+  const stabilitaet = stabilitaetAusJahresEps(
+    annualKeys.slice(-11).map((k) => ({
+      jahr: parseInt(k.slice(0, 4), 10),
+      eps: parseFloatOrNull(annualEPS[k]?.epsActual),
+    })),
+  );
+  const epsStabilityScore = stabilitaet.score;
+  // CV wie bisher (std ÷ |Mittel| bei tragfähigem Mittel, sonst std) — jetzt
+  // auf den robusten Raten.
   let epsVolatility: number | null = null;
-  // null heisst «nicht berechenbar», nicht «mittelmässig». Vorher stand hier
-  // 50 — eine erfundene Mitte für jeden Titel ohne zehn Jahre EPS-Historie.
-  let epsStabilityScore: number | null = null;
-
-  const epsValues: number[] = annualKeys
-    .slice(-11) // 11 Jahre für 10 Wachstumsraten
-    .map(k => parseFloatOrNull(annualEPS[k]?.epsActual))
-    .filter((v): v is number => v !== null && v !== 0); // include negatives, exclude zero-division
-
-  if (epsValues.length >= 5) {
-    const growthRates: number[] = [];
-    for (let i = 1; i < epsValues.length; i++) {
-      const prev = epsValues[i - 1];
-      if (Math.abs(prev) > 0.001) {
-        // Use absolute value of prev to handle negative EPS correctly
-        growthRates.push((epsValues[i] - prev) / Math.abs(prev));
-      }
-    }
-    if (growthRates.length >= 4) {
-      const mean = growthRates.reduce((a, b) => a + b, 0) / growthRates.length;
-      const std = calcStdDev(growthRates);
-      // CV = std / |mean|, aber nur wenn mean > 0 (Wachstumsunternehmen)
-      epsVolatility = Math.abs(mean) > 0.01 ? std / Math.abs(mean) : std;
-
-      // Stabilität aus der STREUUNG der Wachstumsraten, nicht aus ihrem
-      // Variationskoeffizienten.
-      //
-      // Vorher: `100 - (CV / 1.5) * 100` mit CV = std / |mittel|. Damit der
-      // Score über 0 liegt, müsste die Streuung der jährlichen Wachstumsraten
-      // kleiner sein als das 1.5-fache ihres Mittelwerts — bei 8 % mittlerem
-      // Wachstum also unter 12 Prozentpunkten. Reale Gewinne schwanken um ein
-      // Vielfaches davon (ein einziges Krisenjahr genügt), weshalb praktisch
-      // JEDER Titel exakt 0 bekam. Der Faktor mass nichts mehr, zog aber in
-      // `berechneQualitaet` mit 15 % Gewicht jeden Titel gleich weit herunter.
-      //
-      // Jetzt direkt die Streuung in Prozentpunkten: bis 5 pp sehr gleichmässig
-      // (100), ab 50 pp sehr sprunghaft (0), linear dazwischen.
-      const streuungPp = std * 100;
-      const OBEN = 5, UNTEN = 50;
-      const anteil = (UNTEN - Math.max(OBEN, Math.min(UNTEN, streuungPp))) / (UNTEN - OBEN);
-      epsStabilityScore = Math.round(anteil * 100);
-    }
+  if (stabilitaet.streuungPp !== null && stabilitaet.mittel !== null) {
+    const std = stabilitaet.streuungPp / 100;
+    epsVolatility = Math.abs(stabilitaet.mittel) > 0.01 ? std / Math.abs(stabilitaet.mittel) : std;
   }
 
   // ── EPS Surprise-Rate (letzte 8 Quartale) ────────────────────────────────
@@ -456,14 +430,18 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
   qualityScore = Math.max(0, Math.min(100, qualityScore));
 
   // ── Adjusted PEG ─────────────────────────────────────────────────────────
-  // Adjusted PEG = Trailing PEG × (1 + EPS-CV) / QualityMultiplier
-  // QualityMultiplier: 0.7 (schlechte Qualität) bis 1.3 (exzellente Qualität)
-  let adjustedPeg: number | null = null;
-  if (trailingPeg !== null) {
-    const volatilityPenalty = epsVolatility !== null ? Math.min(1.0, epsVolatility * 0.5) : 0.2;
-    const qualityMultiplier = 0.7 + (qualityScore / 100) * 0.6; // 0.7–1.3
-    adjustedPeg = trailingPeg * (1 + volatilityPenalty) / qualityMultiplier;
-  }
+  // Befund 2 der Scoring-Prüfung: Der bereinigte Pfad lief ohne die Wächter,
+  // die das forward PEG längst hatte — ein Vendor-PEG von 15.63 (BCHN.SW)
+  // drückte so den Bewertungs-Faktor grundlos auf 0/100. Rechnung und Wächter
+  // liegen jetzt in `bereinigtesPeg` (rein, getestet); Formel unverändert.
+  const bereinigt = bereinigtesPeg({
+    vendorPeg: trailingPeg,
+    epsVolatility,
+    qualityScore,
+    epsWachstum5j: epsGrowth5y,
+    epsWachstumTTM: epsGrowthTTM,
+  });
+  const adjustedPeg = bereinigt.peg;
 
   // ── Forward PEG ──────────────────────────────────────────────────────────
   // Konzeptionell korrekt: Forward PE / zukunftsgerichtetes Wachstum (5Y CAGR)
@@ -493,6 +471,8 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
     trailingPeg,
     forwardPeg,
     adjustedPeg,
+    adjustedPegGrund: bereinigt.grund,
+    adjustedPegHinweis: bereinigt.hinweis,
     pegQuadrant,
     pegQuadrantLabel: pegQuadrantLabel(pegQuadrant),
     roic,
@@ -505,6 +485,7 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
     epsGrowth5y,
     epsVolatility,
     epsStabilityScore,
+    epsStabilitaetHinweis: stabilitaet.hinweis,
     surpriseRate,
     netDebtToEbitda,
     fcfYield,
@@ -530,6 +511,7 @@ function buildFallback(ticker: string, reason: string): QualityMetrics {
   console.warn(`[QualityMetrics] Fallback for ${ticker}: ${reason}`);
   return {
     trailingPeg: null, forwardPeg: null, adjustedPeg: null,
+    adjustedPegGrund: null, adjustedPegHinweis: null,
     pegQuadrant: "unknown", pegQuadrantLabel: "Unbekannt",
     roic: null, returnOnEquity: null, grossMargin: null, operatingMargin: null,
     fcfYield: null, freeCashflow: null, evToEbitda: null, priceToBook: null,
@@ -537,7 +519,7 @@ function buildFallback(ticker: string, reason: string): QualityMetrics {
     piotroski: berechnePiotroski(null),
     qualityScore: 50,
     epsGrowthTTM: null, revenueGrowthTTM: null, epsGrowth5y: null,
-    epsVolatility: null, epsStabilityScore: null,
+    epsVolatility: null, epsStabilityScore: null, epsStabilitaetHinweis: null,
     surpriseRate: null, netDebtToEbitda: null,
     trailingPE: null, forwardPE: null, eps: null, epsEstimateNextYear: null,
     investedCapital: null, nopat: null,

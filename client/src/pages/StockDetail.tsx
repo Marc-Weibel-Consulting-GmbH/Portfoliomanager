@@ -1164,6 +1164,15 @@ export default function StockDetail() {
                         ))}
                       </tbody>
                     </table>
+                    {/* Die 60/40-Klammer ausgeschrieben: Die Faktoren oben sind nur
+                        das Niveau — wer sie aufsummiert, landet neben der Kopfzahl,
+                        weil die Richtung (F-Score) als zweite Säule dazukommt. Mit
+                        diesem Satz lässt sich der Score exakt nachrechnen. */}
+                    {(dreiScores.qualitaet as any).rechnung && (
+                      <p className="px-3 py-2 text-[11px] text-gray-400 border-t border-white/5 bg-white/[0.03] font-mono">
+                        {(dreiScores.qualitaet as any).rechnung}
+                      </p>
+                    )}
                   </div>
                 ) : null}
 

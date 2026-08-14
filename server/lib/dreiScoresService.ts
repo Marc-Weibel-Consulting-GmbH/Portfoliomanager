@@ -15,13 +15,18 @@ import {
   berechneBewertung,
   qualitaetsBand,
   bewertungsBand,
+  qualitaetsRechnung,
   type QualitaetsScore,
   type TeilScore,
 } from "./dreiScores";
 
 export interface DreiScores {
   ticker: string;
-  qualitaet: QualitaetsScore & { band: string };
+  qualitaet: QualitaetsScore & {
+    band: string;
+    /** Die 60/40-Klammer als Satz — macht die Kopfzahl aus den Faktoren nachrechenbar. */
+    rechnung: string | null;
+  };
   bewertung: TeilScore & { band: string };
   timing: {
     /** 0–100 aus `berechneTiming` (Kursreihe), `null` wenn zu wenig Historie. */
@@ -107,6 +112,7 @@ export async function getDreiScores(
       bruttomarge: qm.grossMargin,
       ertragsdeckung: qm.ertragsdeckung,
       epsStabilitaet: qm.epsStabilityScore,
+      epsStabilitaetHinweis: qm.epsStabilitaetHinweis,
       netDebtToEbitda: qm.netDebtToEbitda,
     },
     qm.piotroski,
@@ -114,6 +120,7 @@ export async function getDreiScores(
 
   const bewertung = berechneBewertung({
     adjustedPeg: qm.adjustedPeg,
+    pegHinweis: qm.adjustedPegHinweis,
     kgv: qm.forwardPE ?? qm.trailingPE,
     fcfRendite: qm.fcfYield,
     dividendenrendite,
@@ -133,7 +140,16 @@ export async function getDreiScores(
 
   return {
     ticker,
-    qualitaet: { ...qualitaet, band: qualitaetsBand(qualitaet.gesamt) },
+    qualitaet: {
+      ...qualitaet,
+      band: qualitaetsBand(qualitaet.gesamt),
+      rechnung: qualitaetsRechnung({
+        gesamt: qualitaet.gesamt,
+        niveau: qualitaet.niveau.score,
+        richtung: qualitaet.richtung.score,
+        fScore: qualitaet.richtung.fScore,
+      }),
+    },
     bewertung: { ...bewertung, band: bewertungsBand(bewertung.score) },
     timing: {
       score: null,
@@ -177,6 +193,12 @@ async function leseVorberechnet(ticker: string): Promise<DreiScores | null> {
       qualitaet: {
         gesamt: treffer.qualitaet,
         band: treffer.qualitaetBand,
+        rechnung: qualitaetsRechnung({
+          gesamt: treffer.qualitaet,
+          niveau: treffer.niveau,
+          richtung: treffer.richtung,
+          fScore: treffer.fScore,
+        }),
         // Die abgelegten Faktorwerte — der Erklaerdialog zeigt damit die
         // Zahlen DIESES Titels, nicht nur die generische Zusammensetzung.
         niveau: {

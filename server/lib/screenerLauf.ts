@@ -325,9 +325,14 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         signalScore: scores.signal.score,
         signalLabel: scores.signal.label,
         // Die Herleitung gehört ins Protokoll — nur mit den Faktorwerten
-        // lässt sich nachprüfen, ob ein Score korrekt zustande kam.
+        // lässt sich nachprüfen, ob ein Score korrekt zustande kam. Niveau,
+        // Richtung und F-Score dazu, weil die Qualitäts-Kopfzahl aus BEIDEN
+        // Säulen entsteht (60/40) — die Faktortabelle allein ergäbe sie nicht.
         qualitaetFaktoren: scores.qualitaet.niveau?.faktoren ?? null,
         bewertungFaktoren: scores.bewertung.faktoren ?? null,
+        qualitaetNiveau: scores.qualitaet.niveau?.score ?? null,
+        qualitaetRichtung: scores.qualitaet.richtung?.score ?? null,
+        fScore: scores.qualitaet.richtung?.fScore ?? null,
       });
       berechnet++;
     } catch (err) {

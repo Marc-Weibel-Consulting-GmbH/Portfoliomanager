@@ -22,6 +22,7 @@ import {
   kgvDeckel,
   wachstumsFaktor,
   nutztBuchwert,
+  qualitaetsRechnung,
 } from "../lib/dreiScores";
 
 // ─── Testdaten: zwei Geschäftsjahre eines sich verbessernden Unternehmens ─────
@@ -222,6 +223,22 @@ describe("Qualität — Niveau und Richtung zusammen", () => {
     const r = berechneQualitaet(leer, berechnePiotroski(null));
     expect(r.gesamt).toBeNull();
     expect(qualitaetsBand(r.gesamt)).toBe("nicht beurteilbar");
+  });
+
+  it("die angezeigte Rechnung reproduziert die Kopfzahl (Befund BCHN: 74 aus 64.4 und 88.9)", () => {
+    // Der Prüf-Fall: Niveau 64.4 aus den sechs Faktoren, F-Score 8/9 → 88.9.
+    // Wer nur die Faktoren aufsummiert, bekommt 64.4 und hält 74 für falsch —
+    // der Rechnungs-Satz macht die 60/40-Klammer sichtbar.
+    const text = qualitaetsRechnung({ gesamt: 74.2, niveau: 64.4, richtung: 88.9, fScore: 8 });
+    expect(text).toBe("Niveau 64.4 × 60 % + Richtung 88.9 (F-Score 8/9) × 40 % = 74.2");
+    // Und die Klammer stimmt arithmetisch.
+    expect(0.6 * 64.4 + 0.4 * 88.9).toBeCloseTo(74.2, 1);
+  });
+
+  it("die Rechnung folgt der tatsächlichen Aggregation auch bei einer Säule", () => {
+    const nurNiveau = qualitaetsRechnung({ gesamt: 64.4, niveau: 64.4, richtung: null, fScore: null });
+    expect(nurNiveau).toContain("Nur das Niveau");
+    expect(qualitaetsRechnung({ gesamt: null, niveau: null, richtung: null, fScore: null })).toBeNull();
   });
 });
 
