@@ -1,0 +1,2613 @@
+{
+  "sampledAt": "2026-08-14T21:32:03.117Z",
+  "source": "YahooFinance/get_stock_chart",
+  "results": [
+    {
+      "symbol": "NN.AS",
+      "retrievedAt": "2026-08-14T21:31:49.435Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "EUR",
+                "symbol": "NN.AS",
+                "exchangeName": "AMS",
+                "fullExchangeName": "Amsterdam",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 1404284400,
+                "regularMarketTime": 1786721729,
+                "hasPrePostMarketData": false,
+                "gmtoffset": 7200,
+                "timezone": "CEST",
+                "exchangeTimezoneName": "Europe/Amsterdam",
+                "regularMarketPrice": 78.76,
+                "fiftyTwoWeekHigh": 83.4,
+                "fiftyTwoWeekLow": 56.48,
+                "regularMarketDayHigh": 78.86,
+                "regularMarketDayLow": 78.26,
+                "regularMarketVolume": 428769,
+                "longName": "NN Group N.V.",
+                "shortName": "NN GROUP",
+                "chartPreviousClose": 79.14,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "CEST",
+                    "end": 1786690800,
+                    "start": 1786690800,
+                    "gmtoffset": 7200
+                  },
+                  "regular": {
+                    "timezone": "CEST",
+                    "end": 1786721400,
+                    "start": 1786690800,
+                    "gmtoffset": 7200
+                  },
+                  "post": {
+                    "timezone": "CEST",
+                    "end": 1786721400,
+                    "start": 1786721400,
+                    "gmtoffset": 7200
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786345200,
+                1786431600,
+                1786518000,
+                1786604400,
+                1786690800
+              ],
+              "events": {
+                "dividends": {
+                  "1786345200": {
+                    "amount": 1.55,
+                    "date": 1786345200
+                  }
+                }
+              },
+              "indicators": {
+                "quote": [
+                  {
+                    "low": [
+                      79,
+                      77.73999786376953,
+                      77.5,
+                      78,
+                      78.26000213623047
+                    ],
+                    "high": [
+                      79.5199966430664,
+                      79.26000213623047,
+                      78.4800033569336,
+                      78.83999633789062,
+                      78.86000061035156
+                    ],
+                    "volume": [
+                      713155,
+                      643106,
+                      400421,
+                      547464,
+                      428769
+                    ],
+                    "close": [
+                      79.13999938964844,
+                      77.94000244140625,
+                      78.05999755859375,
+                      78.26000213623047,
+                      78.76000213623047
+                    ],
+                    "open": [
+                      79.19999694824219,
+                      79.05999755859375,
+                      78.23999786376953,
+                      78.16000366210938,
+                      78.5
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      79.13999938964844,
+                      77.94000244140625,
+                      78.05999755859375,
+                      78.26000213623047,
+                      78.76000213623047
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "KNIN.SW",
+      "retrievedAt": "2026-08-14T21:31:50.537Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "CHF",
+                "symbol": "KNIN.SW",
+                "exchangeName": "EBS",
+                "fullExchangeName": "Swiss",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 958978800,
+                "regularMarketTime": 1786721482,
+                "hasPrePostMarketData": false,
+                "gmtoffset": 7200,
+                "timezone": "CEST",
+                "exchangeTimezoneName": "Europe/Zurich",
+                "regularMarketPrice": 211.3,
+                "fiftyTwoWeekHigh": 213.7,
+                "fiftyTwoWeekLow": 147.4,
+                "regularMarketDayHigh": 212.9,
+                "regularMarketDayLow": 210,
+                "regularMarketVolume": 176902,
+                "longName": "Kuehne + Nagel International AG",
+                "shortName": "KUEHNE+NAGEL INT N",
+                "chartPreviousClose": 200,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "CEST",
+                    "start": 1786690800,
+                    "end": 1786690800,
+                    "gmtoffset": 7200
+                  },
+                  "regular": {
+                    "timezone": "CEST",
+                    "start": 1786690800,
+                    "end": 1786721400,
+                    "gmtoffset": 7200
+                  },
+                  "post": {
+                    "timezone": "CEST",
+                    "start": 1786721400,
+                    "end": 1786721400,
+                    "gmtoffset": 7200
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786345200,
+                1786431600,
+                1786518000,
+                1786604400,
+                1786690800
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "open": [
+                      199.14999389648438,
+                      199.39999389648438,
+                      197.64999389648438,
+                      206.39999389648438,
+                      210
+                    ],
+                    "low": [
+                      197.64999389648438,
+                      197.64999389648438,
+                      197.25,
+                      206.39999389648438,
+                      210
+                    ],
+                    "volume": [
+                      170773,
+                      223595,
+                      187250,
+                      260758,
+                      176902
+                    ],
+                    "high": [
+                      200.5,
+                      201,
+                      203.60000610351562,
+                      211,
+                      212.89999389648438
+                    ],
+                    "close": [
+                      200,
+                      197.64999389648438,
+                      203.60000610351562,
+                      209.89999389648438,
+                      211.3000030517578
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      200,
+                      197.64999389648438,
+                      203.60000610351562,
+                      209.89999389648438,
+                      211.3000030517578
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "MATX",
+      "retrievedAt": "2026-08-14T21:31:50.805Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "USD",
+                "symbol": "MATX",
+                "exchangeName": "NYQ",
+                "fullExchangeName": "NYSE",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 105283800,
+                "regularMarketTime": 1786737602,
+                "hasPrePostMarketData": true,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/New_York",
+                "regularMarketPrice": 217.3,
+                "fiftyTwoWeekHigh": 230.74,
+                "fiftyTwoWeekLow": 86.97,
+                "regularMarketDayHigh": 220.07,
+                "regularMarketDayLow": 214.235,
+                "regularMarketVolume": 132433,
+                "longName": "Matson, Inc.",
+                "shortName": "Matson, Inc.",
+                "chartPreviousClose": 206.77,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "end": 1786714200,
+                    "start": 1786694400,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "end": 1786737600,
+                    "start": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "end": 1786752000,
+                    "start": 1786737600,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "low": [
+                      206.5,
+                      202.6300048828125,
+                      204.5,
+                      213.39999389648438,
+                      214.23500061035156
+                    ],
+                    "high": [
+                      209.77999877929688,
+                      209.92999267578125,
+                      215.83999633789062,
+                      218.47000122070312,
+                      220.07000732421875
+                    ],
+                    "volume": [
+                      259000,
+                      276500,
+                      240300,
+                      288600,
+                      132433
+                    ],
+                    "open": [
+                      206.5,
+                      208.49000549316406,
+                      204.9199981689453,
+                      217,
+                      214.17999267578125
+                    ],
+                    "close": [
+                      208.67999267578125,
+                      204.41000366210938,
+                      214.4499969482422,
+                      213.75999450683594,
+                      217.3000030517578
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      208.67999267578125,
+                      204.41000366210938,
+                      214.4499969482422,
+                      213.75999450683594,
+                      217.3000030517578
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "LONN.SW",
+      "retrievedAt": "2026-08-14T21:31:51.262Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "CHF",
+                "symbol": "LONN.SW",
+                "exchangeName": "EBS",
+                "fullExchangeName": "Swiss",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 941443200,
+                "regularMarketTime": 1786721482,
+                "hasPrePostMarketData": false,
+                "gmtoffset": 7200,
+                "timezone": "CEST",
+                "exchangeTimezoneName": "Europe/Zurich",
+                "regularMarketPrice": 562.6,
+                "fiftyTwoWeekHigh": 591,
+                "fiftyTwoWeekLow": 454.6,
+                "regularMarketDayHigh": 574,
+                "regularMarketDayLow": 556.6,
+                "regularMarketVolume": 114528,
+                "longName": "Lonza Group AG",
+                "shortName": "LONZA N",
+                "chartPreviousClose": 579.6,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "CEST",
+                    "start": 1786690800,
+                    "end": 1786690800,
+                    "gmtoffset": 7200
+                  },
+                  "regular": {
+                    "timezone": "CEST",
+                    "start": 1786690800,
+                    "end": 1786721400,
+                    "gmtoffset": 7200
+                  },
+                  "post": {
+                    "timezone": "CEST",
+                    "start": 1786721400,
+                    "end": 1786721400,
+                    "gmtoffset": 7200
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786345200,
+                1786431600,
+                1786518000,
+                1786604400,
+                1786690800
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "low": [
+                      572.7999877929688,
+                      573.4000244140625,
+                      561.5999755859375,
+                      568.2000122070312,
+                      556.5999755859375
+                    ],
+                    "open": [
+                      575,
+                      578,
+                      573.5999755859375,
+                      568.7999877929688,
+                      572.7999877929688
+                    ],
+                    "high": [
+                      579.5999755859375,
+                      580.5999755859375,
+                      573.5999755859375,
+                      576.7999877929688,
+                      574
+                    ],
+                    "volume": [
+                      97503,
+                      71815,
+                      123757,
+                      91987,
+                      114528
+                    ],
+                    "close": [
+                      579.5999755859375,
+                      575.4000244140625,
+                      566.2000122070312,
+                      572.7999877929688,
+                      562.5999755859375
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      579.5999755859375,
+                      575.4000244140625,
+                      566.2000122070312,
+                      572.7999877929688,
+                      562.5999755859375
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "LLY",
+      "retrievedAt": "2026-08-14T21:31:52.292Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "USD",
+                "symbol": "LLY",
+                "exchangeName": "NYQ",
+                "fullExchangeName": "NYSE",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 76253400,
+                "regularMarketTime": 1786737726,
+                "hasPrePostMarketData": true,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/New_York",
+                "regularMarketPrice": 1180.16,
+                "fiftyTwoWeekHigh": 1249.45,
+                "fiftyTwoWeekLow": 685.15,
+                "regularMarketDayHigh": 1199,
+                "regularMarketDayLow": 1171.196,
+                "regularMarketVolume": 2115056,
+                "longName": "Eli Lilly and Company",
+                "shortName": "Eli Lilly and Company",
+                "chartPreviousClose": 1185.71,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "start": 1786694400,
+                    "end": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "start": 1786714200,
+                    "end": 1786737600,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "start": 1786737600,
+                    "end": 1786752000,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "volume": [
+                      3011900,
+                      2113200,
+                      1941600,
+                      1927300,
+                      2115056
+                    ],
+                    "high": [
+                      1231.93994140625,
+                      1238,
+                      1226.5,
+                      1240.0999755859375,
+                      1199
+                    ],
+                    "close": [
+                      1231.93994140625,
+                      1215.02001953125,
+                      1220.280029296875,
+                      1209,
+                      1180.1600341796875
+                    ],
+                    "low": [
+                      1184.4100341796875,
+                      1209.530029296875,
+                      1191.0799560546875,
+                      1206,
+                      1171.195556640625
+                    ],
+                    "open": [
+                      1185.010009765625,
+                      1230.6500244140625,
+                      1201.72998046875,
+                      1238.300048828125,
+                      1194.010009765625
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      1231.93994140625,
+                      1215.02001953125,
+                      1220.280029296875,
+                      1209,
+                      1180.1600341796875
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "SREN.SW",
+      "retrievedAt": "2026-08-14T21:31:53.023Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "CHF",
+                "symbol": "SREN.SW",
+                "exchangeName": "EBS",
+                "fullExchangeName": "Swiss",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 796892400,
+                "regularMarketTime": 1786721482,
+                "hasPrePostMarketData": false,
+                "gmtoffset": 7200,
+                "timezone": "CEST",
+                "exchangeTimezoneName": "Europe/Zurich",
+                "regularMarketPrice": 139.45,
+                "fiftyTwoWeekHigh": 153.85,
+                "fiftyTwoWeekLow": 114.05,
+                "regularMarketDayHigh": 139.8,
+                "regularMarketDayLow": 138.6,
+                "regularMarketVolume": 527774,
+                "longName": "Swiss Re AG",
+                "shortName": "SWISS RE N",
+                "chartPreviousClose": 138.55,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "CEST",
+                    "start": 1786690800,
+                    "end": 1786690800,
+                    "gmtoffset": 7200
+                  },
+                  "regular": {
+                    "timezone": "CEST",
+                    "start": 1786690800,
+                    "end": 1786721400,
+                    "gmtoffset": 7200
+                  },
+                  "post": {
+                    "timezone": "CEST",
+                    "start": 1786721400,
+                    "end": 1786721400,
+                    "gmtoffset": 7200
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786345200,
+                1786431600,
+                1786518000,
+                1786604400,
+                1786690800
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "low": [
+                      136.35000610351562,
+                      136.4499969482422,
+                      135.85000610351562,
+                      137.5,
+                      138.60000610351562
+                    ],
+                    "open": [
+                      138.1999969482422,
+                      138.39999389648438,
+                      136.60000610351562,
+                      137.9499969482422,
+                      138.60000610351562
+                    ],
+                    "volume": [
+                      617962,
+                      584959,
+                      516085,
+                      723211,
+                      527774
+                    ],
+                    "close": [
+                      138.5500030517578,
+                      136.85000610351562,
+                      137.1999969482422,
+                      138.0500030517578,
+                      139.4499969482422
+                    ],
+                    "high": [
+                      138.60000610351562,
+                      138.8000030517578,
+                      137.5,
+                      139.14999389648438,
+                      139.8000030517578
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      138.5500030517578,
+                      136.85000610351562,
+                      137.1999969482422,
+                      138.0500030517578,
+                      139.4499969482422
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "TNZ.TO",
+      "retrievedAt": "2026-08-14T21:31:54.025Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "CAD",
+                "symbol": "TNZ.TO",
+                "exchangeName": "TOR",
+                "fullExchangeName": "Toronto",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 1531229400,
+                "regularMarketTime": 1786737600,
+                "hasPrePostMarketData": false,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/Toronto",
+                "regularMarketPrice": 54.72,
+                "fiftyTwoWeekHigh": 69.1,
+                "fiftyTwoWeekLow": 19.17,
+                "regularMarketDayHigh": 55.45,
+                "regularMarketDayLow": 54.29,
+                "regularMarketVolume": 45525,
+                "longName": "Tenaz Energy Corp.",
+                "shortName": "TENAZ ENERGY CORP",
+                "chartPreviousClose": 54.18,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "end": 1786714200,
+                    "start": 1786708800,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "end": 1786737600,
+                    "start": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "end": 1786741200,
+                    "start": 1786737600,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "volume": [
+                      103700,
+                      null,
+                      80500,
+                      184500,
+                      45525
+                    ],
+                    "low": [
+                      54.869998931884766,
+                      null,
+                      56.540000915527344,
+                      54.36000061035156,
+                      54.290000915527344
+                    ],
+                    "close": [
+                      56.599998474121094,
+                      null,
+                      56.88999938964844,
+                      54.61000061035156,
+                      54.720001220703125
+                    ],
+                    "open": [
+                      54.869998931884766,
+                      null,
+                      56.83000183105469,
+                      56.040000915527344,
+                      54.290000915527344
+                    ],
+                    "high": [
+                      57,
+                      null,
+                      57.27000045776367,
+                      56.43000030517578,
+                      55.45000076293945
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      56.599998474121094,
+                      null,
+                      56.88999938964844,
+                      54.61000061035156,
+                      54.720001220703125
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "FTK",
+      "retrievedAt": "2026-08-14T21:31:54.504Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "USD",
+                "symbol": "FTK",
+                "exchangeName": "NYQ",
+                "fullExchangeName": "NYSE",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 1122471000,
+                "regularMarketTime": 1786737603,
+                "hasPrePostMarketData": true,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/New_York",
+                "regularMarketPrice": 35.83,
+                "fiftyTwoWeekHigh": 39.67,
+                "fiftyTwoWeekLow": 10.95,
+                "regularMarketDayHigh": 36.89,
+                "regularMarketDayLow": 33.78,
+                "regularMarketVolume": 633957,
+                "longName": "Flotek Industries, Inc.",
+                "shortName": "Flotek Industries, Inc.",
+                "chartPreviousClose": 35.42,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "start": 1786694400,
+                    "end": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "start": 1786714200,
+                    "end": 1786737600,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "start": 1786737600,
+                    "end": 1786752000,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "high": [
+                      38.400001525878906,
+                      38.88999938964844,
+                      39.66999816894531,
+                      38.27000045776367,
+                      36.88990020751953
+                    ],
+                    "close": [
+                      37.619998931884766,
+                      38.81999969482422,
+                      37.16999816894531,
+                      34.40999984741211,
+                      35.83000183105469
+                    ],
+                    "volume": [
+                      413800,
+                      483300,
+                      358500,
+                      714800,
+                      633957
+                    ],
+                    "open": [
+                      36,
+                      37.91999816894531,
+                      39.400001525878906,
+                      37.0099983215332,
+                      34.93000030517578
+                    ],
+                    "low": [
+                      35.4900016784668,
+                      36.630001068115234,
+                      36.90999984741211,
+                      34.099998474121094,
+                      33.779998779296875
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      37.619998931884766,
+                      38.81999969482422,
+                      37.16999816894531,
+                      34.40999984741211,
+                      35.83000183105469
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "SOFI",
+      "retrievedAt": "2026-08-14T21:31:55.259Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "USD",
+                "symbol": "SOFI",
+                "exchangeName": "NMS",
+                "fullExchangeName": "NasdaqGS",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 1609770600,
+                "regularMarketTime": 1786737600,
+                "hasPrePostMarketData": true,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/New_York",
+                "regularMarketPrice": 18.29,
+                "fiftyTwoWeekHigh": 32.73,
+                "fiftyTwoWeekLow": 14.88,
+                "regularMarketDayHigh": 18.58,
+                "regularMarketDayLow": 18.28,
+                "regularMarketVolume": 34201994,
+                "longName": "SoFi Technologies, Inc.",
+                "shortName": "SoFi Technologies, Inc.",
+                "chartPreviousClose": 18.38,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "start": 1786694400,
+                    "end": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "start": 1786714200,
+                    "end": 1786737600,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "start": 1786737600,
+                    "end": 1786752000,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "close": [
+                      18.1200008392334,
+                      17.979999542236328,
+                      17.940000534057617,
+                      18.43000030517578,
+                      18.290000915527344
+                    ],
+                    "volume": [
+                      38213700,
+                      38901400,
+                      37161800,
+                      61870100,
+                      34201994
+                    ],
+                    "open": [
+                      18.378000259399414,
+                      18.209999084472656,
+                      18.3700008392334,
+                      18.100000381469727,
+                      18.469999313354492
+                    ],
+                    "low": [
+                      17.989999771118164,
+                      17.829999923706055,
+                      17.649999618530273,
+                      17.8799991607666,
+                      18.280000686645508
+                    ],
+                    "high": [
+                      18.434999465942383,
+                      18.40999984741211,
+                      18.399999618530273,
+                      18.649999618530273,
+                      18.579999923706055
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      18.1200008392334,
+                      17.979999542236328,
+                      17.940000534057617,
+                      18.43000030517578,
+                      18.290000915527344
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "ANET",
+      "retrievedAt": "2026-08-14T21:31:56.163Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "USD",
+                "symbol": "ANET",
+                "exchangeName": "NYQ",
+                "fullExchangeName": "NYSE",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 1402061400,
+                "regularMarketTime": 1786737603,
+                "hasPrePostMarketData": true,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/New_York",
+                "regularMarketPrice": 198.82,
+                "fiftyTwoWeekHigh": 214.89,
+                "fiftyTwoWeekLow": 114.52,
+                "regularMarketDayHigh": 205.27,
+                "regularMarketDayLow": 198.245,
+                "regularMarketVolume": 4701838,
+                "longName": "Arista Networks, Inc.",
+                "shortName": "Arista Networks, Inc.",
+                "chartPreviousClose": 188.67,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "end": 1786714200,
+                    "start": 1786694400,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "end": 1786737600,
+                    "start": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "end": 1786752000,
+                    "start": 1786737600,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "low": [
+                      187.02999877929688,
+                      190.47999572753906,
+                      203.75999450683594,
+                      203.5500030517578,
+                      198.2449951171875
+                    ],
+                    "close": [
+                      191.52000427246094,
+                      197.85000610351562,
+                      210.5,
+                      203.6199951171875,
+                      198.82000732421875
+                    ],
+                    "high": [
+                      195.6999969482422,
+                      198.9199981689453,
+                      211.4499969482422,
+                      210.11000061035156,
+                      205.27000427246094
+                    ],
+                    "volume": [
+                      5434100,
+                      6277300,
+                      10008600,
+                      7901000,
+                      4701838
+                    ],
+                    "open": [
+                      192.49000549316406,
+                      194.56500244140625,
+                      205.47000122070312,
+                      209.7899932861328,
+                      205.27000427246094
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      191.52000427246094,
+                      197.85000610351562,
+                      210.5,
+                      203.6199951171875,
+                      198.82000732421875
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "MC.PA",
+      "retrievedAt": "2026-08-14T21:31:56.781Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "EUR",
+                "symbol": "MC.PA",
+                "exchangeName": "PAR",
+                "fullExchangeName": "Paris",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 946886400,
+                "regularMarketTime": 1786721865,
+                "hasPrePostMarketData": false,
+                "gmtoffset": 7200,
+                "timezone": "CEST",
+                "exchangeTimezoneName": "Europe/Paris",
+                "regularMarketPrice": 458.4,
+                "fiftyTwoWeekHigh": 654.7,
+                "fiftyTwoWeekLow": 440,
+                "regularMarketDayHigh": 463.15,
+                "regularMarketDayLow": 457.25,
+                "regularMarketVolume": 363942,
+                "longName": "LVMH Moët Hennessy - Louis Vuitton, Société Européenne",
+                "shortName": "LVMH",
+                "chartPreviousClose": 482.45,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "CEST",
+                    "start": 1786690800,
+                    "end": 1786690800,
+                    "gmtoffset": 7200
+                  },
+                  "regular": {
+                    "timezone": "CEST",
+                    "start": 1786690800,
+                    "end": 1786721400,
+                    "gmtoffset": 7200
+                  },
+                  "post": {
+                    "timezone": "CEST",
+                    "start": 1786721400,
+                    "end": 1786721400,
+                    "gmtoffset": 7200
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786345200,
+                1786431600,
+                1786518000,
+                1786604400,
+                1786690800
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "high": [
+                      487.5,
+                      486.5,
+                      476.1499938964844,
+                      468.5,
+                      463.1499938964844
+                    ],
+                    "volume": [
+                      302858,
+                      277428,
+                      590879,
+                      515560,
+                      363942
+                    ],
+                    "close": [
+                      482.45001220703125,
+                      478.79998779296875,
+                      464.95001220703125,
+                      460,
+                      458.3999938964844
+                    ],
+                    "open": [
+                      479.29998779296875,
+                      481.54998779296875,
+                      476,
+                      467,
+                      460.79998779296875
+                    ],
+                    "low": [
+                      478.8999938964844,
+                      478.29998779296875,
+                      460.3500061035156,
+                      460,
+                      457.25
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      482.45001220703125,
+                      478.79998779296875,
+                      464.95001220703125,
+                      460,
+                      458.3999938964844
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "ACA.PA",
+      "retrievedAt": "2026-08-14T21:31:57.286Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "EUR",
+                "symbol": "ACA.PA",
+                "exchangeName": "PAR",
+                "fullExchangeName": "Paris",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 1008316800,
+                "regularMarketTime": 1786721717,
+                "hasPrePostMarketData": false,
+                "gmtoffset": 7200,
+                "timezone": "CEST",
+                "exchangeTimezoneName": "Europe/Paris",
+                "regularMarketPrice": 20.2,
+                "fiftyTwoWeekHigh": 20.23,
+                "fiftyTwoWeekLow": 15.29,
+                "regularMarketDayHigh": 20.23,
+                "regularMarketDayLow": 20.03,
+                "regularMarketVolume": 2887010,
+                "longName": "Crédit Agricole S.A.",
+                "shortName": "CREDIT AGRICOLE",
+                "chartPreviousClose": 19.93,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "CEST",
+                    "end": 1786690800,
+                    "start": 1786690800,
+                    "gmtoffset": 7200
+                  },
+                  "regular": {
+                    "timezone": "CEST",
+                    "end": 1786721400,
+                    "start": 1786690800,
+                    "gmtoffset": 7200
+                  },
+                  "post": {
+                    "timezone": "CEST",
+                    "end": 1786721400,
+                    "start": 1786721400,
+                    "gmtoffset": 7200
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786345200,
+                1786431600,
+                1786518000,
+                1786604400,
+                1786690800
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "close": [
+                      19.93000030517578,
+                      20.020000457763672,
+                      20.170000076293945,
+                      20.100000381469727,
+                      20.200000762939453
+                    ],
+                    "high": [
+                      19.93000030517578,
+                      20.114999771118164,
+                      20.170000076293945,
+                      20.399999618530273,
+                      20.229999542236328
+                    ],
+                    "low": [
+                      19.524999618530273,
+                      19.8799991607666,
+                      19.959999084472656,
+                      20.100000381469727,
+                      20.030000686645508
+                    ],
+                    "open": [
+                      19.635000228881836,
+                      19.889999389648438,
+                      20.040000915527344,
+                      20.270000457763672,
+                      20.1299991607666
+                    ],
+                    "volume": [
+                      5452541,
+                      5998382,
+                      4982559,
+                      3841815,
+                      2887010
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      19.93000030517578,
+                      20.020000457763672,
+                      20.170000076293945,
+                      20.100000381469727,
+                      20.200000762939453
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "BE",
+      "retrievedAt": "2026-08-14T21:31:58.145Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "USD",
+                "symbol": "BE",
+                "exchangeName": "NYQ",
+                "fullExchangeName": "NYSE",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 1532525400,
+                "regularMarketTime": 1786737602,
+                "hasPrePostMarketData": true,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/New_York",
+                "regularMarketPrice": 229.94,
+                "fiftyTwoWeekHigh": 351.28,
+                "fiftyTwoWeekLow": 40.56,
+                "regularMarketDayHigh": 248.57,
+                "regularMarketDayLow": 227.67,
+                "regularMarketVolume": 12191188,
+                "longName": "Bloom Energy Corporation",
+                "shortName": "Bloom Energy Corporation",
+                "chartPreviousClose": 219.34,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "start": 1786694400,
+                    "end": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "start": 1786714200,
+                    "end": 1786737600,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "start": 1786737600,
+                    "end": 1786752000,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "high": [
+                      221.0399932861328,
+                      219.6999969482422,
+                      249.99000549316406,
+                      253.30999755859375,
+                      248.57000732421875
+                    ],
+                    "close": [
+                      210.6300048828125,
+                      211.2100067138672,
+                      237.16000366210938,
+                      236.22000122070312,
+                      229.94000244140625
+                    ],
+                    "open": [
+                      221,
+                      214.5,
+                      236.7100067138672,
+                      235.94000244140625,
+                      233.66000366210938
+                    ],
+                    "low": [
+                      210.02000427246094,
+                      210.16000366210938,
+                      231.17999267578125,
+                      233.44000244140625,
+                      227.6699981689453
+                    ],
+                    "volume": [
+                      9013500,
+                      8714500,
+                      15885700,
+                      11380200,
+                      12191188
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      210.6300048828125,
+                      211.2100067138672,
+                      237.16000366210938,
+                      236.22000122070312,
+                      229.94000244140625
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "RUS.TO",
+      "retrievedAt": "2026-08-14T21:31:58.364Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "CAD",
+                "symbol": "RUS.TO",
+                "exchangeName": "TOR",
+                "fullExchangeName": "Toronto",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 839943000,
+                "regularMarketTime": 1786737600,
+                "hasPrePostMarketData": false,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/Toronto",
+                "regularMarketPrice": 79.73,
+                "fiftyTwoWeekHigh": 83.12,
+                "fiftyTwoWeekLow": 39.09,
+                "regularMarketDayHigh": 81.87,
+                "regularMarketDayLow": 79.64,
+                "regularMarketVolume": 102990,
+                "longName": "Russel Metals Inc.",
+                "shortName": "RUSSEL METALS",
+                "chartPreviousClose": 80.96,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "end": 1786714200,
+                    "start": 1786708800,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "end": 1786737600,
+                    "start": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "end": 1786741200,
+                    "start": 1786737600,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "low": [
+                      78.61000061035156,
+                      80.41999816894531,
+                      79.08999633789062,
+                      79.5199966430664,
+                      79.63999938964844
+                    ],
+                    "high": [
+                      82,
+                      83.12000274658203,
+                      81.44000244140625,
+                      80.69999694824219,
+                      81.87000274658203
+                    ],
+                    "open": [
+                      79.16999816894531,
+                      81.13999938964844,
+                      80.83000183105469,
+                      79.66999816894531,
+                      80.98999786376953
+                    ],
+                    "close": [
+                      81.13999938964844,
+                      80.61000061035156,
+                      79.66999816894531,
+                      80.5,
+                      79.7300033569336
+                    ],
+                    "volume": [
+                      353700,
+                      398700,
+                      248100,
+                      144500,
+                      102990
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      81.13999938964844,
+                      80.61000061035156,
+                      79.66999816894531,
+                      80.5,
+                      79.7300033569336
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "BAC",
+      "retrievedAt": "2026-08-14T21:31:58.752Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "USD",
+                "symbol": "BAC",
+                "exchangeName": "NYQ",
+                "fullExchangeName": "NYSE",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 99153000,
+                "regularMarketTime": 1786737603,
+                "hasPrePostMarketData": true,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/New_York",
+                "regularMarketPrice": 64.49,
+                "fiftyTwoWeekHigh": 65.2,
+                "fiftyTwoWeekLow": 46.12,
+                "regularMarketDayHigh": 64.55,
+                "regularMarketDayLow": 63.81,
+                "regularMarketVolume": 16994052,
+                "shortName": "Bank of America Corporation",
+                "chartPreviousClose": 63.17,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "start": 1786694400,
+                    "end": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "start": 1786714200,
+                    "end": 1786737600,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "start": 1786737600,
+                    "end": 1786752000,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "open": [
+                      63.15999984741211,
+                      63.97999954223633,
+                      64.12000274658203,
+                      65.19999694824219,
+                      64.04000091552734
+                    ],
+                    "volume": [
+                      25400400,
+                      20738600,
+                      27541500,
+                      27298100,
+                      16994052
+                    ],
+                    "close": [
+                      63.86000061035156,
+                      64,
+                      64.80999755859375,
+                      64.08999633789062,
+                      64.48999786376953
+                    ],
+                    "high": [
+                      64,
+                      64.2699966430664,
+                      64.94999694824219,
+                      65.19999694824219,
+                      64.55000305175781
+                    ],
+                    "low": [
+                      63,
+                      63.709999084472656,
+                      63.84000015258789,
+                      63.900001525878906,
+                      63.810001373291016
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      63.86000061035156,
+                      64,
+                      64.80999755859375,
+                      64.08999633789062,
+                      64.48999786376953
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "RMBS",
+      "retrievedAt": "2026-08-14T21:31:59.734Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "USD",
+                "symbol": "RMBS",
+                "exchangeName": "NMS",
+                "fullExchangeName": "NasdaqGS",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 863616600,
+                "regularMarketTime": 1786737600,
+                "hasPrePostMarketData": true,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/New_York",
+                "regularMarketPrice": 100.85,
+                "fiftyTwoWeekHigh": 174.1,
+                "fiftyTwoWeekLow": 67.15,
+                "regularMarketDayHigh": 101.04,
+                "regularMarketDayLow": 97.745,
+                "regularMarketVolume": 1097994,
+                "longName": "Rambus Inc.",
+                "shortName": "Rambus, Inc.",
+                "chartPreviousClose": 101.52,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "end": 1786714200,
+                    "start": 1786694400,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "end": 1786737600,
+                    "start": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "end": 1786752000,
+                    "start": 1786737600,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "volume": [
+                      1883600,
+                      1594300,
+                      2964900,
+                      1578000,
+                      1097994
+                    ],
+                    "high": [
+                      101.9800033569336,
+                      98.93000030517578,
+                      102.56999969482422,
+                      102.93000030517578,
+                      101.04000091552734
+                    ],
+                    "open": [
+                      101.94999694824219,
+                      98.93000030517578,
+                      101,
+                      99.5999984741211,
+                      99.01000213623047
+                    ],
+                    "close": [
+                      95.88999938964844,
+                      96.41999816894531,
+                      101.01000213623047,
+                      99.33000183105469,
+                      100.8499984741211
+                    ],
+                    "low": [
+                      95.80000305175781,
+                      94.94000244140625,
+                      98.9000015258789,
+                      99,
+                      97.74500274658203
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      95.88999938964844,
+                      96.41999816894531,
+                      101.01000213623047,
+                      99.33000183105469,
+                      100.8499984741211
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "MO",
+      "retrievedAt": "2026-08-14T21:32:00.371Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "USD",
+                "symbol": "MO",
+                "exchangeName": "NYQ",
+                "fullExchangeName": "NYSE",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": -252322200,
+                "regularMarketTime": 1786737848,
+                "hasPrePostMarketData": true,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/New_York",
+                "regularMarketPrice": 65.7,
+                "fiftyTwoWeekHigh": 77.06,
+                "fiftyTwoWeekLow": 54.7,
+                "regularMarketDayHigh": 65.99,
+                "regularMarketDayLow": 64.72,
+                "regularMarketVolume": 6218527,
+                "longName": "Altria Group, Inc.",
+                "shortName": "Altria Group, Inc.",
+                "chartPreviousClose": 68.35,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "end": 1786714200,
+                    "start": 1786694400,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "end": 1786737600,
+                    "start": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "end": 1786752000,
+                    "start": 1786737600,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "open": [
+                      68.37999725341797,
+                      64.87999725341797,
+                      64.47000122070312,
+                      65,
+                      65.19000244140625
+                    ],
+                    "low": [
+                      65.41000366210938,
+                      64.51000213623047,
+                      64.33999633789062,
+                      64.72000122070312,
+                      64.72000122070312
+                    ],
+                    "high": [
+                      68.37999725341797,
+                      65.37999725341797,
+                      65.06999969482422,
+                      66.02999877929688,
+                      65.98999786376953
+                    ],
+                    "close": [
+                      65.54000091552734,
+                      65.02999877929688,
+                      64.37999725341797,
+                      65.08000183105469,
+                      65.69999694824219
+                    ],
+                    "volume": [
+                      11817900,
+                      9792800,
+                      7570900,
+                      10796200,
+                      6218527
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      65.54000091552734,
+                      65.02999877929688,
+                      64.37999725341797,
+                      65.08000183105469,
+                      65.69999694824219
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "PATH",
+      "retrievedAt": "2026-08-14T21:32:01.581Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "USD",
+                "symbol": "PATH",
+                "exchangeName": "NYQ",
+                "fullExchangeName": "NYSE",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 1619011800,
+                "regularMarketTime": 1786737603,
+                "hasPrePostMarketData": true,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/New_York",
+                "regularMarketPrice": 16.01,
+                "fiftyTwoWeekHigh": 19.84,
+                "fiftyTwoWeekLow": 9.2,
+                "regularMarketDayHigh": 16.82,
+                "regularMarketDayLow": 15.835,
+                "regularMarketVolume": 47601722,
+                "longName": "UiPath, Inc.",
+                "shortName": "UiPath, Inc.",
+                "chartPreviousClose": 15.05,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "end": 1786714200,
+                    "start": 1786694400,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "end": 1786737600,
+                    "start": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "end": 1786752000,
+                    "start": 1786737600,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "volume": [
+                      55283900,
+                      66755500,
+                      66648000,
+                      104706200,
+                      47601722
+                    ],
+                    "low": [
+                      14.729999542236328,
+                      15.399999618530273,
+                      14.979999542236328,
+                      14.859999656677246,
+                      15.835000038146973
+                    ],
+                    "close": [
+                      15.59000015258789,
+                      15.720000267028809,
+                      15.260000228881836,
+                      16.68000030517578,
+                      16.010000228881836
+                    ],
+                    "open": [
+                      14.890000343322754,
+                      15.5,
+                      15.3100004196167,
+                      15.300000190734863,
+                      16.65999984741211
+                    ],
+                    "high": [
+                      15.670000076293945,
+                      16.040000915527344,
+                      15.529999732971191,
+                      16.739999771118164,
+                      16.81999969482422
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      15.59000015258789,
+                      15.720000267028809,
+                      15.260000228881836,
+                      16.68000030517578,
+                      16.010000228881836
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "FLEX",
+      "retrievedAt": "2026-08-14T21:32:02.725Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "USD",
+                "symbol": "FLEX",
+                "exchangeName": "NMS",
+                "fullExchangeName": "NasdaqGS",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 764001000,
+                "regularMarketTime": 1786737601,
+                "hasPrePostMarketData": true,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/New_York",
+                "regularMarketPrice": 126.16,
+                "fiftyTwoWeekHigh": 166.86,
+                "fiftyTwoWeekLow": 47.83,
+                "regularMarketDayHigh": 127.15,
+                "regularMarketDayLow": 122.5,
+                "regularMarketVolume": 2214168,
+                "longName": "Flex Ltd.",
+                "shortName": "Flex Ltd.",
+                "chartPreviousClose": 121.35,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "start": 1786694400,
+                    "end": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "start": 1786714200,
+                    "end": 1786737600,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "start": 1786737600,
+                    "end": 1786752000,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "low": [
+                      119.58999633789062,
+                      120.31999969482422,
+                      124.47000122070312,
+                      123.69000244140625,
+                      122.5
+                    ],
+                    "high": [
+                      124.02999877929688,
+                      125.44000244140625,
+                      130.3800048828125,
+                      127.66999816894531,
+                      127.1500015258789
+                    ],
+                    "close": [
+                      119.69999694824219,
+                      122.41000366210938,
+                      124.52999877929688,
+                      124.30000305175781,
+                      126.16000366210938
+                    ],
+                    "open": [
+                      122.72000122070312,
+                      121.7300033569336,
+                      128.19000244140625,
+                      125.08999633789062,
+                      124.61000061035156
+                    ],
+                    "volume": [
+                      2930900,
+                      2887700,
+                      3505800,
+                      2215700,
+                      2214168
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      119.69999694824219,
+                      122.41000366210938,
+                      124.52999877929688,
+                      124.30000305175781,
+                      126.16000366210938
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "ORCL",
+      "retrievedAt": "2026-08-14T21:32:03.117Z",
+      "payload": {
+        "chart": {
+          "result": [
+            {
+              "meta": {
+                "currency": "USD",
+                "symbol": "ORCL",
+                "exchangeName": "NYQ",
+                "fullExchangeName": "NYSE",
+                "instrumentType": "EQUITY",
+                "firstTradeDate": 511021800,
+                "regularMarketTime": 1786737884,
+                "hasPrePostMarketData": true,
+                "gmtoffset": -14400,
+                "timezone": "EDT",
+                "exchangeTimezoneName": "America/New_York",
+                "regularMarketPrice": 150.52,
+                "fiftyTwoWeekHigh": 345.72,
+                "fiftyTwoWeekLow": 114.5,
+                "regularMarketDayHigh": 156.39,
+                "regularMarketDayLow": 148.8,
+                "regularMarketVolume": 21804981,
+                "longName": "Oracle Corporation",
+                "shortName": "Oracle Corporation",
+                "chartPreviousClose": 147.02,
+                "priceHint": 2,
+                "currentTradingPeriod": {
+                  "pre": {
+                    "timezone": "EDT",
+                    "end": 1786714200,
+                    "start": 1786694400,
+                    "gmtoffset": -14400
+                  },
+                  "regular": {
+                    "timezone": "EDT",
+                    "end": 1786737600,
+                    "start": 1786714200,
+                    "gmtoffset": -14400
+                  },
+                  "post": {
+                    "timezone": "EDT",
+                    "end": 1786752000,
+                    "start": 1786737600,
+                    "gmtoffset": -14400
+                  }
+                },
+                "dataGranularity": "1d",
+                "range": "5d",
+                "validRanges": [
+                  "1d",
+                  "5d",
+                  "1mo",
+                  "3mo",
+                  "6mo",
+                  "1y",
+                  "2y",
+                  "5y",
+                  "10y",
+                  "ytd",
+                  "max"
+                ]
+              },
+              "timestamp": [
+                1786368600,
+                1786455000,
+                1786541400,
+                1786627800,
+                1786714200
+              ],
+              "indicators": {
+                "quote": [
+                  {
+                    "low": [
+                      146.6199951171875,
+                      144.24000549316406,
+                      147.88999938964844,
+                      151.91000366210938,
+                      148.8000946044922
+                    ],
+                    "close": [
+                      151.0500030517578,
+                      145.47999572753906,
+                      153.27999877929688,
+                      156.22000122070312,
+                      150.52000427246094
+                    ],
+                    "high": [
+                      151.99000549316406,
+                      151.99000549316406,
+                      154.88999938964844,
+                      159.25999450683594,
+                      156.38999938964844
+                    ],
+                    "open": [
+                      148.25999450683594,
+                      151.1999969482422,
+                      152.80999755859375,
+                      151.97999572753906,
+                      155.83999633789062
+                    ],
+                    "volume": [
+                      24265000,
+                      28761800,
+                      43559400,
+                      25652000,
+                      21804981
+                    ]
+                  }
+                ],
+                "adjclose": [
+                  {
+                    "adjclose": [
+                      151.0500030517578,
+                      145.47999572753906,
+                      153.27999877929688,
+                      156.22000122070312,
+                      150.52000427246094
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    }
+  ]
+}

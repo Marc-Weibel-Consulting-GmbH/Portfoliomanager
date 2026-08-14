@@ -18,6 +18,7 @@
 | F1-04 | 1 | Optimierung, Benchmarks und Kosten | abgeschlossen | HRP, Multi-Asset, Kosten- und Composite-Benchmark gegen 75 zielgerichtete Tests geprüft. |
 | F1-05 | 1 | Punkt-in-Zeit und Look-Ahead | verifiziert | F1-03 umgesetzt: datumsgenaue Filings, Frist-Fallbacks und Quartalsberichte gelten erst nach dem Kalendertag als verfügbar; Rekonstruktion zensiert gegen den effektiven letzten Handelstag. |
 | F1-06 | 1 | Befundbericht und Fix-Gates | abgeschlossen | `PHASE_1_FINDINGS.md` und `PHASE_1_REPORT.md` enthalten Ursache, Gegenprobe, Falsch-positiv-Check und Abnahmekriterium. |
+| S1-01 | Screener | 20-Titel-Stichprobenvalidierung | verifiziert | 20 aktuell berechnete Aktien gegen externe Yahoo-Referenzwerte und eine offizielle BAC-Dividendenquelle geprüft. Kein materieller Berechnungsfehler nach vorab dokumentierten Schwellen bestätigt. |
 
 ## Statusdefinitionen
 

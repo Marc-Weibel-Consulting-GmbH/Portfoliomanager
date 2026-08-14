@@ -529,3 +529,10 @@
 - [x] Roten Referenztest für positiven risikofreien Satz und negative Überschussrendite ergänzen
 - [x] Downside-Deviation und Zähler auf dieselbe Tages-Mindesthürde ausrichten
 - [x] Modellselektion, Risikostatistik, Gesamt-Suite, TypeScript und Build gegenprüfen sowie Audit-Nachweis aktualisieren
+
+## Screener-Stichprobenvalidierung — 20 neu berechnete Aktien (2026-08-14)
+- [x] Reproduzierbare Zufallsstichprobe von 20 bereits berechneten Aktien samt Datenstichtag und Kennzahlendefinitionen festhalten
+- [x] Interne Werte (Kurs, KGV, PEG, ROIC, Marge, FCF-Rendite, Dividendenrendite) gegen unabhängige externe Referenzen abgleichen
+- [x] Materielle Abweichungen nach Zeitraum, Währung, Adjustierung, Datenbasis oder Berechnungsfehler klassifizieren
+- [x] Ausschliesslich bestätigte Berechnungsfehler mit roten Tests beheben und die 20-Titel-Stichprobe erneut messen — keine bestätigten Berechnungsfehler, daher kein Code-Fix
+- [x] Quellen-, Abweichungs- und Remediationsbericht dokumentieren, alle Prüfungen ausführen und Checkpoint sichern

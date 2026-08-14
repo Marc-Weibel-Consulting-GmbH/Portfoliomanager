@@ -1,0 +1,681 @@
+{
+  "sampledAt": "2026-08-14T21:29:31.638Z",
+  "source": "YahooFinance/get_stock_profile",
+  "results": [
+    {
+      "symbol": "NN.AS",
+      "retrievedAt": "2026-08-14T21:29:11.340Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "Schenkkade 65",
+                "city": "The Hague",
+                "zip": "2595 AS",
+                "country": "Netherlands",
+                "phone": "31 70 513 0303",
+                "website": "https://www.nn-group.com",
+                "industry": "Insurance - Diversified",
+                "industryKey": "insurance-diversified",
+                "industryDisp": "Insurance - Diversified",
+                "sector": "Financial Services",
+                "sectorKey": "financial-services",
+                "sectorDisp": "Financial Services",
+                "longBusinessSummary": "NN Group N.V., a financial services company, provides life and non-life insurance products in the Netherlands and internationally. It operates through the Netherlands Life, the Netherlands Non-Life, Insurance Europe, Japan Life, and NN Bank segments. The company provides insured defined benefit, defined contribution, pensions under the Nationale-Nederlanden brand name; premium pension institution services under the BeFrank brand name; and general pension fund administration and advisory services under AZL brand name, as well as non-life insurance products, including motor, fire, liability, transport, travel, health, and disability and accident insurance products. It also provides long-term protection to cover a variety of risks including disability, critical illness and health; and protection, savings and retirement solutions. In addition, the company offers financial services, such as savings, investments, bancassurance and mortgages under the Woonnu brand name. The company offers its products to individuals, small and medium-sized enterprises, and corporate customers directly through tied agents, advisors, brokers, and direct channels. The company was formerly known as ING Insurance Topholding N.V. and changed its name to NN Group N.V. in March 2014. NN Group N.V. was founded in 1845 and is headquartered in The Hague, the Netherlands.",
+                "fullTimeEmployees": 13393,
+                "companyOfficers": [],
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "KNIN.SW",
+      "retrievedAt": "2026-08-14T21:29:12.744Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "Kuehne + Nagel House",
+                "address2": "PO Box 67",
+                "city": "Schindellegi",
+                "zip": "8834",
+                "country": "Switzerland",
+                "phone": "41 44 786 95 11",
+                "website": "https://www.kuehne-nagel.com",
+                "industry": "Integrated Freight & Logistics",
+                "industryKey": "integrated-freight-logistics",
+                "industryDisp": "Integrated Freight & Logistics",
+                "sector": "Industrials",
+                "sectorKey": "industrials",
+                "sectorDisp": "Industrials",
+                "longBusinessSummary": "Kuehne + Nagel International AG, together with its subsidiaries, provides integrated logistics services in Europe, the Middle East, Africa, the Americas, and the Asia-Pacific. The company operates through four segments: Sea Logistics, Air Logistics, Road Logistics, and Contract Logistics. It offers full loads and less than container loads, reefer cold chain solutions for temperature-sensitive goods, order management, and VinLog, a wine, spirits, and drinks logistics solutions, as well as cargo insurance and customs brokerage; and air freight services, such as air charter services, time-critical logistics, sea-air logistics, airside logistics, customs clearance, and smart labels. The company also provides road logistics include full truck load, less than truck load, and groupage services; and fulfillment, warehouse, and distribution services, such as fulfilment operation, distribution and last mile delivery, in-plant, inventory and order management, packaging, returns management, waste management, custom, quality inspections, and value-added services. In addition, it offers customs clearances services comprising export and import customs clearance and transit services, one-stop digital customs solution, and customs and trade consultancy services, as well as inbound logistics for e-commerce and cross-border e-commerce. Further, the company operates various logistic projects, such as industrial, renewable, energy, marine logistics, one global system, engineering, and chartering, and offers CO2e emissions calculator for project logistics. Additionally, it offers sustainable logistics; and supply chain management services comprising 4PL integrated logistics and order management. The company serves aerospace, automotive, mobility, consumer, healthcare, high-tech and semiconductor, industrial, and perishables industries. The company was founded in 1890 and is based in Schindellegi, Switzerland. Kuehne + Nagel International AG operates as a subsidiary of Kühne Holding AG.",
+                "fullTimeEmployees": 82400,
+                "companyOfficers": [],
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "MATX",
+      "retrievedAt": "2026-08-14T21:29:13.277Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "1411 Sand Island Parkway",
+                "city": "Honolulu",
+                "state": "HI",
+                "zip": "96819",
+                "country": "United States",
+                "phone": "808 848 1211",
+                "website": "https://www.matson.com",
+                "industry": "Marine Shipping",
+                "industryKey": "marine-shipping",
+                "industryDisp": "Marine Shipping",
+                "sector": "Industrials",
+                "sectorKey": "industrials",
+                "sectorDisp": "Industrials",
+                "longBusinessSummary": "Matson, Inc., together with its subsidiaries, engages in the provision of ocean transportation and logistics services. It operates through two segments, Ocean Transportation and Logistics. The company offers ocean freight transportation services to the domestic non-contiguous economies of Hawaii, Alaska and Guam, and to other island economies in Micronesia; and transports dry containers of mixed commodities, refrigerated commodities, food products, beverages, building materials, automobiles, household goods, livestock, seafood, general sustenance cargo, e-commerce related goods, garments, consumer electronics, footwear, retail merchandise, and other merchandise. It also operates an expedited service from China to Long Beach, California, and various islands in the South Pacific, as well as Okinawa, Japan; and provides stevedoring, refrigerated cargo, inland transportation, container equipment maintenance, and other terminal services on the Hawaiian islands of Oahu, Hawaii, Maui, and Kauai, as well as in the Alaska terminal locations of Anchorage, Kodiak, and Dutch Harbor. In addition, the company provides multimodal transportation brokerage of domestic and international rail intermodal, long-haul and regional highway trucking, specialized hauling, flat-bed and project, less-than-truckload (LCL), and expedited freight services; LCL consolidation and freight forwarding services; warehousing, trans-loading, value-added packaging and distribution services; purchase order management, booking services, and non-vessel operating common carrier freight forwarding services. It serves the U.S. military, freight forwarders and non-vessel owning common carriers, retailers and consumer goods manufacturers, and other customers. The company was formerly known as Alexander & Baldwin Holdings, Inc. and changed its name to Matson, Inc. in June 2012. Matson, Inc. was founded in 1882 and is headquartered in Honolulu, Hawaii.",
+                "fullTimeEmployees": 4170,
+                "companyOfficers": [],
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "LONN.SW",
+      "retrievedAt": "2026-08-14T21:29:13.490Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "Muenchensteinerstrasse 38",
+                "city": "Basel",
+                "zip": "4002",
+                "country": "Switzerland",
+                "phone": "41 61 316 81 11",
+                "website": "https://www.lonza.com",
+                "industry": "Diagnostics & Research",
+                "industryKey": "diagnostics-research",
+                "industryDisp": "Diagnostics & Research",
+                "sector": "Healthcare",
+                "sectorKey": "healthcare",
+                "sectorDisp": "Healthcare",
+                "longBusinessSummary": "Lonza Group AG, together with its subsidiaries, operates as a contract development and manufacturing organization for pharma and biotech companies in Europe, North and Central America, Latin America, Asia, Australia, New Zealand, and internationally. It operates through Integrated Biologics; Advanced Synthesis; and Specialized Modalities segments. The Integrated Biologics segment offers CDMO biologics services from clinical development, drug substance, and drug product manufacturing; and operates mammalian and drug product platforms. Its Advanced Synthesis segment manufactures antibody-drug conjugates (ADCs) and other bioconjugates, small molecules, and highly potent active pharmaceutical ingredients; and operates small molecules and bioconjugates platforms. The Specialized Modalities segment operates various technologies, such as spanning cell & gene, microbial, bioscience, and mRNA. Lonza Group AG was incorporated in 1897 and is headquartered in Basel, Switzerland.",
+                "fullTimeEmployees": 20141,
+                "companyOfficers": [],
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "LLY",
+      "retrievedAt": "2026-08-14T21:29:13.632Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "Lilly Corporate Center",
+                "city": "Indianapolis",
+                "state": "IN",
+                "zip": "46285",
+                "country": "United States",
+                "phone": "317 276 2000",
+                "website": "https://www.lilly.com",
+                "industry": "Drug Manufacturers - General",
+                "industryKey": "drug-manufacturers-general",
+                "industryDisp": "Drug Manufacturers - General",
+                "sector": "Healthcare",
+                "sectorKey": "healthcare",
+                "sectorDisp": "Healthcare",
+                "longBusinessSummary": "Eli Lilly and Company discovers, develops, manufactures, and markets human pharmaceutical products in the United States, Europe, China, Japan, and internationally. The company offers cardiometabolic health products, including Basaglar, Humalog, Humalog Mix 75/25, Humalog U-100, Humalog U-200, Humalog Mix 50/50, insulin lispro, insulin lispro protamine, insulin lispro mix 75/25, Humulin, Humulin 70/30, Humulin N, Humulin R, Humulin U-500 for diabetes; Jardiance, Mounjaro, and Trulicity for type 2 diabetes; and Zepbound for obesity. It also provides oncology products, such as Cyramza for the second-line treatment of gastric cancer or gastro-esophageal junction adenocarcinoma; Erbitux for colorectal cancers and head and neck cancers; Inluriyo for breast cancer; Jaypirca for chronic lymphocytic leukemia or small lymphocytic lymphoma; Retevmo for the treatment of metastatic NSCLC; TYVYT for classic hodgkin's lymphoma; and Verzenio for breast cancer. In addition, the company offers immunology products, which include Ebglyss for severe atopic dermatitis; Olumiant for rheumatoid arthritis, atopic dermatitis, severe alopecia areata, and COVID-19; Omvoh for ulcerative colitis; and Taltz for plaque psoriasis, psoriatic arthritis, ankylosing spondylitis, and non-radiographic axial spondylarthritis. Further, it provides Emgality for migraine prevention and episodic cluster headache, as well as Kisubla for symptomatic Alzheimer's disease. The company has collaborations with Boehringer Ingelheim Pharmaceuticals, Inc. for the Jardiance product family; and F. Hoffmann-La Roche Ltd and Genentech, Inc. for lebrikizumab, as well as license agreements with Almirall, S.A. for Ebglyss; and Chugai Pharmaceutical Co., Ltd for orforglipron; strategic collaboration with Ascidian Therapeutics for development of therapies for undisclosed monogenic kidney diseases; and BioArctic AB (publ) for new treatment. Eli Lilly and Company was founded in 1876 and is headquartered in Indianapolis, Indiana.",
+                "fullTimeEmployees": 50000,
+                "companyOfficers": [],
+                "irWebsite": "http://investor.lilly.com/",
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "SREN.SW",
+      "retrievedAt": "2026-08-14T21:29:13.905Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "Mythenquai 50/60",
+                "address2": "P.O. Box",
+                "city": "Zurich",
+                "zip": "8022",
+                "country": "Switzerland",
+                "phone": "41 43 285 2121",
+                "website": "https://www.swissre.com",
+                "industry": "Insurance - Reinsurance",
+                "industryKey": "insurance-reinsurance",
+                "industryDisp": "Insurance - Reinsurance",
+                "sector": "Financial Services",
+                "sectorKey": "financial-services",
+                "sectorDisp": "Financial Services",
+                "longBusinessSummary": "Swiss Re AG, together with its subsidiaries, provides reinsurance, insurance, other insurance-based forms of risk transfer, and other insurance-related services worldwide. The company operates through Property & Casualty Reinsurance, Life & Health Reinsurance, and Corporate Solutions segments. The Property & Casualty Reinsurance segment underwrites property reinsurance, including property, credit, surety and political, engineering and project, aviation, marine, agriculture, renewable energy, retakaful, and facultative reinsurance solutions; and casualty reinsurance, such as liability, motor, worker's compensation, personal accident, management and professional liability, cyber, and facultative reinsurance solutions. Its Life & Health Reinsurance segment underwrites life and health insurance products. The Corporate Solutions segment offers standard risk transfer covers and multi-line programs to customized solutions. It serves stock and mutual insurance companies, public sector and governmental entities, mid-sized and large corporations, and individuals. The company was founded in 1863 and is headquartered in Zurich, Switzerland.",
+                "fullTimeEmployees": 13806,
+                "companyOfficers": [],
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "TNZ.TO",
+      "retrievedAt": "2026-08-14T21:29:24.921Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "605 – 5th Avenue SW",
+                "address2": "Suite 700",
+                "city": "Calgary",
+                "state": "AB",
+                "zip": "T2P 3H5",
+                "country": "Canada",
+                "phone": "403 984 5197",
+                "website": "https://www.tenazenergy.com",
+                "industry": "Oil & Gas E&P",
+                "industryKey": "oil-gas-e-p",
+                "industryDisp": "Oil & Gas E&P",
+                "sector": "Energy",
+                "sectorKey": "energy",
+                "sectorDisp": "Energy",
+                "longBusinessSummary": "Tenaz Energy Corp., an energy company, engages in the acquisition and development of oil and gas assets in Canada and the Netherlands. The company operates natural gas assets in the Dutch sector of the North Sea. It also develops crude oil and natural gas at the Leduc-Woodbend area in central Alberta, Canada. The company was formerly known as Altura Energy Inc. Tenaz Energy Corp. is headquartered in Calgary, Canada.",
+                "fullTimeEmployees": 304,
+                "companyOfficers": [],
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "FTK",
+      "retrievedAt": "2026-08-14T21:29:25.207Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "5775 North Sam Houston Parkway West",
+                "address2": "Suite 400",
+                "city": "Houston",
+                "state": "TX",
+                "zip": "77086",
+                "country": "United States",
+                "phone": "877 433 5685",
+                "website": "https://www.flotekind.com",
+                "industry": "Oil & Gas Equipment & Services",
+                "industryKey": "oil-gas-equipment-services",
+                "industryDisp": "Oil & Gas Equipment & Services",
+                "sector": "Energy",
+                "sectorKey": "energy",
+                "sectorDisp": "Energy",
+                "longBusinessSummary": "Flotek Industries, Inc. operates as a chemical and data analytics company in the United States, the United Arab Emirates, and internationally. It operates in two segments, Chemistry Technologies (CT) and Data Analytics (DA). The CT segment offers chemistry solutions, such as proprietary chemistries, specialty chemistries, logistics, and technology services for desired chemical applications program to integrated oil and gas companies, oilfield services companies, independent oil and gas companies, national and state-owned oil companies, geothermal energy companies, solar energy companies, and advanced alternative energy companies. This segment also designs, develops, manufactures, packages, distributes, and markets chemistry solutions designed for existing sustainability practices to reduce the environmental impact of energy on the air, water, land, and people. The DA segment is also involved in the provision of analytical measurement and digital solutions, including measure-and-control services for near real-time insights for process control in the oil and gas value chain, and emerging applications in power and digital valuation; and solutions to optimize performance, improve decision-making, and reduce emissions and carbon intensity; and short and long-term equipment rental. It sells its products directly through in-house sales professionals and contractual agency agreements. Flotek Industries, Inc. was incorporated in 1985 and is headquartered in Houston, Texas.",
+                "fullTimeEmployees": 158,
+                "companyOfficers": [],
+                "irWebsite": "http://www.flotekind.com/investors",
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "SOFI",
+      "retrievedAt": "2026-08-14T21:29:25.865Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "234 1st Street",
+                "city": "San Francisco",
+                "state": "CA",
+                "zip": "94105",
+                "country": "United States",
+                "phone": "855 456 7634",
+                "website": "https://www.sofi.com",
+                "industry": "Credit Services",
+                "industryKey": "credit-services",
+                "industryDisp": "Credit Services",
+                "sector": "Financial Services",
+                "sectorKey": "financial-services",
+                "sectorDisp": "Financial Services",
+                "longBusinessSummary": "SoFi Technologies, Inc. provides various financial services in the United States, Latin America, Canada, and Hong Kong. The company operates through three segments: Lending, Technology Platform, and Financial Services. It offers lending and financial services and products that allows its members to borrow, save, spend, invest, and protect money; and personal loans, student loans, home loans, and related services. The company also operates Galileo, a technology platform that offers services to financial and non-financial institution; and Technisys, a cloud-native digital and core banking platform that provides software licenses and associated services, including implementation and maintenance. In addition, it provides SoFi Money offers checking and savings accounts, and cash management products; SoFi Invest, a mobile-first investment platform that offers access to trading and advisory solutions, such as investing and robo-advisory; and SoFI Crypto, a new digital asset trading platform. Further, the company offers SoFi Credit Card that provides cash back rewards on every purchase; Sofi Relay, a personal finance management product that allows to track all of their financial accounts comprising credit score and spending behaviors; SoFi Protect which offers insurance product; SoFi Travel, an application that manages travel search and booking experience; SoFi At Work provides financial benefits to employees, including student loan payments made on their employees' behalf; Lantern Credit, a financial services marketplace platform for seeking alternative products and provide product comparisons; and other lending as a service that offers pre-qualified borrower referrals and offers loans to third-party partner. The company was founded in 2011 and is based in San Francisco, California.",
+                "fullTimeEmployees": 6100,
+                "companyOfficers": [],
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "ANET",
+      "retrievedAt": "2026-08-14T21:29:26.038Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "5453 Great America Parkway",
+                "city": "Santa Clara",
+                "state": "CA",
+                "zip": "95054",
+                "country": "United States",
+                "phone": "408 547 5500",
+                "fax": "408 538 8920",
+                "website": "https://www.arista.com",
+                "industry": "Computer Hardware",
+                "industryKey": "computer-hardware",
+                "industryDisp": "Computer Hardware",
+                "sector": "Technology",
+                "sectorKey": "technology",
+                "sectorDisp": "Technology",
+                "longBusinessSummary": "Arista Networks, Inc. engages in the development, marketing, and sale of data-driven, client to cloud networking solutions for AI, data center, campus, and routing environments in the Americas, Europe, the Middle East, Africa, and the Asia-Pacific. Its cloud networking solutions consist of Extensible Operating System (EOS), a publish-subscribe state-sharing networking operating system offered in combination with a set of network applications. The company offers data center, cloud and AI networking, cognitive adjacencies, and cognitive network software and services. It also provides post contract customer support services, such as technical support, hardware repair and replacement parts beyond standard warranty, bug fixes, patches, and upgrade services. The company serves a range of industries comprising internet companies, cloud service providers, financial services organizations, government agencies, media and entertainment, healthcare, oil and gas, education, manufacturing, industrial, and others. It markets and sells its products through distributors, system integrators, value-added resellers, and original equipment manufacturer partners, as well as through its direct sales force. Arista Networks, Inc. was formerly known as Arastra, Inc. and changed its name to Arista Networks, Inc. in October 2008. The company was incorporated in 2004 and is headquartered in Santa Clara, California.",
+                "fullTimeEmployees": 5115,
+                "companyOfficers": [],
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "MC.PA",
+      "retrievedAt": "2026-08-14T21:29:26.783Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "22, Avenue Montaigne",
+                "city": "Paris",
+                "zip": "75008",
+                "country": "France",
+                "phone": "33 1 44 13 22 22",
+                "fax": "33 1 44 13 22 23",
+                "website": "https://www.lvmh.com",
+                "industry": "Luxury Goods",
+                "industryKey": "luxury-goods",
+                "industryDisp": "Luxury Goods",
+                "sector": "Consumer Cyclical",
+                "sectorKey": "consumer-cyclical",
+                "sectorDisp": "Consumer Cyclical",
+                "longBusinessSummary": "LVMH Moët Hennessy - Louis Vuitton, Société Européenne, together with its subsidiaries, operates as a luxury goods company worldwide. It offers wine and spirit products under the Ao Yun, Ardbeg, Armand de Brignac, Belvedere, Bodega Numanthia, Chandon, Cheval des Andes, Château Cheval Blanc, Château Galoupet, Château d'Yquem, Château d'Esclans, Cloudy Bay, Colgin Cellars, Dom Pérignon, Domaine des Lambrays, Eminente, Glenmorangie, Hennessy, Joseph Phelps, Krug, Mercier, Minuty, Moët & Chandon, Newton Vineyard, Ruinart, SirDavis, Terrazas de los Andes, Veuve Clicquot, Volcan de mi Tierra, and Woodinville brands; fashion and leather products under Barton Perreira,Berluti, Celine, Christian Dior, Fendi, Givenchy, Kenzo, Loewe, Loro Piana, Louis Vuitton, Marc Jacobs, Moynat, Patou, Pucci, Rimowa, and Vuarnet brands; and perfumes and cosmetics products under the Acqua di Parma, Benefit Cosmetics, Fenty Beauty by Rihanna, Fresh, Givenchy Parfums, Guerlain, Kenzo Parfums, Loewe Perfumes, Maison Francis Kurkdjian, Make Up For Ever, OLEHENRIKSEN, Officine Universelle Buly, and Parfums Christian Dior brands. The company also provides watches and jewelry under the Bvlgari, Chaumet, DANIEL ROTH, Fred, Gérald Genta, Hublot, L'Epée 1839, Repossi, TAG Heuer, Tiffany & Co., and Zenith brands; and selective retailing under the 24S, DFS, La Grande Épicerie de Paris, Le Bon Marché Rive Gauche, Samaritaine, and Sephora brands. In addition, it offers french business and cultural publications under the Les Echos group brand; custom-designed yachts under the Feadship brand; hotels under the Cheval Blanc and Belmond brands; and other activities under the Connaissance des Arts, Cova, Investir, Jardin d'Acclimatation, Le Parisien, Paris Match, and Radio Classique brands. LVMH Moët Hennessy - Louis Vuitton, Société Européenne was founded in 1365 and is headquartered in Paris, France.",
+                "fullTimeEmployees": 196647,
+                "companyOfficers": [],
+                "irWebsite": "http://www.lvmh.com/investor-relations/shareholders",
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "ACA.PA",
+      "retrievedAt": "2026-08-14T21:29:27.252Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "12 Place des États-Unis",
+                "address2": "Cedex",
+                "city": "Montrouge",
+                "zip": "92127",
+                "country": "France",
+                "phone": "33 1 43 23 52 02",
+                "website": "https://www.credit-agricole.com",
+                "industry": "Banks - Regional",
+                "industryKey": "banks-regional",
+                "industryDisp": "Banks - Regional",
+                "sector": "Financial Services",
+                "sectorKey": "financial-services",
+                "sectorDisp": "Financial Services",
+                "longBusinessSummary": "Crédit Agricole S.A. provides retail and corporate banking, insurance, and investment banking products and services in France, Italy, rest of the European Union, rest of Europe, North America, Central and South America, Africa, the Middle East, the Asia Pacific, and Japan. It operates in five segments: Asset Gathering, Large Customers, Specialized Financial Services, French Retail Banking  LCL, and International Retail Banking. The company offers savings/retirement, death and disability/creditor/group, and property and casualty insurance products; asset management; investment solutions; banking products and services, savings, wealth management, payment, cash flow management, and online banking services; personal finance and mobility; and specialized financial services. It also provides investment banking, structured finance, international trade finance, commercial banking, capital market, and syndication services; leasing, factoring, and energy and territorial financing; and asset servicing solutions for investment products, as well as various asset classes, such as execution, clearing, forex, security lending, custody, depositary banking, fund administration, middle-office outsourcing, fund distribution, and issuer services. In addition, the company offers property services, including transactions, rental, rental management, condominium trustee, and renovation under the Square Habitat brand; property development and management; and low-carbon electricity production. The company serves individuals, SMEs, small businesses, corporates, farmers, financial institutions, local authorities, asset managers, insurance companies, institutional investors, pension and unlisted funds, banks, and brokers. Crédit Agricole S.A. was founded in 1894 and is headquartered in Montrouge, France. Crédit Agricole S.A. operates as a subsidiary of SAS Rue La Boetie.",
+                "fullTimeEmployees": 79848,
+                "companyOfficers": [],
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "BE",
+      "retrievedAt": "2026-08-14T21:29:27.482Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "4353 North First Street",
+                "city": "San Jose",
+                "state": "CA",
+                "zip": "95134",
+                "country": "United States",
+                "phone": "408 543 1500",
+                "website": "https://www.bloomenergy.com",
+                "industry": "Electrical Equipment & Parts",
+                "industryKey": "electrical-equipment-parts",
+                "industryDisp": "Electrical Equipment & Parts",
+                "sector": "Industrials",
+                "sectorKey": "industrials",
+                "sectorDisp": "Industrials",
+                "longBusinessSummary": "Bloom Energy Corporation designs, manufactures, sells, and installs solid oxide fuel cell systems for on-site power generation in the United States and internationally. It offers Bloom Energy Server, an energy server platform to convert fuel, such as natural gas, biogas, hydrogen, or a blend of these fuels, into electricity through a non-combustion electrochemical process. The company also provides Bloom Electrolyzer for producing hydrogen. It sells its products through direct and indirect sales channels to utilities, data centers, retail, healthcare, education, telecom, manufacturing, and other industries. The company was formerly known as Ion America Corp. and changed its name to Bloom Energy Corporation in 2006. Bloom Energy Corporation was incorporated in 2001 and is headquartered in San Jose, California.",
+                "fullTimeEmployees": 2214,
+                "companyOfficers": [],
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "RUS.TO",
+      "retrievedAt": "2026-08-14T21:29:28.580Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "6600 Financial Drive",
+                "city": "Mississauga",
+                "state": "ON",
+                "zip": "L5N 7J6",
+                "country": "Canada",
+                "phone": "905 819 7777",
+                "fax": "905 819 7409",
+                "website": "https://www.russelmetals.com",
+                "industry": "Industrial Distribution",
+                "industryKey": "industrial-distribution",
+                "industryDisp": "Industrial Distribution",
+                "sector": "Industrials",
+                "sectorKey": "industrials",
+                "sectorDisp": "Industrials",
+                "longBusinessSummary": "Russel Metals Inc. engages in the distribution of steel and other metal products in Canada and the United States. The company operates through Metals Service Centers, Energy Field Stores, and Steel Distribution segments. The Metal Service Centers segment operates a network of metals service centers, which provide metal products in various sizes, shapes, and specifications, including carbon hot rolled and cold finished steel, pipe and tubular, stainless steel, aluminum, and other non-ferrous specialty metal products. The Energy Field Stores segment offers specialized products, such as flanges, valves, fittings, and other products to energy industry. The Steel Distributors segment sells steel products comprising carbon steel plate, flat rolled products, beams, channels, and pipes to other steel service centers and equipment manufacturers. Russel Metals Inc. was incorporated in 1929 and is headquartered in Mississauga, Canada.",
+                "fullTimeEmployees": 4275,
+                "companyOfficers": [],
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "BAC",
+      "retrievedAt": "2026-08-14T21:29:29.815Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "Bank of America Corporate Center",
+                "address2": "100 North Tryon Street",
+                "city": "Charlotte",
+                "state": "NC",
+                "zip": "28255",
+                "country": "United States",
+                "phone": "(704) 386-5681",
+                "website": "https://www.bankofamerica.com",
+                "industry": "Banks - Diversified",
+                "industryKey": "banks-diversified",
+                "industryDisp": "Banks - Diversified",
+                "sector": "Financial Services",
+                "sectorKey": "financial-services",
+                "sectorDisp": "Financial Services",
+                "longBusinessSummary": "Bank of America Corporation, through its subsidiaries, provides various financial products and services for individual consumers, small and middle-market businesses, institutional investors, large corporations, and governments worldwide. It operates through four segments: Consumer Banking, Global Wealth & Investment Management (GWIM), Global Banking, and Global Markets. The Consumer Banking segment offers traditional and money market savings accounts, certificates of deposit and IRAs, checking accounts, and investment accounts and products; credit and debit cards; residential mortgages and home equity loans; and direct and indirect loans. The GWIM segment provides investment management, brokerage, banking, and trust and retirement products and services; wealth management solutions; and customized solutions, including specialty asset management services. The Global Banking segment offers lending products and services, including commercial loans, leases, commitment facilities, trade finance, and commercial real estate and asset-based lending; treasury solutions, and underwriting and advisory services. The Global Markets segment provides market-making, financing, securities clearing, settlement, and custody services; securities and derivative products; and risk management products using interest rate, equity, credit, currency and commodity derivatives, foreign exchange, fixed-income, and mortgage-related products. Bank of America Corporation was founded in 1784 and is based in Charlotte, North Carolina.",
+                "fullTimeEmployees": 211000,
+                "companyOfficers": [],
+                "irWebsite": "http://investor.bankofamerica.com/phoenix.zhtml?c=71595&p=irol-sec",
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "RMBS",
+      "retrievedAt": "2026-08-14T21:29:30.277Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "4453 North First Street",
+                "address2": "Suite 100",
+                "city": "San Jose",
+                "state": "CA",
+                "zip": "95134",
+                "country": "United States",
+                "phone": "408 462 8000",
+                "fax": "408 462 8001",
+                "website": "https://www.rambus.com",
+                "industry": "Semiconductors",
+                "industryKey": "semiconductors",
+                "industryDisp": "Semiconductors",
+                "sector": "Technology",
+                "sectorKey": "technology",
+                "sectorDisp": "Technology",
+                "longBusinessSummary": "Rambus Inc. manufactures and sells semiconductor products in the United States, South Korea, Singapore, and internationally. It offers memory interface chips comprising DDR5 memory interface chips which include registering clock driver, multiplexed registering clock driver, multiplexed data buffer, power management integrated circuits, serial presence detect hubs, temperature sensors, and client clock driver products; and DDR4 memory interface chips. The company also provides silicon IP, such as interface and security IP solutions that move and protect data in advanced artificial intelligence, data center, government, and automotive applications; interface IP solutions for high-speed memory and chip-to-chip digital controller IP; security IP solutions, including crypto cores, hardware roots of trust, high-speed protocol engines, and chip provisioning technologies. In addition, it offers portfolio of patents that covers memory architecture, high-speed serial links, and security products. The company sells its products to memory module manufacturers, OEMs and hyperscalers, as well as to chip makers. It markets its products and services through its direct sales force and distributors. Rambus Inc. was incorporated in 1990 and is headquartered in San Jose, California.",
+                "fullTimeEmployees": 791,
+                "companyOfficers": [],
+                "irWebsite": "http://investor.rambus.com/",
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "MO",
+      "retrievedAt": "2026-08-14T21:29:30.766Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "6601 West Broad Street",
+                "city": "Richmond",
+                "state": "VA",
+                "zip": "23230",
+                "country": "United States",
+                "phone": "804 274 2200",
+                "website": "https://www.altria.com",
+                "industry": "Tobacco",
+                "industryKey": "tobacco",
+                "industryDisp": "Tobacco",
+                "sector": "Consumer Defensive",
+                "sectorKey": "consumer-defensive",
+                "sectorDisp": "Consumer Defensive",
+                "longBusinessSummary": "Altria Group, Inc., through its subsidiaries, manufactures and sells smokeable and oral tobacco products in the United States. It offers cigarettes primarily under the Marlboro brand; large cigars and pipe tobacco under the Black & Mild brand; moist smokeless tobacco and oral tobacco products under the Copenhagen, Skoal, Red Seal, and Husky brands; oral nicotine pouches under the on! brand; and e-vapor products under the NJOY ACE brand. The company sells its products to distributors, as well as large retail organizations, such as chain stores. Altria Group, Inc. was founded in 1822 and is headquartered in Richmond, Virginia.",
+                "fullTimeEmployees": 5900,
+                "companyOfficers": [],
+                "irWebsite": "http://investor.altria.com/phoenix.zhtml?c=80855&p=irol-irhome&src=top_nav",
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "PATH",
+      "retrievedAt": "2026-08-14T21:29:30.897Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "One Vanderbilt Avenue",
+                "address2": "60th Floor",
+                "city": "New York",
+                "state": "NY",
+                "zip": "10017",
+                "country": "United States",
+                "phone": "844 432 0455",
+                "website": "https://www.uipath.com",
+                "industry": "Software - Infrastructure",
+                "industryKey": "software-infrastructure",
+                "industryDisp": "Software - Infrastructure",
+                "sector": "Technology",
+                "sectorKey": "technology",
+                "sectorDisp": "Technology",
+                "longBusinessSummary": "UiPath, Inc. provides an automation platform that offers a range of robotic process automation (RPA) solutions primarily in the United States, Romania, the United Kingdom, the Netherlands, and internationally. It offers the UiPath platform, an integrated enterprise software platform that enables AI agents, robots, people, and models to work together in coordinated workflows. The company's UiPath platform includes the UiPath Maestro process orchestration and process intelligence; UiPath agent builder; RPA and API automation; UiPath intelligent xtraction and processing; UiPath test cloud for testing and quality assurance; UiPath packaged and prebuilt agentic solutions; and centralized governance capabilities that apply across automations, AI agents, and manual tasks. It serves the financial services, healthcare, manufacturing, retail, and public sectors. The company was founded in 2005 and is headquartered in New York, New York.",
+                "fullTimeEmployees": 3981,
+                "companyOfficers": [],
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "FLEX",
+      "retrievedAt": "2026-08-14T21:29:31.431Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "12515-8 Research Boulevard",
+                "address2": "Suite 300",
+                "city": "Austin",
+                "state": "TX",
+                "zip": "78759",
+                "country": "United States",
+                "phone": "512-425-7929",
+                "website": "https://www.flex.com",
+                "industry": "Electronic Components",
+                "industryKey": "electronic-components",
+                "industryDisp": "Electronic Components",
+                "sector": "Technology",
+                "sectorKey": "technology",
+                "sectorDisp": "Technology",
+                "longBusinessSummary": "Flex Ltd. provides technology innovation, supply chain, and manufacturing solutions to data center, communications, enterprise, consumer, automotive, healthcare, industrial, and power industries in the Americas, Asia, and Europe. The company operates through three segments: Integrated Technology Solutions (ITS), Regulated Manufacturing Solutions (RMS), and Cloud and Power Infrastructure (CPI). The ITS segment offers flexible supply and manufacturing solutions for communications, including high speed networking, enterprise, and satellite communications systems, as well as lifestyle solutions comprising products across commercial, home, and personal product categories. Its RMS segment includes industrial products, such as mission critical automation, energy, and industrial infrastructure; automotive products, including compute and power electronics platforms and integrated systems; and healthcare products comprising regulated manufacturing for medical devices, drug delivery, and equipment. The CPI segment provides cloud and cooling products, such as integrated compute systems supporting power dense digital infrastructure deployments and advanced liquid cooling solutions supporting higher density, power intensive rack architectures; and power products that include utility and facility level electrical infrastructure enabling power delivery and high density rack and board level power systems. The company was formerly known as Flextronics International Ltd. and changed its name to Flex Ltd. in September 2016. Flex Ltd. was founded in 1969 and is headquartered in Austin, Texas.",
+                "fullTimeEmployees": 149686,
+                "companyOfficers": [],
+                "irWebsite": "http://investors.flextronics.com/phoenix.zhtml?c=98555&p=irol-irhome",
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    },
+    {
+      "symbol": "ORCL",
+      "retrievedAt": "2026-08-14T21:29:31.638Z",
+      "profile": {
+        "quoteSummary": {
+          "result": [
+            {
+              "summaryProfile": {
+                "address1": "2300 Oracle Way",
+                "city": "Austin",
+                "state": "TX",
+                "zip": "78741",
+                "country": "United States",
+                "phone": "(737) 867-1000",
+                "website": "https://www.oracle.com",
+                "industry": "Software - Infrastructure",
+                "industryKey": "software-infrastructure",
+                "industryDisp": "Software - Infrastructure",
+                "sector": "Technology",
+                "sectorKey": "technology",
+                "sectorDisp": "Technology",
+                "longBusinessSummary": "Oracle Corporation offers products and services that build, run and support enterprise information technology frameworks worldwide. Its Oracle cloud software as a service offering includes various cloud software applications, including Oracle Fusion cloud enterprise resource planning ERP, Oracle Fusion cloud enterprise performance management EPM, Oracle Fusion cloud supply chain and manufacturing management SCM, Oracle Fusion cloud human capital management HCM, and NetSuite applications suite, Oracle Health applications, as well as Oracle Fusion Sales, Service, and Marketing. The company also offers cloud-based industry solutions for various industries; Oracle cloud license and on-premise license; and Oracle license support services. In addition, it provides cloud and license business' infrastructure technologies, such as the Oracle Database and MySQL Database; Java, a software development language; and middleware, including development tools and others. The company's cloud and license business' infrastructure technologies also comprise cloud-based compute, storage, and networking capabilities; and Oracle autonomous database, as well as AI, Internet-of-Things, machine learning, digital assistant, and blockchain. Further, it provides hardware products and other hardware-related software offerings, including Oracle engineered systems, enterprise servers, storage solutions, industry-specific hardware, virtualization software, operating systems, management software, and related hardware support services, and consulting and advanced customer services. It markets and sells its cloud, license, hardware, support, and services offerings directly to businesses in various industries, government agencies, and educational institutions, as well as through indirect channels. Oracle Corporation has a strategic alliance with Metron, Inc. The company was founded in 1977 and is headquartered in Austin, Texas.",
+                "fullTimeEmployees": 141000,
+                "companyOfficers": [],
+                "irWebsite": "http://www.oracle.com/us/corporate/investor-relations/index.html",
+                "executiveTeam": [],
+                "maxAge": 86400
+              }
+            }
+          ],
+          "error": null
+        }
+      }
+    }
+  ]
+}
