@@ -3361,7 +3361,7 @@ export const adminRouter = router({
         verteilungJeBoerse,
         zaehleOhneHerleitung,
       } = await import("../lib/screenerStore");
-      let neuesterLauf = await letzterLauf();
+      const neuesterLauf = await letzterLauf();
       // Verwaister Sammel-Lauf (Prozessneustart oder Abbruch vor der
       // Statusfortschreibung): ehrlich als gescheitert markieren, sonst sieht
       // er für immer aus, als arbeite er noch.
