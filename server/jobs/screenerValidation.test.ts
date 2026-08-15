@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildComparison, buildYahooChartQuery, isFreshForWeeklyValidation, isoWeekKey, selectDeterministicSample, SOURCE_VERSION } from "./screenerValidation";
+import { buildComparison, buildYahooChartQuery, extractFinnhubRatios, isFreshForWeeklyValidation, isoWeekKey, selectDeterministicSample, SOURCE_VERSION } from "./screenerValidation";
 
 const internal = {
   currentPrice: 100,
@@ -11,6 +11,7 @@ const internal = {
 
 const external = {
   yahoo: { price: 101, currency: "USD", retrievedAt: "2026-08-14T08:30:00.000Z" },
+  finnhub: { peRatio: 21, pegRatio: 1.6, retrievedAt: "2026-08-14T08:30:00.000Z" },
   eodhd: { peRatio: 21, pegRatio: 1.6, dividendYield: 2.3, retrievedAt: "2026-08-14T08:30:00.000Z" },
 };
 
@@ -21,6 +22,13 @@ describe("screener validation", () => {
 
   it("keeps the persisted source version within the current database column limit", () => {
     expect(SOURCE_VERSION.length).toBeLessThanOrEqual(64);
+  });
+
+  it("reads TTM KGV and PEG only from the documented independent Finnhub metric fields", () => {
+    expect(extractFinnhubRatios({ metric: { peTTM: 27.6621, pegTTM: 1.4725, forwardPE: 22.9 } }))
+      .toEqual({ peRatio: 27.6621, pegRatio: 1.4725 });
+    expect(extractFinnhubRatios({ metric: { forwardPE: 22.9, forwardPEG: 1.34 } }))
+      .toEqual({ peRatio: null, pegRatio: null });
   });
 
   it("uses the ISO week containing the Thursday as deterministic run key", () => {
@@ -51,7 +59,8 @@ describe("screener validation", () => {
     const material = buildComparison(internal, {
       ...external,
       yahoo: { ...external.yahoo, price: 97 },
-      eodhd: { ...external.eodhd, peRatio: 25, pegRatio: 2, dividendYield: 3 },
+      finnhub: { ...external.finnhub, peRatio: 25, pegRatio: 2 },
+      eodhd: { ...external.eodhd, dividendYield: 3 },
     });
     expect(material.price.status).toBe("material");
     expect(material.peRatio.status).toBe("material");

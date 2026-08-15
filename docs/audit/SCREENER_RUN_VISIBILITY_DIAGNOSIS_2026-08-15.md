@@ -34,3 +34,9 @@ Die Anzeigeauswahl fällt jetzt bei einem fehlerhaften neuesten Lauf auf den let
 | Produktions-Build | bestanden |
 
 > Es wurde keine Neuberechnung ausgelöst und keine Kandidaten- oder Scorezeile verändert.
+
+## Ergänzung: Lauf #90002
+
+Die forensische Datenabfrage bestätigt für Lauf #90002 den Status `fehler` mit dem gespeicherten Hinweis **„Sammeln abgebrochen (Prozessneustart oder Fehler)“**. Der Lauf startete um 06:31 UTC und enthielt bereits 598 erfasste Kandidaten: 527 wartend, 71 als vorhanden erkannt. Der Lauf wurde damit während des Sammelns durch einen Prozessneustart beziehungsweise eine laufende Deployment-/Entwicklungsinstanz unterbrochen, nicht durch einen Fehler in den 331 historischen Berechnungen.
+
+Der Screener ist dafür jetzt fehlertolerant: Der letzte gültige Lauf #60001 wird sichtbar gehalten und der unterbrochene Lauf explizit ausgewiesen. Die Kandidaten von #90002 bleiben für einen bewusst gestarteten neuen oder fortgesetzten Lauf erhalten; es erfolgte keine Löschung und keine automatische Neuberechnung.

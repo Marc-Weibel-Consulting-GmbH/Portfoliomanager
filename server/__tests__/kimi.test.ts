@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 
+const runLiveIntegrationTests = process.env.RUN_LIVE_INTEGRATION_TESTS === "true";
+
 describe("Kimi K3 API Key Validation", () => {
-  // Läuft nur, wo das Secret vorhanden ist (lokal/Prod) — im CI gibt es
-  // KIMI_API_KEY nicht, und ein Live-API-Call gehört dort ohnehin nicht hin.
-  it.skipIf(!process.env.KIMI_API_KEY)("should successfully call api.moonshot.ai with KIMI_API_KEY", async () => {
+  // Ein Netzwerk-/Provider-Healthcheck ist nicht deterministisch und läuft
+  // deshalb nur mit expliziter Opt-in-Variable, auch wenn ein Key vorhanden ist.
+  it.skipIf(!runLiveIntegrationTests || !process.env.KIMI_API_KEY)("should successfully call api.moonshot.ai with KIMI_API_KEY", async () => {
     const key = process.env.KIMI_API_KEY;
     expect(key, "KIMI_API_KEY must be set").toBeTruthy();
 

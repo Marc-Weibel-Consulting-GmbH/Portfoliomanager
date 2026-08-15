@@ -24,16 +24,20 @@ Der Produktionsaudit reduziert sich von **3 kritischen / 49 hohen** auf **0 krit
 
 ## Deterministische Testbasis
 
-Die vollständige lokale Suite besteht nun aus **147 bestandenen Testdateien und 1'290 bestandenen Tests**; neun bewusst externe oder charakterisierende Checks sind übersprungen. Sornette, TradingView und Upstash führen ihre echten Upstream-Healthchecks nur bei `RUN_LIVE_INTEGRATION_TESTS=true` aus. Die jeweiligen lokalen Client-, Fallback- und Vertragsprüfungen bleiben Bestandteil der deterministischen Suite. Damit blockiert eine externe Latenz nicht mehr die Prüfung von Projektcode.
+Die vollständige lokale Suite besteht nun aus **147 bestandenen Testdateien und 1'290 bestandenen Tests**; neun bewusst externe oder charakterisierende Checks sind übersprungen. Sornette, TradingView, Upstash und Kimi führen ihre echten Upstream-Healthchecks nur bei `RUN_LIVE_INTEGRATION_TESTS=true` aus. Die jeweiligen lokalen Client-, Fallback- und Vertragsprüfungen bleiben Bestandteil der deterministischen Suite. Damit blockiert eine externe Latenz nicht mehr die Prüfung von Projektcode.
 
 ## Verbleibende Freigabe- und Prüfpflichten
 
 | Thema | Nächster Schritt |
 |---|---|
-| Scheduled-Endpunkte | Cron-Task-UID-Bindung und wiederverwendbare Idempotenz auch für die drei gehärteten Alt-Handler ergänzen. |
+| Scheduled-Endpunkte | Für einen künftig registrierten Portfolio-Metrics-Heartbeat zusätzlich eine persistierte Task-UID-Bindung anlegen; Research und Alerts sind bereits gebunden. |
 | Mandantentrennung | Vollständige, testbare Matrix aller Portfolio-/Transaktions-/Dokumentendpunkte erstellen. |
 | Datenschutz und Geheimnisse | Log-Retention, personenbezogene Felder, Export-/Löschpfade und entropiebasierten Git-Secret-Scan prüfen. |
 | High-Severity Dependencies | 40 hohe Befunde auf direkte Nutzung und sichere Zielversionen prüfen. |
-| HTTP-Härtung | Security-Header und Webhook-Request-Limits gegen reale Einbettungs- und PDF-Importpfade testen. |
+| HTTP-Härtung | Restriktive Content-Security-Policy erst nach Inventur aller legitimen Produktionsressourcen, Einbettungen und API-Ursprünge ergänzen. |
 
 Der aktive Portfolio-Metrics-Snapshot besitzt derzeit keinen Heartbeat-Task und wird ausschliesslich über bereits autorisierte Admin-/Dashboard-Pfade in-memory ausgelöst. Sobald ein eigener Heartbeat dafür registriert wird, muss seine UID als zusätzliche Bindung in `scheduled_task_bindings` hinterlegt werden; unbekannte Cron-UIDs erhalten keinen Seiteneffekt.
+
+### Ergänzung: HTTP-Transporthärtung
+
+Der Server entfernt das Express-Fingerprinting und setzt für jede Antwort `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, eine restriktive Referrer-Policy sowie deaktivierte Kamera-, Mikrofon- und Geolokalisierungsrechte. In Produktion wird zusätzlich HSTS gesetzt. Die Header sind über zwei isolierte Tests abgesichert. Eine Content-Security-Policy wird erst nach einer vollständigen Inventur aller legitimen Skript-, Font-, Einbettungs- und API-Ursprünge ergänzt, damit die produktive Portfoliooberfläche nicht spekulativ eingeschränkt wird.

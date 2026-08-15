@@ -9,6 +9,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { getSessionCookieOptions } from "./cookies";
+import { applyHttpSecurityHeaders } from "./httpSecurity";
 import { AuthError, loginSchema, loginUser, registerSchema, registerUser, SESSION_MAX_AGE_MS } from "./authService";
 import { getClientIp, isRateLimited, LOGIN_RATE_LIMIT, RATE_LIMIT_MESSAGE, REGISTER_RATE_LIMIT } from "./rateLimit";
 import { serveStatic, setupVite } from "./vite";
@@ -74,6 +75,11 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  app.disable("x-powered-by");
+  app.use((_req, res, next) => {
+    applyHttpSecurityHeaders(res, process.env.NODE_ENV === "production");
+    next();
+  });
   
   // Stripe webhook endpoint (must be before body parser middleware)
   app.post("/api/webhooks/stripe", express.raw({ type: "application/json" }), async (req, res) => {

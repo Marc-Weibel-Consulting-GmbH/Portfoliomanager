@@ -6,6 +6,7 @@ import {
   stockSignalCache,
 } from "../../drizzle/schema";
 import { callDataApi } from "../_core/dataApi";
+import { getFinnhubApiKey } from "../_core/env";
 import { fetchEODHDFundamentals } from "../_core/eodhdApi";
 import { notifyOwner } from "../_core/notification";
 
@@ -14,7 +15,7 @@ export const SCREENER_VALIDATION_MIN_INTERVAL_MINUTES = 60 * 24 * 6;
 export const SAMPLE_SIZE = 20;
 /** Deckt den Zeitraum vom letzten Freitags-Refresh bis Montag 08:30 UTC ab. */
 export const FRESHNESS_WINDOW_HOURS = 72;
-export const SOURCE_VERSION = "v1-yahoo-price-eodhd-fundamentals";
+export const SOURCE_VERSION = "v2-yahoo-price-finnhub-ratios-eodhd-dividend";
 
 export const THRESHOLDS = {
   priceRelativePct: 2,
@@ -34,6 +35,7 @@ type InternalSnapshot = {
 
 type ExternalSnapshot = {
   yahoo: { price: number | null; currency: string | null; retrievedAt: string; error?: string };
+  finnhub: { peRatio: number | null; pegRatio: number | null; retrievedAt: string; error?: string };
   eodhd: { peRatio: number | null; pegRatio: number | null; dividendYield: number | null; retrievedAt: string };
 };
 
@@ -168,11 +170,10 @@ function compareDividend(internal: number | null, external: number | null): Metr
 export function buildComparison(internal: InternalSnapshot, external: ExternalSnapshot): ValidationComparison {
   return {
     price: compareRelative(internal.currentPrice, external.yahoo.price, THRESHOLDS.priceRelativePct),
-    // Der Preis wird unabhängig über Yahoo geprüft. Die drei Fundamentalkennzahlen
-    // werden gegen einen frischen EODHD-Rohdatenabruf geprüft und kontrollieren damit
-    // Mapping, Skalierung und Cache-Schreiblogik ohne eine Produktdefinition zu raten.
-    peRatio: compareRelative(internal.peRatio, external.eodhd.peRatio, THRESHOLDS.peRelativePct),
-    pegRatio: compareRelative(internal.pegRatio, external.eodhd.pegRatio, THRESHOLDS.pegRelativePct),
+    // KGV und PEG werden gegen Finnhub geprüft, weil der Produktionscache EODHD
+    // priorisiert. So bleibt der Gegencheck unabhängig vom Primärdatenpfad.
+    peRatio: compareRelative(internal.peRatio, external.finnhub.peRatio, THRESHOLDS.peRelativePct),
+    pegRatio: compareRelative(internal.pegRatio, external.finnhub.pegRatio, THRESHOLDS.pegRelativePct),
     dividendYield: compareDividend(internal.dividendYield, external.eodhd.dividendYield),
   };
 }
@@ -215,6 +216,43 @@ async function fetchYahooPrice(ticker: string): Promise<ExternalSnapshot["yahoo"
     return {
       price: null,
       currency: null,
+      retrievedAt,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+export function extractFinnhubRatios(payload: unknown): Pick<ExternalSnapshot["finnhub"], "peRatio" | "pegRatio"> {
+  const metric = payload && typeof payload === "object" && "metric" in payload
+    ? (payload as { metric?: unknown }).metric
+    : null;
+  const record = metric && typeof metric === "object" ? metric as Record<string, unknown> : {};
+  return {
+    peRatio: asNumber(record.peTTM),
+    pegRatio: asNumber(record.pegTTM),
+  };
+}
+
+async function fetchFinnhubRatios(ticker: string): Promise<ExternalSnapshot["finnhub"]> {
+  const retrievedAt = new Date().toISOString();
+  try {
+    const apiKey = await getFinnhubApiKey();
+    if (!apiKey) {
+      return { peRatio: null, pegRatio: null, retrievedAt, error: "Finnhub-API-Key nicht konfiguriert" };
+    }
+    const url = new URL("https://finnhub.io/api/v1/stock/metric");
+    url.searchParams.set("symbol", ticker);
+    url.searchParams.set("metric", "all");
+    url.searchParams.set("token", apiKey);
+    const response = await fetch(url);
+    if (!response.ok) {
+      return { peRatio: null, pegRatio: null, retrievedAt, error: `Finnhub HTTP ${response.status}` };
+    }
+    return { ...extractFinnhubRatios(await response.json()), retrievedAt };
+  } catch (error) {
+    return {
+      peRatio: null,
+      pegRatio: null,
       retrievedAt,
       error: error instanceof Error ? error.message : String(error),
     };
@@ -291,9 +329,14 @@ export async function runWeeklyScreenerValidation(now = new Date()): Promise<Val
     } satisfies ValidationSample));
 
     const results = await mapWithConcurrency(sample, 4, async item => {
-      const [yahoo, eodhd] = await Promise.all([fetchYahooPrice(item.ticker), fetchEODHDFundamentals(item.ticker)]);
+      const [yahoo, finnhub, eodhd] = await Promise.all([
+        fetchYahooPrice(item.ticker),
+        fetchFinnhubRatios(item.ticker),
+        fetchEODHDFundamentals(item.ticker),
+      ]);
       const external: ExternalSnapshot = {
         yahoo,
+        finnhub,
         eodhd: {
           peRatio: eodhd.peRatio,
           pegRatio: eodhd.pegRatio,
