@@ -3570,6 +3570,7 @@ WICHTIG: Signal-Score-Regeln:
       // unbrauchbare Alt-Zeilen (z. B. aus Zeiten lückenhafter Kursdaten)
       // für immer stehen lassen.
       const mockReq = {
+        __internalMetricsSnapshotTrigger: true,
         query: {
           backfill: input.backfill ? 'true' : 'false',
           portfolioId: String(input.portfolioId),

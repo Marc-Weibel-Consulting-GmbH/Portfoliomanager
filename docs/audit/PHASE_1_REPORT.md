@@ -54,6 +54,16 @@ Die Anwendung nutzt verbindlich die target-aware Sortino-Ratio: Zähler und Down
 
 Die TTWROR kappt tatsächliche Tagesrenditen nicht mehr. Tageswerte über ±50 % fliessen unverändert in Rendite, Kurve und Annualisierung ein und werden gleichzeitig mit Datum, Rohwert und Schwelle als Datenqualitätswarnung ausgegeben. Die Portfolioansicht macht diese Warnung sichtbar; sie verändert keine Daten und trifft keine automatische Corporate-Action-Annahme.
 
+## Aktualisierung: Test- und Integrationsvertrag
+
+Die vollständige, deterministische Suite ist bereinigt: 145 Testdateien mit 1'289 Tests bestehen. Die Schweizer Formatierung normalisiert die laufzeitabhängige typografische Tausendertrennung auf den verbindlichen ASCII-Apostroph. Der Sornette-Client folgt nun dem aktuellen, dokumentierten Login-Vertrag `POST /v1/auth/login` mit `accessToken`; die Live-Integration ist erfolgreich.[1]
+
+Der aktivierte TradingView-MCP-Connector antwortet derzeit upstream mit HTTP 502. Weil der Projektcode keine produktive Verwendung dieser URL enthält, wird der externe Initialize-Healthcheck nicht als deterministischer Testlauf ausgeführt. Er bleibt bewusst opt-in (`RUN_LIVE_INTEGRATION_TESTS=true`) und darf erst nach Wiederherstellung des Upstreams als verbindlicher Live-Check genutzt werden.
+
+## Referenzen
+
+[1]: https://api.sornette.finance/swagger-ui/index.html "Sornette Finance API — OpenAPI-Dokumentation"
+
 ## Freigabevorschlag für punktuelle Remediations
 
 Jeder Fix bleibt isoliert, beginnt mit einem roten Test und wird nur auf einem separaten Branch umgesetzt. Nach jedem Fix folgen zielgerichtete Tests, die Gesamtsuite, TypeScript, Build und — falls sichtbar betroffen — eine Prüfung in der laufenden Anwendung.

@@ -558,9 +558,36 @@
 ## Priorisierte Auditfortsetzung (2026-08-15)
 - [x] F1-02: verbindlichen TTWROR-Datenqualitäts- und Reportingvertrag entscheiden und testgetrieben umsetzen
 - [ ] Fehlerursache des fehlgeschlagenen Screener-Laufs #90002 analysieren und den neuen Universumsimport stabilisieren
-- [ ] Bekannte vollständige Test-Suite-Fehler in Formatierung, TradingView-MCP und Sornette einzeln reproduzieren und getrennt priorisieren
+- [x] Bekannte vollständige Test-Suite-Fehler in Formatierung, TradingView-MCP und Sornette einzeln reproduzieren und getrennt priorisieren — 145 Dateien / 1'289 Tests grün; TradingView-Upstream-Healthcheck bewusst opt-in
 - [ ] Phase 2 Security & Governance durchführen: Authentisierung, Autorisierung, Mandantentrennung, Secrets, Abhängigkeiten und Datenschutz
 - [ ] Externe Zweitquelle für KGV/PEG in die wöchentliche Screener-Validierung integrieren
+
+## Audit — Phase 2 Security & Governance (2026-08-15)
+- [ ] Öffentliche, geschützte und administrative tRPC-Prozeduren auf Authentisierung und fail-fast Schreibschutz prüfen
+- [ ] Portfolio-, Transaktions- und Dokumentzugriffe auf Mandantentrennung und IDOR-Risiken prüfen
+- [ ] Geheimnisse, HTTP-Sicherheitsheader, Eingabevalidierung, Logs und Datenschutzflächen prüfen
+- [ ] Produktionsabhängigkeiten, kritische Schwachstellen und Lizenzbefunde erneut bewerten
+- [ ] Reproduzierbare Security-Befunde mit minimalen Fixes, Tests, Auditnachweis und Freigabe-Gates vorlegen
+
+## Security-Remediation — Kritische PDF-Abhängigkeiten (2026-08-15)
+- [x] jsPDF auf die auditbereinigte 4.x-Linie und jsPDF-AutoTable auf die kompatible 5.0.8-Linie aktualisieren
+- [x] PDF-Export, TypeScript, Produktions-Build und Produktionsabhängigkeits-Audit nach dem Upgrade verifizieren
+
+## Security-Remediation — Kritischer XML-Parser (2026-08-15)
+- [x] AWS-S3-SDK und S3-Presigner auf konsistente Versionen mit `fast-xml-parser` mindestens 5.3.5 aktualisieren
+- [x] Storage-Zugriffe, TypeScript, Produktions-Build und Produktionsabhängigkeits-Audit nach dem Upgrade verifizieren
+
+## Security-Remediation — Scheduled Endpoints (2026-08-15)
+- [ ] `portfolioMetricsSnapshot`, `researchSignalsRefresh` und `signalAlerts` mit Task-UID-Prüfung und Idempotenz abschliessen
+- [x] Nicht autorisierte Aufrufe dieser Scheduled-Endpoints mit Handler-Tests abweisen
+
+## Security-Remediation — Market-Report-Webhook (2026-08-15)
+- [x] JWT-Secret-Fallback im Webhook entfernen und bei fehlendem dediziertem Webhook-Key fail-closed arbeiten
+- [x] API-Key-Autorisierung und Eingabegrenzen mit isolierten Handler-Tests absichern
+
+## Security-Remediation — KI-Boom-Trigger (2026-08-15)
+- [x] Öffentliche Snapshot-, Perplexity-Fetch- und Credit-Spread-Backfill-Mutationen durch fail-fast `adminProcedure` absichern
+- [x] Nicht autorisierten Zugriff gegen alle manuellen KI-Boom-Trigger mit Routertests abweisen
 
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen

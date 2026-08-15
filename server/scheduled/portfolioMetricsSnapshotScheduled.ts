@@ -22,8 +22,23 @@
  *   4. Portfolio-Sharpe aus Wertreihe, NICHT Ø Einzeltitel-Sharpes.
  */
 import type { Request, Response } from "express";
+import { sdk } from "../_core/sdk";
+
+type InternalSnapshotRequest = Request & { __internalMetricsSnapshotTrigger?: true };
 
 export async function handlePortfolioMetricsSnapshot(req: Request, res: Response) {
+  const isInternalAdminTrigger = (req as InternalSnapshotRequest).__internalMetricsSnapshotTrigger === true;
+  if (!isInternalAdminTrigger) {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!(user as any).isCron || !(user as any).taskUid) {
+        return res.status(403).json({ error: "cron-only" });
+      }
+    } catch {
+      return res.status(403).json({ error: "cron-only" });
+    }
+  }
+
   const isBackfill = req.query.backfill === "true" || req.body?.backfill === true;
   const daysBack = isBackfill ? 365 : 1;
   // Optional: filter to a specific portfolio (for per-portfolio snapshot trigger)

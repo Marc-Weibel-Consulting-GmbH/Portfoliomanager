@@ -2624,6 +2624,7 @@ export const adminRouter = router({
       // unbrauchbare Alt-Snapshots blieben für immer stehen.
       const recompute = input.recompute ?? input.backfill;
       const mockReq = {
+        __internalMetricsSnapshotTrigger: true,
         query: { backfill: input.backfill ? 'true' : 'false', recompute: recompute ? 'true' : 'false' },
         body: { backfill: input.backfill, recompute },
       } as any;

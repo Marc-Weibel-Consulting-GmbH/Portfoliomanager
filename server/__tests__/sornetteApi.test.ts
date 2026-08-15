@@ -4,10 +4,14 @@
  */
 import { describe, it, expect } from 'vitest';
 
-const SORNETTE_AUTH_URL = 'https://api.sornette.finance/v1/auth/token';
+const SORNETTE_AUTH_URL = 'https://api.sornette.finance/v1/auth/login';
 const SORNETTE_API_BASE = 'https://api.sornette.finance';
 
-describe.skipIf(!process.env.SORNETTE_USERNAME || !process.env.SORNETTE_PASSWORD)('Sornette Finance API', () => {
+const runLiveIntegrationTests = process.env.RUN_LIVE_INTEGRATION_TESTS === 'true';
+
+describe.skipIf(
+  !runLiveIntegrationTests || !process.env.SORNETTE_USERNAME || !process.env.SORNETTE_PASSWORD
+)('Sornette Finance API', () => {
   it('should authenticate with valid credentials', async () => {
     const username = process.env.SORNETTE_USERNAME;
     const password = process.env.SORNETTE_PASSWORD;
@@ -22,9 +26,9 @@ describe.skipIf(!process.env.SORNETTE_USERNAME || !process.env.SORNETTE_PASSWORD
     });
 
     expect(resp.status).toBe(200);
-    const data = await resp.json() as { token: string };
-    expect(data.token).toBeTruthy();
-    expect(typeof data.token).toBe('string');
+    const data = await resp.json() as { accessToken: string };
+    expect(data.accessToken).toBeTruthy();
+    expect(typeof data.accessToken).toBe('string');
   }, 15000);
 
   it('should fetch GSPC confidence data with valid token', async () => {
@@ -37,11 +41,12 @@ describe.skipIf(!process.env.SORNETTE_USERNAME || !process.env.SORNETTE_PASSWORD
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
     });
-    const { token } = await authResp.json() as { token: string };
+    expect(authResp.status).toBe(200);
+    const { accessToken } = await authResp.json() as { accessToken: string };
 
     // Fetch GSPC confidence
     const confResp = await fetch(`${SORNETTE_API_BASE}/v1/stock/code/GSPC/confidence`, {
-      headers: { 'Authorization': `Bearer ${token}` },
+      headers: { 'Authorization': `Bearer ${accessToken}` },
     });
 
     expect(confResp.status).toBe(200);

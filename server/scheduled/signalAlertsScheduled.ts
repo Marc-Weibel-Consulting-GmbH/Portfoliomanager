@@ -11,6 +11,7 @@
  * which portfolio holds the ticker.
  */
 import type { Request, Response } from "express";
+import { sdk } from "../_core/sdk";
 
 interface SignalAlert {
   ticker: string;
@@ -28,6 +29,11 @@ interface SignalAlert {
 
 export async function handleSignalAlerts(req: Request, res: Response) {
   try {
+    const user = await sdk.authenticateRequest(req);
+    if (!(user as any).isCron || !(user as any).taskUid) {
+      return res.status(403).json({ error: "cron-only" });
+    }
+
     const { getDb } = await import("../db");
     const { stockSignalCache, alertHistory, savedPortfolios } = await import("../../drizzle/schema");
     const { eq, and, gte, inArray, desc } = await import("drizzle-orm");

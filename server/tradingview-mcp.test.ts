@@ -1,9 +1,12 @@
 /**
- * Validates that TRADINGVIEW_MCP_URL is set and the Railway MCP server is reachable.
+ * Validates that TRADINGVIEW_MCP_URL is set. The live upstream healthcheck is
+ * opt-in because it depends on a connector-managed external service rather than
+ * project code; enable it with RUN_LIVE_INTEGRATION_TESTS=true.
  */
 import { describe, it, expect } from "vitest";
 
 const MCP_BASE = process.env.TRADINGVIEW_MCP_URL?.replace(/\/$/, "") ?? "";
+const RUN_LIVE_INTEGRATION_TESTS = process.env.RUN_LIVE_INTEGRATION_TESTS === "true";
 
 describe.skipIf(!process.env.TRADINGVIEW_MCP_URL)("TradingView MCP Server", () => {
   it("TRADINGVIEW_MCP_URL env var is set", () => {
@@ -11,7 +14,7 @@ describe.skipIf(!process.env.TRADINGVIEW_MCP_URL)("TradingView MCP Server", () =
     expect(MCP_BASE).toMatch(/^https?:\/\//);
   });
 
-  it("MCP server responds to initialize request", async () => {
+  it.skipIf(!RUN_LIVE_INTEGRATION_TESTS)("MCP server responds to initialize request", async () => {
     const res = await fetch(`${MCP_BASE}/mcp`, {
       method: "POST",
       headers: {

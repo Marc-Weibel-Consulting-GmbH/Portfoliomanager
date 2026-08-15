@@ -31,7 +31,7 @@
  */
 
 const SORNETTE_API_BASE = 'https://api.sornette.finance';
-const SORNETTE_AUTH_URL = `${SORNETTE_API_BASE}/v1/auth/token`;
+const SORNETTE_AUTH_URL = `${SORNETTE_API_BASE}/v1/auth/login`;
 
 // Map from our internal ticker symbols to Sornette API codes
 const TICKER_TO_SORNETTE: Record<string, string> = {
@@ -128,8 +128,13 @@ async function getToken(): Promise<string | null> {
       return null;
     }
 
-    const data = await resp.json() as { token: string; expiresAt?: string };
-    cachedToken = data.token;
+    const data = await resp.json() as { accessToken: string; expiresAt?: string };
+    cachedToken = data.accessToken;
+
+    if (!cachedToken) {
+      console.error('[SornetteAPI] Login response did not contain an accessToken');
+      return null;
+    }
 
     // Parse expiry from JWT payload or expiresAt field
     if (data.expiresAt) {
@@ -137,7 +142,7 @@ async function getToken(): Promise<string | null> {
     } else {
       // Decode JWT to get exp
       try {
-        const payload = JSON.parse(Buffer.from(data.token.split('.')[1], 'base64').toString());
+        const payload = JSON.parse(Buffer.from(cachedToken.split('.')[1], 'base64').toString());
         tokenExpiry = payload.exp ? payload.exp * 1000 : now + 3600 * 1000;
       } catch {
         tokenExpiry = now + 3600 * 1000; // Default 1h

@@ -91,7 +91,7 @@ export async function handleMarketReportWebhook(req: any, res: any) {
   try {
     // API-Key Authentifizierung
     const apiKey = req.headers["x-api-key"] || req.headers["authorization"]?.replace("Bearer ", "");
-    const expectedKey = process.env.MARKET_REPORT_API_KEY || process.env.JWT_SECRET;
+    const expectedKey = process.env.MARKET_REPORT_API_KEY;
     
     if (!apiKey || apiKey !== expectedKey) {
       return res.status(401).json({ error: "Ungültiger API-Key" });

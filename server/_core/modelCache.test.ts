@@ -61,8 +61,9 @@ describe('UpstashBytesCache fallback', () => {
 describe('UpstashBytesCache with real Redis', () => {
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  const runLiveIntegrationTests = process.env.RUN_LIVE_INTEGRATION_TESTS === 'true';
 
-  it.skipIf(!url || !token)('can ping Upstash Redis', async () => {
+  it.skipIf(!runLiveIntegrationTests || !url || !token)('can ping Upstash Redis', async () => {
     const res = await fetch(url!, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -73,7 +74,7 @@ describe('UpstashBytesCache with real Redis', () => {
     expect(json.result).toBe('PONG');
   });
 
-  it.skipIf(!url || !token)('stores and retrieves bytes via Upstash', async () => {
+  it.skipIf(!runLiveIntegrationTests || !url || !token)('stores and retrieves bytes via Upstash', async () => {
     const c = new UpstashBytesCache(url!, token!);
     const testKey = `test:modelcache:${Date.now()}`;
     const testData = Buffer.from([42, 43, 44]);

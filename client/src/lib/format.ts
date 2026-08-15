@@ -15,18 +15,24 @@ export interface CurrencyFormatOptions {
 const safe = (value: number | undefined | null) =>
   typeof value === "number" && isFinite(value) ? value : 0;
 
+/**
+ * ICU/Intl kann für de-CH je nach Laufzeit ein typografisches Apostroph (’)
+ * ausgeben. Der Produktvertrag verlangt konsistent den ASCII-Apostroph (').
+ */
+const normalizeSwissGrouping = (formatted: string) => formatted.replace(/’/g, "'");
+
 export const formatCurrency = (
   value: number | undefined | null,
   currency = "CHF",
   { decimals = 2, signDisplay = "auto" }: CurrencyFormatOptions = {},
 ) =>
-  new Intl.NumberFormat("de-CH", {
+  normalizeSwissGrouping(new Intl.NumberFormat("de-CH", {
     style: "currency",
     currency,
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
     signDisplay,
-  }).format(safe(value));
+  }).format(safe(value)));
 
 export const formatCHF = (
   value: number | undefined | null,
@@ -46,10 +52,10 @@ export const formatNumber = (
   value: number | undefined | null,
   { decimals = 0 }: { decimals?: number } = {},
 ) =>
-  new Intl.NumberFormat("de-CH", {
+  normalizeSwissGrouping(new Intl.NumberFormat("de-CH", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  }).format(safe(value));
+  }).format(safe(value)));
 
 /**
  * Marktkapitalisierung/Grossbeträge kompakt: «CHF 213.9 Mrd.», «CHF 4.2 Bio.».
@@ -64,11 +70,11 @@ export const formatMarketCap = (
   if (n == null || !Number.isFinite(n) || n <= 0) return "–";
   const abs = Math.abs(n);
   const fmt = (v: number, unit: string) =>
-    `${currency} ${new Intl.NumberFormat("de-CH", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v)} ${unit}`;
+    `${currency} ${normalizeSwissGrouping(new Intl.NumberFormat("de-CH", { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v))} ${unit}`;
   if (abs >= 1e12) return fmt(n / 1e12, "Bio.");
   if (abs >= 1e9) return fmt(n / 1e9, "Mrd.");
   if (abs >= 1e6) return fmt(n / 1e6, "Mio.");
-  return `${currency} ${new Intl.NumberFormat("de-CH", { maximumFractionDigits: 0 }).format(n)}`;
+  return `${currency} ${normalizeSwissGrouping(new Intl.NumberFormat("de-CH", { maximumFractionDigits: 0 }).format(n))}`;
 };
 
 export const formatDate = (

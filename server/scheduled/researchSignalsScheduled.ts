@@ -6,14 +6,23 @@
  * No-op when N8N_SIGNALS_URL is not set.
  */
 import type { Request, Response } from "express";
+import { sdk } from "../_core/sdk";
 
 export async function handleResearchSignalsRefresh(req: Request, res: Response) {
   try {
+    const user = await sdk.authenticateRequest(req);
+    if (!(user as any).isCron || !(user as any).taskUid) {
+      return res.status(403).json({ error: "cron-only" });
+    }
+
     const { refreshResearchSignals } = await import("../_core/researchSignals");
     const upserted = await refreshResearchSignals({ force: true });
     console.log(`[researchSignalsScheduled] ${upserted} Signale aktualisiert`);
     return res.json({ ok: true, upserted });
   } catch (e) {
+    if (e instanceof Error && /auth|session|credential/i.test(e.message)) {
+      return res.status(403).json({ error: "cron-only" });
+    }
     const msg = (e as Error).message ?? String(e);
     console.error("[researchSignalsScheduled] Fehler:", msg);
     return res.status(500).json({ error: msg, timestamp: new Date().toISOString() });

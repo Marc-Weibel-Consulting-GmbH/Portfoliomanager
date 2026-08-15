@@ -10,7 +10,7 @@
  */
 import { z } from "zod";
 import { desc, gte, sql, eq } from "drizzle-orm";
-import { publicProcedure, router } from "../_core/trpc";
+import { adminProcedure, publicProcedure, router } from "../_core/trpc";
 import { fetchHistoricalPrices } from "../_core/stockDataApi";
 import { getDb } from "../db";
 import { kiBoomMetricsHistory } from "../../drizzle/schema";
@@ -609,7 +609,7 @@ export const kiBoomRouter = router({
   /**
    * Manuell einen Snapshot auslösen (Admin)
    */
-  triggerSnapshot: publicProcedure.mutation(async () => {
+  triggerSnapshot: adminProcedure.mutation(async () => {
     const result = await recordKiBoomSnapshot();
     return { success: true, ...result };
   }),
@@ -625,7 +625,7 @@ export const kiBoomRouter = router({
   /**
    * Manuell einen Perplexity-Fetch der dynamischen Metriken auslösen
    */
-  triggerDynamicFetch: publicProcedure.mutation(async () => {
+  triggerDynamicFetch: adminProcedure.mutation(async () => {
     const { fetchAndSaveDynamicMetrics } = await import("../cron/kiBoomDynamicMetricsFetcher");
     const result = await fetchAndSaveDynamicMetrics();
     return { success: result.saved > 0, saved: result.saved, errors: result.errors };
@@ -636,7 +636,7 @@ export const kiBoomRouter = router({
    * und befüllt ki_boom_metrics_history rückwirkend.
    * Nur für Admin-Nutzung.
    */
-  backfillCreditSpreads: publicProcedure
+  backfillCreditSpreads: adminProcedure
     .input(z.object({ yearsBack: z.number().min(1).max(10).default(5) }))
     .mutation(async ({ input }) => {
       const db = await getDb();

@@ -22,6 +22,14 @@
 | S1-02 | Screener | Wöchentliche Validierungsautomatisierung | aktiviert | Idempotenter Heartbeat-Handler, revisionssichere Lauf-/Befundtabellen und Wochen-Seed-Vertrag implementiert. Preflight `2026-W34`: 20 geprüft, 0 materiell, 12 partielle Verfügbarkeiten. Aktiver Task `4c2hvVQ9uK7YsLxRL4bQ34`, Montag 08:30 UTC. |
 | D1-01 | Datenintegrität | Novo Nordisk Dividendenrendite | nicht reproduzierbar | Aktuelle Stammdaten, Signal-Cache und EODHD-Rohdaten stehen bei 3.92 %; offizielle und unabhängige Referenzen bestätigen rund 3.9 %. Kein aktueller 25-%-Wert und damit keine spekulative Datenmutation. |
 | D1-02 | Datenintegrität | Screener-Berechnungen ausgeblendet | verifiziert behoben | Kein Datenverlust: 639 historische Berechnungen blieben erhalten. Ein fehlgeschlagener neuer Lauf #90002 verdrängte Lauf #60001 mit 331 Berechnungen in der Anzeige. UI-Fallback und transparente Warnung implementiert und gegen reale Laufdaten geprüft. |
+| S2-01 | Security | Öffentliche KI-Boom-Trigger | verifiziert behoben | Drei seiteneffektbehaftete Mutationen sind nun fail-fast `adminProcedure`; anonyme und Fallback-ID-1-Aufrufe werden vor jedem Seiteneffekt abgewiesen. |
+| S2-02 | Security | Market-Report-Webhook-Schlüsseltrennung | verifiziert behoben | JWT-Secret-Fallback entfernt; nur dedizierter `MARKET_REPORT_API_KEY`, sonst 401. |
+| S2-03 | Security | Unautorisierte Scheduled-Endpoints | teilweise verifiziert | Drei öffentlich auslösbare Handler verlangen nun Cron-Identität. Task-UID-Bindung und geteilte Idempotenz bleiben als nächster Governance-Schritt offen. |
+| S2-04 | Security | Kritische Produktabhängigkeiten | verifiziert behoben | jsPDF, AutoTable, AWS-S3-SDK und Presigner aktualisiert; Produktionsaudit von 3 kritischen auf 0 kritische Befunde reduziert. |
+| T1-01 | Testqualität | Deterministische Gesamtsuite | verifiziert | 145 Testdateien und 1'289 Tests bestanden; zwei bewusst deaktivierte Charakterisierungstests sowie der optionale TradingView-Upstream-Healthcheck sind übersprungen. |
+| T1-02 | Externe Integrationen | Sornette API | verifiziert | API-Vertrag auf `POST /v1/auth/login` und `accessToken` aktualisiert; Authentisierung, Confidence-Abruf und Bubble-Score bestehen gegen den Live-Dienst. |
+| T1-03 | Externe Integrationen | TradingView MCP | extern gestört, Produktpfad nicht betroffen | Connector ist aktiviert, Initialize liefert upstream 502 „Application failed to respond“. Keine produktive Codeverwendung der URL gefunden; Live-Healthcheck ist nur mit `RUN_LIVE_INTEGRATION_TESTS=true` aktiv. |
+| T1-04 | Testqualität | Deterministische Suite nach Security-Remediation | verifiziert | 147 Testdateien und 1'290 Tests bestehen. Sornette-, TradingView- und Upstash-Upstream-Healthchecks sind bewusst opt-in; lokale Verträge, Fallbacks und Clienttests bleiben verpflichtend. |
 
 ## Statusdefinitionen
 

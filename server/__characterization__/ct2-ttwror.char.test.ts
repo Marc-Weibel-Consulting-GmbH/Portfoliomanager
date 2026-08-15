@@ -2,7 +2,8 @@
  * CT-2 — Charakterisierungstests für calculateTTWROR (+ extractPortfolioCashFlows)
  * (server/lib/performanceEngine.ts)
  *
- * Pinnt das IST-Verhalten inkl. Flow-Klassifikation (R-01) und ±50-%-Cap (R-08).
+ * Pinnt das IST-Verhalten inkl. Flow-Klassifikation (R-01) und transparenter
+ * Datenqualitätswarnung für extreme Tagesrenditen (F1-02).
  * Erwartungswerte wurden durch AUSFÜHREN des aktuellen Codes ermittelt.
  */
 
@@ -82,13 +83,17 @@ describe("CT-2 calculateTTWROR", () => {
     expect(result.totalReturn).toBeCloseTo(-0.18000000000000005, 10);
   });
 
-  it("Szenario 13: Crash-Tag −60 % wird bei −50 % gekappt (R-08)", () => {
+  it("Szenario 13: Crash-Tag −60 % bleibt unverändert und wird als Datenqualitätsbefund markiert (F1-02)", () => {
     const result = calculateTTWROR(S13_CRASH60.valuations, []);
-    // ISTZUSTAND — bekannt falsch, siehe OPTIMIZATION_PLAN.md R-08:
-    // Der echte Tagesverlust von −60 % wird stillschweigend auf −50 % gekappt;
-    // die Serie weicht dauerhaft von der Realität ab.
-    expect(result.dailySeries[1].cumulativeReturn).toBe(-0.5);
-    expect(result.totalReturn).toBeCloseTo(-0.48750000000000004, 10);
+    expect(result.dailySeries[1].cumulativeReturn).toBeCloseTo(-0.6, 10);
+    expect(result.totalReturn).toBeCloseTo(-0.59, 10);
+    expect(result.dataQualityWarnings).toHaveLength(1);
+    expect(result.dataQualityWarnings[0]).toMatchObject({
+      code: "extreme_daily_return",
+      date: D.mar04,
+      threshold: 0.5,
+    });
+    expect(result.dataQualityWarnings[0].rawDailyReturn).toBeCloseTo(-0.6, 10);
   });
 
   it("Szenario 9: leere / einelementige Bewertungsserie → 0 ohne NaN", () => {
@@ -97,12 +102,14 @@ describe("CT-2 calculateTTWROR", () => {
       annualizedReturn: 0,
       periodDays: 0,
       dailySeries: [],
+      dataQualityWarnings: [],
     });
     expect(calculateTTWROR([{ date: D.mar03, marketValue: 1000 }], [])).toEqual({
       totalReturn: 0,
       annualizedReturn: 0,
       periodDays: 0,
       dailySeries: [{ date: D.mar03, cumulativeReturn: 0 }],
+      dataQualityWarnings: [],
     });
   });
 
