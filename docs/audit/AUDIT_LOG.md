@@ -19,7 +19,7 @@
 | F1-05 | 1 | Punkt-in-Zeit und Look-Ahead | verifiziert | F1-03 umgesetzt: datumsgenaue Filings, Frist-Fallbacks und Quartalsberichte gelten erst nach dem Kalendertag als verfügbar; Rekonstruktion zensiert gegen den effektiven letzten Handelstag. |
 | F1-06 | 1 | Befundbericht und Fix-Gates | abgeschlossen | `PHASE_1_FINDINGS.md` und `PHASE_1_REPORT.md` enthalten Ursache, Gegenprobe, Falsch-positiv-Check und Abnahmekriterium. |
 | S1-01 | Screener | 20-Titel-Stichprobenvalidierung | verifiziert | 20 aktuell berechnete Aktien gegen externe Yahoo-Referenzwerte und eine offizielle BAC-Dividendenquelle geprüft. Kein materieller Berechnungsfehler nach vorab dokumentierten Schwellen bestätigt. |
-| S1-02 | Screener | Wöchentliche Validierungsautomatisierung | Preflight verifiziert | Idempotenter Heartbeat-Handler, revisionssichere Lauf-/Befundtabellen und Wochen-Seed-Vertrag implementiert. Preflight `2026-W34`: 20 geprüft, 0 materiell, 12 partielle Verfügbarkeiten. Task-Registrierung folgt nach dem Deploy-Checkpoint. |
+| S1-02 | Screener | Wöchentliche Validierungsautomatisierung | aktiviert | Idempotenter Heartbeat-Handler, revisionssichere Lauf-/Befundtabellen und Wochen-Seed-Vertrag implementiert. Preflight `2026-W34`: 20 geprüft, 0 materiell, 12 partielle Verfügbarkeiten. Aktiver Task `4c2hvVQ9uK7YsLxRL4bQ34`, Montag 08:30 UTC. |
 
 ## Statusdefinitionen
 

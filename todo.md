@@ -541,4 +541,4 @@
 - [x] Wöchentlichen Prüfvertrag verbindlich dokumentieren: montags 08:30 UTC, 20 Titel, bestehende Schwellen und Befundbenachrichtigung
 - [x] Idempotenten Hintergrundjob mit deterministischer Zufallsauswahl, externer Preis-/Kennzahlprüfung und persistentem Laufprotokoll implementieren
 - [x] Materielle Abweichungen revisionssicher speichern und nur bei bestätigten Befunden benachrichtigen
-- [ ] Wiederkehrenden Hintergrundlauf registrieren, End-to-End testen und Audit-Dokumentation aktualisieren
+- [x] Wiederkehrenden Hintergrundlauf registrieren, End-to-End testen und Audit-Dokumentation aktualisieren

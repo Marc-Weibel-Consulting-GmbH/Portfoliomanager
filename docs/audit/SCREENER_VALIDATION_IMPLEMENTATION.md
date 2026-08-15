@@ -1,7 +1,7 @@
 # Implementierungsnachweis — Wöchentliche Screener-Validierung
 
 **Konfiguration:** Montag, 08:30 UTC (`0 30 8 * * 1`), 20 Titel, Projekt-Heartbeat.  
-**Status:** Implementiert und preflight-verifiziert; Registrierung des produktiven Heartbeat-Tasks folgt nach dem Deploy-Checkpoint.
+**Status:** Implementiert, preflight-verifiziert und als Projekt-Heartbeat aktiviert.
 
 ## Architektur
 
@@ -14,6 +14,17 @@
 | Persistenz | `screener_validation_runs` und `screener_validation_results` speichern Quelle, interne/externe Snapshots, Schwellen, Klassifikation und Befundstatus. |
 | Sicherheit | Der Handler akzeptiert nur Cron-Identitäten und ordnet den Trigger ausschliesslich über `taskUid` der persistierten Projektkonfiguration zu. |
 | Benachrichtigung | Nur materielle Abweichungen melden sich an den Projektinhaber; Scores werden nie automatisch verändert. |
+
+## Aktive Ausführung
+
+| Feld | Wert |
+|---|---|
+| Heartbeat-Name | `screener-validation-weekly` |
+| Task-UID | `4c2hvVQ9uK7YsLxRL4bQ34` |
+| Callback | `POST /api/scheduled/screenerValidation` |
+| Cron | `0 30 8 * * 1` — Montag 08:30 UTC |
+| Aktiv | Ja |
+| Callback-Zuordnung | Persistiert in `screener_validation_config`; der Handler akzeptiert ausschliesslich die gespeicherte Task-UID. |
 
 ## Verifizierter Preflight
 
