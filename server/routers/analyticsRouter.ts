@@ -360,6 +360,24 @@ export const analyticsRouter = router({
       }
     }),
 
+  /**
+   * Gewinn-Konstanz und Verlust-Ratio — beschreibende Halteperioden-Kennzahlen
+   * über 10 Jahre (Gesamtrendite). Reine Anzeige, kein Score-/Signal-Einfluss.
+   */
+  gewinnKonstanz: protectedProcedure
+    .input(z.object({ ticker: z.string() }))
+    .query(async ({ input }) => {
+      const { gewinnKonstanzStand } = await import("../lib/gewinnKonstanzDienst");
+      try {
+        return await gewinnKonstanzStand(input.ticker);
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: err.message ?? "Halteperioden-Kennzahlen fehlgeschlagen",
+        });
+      }
+    }),
+
   qualityMetrics: protectedProcedure
     .input(z.object({ ticker: z.string() }))
     .query(async ({ input }) => {

@@ -17,6 +17,7 @@ import SignalSkala from "@/components/stock/SignalSkala";
 import ScoreCircle from "@/components/stock/ScoreCircle";
 import BubbleRiskCard from "@/components/stock/BubbleRiskCard";
 import AnalystConsensusCard from "@/components/stock/AnalystConsensusCard";
+import GewinnKonstanzCard from "@/components/stock/GewinnKonstanzCard";
 import StockBriefingCard from "@/components/stock/StockBriefingCard";
 import { PegBadge } from "@/components/stock/PegContextCard";
 import {
@@ -811,9 +812,12 @@ export default function StockDetail() {
               </CardContent>
             </Card>
 
+            {/* Gewinn-Konstanz & Verlust-Ratio — beschreibend, ohne Score-Einfluss */}
+            <GewinnKonstanzCard ticker={ticker} />
+
           </div>
         </div>
-        
+
         </TabsContent>
 
           {/* Chart & TA Tab — inkl. technischer Signale (aus dem früheren Signale-Tab).
