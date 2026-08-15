@@ -26,9 +26,9 @@ Das zeilengenaue Inventar der öffentlichen Prozeduren liegt in `public-trpc-pro
 
 ## Abhängigkeitsstatus
 
-Die gezielte Aktualisierung von tRPC, Axios, Drizzle ORM, Officeparser, Nanoid und Nodemailer sowie das Ersetzen von SheetJS durch ExcelJS reduziert den Produktionsaudit von **0 kritisch / 40 hoch / 34 moderat** auf **0 kritisch / 22 hoch / 17 moderat**. Die 22 hohen Befunde liegen nun überwiegend transitiv unter ExcelJS (`minimatch`, `brace-expansion`, `tmp`), PptxGenJS (`image-size`), Twilio (`jws`), Recharts (`lodash`), Express 4 (`path-to-regexp`), Officeparser (`pdfjs-dist`) und jsdom (`undici`). Sie werden nicht durch ein pauschales Major-Upgrade verändert; die vollständigen Vorher-/Nachherartefakte und Paketpfade liegen im Auditverzeichnis.
+Die gezielte Aktualisierung von tRPC, Axios, Drizzle ORM, Officeparser, Nanoid, Nodemailer, jsdom und Twilio sowie das Ersetzen von SheetJS durch ExcelJS reduziert den Produktionsaudit von **0 kritisch / 40 hoch / 34 moderat** auf **0 kritisch / 19 hoch / 9 moderat**. Die verbleibenden hohen Befunde liegen nun überwiegend transitiv unter ExcelJS (`minimatch`, `brace-expansion`, `tmp`), PptxGenJS (`image-size`), Recharts (`lodash`), Express 4 (`path-to-regexp`), Officeparser (`pdfjs-dist`) und ONNX Runtime (`adm-zip`). Sie werden nicht durch ein pauschales Major-Upgrade verändert; die vollständigen Vorher-/Nachherartefakte und Paketpfade liegen im Auditverzeichnis.
 
-Die Lizenzinventur (`pnpm-licenses-prod-2026-08-15.json`) weist überwiegend permissive Kennzeichen aus. Fünf Paketmetadaten sind als `Unknown` markiert: `@builder.io/jsx-loc-internals`, `@builder.io/vite-plugin-jsx-loc`, `buffers`, `numeric` und `vite-plugin-manus-runtime`. Sie benötigen vor einer formalen kommerziellen Lizenzfreigabe eine Hersteller- beziehungsweise Repositoryprüfung; aus der Kennzeichnung allein wird keine Unzulässigkeit abgeleitet.
+Die Lizenzinventur (`pnpm-licenses-prod-2026-08-15.json`) weist überwiegend permissive Kennzeichen aus. `numeric` und `buffers` sind über ihre offiziellen Repositories als MIT beziehungsweise MIT/X11 belegt. Für die beiden Builder-Entwicklungspakete gibt es eine plausible MIT-Quelle auf der offiziellen Monorepoebene, jedoch keine paketindividuelle Referenz. `vite-plugin-manus-runtime` bleibt als reine Entwicklungsabhängigkeit ohne veröffentlichte Primärlizenz **unklar**. Alle Einzelbefunde mit Primär-URLs stehen in `LICENSE_PRIMARY_SOURCE_NOTES_2026-08-15.md`.
 
 ## Deterministische Testbasis
 
@@ -38,9 +38,9 @@ Die vollständige lokale Suite besteht nun aus **152 bestandenen Testdateien und
 
 | Thema | Nächster Schritt |
 |---|---|
-| Künftiger Portfolio-Metrics-Heartbeat | Bei Registrierung dessen persistierte Task-UID in `scheduled_task_bindings` hinterlegen; Research und Alerts sind bereits gebunden. |
-| Transitive High-Severity Dependencies | 22 verbleibende hohe Befunde nicht als grün freigeben; pro Paketpfad ein getestetes Upgrade oder eine formale Risikoakzeptanz beschliessen. |
-| Lizenzfreigabe | Die fünf `Unknown`-Metadaten vor einer formalen kommerziellen Releasefreigabe gegen Primärlizenzen verifizieren. |
+| Portfolio-Metrics-Heartbeat | Aktiv: `portfolio-metrics-snapshot-daily`, täglich 14:30 UTC, UID persistiert und auf `portfolioMetricsSnapshot` gebunden. Ein kontrollierter, autorisierter Handlerlauf antwortete mit HTTP 200, 95 Portfolios und 0 Fehlern; der reguläre erste Plattformlauf bleibt über die Heartbeat-Logs nachprüfbar. |
+| Transitive High-Severity Dependencies | 19 verbleibende hohe Befunde nicht als grün freigeben; pro Paketpfad ein getestetes Upgrade oder eine formale Risikoakzeptanz beschliessen. |
+| Lizenzfreigabe | Nur `vite-plugin-manus-runtime` ist ohne Primärlizenz unklar; als reine Entwicklungsabhängigkeit vor einem formalen kommerziellen Release mit dem Anbieter klären. |
 
 Der aktive Portfolio-Metrics-Snapshot besitzt derzeit keinen Heartbeat-Task und wird ausschliesslich über bereits autorisierte Admin-/Dashboard-Pfade in-memory ausgelöst. Sobald ein eigener Heartbeat dafür registriert wird, muss seine UID als zusätzliche Bindung in `scheduled_task_bindings` hinterlegt werden; unbekannte Cron-UIDs erhalten keinen Seiteneffekt.
 

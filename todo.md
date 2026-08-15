@@ -609,6 +609,11 @@
 ## Security-Remediation — Secret-Metadaten in Logs (2026-08-15)
 - [x] Automatische Boot- und Verzögerungslogs mit Secret-Präfixen und -längen entfernen; nur wertfreie, explizite Verfügbarkeitsdiagnostik belassen
 
+## Phase-2-Release-Gates — Umsetzung (2026-08-15)
+- [x] Die 22 transitiven High-Dependency-Befunde paketweise auf sichere, getestete Updates oder begründete Rest-Risiken reduzieren — Nodemailer 9, jsdom 30 und Twilio 6 verifiziert; verbleibend 19 hohe, überwiegend ohne sichere Upstream-Zielversion
+- [x] Die fünf `Unknown`-Lizenzmetadaten gegen die Primärlizenzen der jeweiligen Pakete verifizieren und dokumentieren — Numeric und Buffers primär belegt; nur der Entwicklungsplugin `vite-plugin-manus-runtime` ohne Primärlizenz unklar
+- [x] Einen Portfolio-Metrics-Heartbeat mit persistierter Task-UID-Bindung vorbereiten und nur nach erfolgreicher Handlerverifikation aktivieren — täglicher Heartbeat 14:30 UTC, UID `mmrK8Eey5oq7PiuuAQu9Kn` gebunden; kontrollierter Handlerlauf HTTP 200 ohne Fehler
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern
