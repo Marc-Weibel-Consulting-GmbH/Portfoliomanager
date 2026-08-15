@@ -11,7 +11,7 @@
 |---|---|---|---|---|
 | S2-01 | Öffentliche KI-Boom-Trigger | Beliebige anonyme Aufrufe konnten Snapshots, Perplexity-Fetches und 5-Jahres-Credit-Spread-Backfills starten. | Drei Mutationen auf `adminProcedure` umgestellt; zentrale Auth-Guard lehnt fehlende und Fallback-ID 1 ab. | 13 Auth- und KI-Boom-Routertests bestanden. |
 | S2-02 | Market-Report-Webhook akzeptierte JWT-Secret | Ein zentraler Session-Signaturschlüssel durfte als Webhook-Schlüssel wirken. | Ausschliesslich `MARKET_REPORT_API_KEY`; fehlender Schlüssel arbeitet fail-closed. | Roter Regressionstest, anschliessend grün. |
-| S2-03 | Drei Scheduled-Endpoints öffentlich | Öffentliche POSTs konnten Snapshot-Recompute/Löschung, Research-Refresh und Signalbenachrichtigungen auslösen. | `portfolioMetricsSnapshot`, `researchSignalsRefresh` und `signalAlerts` verlangen Cron-Authentisierung; interne Admin-Aufrufe nutzen nur einen in-memory-Marker nach bestehender Admin-Prüfung. | Drei nicht-cron-Handler-Tests bestanden. |
+| S2-03 | Drei Scheduled-Endpoints öffentlich | Öffentliche POSTs konnten Snapshot-Recompute/Löschung, Research-Refresh und Signalbenachrichtigungen auslösen. | `portfolioMetricsSnapshot`, `researchSignalsRefresh` und `signalAlerts` verlangen Cron-Authentisierung; interne Admin-Aufrufe nutzen nur einen in-memory-Marker nach bestehender Admin-Prüfung. Aktive Research- und Alert-Crons sind zusätzlich über persistierte Task-UID-Bindungen und atomare Mindestintervalle gesichert. | Nicht-cron-Handler-Tests, TypeScript und Build bestanden. |
 | S2-04 | Kritische PDF- und XML-Parser-Abhängigkeiten | `jspdf` und transitiver `fast-xml-parser` hatten kritische Auditbefunde. | jsPDF 4.2.1, jsPDF-AutoTable 5.0.8, AWS S3 SDK und Presigner 3.1111.0. | TypeScript und Build grün; `pnpm audit --prod`: **0 kritisch**. |
 
 ## Zugriffs- und Mandantenprüfung
@@ -35,3 +35,5 @@ Die vollständige lokale Suite besteht nun aus **147 bestandenen Testdateien und
 | Datenschutz und Geheimnisse | Log-Retention, personenbezogene Felder, Export-/Löschpfade und entropiebasierten Git-Secret-Scan prüfen. |
 | High-Severity Dependencies | 40 hohe Befunde auf direkte Nutzung und sichere Zielversionen prüfen. |
 | HTTP-Härtung | Security-Header und Webhook-Request-Limits gegen reale Einbettungs- und PDF-Importpfade testen. |
+
+Der aktive Portfolio-Metrics-Snapshot besitzt derzeit keinen Heartbeat-Task und wird ausschliesslich über bereits autorisierte Admin-/Dashboard-Pfade in-memory ausgelöst. Sobald ein eigener Heartbeat dafür registriert wird, muss seine UID als zusätzliche Bindung in `scheduled_task_bindings` hinterlegt werden; unbekannte Cron-UIDs erhalten keinen Seiteneffekt.

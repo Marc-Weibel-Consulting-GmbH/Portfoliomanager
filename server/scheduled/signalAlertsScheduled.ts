@@ -11,7 +11,7 @@
  * which portfolio holds the ticker.
  */
 import type { Request, Response } from "express";
-import { sdk } from "../_core/sdk";
+import { acquireScheduledTask, finishScheduledTask } from "../lib/scheduledTaskGuard";
 
 interface SignalAlert {
   ticker: string;
@@ -28,12 +28,10 @@ interface SignalAlert {
 }
 
 export async function handleSignalAlerts(req: Request, res: Response) {
+  const acquired = await acquireScheduledTask(req, res, "signalAlerts");
+  if (!acquired.acquired) return;
+  let failure: unknown;
   try {
-    const user = await sdk.authenticateRequest(req);
-    if (!(user as any).isCron || !(user as any).taskUid) {
-      return res.status(403).json({ error: "cron-only" });
-    }
-
     const { getDb } = await import("../db");
     const { stockSignalCache, alertHistory, savedPortfolios } = await import("../../drizzle/schema");
     const { eq, and, gte, inArray, desc } = await import("drizzle-orm");
@@ -235,7 +233,10 @@ export async function handleSignalAlerts(req: Request, res: Response) {
       whatsappSent,
     });
   } catch (err: any) {
+    failure = err;
     console.error("[signalAlertsCron] Error:", err);
     return res.status(500).json({ error: err?.message ?? "Unknown error", stack: err?.stack });
+  } finally {
+    await finishScheduledTask(acquired.taskUid, "signalAlerts", failure);
   }
 }

@@ -578,8 +578,10 @@
 - [x] Storage-Zugriffe, TypeScript, Produktions-Build und Produktionsabhängigkeits-Audit nach dem Upgrade verifizieren
 
 ## Security-Remediation — Scheduled Endpoints (2026-08-15)
-- [ ] `portfolioMetricsSnapshot`, `researchSignalsRefresh` und `signalAlerts` mit Task-UID-Prüfung und Idempotenz abschliessen
+- [x] `portfolioMetricsSnapshot`, `researchSignalsRefresh` und `signalAlerts` mit Task-UID-Prüfung und Idempotenz abschliessen — aktive Heartbeats gebunden; Snapshot derzeit nur autorisiert in-memory
 - [x] Nicht autorisierte Aufrufe dieser Scheduled-Endpoints mit Handler-Tests abweisen
+- [x] Persistente Handler-zu-Task-UID-Bindungen anlegen und nur registrierte Cron-Tasks akzeptieren
+- [x] Prozessübergreifende DB-Idempotenz für die drei geplanten Seiteneffekte ergänzen
 
 ## Security-Remediation — Market-Report-Webhook (2026-08-15)
 - [x] JWT-Secret-Fallback im Webhook entfernen und bei fehlendem dediziertem Webhook-Key fail-closed arbeiten

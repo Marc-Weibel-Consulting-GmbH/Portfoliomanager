@@ -22,21 +22,17 @@
  *   4. Portfolio-Sharpe aus Wertreihe, NICHT Ø Einzeltitel-Sharpes.
  */
 import type { Request, Response } from "express";
-import { sdk } from "../_core/sdk";
+import { acquireScheduledTask, finishScheduledTask } from "../lib/scheduledTaskGuard";
 
 type InternalSnapshotRequest = Request & { __internalMetricsSnapshotTrigger?: true };
 
 export async function handlePortfolioMetricsSnapshot(req: Request, res: Response) {
   const isInternalAdminTrigger = (req as InternalSnapshotRequest).__internalMetricsSnapshotTrigger === true;
+  let taskUid: string | undefined;
   if (!isInternalAdminTrigger) {
-    try {
-      const user = await sdk.authenticateRequest(req);
-      if (!(user as any).isCron || !(user as any).taskUid) {
-        return res.status(403).json({ error: "cron-only" });
-      }
-    } catch {
-      return res.status(403).json({ error: "cron-only" });
-    }
+    const acquired = await acquireScheduledTask(req, res, "portfolioMetricsSnapshot");
+    if (!acquired.acquired) return;
+    taskUid = acquired.taskUid;
   }
 
   const isBackfill = req.query.backfill === "true" || req.body?.backfill === true;
@@ -49,6 +45,7 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
   // Nur zusammen mit backfill=true wirksam.
   const isRecompute = isBackfill && (req.query.recompute === "true" || req.body?.recompute === true);
 
+  let failure: unknown;
   try {
     const { getDb } = await import("../db");
     const {
@@ -437,7 +434,10 @@ export async function handlePortfolioMetricsSnapshot(req: Request, res: Response
       daysBack,
     });
   } catch (err: any) {
+    failure = err;
     console.error("[portfolioMetricsSnapshot] Error:", err);
     return res.status(500).json({ error: err.message });
+  } finally {
+    if (taskUid) await finishScheduledTask(taskUid, "portfolioMetricsSnapshot", failure);
   }
 }

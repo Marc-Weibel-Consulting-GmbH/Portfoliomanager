@@ -1207,6 +1207,26 @@ export const screenerValidationConfig = mysqlTable("screener_validation_config",
 export type ScreenerValidationConfig = typeof screenerValidationConfig.$inferSelect;
 export type InsertScreenerValidationConfig = typeof screenerValidationConfig.$inferInsert;
 
+/** Persistente Bindung zwischen einem Scheduled-Handler und genau einem Heartbeat-Task. */
+export const scheduledTaskBindings = mysqlTable("scheduled_task_bindings", {
+  id: int("id").autoincrement().primaryKey(),
+  handlerKey: varchar("handlerKey", { length: 64 }).notNull().unique(),
+  scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }).notNull().unique(),
+  minIntervalMinutes: int("minIntervalMinutes").notNull().default(15),
+  isActive: tinyint("isActive").notNull().default(1),
+  lastStartedAt: timestamp("lastStartedAt"),
+  lastCompletedAt: timestamp("lastCompletedAt"),
+  lastStatus: varchar("lastStatus", { length: 32 }),
+  lastError: text("lastError"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  taskUidIdx: index("ix_scheduled_task_bindings_task_uid").on(t.scheduleCronTaskUid),
+}));
+
+export type ScheduledTaskBinding = typeof scheduledTaskBindings.$inferSelect;
+export type InsertScheduledTaskBinding = typeof scheduledTaskBindings.$inferInsert;
+
 export const screenerValidationResults = mysqlTable("screener_validation_results", {
   id: int("id").autoincrement().primaryKey(),
   runId: int("runId").notNull(),
