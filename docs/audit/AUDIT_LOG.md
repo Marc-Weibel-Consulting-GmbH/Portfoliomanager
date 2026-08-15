@@ -20,6 +20,7 @@
 | F1-06 | 1 | Befundbericht und Fix-Gates | abgeschlossen | `PHASE_1_FINDINGS.md` und `PHASE_1_REPORT.md` enthalten Ursache, Gegenprobe, Falsch-positiv-Check und Abnahmekriterium. |
 | S1-01 | Screener | 20-Titel-Stichprobenvalidierung | verifiziert | 20 aktuell berechnete Aktien gegen externe Yahoo-Referenzwerte und eine offizielle BAC-Dividendenquelle geprüft. Kein materieller Berechnungsfehler nach vorab dokumentierten Schwellen bestätigt. |
 | S1-02 | Screener | Wöchentliche Validierungsautomatisierung | aktiviert | Idempotenter Heartbeat-Handler, revisionssichere Lauf-/Befundtabellen und Wochen-Seed-Vertrag implementiert. Preflight `2026-W34`: 20 geprüft, 0 materiell, 12 partielle Verfügbarkeiten. Aktiver Task `4c2hvVQ9uK7YsLxRL4bQ34`, Montag 08:30 UTC. |
+| D1-01 | Datenintegrität | Novo Nordisk Dividendenrendite | nicht reproduzierbar | Aktuelle Stammdaten, Signal-Cache und EODHD-Rohdaten stehen bei 3.92 %; offizielle und unabhängige Referenzen bestätigen rund 3.9 %. Kein aktueller 25-%-Wert und damit keine spekulative Datenmutation. |
 
 ## Statusdefinitionen
 

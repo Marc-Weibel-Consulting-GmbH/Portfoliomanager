@@ -542,3 +542,9 @@
 - [x] Idempotenten Hintergrundjob mit deterministischer Zufallsauswahl, externer Preis-/Kennzahlprüfung und persistentem Laufprotokoll implementieren
 - [x] Materielle Abweichungen revisionssicher speichern und nur bei bestätigten Befunden benachrichtigen
 - [x] Wiederkehrenden Hintergrundlauf registrieren, End-to-End testen und Audit-Dokumentation aktualisieren
+
+## Datenintegrität — Novo Nordisk Dividendenrendite (2026-08-15)
+- [x] Angezeigten und gespeicherten Dividendenrenditewert für Novo Nordisk samt Datenursprung reproduzieren — aktueller Wert 3.92 %, kein 25-%-Ausreisser auffindbar
+- [x] Dividende, Kurs, Einheiten, Ausschüttungsfrequenz und Corporate-Actions gegen offizielle sowie unabhängige Quellen abgleichen
+- [x] Bestätigte Ursache mit rotem Test beheben und Screenerwert neu berechnen — keine Ursache bestätigt, daher keine spekulative Mutation
+- [x] Regression über weitere Dividendenaktien durchführen, Auditnachweis aktualisieren und Checkpoint sichern — bestehende 16 Dividendenrendite-Regressionstests bestanden
