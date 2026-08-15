@@ -1161,6 +1161,77 @@ export type StockSignalCache = typeof stockSignalCache.$inferSelect;
 export type InsertStockSignalCache = typeof stockSignalCache.$inferInsert;
 
 // ============================================
+// Screener Validation Audit Trail
+// Wöchentliche, deterministische Gegenprobe des Signal-Caches gegen
+// unabhängige Preisreferenzen und frische Roh-Fundamentaldaten.
+// ============================================
+export const screenerValidationRuns = mysqlTable("screener_validation_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  /** ISO-Wochenkennung; verhindert doppelte Ausführung bei Heartbeat-Retries. */
+  weekKey: varchar("weekKey", { length: 10 }).notNull().unique(),
+  sampleSeed: varchar("sampleSeed", { length: 64 }).notNull(),
+  sourceVersion: varchar("sourceVersion", { length: 64 }).notNull().default("v1"),
+  status: mysqlEnum("status", ["running", "completed", "failed", "skipped"]).notNull().default("running"),
+  sampledCount: int("sampledCount").notNull().default(0),
+  comparedCount: int("comparedCount").notNull().default(0),
+  materialCount: int("materialCount").notNull().default(0),
+  unavailableCount: int("unavailableCount").notNull().default(0),
+  notifiedAt: timestamp("notifiedAt"),
+  error: text("error"),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  statusIdx: index("ix_screener_validation_runs_status").on(t.status),
+  startedIdx: index("ix_screener_validation_runs_started").on(t.startedAt),
+}));
+
+export type ScreenerValidationRun = typeof screenerValidationRuns.$inferSelect;
+export type InsertScreenerValidationRun = typeof screenerValidationRuns.$inferInsert;
+
+/** Dauerhafte Projektkonfiguration; der Heartbeat-Task wird ausschliesslich über seine UID zugeordnet. */
+export const screenerValidationConfig = mysqlTable("screener_validation_config", {
+  id: int("id").autoincrement().primaryKey(),
+  jobKey: varchar("jobKey", { length: 64 }).notNull().unique(),
+  scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }),
+  cronExpression: varchar("cronExpression", { length: 64 }).notNull().default("0 30 8 * * 1"),
+  isActive: tinyint("isActive").notNull().default(1),
+  lastRunAt: timestamp("lastRunAt"),
+  lastRunStatus: varchar("lastRunStatus", { length: 32 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  taskUidIdx: index("ix_screener_validation_config_task_uid").on(t.scheduleCronTaskUid),
+}));
+
+export type ScreenerValidationConfig = typeof screenerValidationConfig.$inferSelect;
+export type InsertScreenerValidationConfig = typeof screenerValidationConfig.$inferInsert;
+
+export const screenerValidationResults = mysqlTable("screener_validation_results", {
+  id: int("id").autoincrement().primaryKey(),
+  runId: int("runId").notNull(),
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  companyName: varchar("companyName", { length: 255 }).notNull(),
+  currency: varchar("currency", { length: 16 }),
+  /** Cache-Werte im exakt geprüften Zustand. */
+  internalSnapshot: json("internalSnapshot").notNull(),
+  /** Externe Quellenwerte und Abrufzeitpunkt. */
+  externalSnapshot: json("externalSnapshot").notNull(),
+  /** Prozent-/Prozentpunktabweichungen und je Kennzahl angewandte Schwellen. */
+  comparison: json("comparison").notNull(),
+  classification: varchar("classification", { length: 64 }).notNull(),
+  isMaterial: tinyint("isMaterial").notNull().default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  runTickerUnique: unique("uq_screener_validation_result_run_ticker").on(t.runId, t.ticker),
+  runIdx: index("ix_screener_validation_results_run").on(t.runId),
+  materialIdx: index("ix_screener_validation_results_material").on(t.isMaterial),
+}));
+
+export type ScreenerValidationResult = typeof screenerValidationResults.$inferSelect;
+export type InsertScreenerValidationResult = typeof screenerValidationResults.$inferInsert;
+
+// ============================================
 // Score Snapshot History (daily score tracking)
 // ============================================
 export const stockScoreSnapshot = mysqlTable("stock_score_snapshot", {

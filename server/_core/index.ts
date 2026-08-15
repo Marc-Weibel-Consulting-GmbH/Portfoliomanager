@@ -49,6 +49,7 @@ import { handleSignalScoreRefresh } from "../scheduled/signalScoreRefreshSchedul
 import { handleYtdRecalc } from "../scheduled/ytdRecalcScheduled";
 import { handlePortfolioMetricsSnapshot } from "../scheduled/portfolioMetricsSnapshotScheduled";
 import { handleAlgoBacktest } from "../scheduled/algoBacktestScheduled";
+import { handleScreenerValidation } from "../scheduled/screenerValidationScheduled";
 import { handleMarketReportWebhook } from "../routers/marketReportRouter";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -171,6 +172,7 @@ async function startServer() {
   app.post("/api/scheduled/ytdRecalc", handleYtdRecalc);
   app.post("/api/scheduled/portfolioMetricsSnapshot", handlePortfolioMetricsSnapshot);
   app.post("/api/scheduled/algoBacktest", handleAlgoBacktest);
+  app.post("/api/scheduled/screenerValidation", handleScreenerValidation);
   app.post("/api/scheduled/researchSignalsRefresh", handleResearchSignalsRefresh);
   app.post("/api/scheduled/researchGithubIssue", handleResearchGithubIssue);
 

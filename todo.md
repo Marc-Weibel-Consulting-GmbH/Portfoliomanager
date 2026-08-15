@@ -536,3 +536,9 @@
 - [x] Materielle Abweichungen nach Zeitraum, Währung, Adjustierung, Datenbasis oder Berechnungsfehler klassifizieren
 - [x] Ausschliesslich bestätigte Berechnungsfehler mit roten Tests beheben und die 20-Titel-Stichprobe erneut messen — keine bestätigten Berechnungsfehler, daher kein Code-Fix
 - [x] Quellen-, Abweichungs- und Remediationsbericht dokumentieren, alle Prüfungen ausführen und Checkpoint sichern
+
+## Automatisierte Screener-Stichprobenvalidierung (2026-08-14)
+- [x] Wöchentlichen Prüfvertrag verbindlich dokumentieren: montags 08:30 UTC, 20 Titel, bestehende Schwellen und Befundbenachrichtigung
+- [x] Idempotenten Hintergrundjob mit deterministischer Zufallsauswahl, externer Preis-/Kennzahlprüfung und persistentem Laufprotokoll implementieren
+- [x] Materielle Abweichungen revisionssicher speichern und nur bei bestätigten Befunden benachrichtigen
+- [ ] Wiederkehrenden Hintergrundlauf registrieren, End-to-End testen und Audit-Dokumentation aktualisieren

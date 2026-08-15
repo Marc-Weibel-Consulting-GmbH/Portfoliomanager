@@ -1,0 +1,1 @@
+ALTER TABLE `screener_validation_runs` MODIFY COLUMN `sourceVersion` varchar(64) NOT NULL DEFAULT 'v1';
