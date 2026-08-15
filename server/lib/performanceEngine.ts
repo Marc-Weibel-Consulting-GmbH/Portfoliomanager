@@ -54,6 +54,13 @@ export interface TTWRORResult {
   periodDays: number;
   /** Daily cumulative performance series for charting */
   dailySeries: Array<{ date: string; cumulativeReturn: number }>;
+  /** Extreme, aber unveränderte Tagesrenditen zur transparenten Datenqualitätsprüfung. */
+  dataQualityWarnings: Array<{
+    code: 'extreme_daily_return';
+    date: string;
+    rawDailyReturn: number;
+    threshold: number;
+  }>;
 }
 
 /** Result of IRR calculation */
@@ -117,6 +124,7 @@ export function calculateTTWROR(
       annualizedReturn: 0,
       periodDays: 0,
       dailySeries: valuations.map(v => ({ date: v.date, cumulativeReturn: 0 })),
+      dataQualityWarnings: [],
     };
   }
 
@@ -142,6 +150,7 @@ export function calculateTTWROR(
   // Calculate daily returns and compound them
   let cumulativeProduct = 1.0;
   const dailySeries: Array<{ date: string; cumulativeReturn: number }> = [];
+  const dataQualityWarnings: TTWRORResult['dataQualityWarnings'] = [];
 
   // First day: no return yet, just record baseline
   dailySeries.push({ date: sorted[0].date, cumulativeReturn: 0 });
@@ -170,10 +179,20 @@ export function calculateTTWROR(
 
     const dailyReturn = (numerator / denominator) - 1;
 
-    // Sanity check: cap extreme daily returns (data errors)
-    const cappedReturn = Math.max(-0.5, Math.min(0.5, dailyReturn));
+    // Echte Renditen nicht still verändern: Ausreisser werden als
+    // Datenqualitätsbefund markiert und transparent bis zur Quellenprüfung
+    // ausgewiesen. Eine 60-%-Rendite kann z.B. eine Corporate Action oder
+    // eine tatsächliche Marktbewegung sein; Kappung wäre falsches Reporting.
+    if (Math.abs(dailyReturn) > 0.5) {
+      dataQualityWarnings.push({
+        code: 'extreme_daily_return',
+        date,
+        rawDailyReturn: dailyReturn,
+        threshold: 0.5,
+      });
+    }
 
-    cumulativeProduct *= (1 + cappedReturn);
+    cumulativeProduct *= (1 + dailyReturn);
     dailySeries.push({ date, cumulativeReturn: cumulativeProduct - 1 });
   }
 
@@ -193,6 +212,7 @@ export function calculateTTWROR(
     annualizedReturn,
     periodDays,
     dailySeries,
+    dataQualityWarnings,
   };
 }
 

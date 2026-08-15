@@ -1,7 +1,7 @@
 # Phase 1 — Befunde und Gegenproben
 
 **Stand:** 13. August 2026  
-**Status:** F1-01 und F1-03 verifiziert behoben; F1-02 wartet weiterhin auf eine separate Produktentscheidung.
+**Status:** F1-01, F1-02 und F1-03 sind verifiziert behoben.
 
 ## F1-01 — Sortino-Ratio verwendete zwei unterschiedliche Mindestziele — **verifiziert behoben**
 
@@ -19,26 +19,16 @@
 
 Wenn keine Rendite unter der Mindesthürde liegt, gibt die bestehende API weiterhin `0` statt einer unendlichen Kennzahl zurück. Das ist bewusst als endlicher, neutraler Rückgabewert dokumentiert und verhindert unbeschränkte Werte in UI und Modellselektion.
 
-## F1-02 — TTWROR kappt tatsächliche Tagesrenditen ohne Kennzeichnung
+## F1-02 — TTWROR kappte tatsächliche Tagesrenditen ohne Kennzeichnung — **verifiziert behoben**
 
-| Feld | Nachweis |
+| Prüfaspekt | Vertrag |
 |---|---|
-| **Einstufung** | **mittel** — dokumentierter Datenfehler-Schutz, aber Konflikt mit einer exakten Performancekennzahl. |
-| **Codebeleg** | `server/lib/performanceEngine.ts:170–177` begrenzt jede berechnete Tagesrendite auf `[-50 %, +50 %]`, bevor sie in TTWROR und Chartserie eingeht. |
-| **Reproduktion** | Bewertungsreihe CHF 100 → CHF 160 ohne Cashflow: Rohformel ergibt **+60 %**, `calculateTTWROR` liefert jedoch **+50 %** und speichert auch in der täglichen Serie +50 %. |
-| **Falsch-positiv-Check** | Die Kappung ist in `performanceEngine.ts:173–175` ausdrücklich als Schutz gegen Datenfehler kommentiert. Die Modulbeschreibung nennt gleichzeitig eine „Clean-room implementation“ der Portfolio-Performance-Formel und eine exakte geometrische Verkettung. Keine Datenqualitätsmarkierung, kein Parameter und kein Audit-Event wird ausgegeben. |
+| Reportingwert | Die TTWROR weist die tatsächliche mathematisch berechnete Tagesrendite aus; es gibt keine stille Kappung bei ±50 %. |
+| Datenqualität | Tagesrenditen mit einem Betrag über 50 % erzeugen einen strukturierten Datenqualitätsbefund mit Datum, Rohwert und Schwelle. |
+| Anzeige | Die Portfolioansicht markiert den Befund sichtbar, verändert aber weder die Performancekurve noch die Renditezahl. |
+| Folgeprozess | Ein Befund ist ein Prüfauftrag für Corporate Actions, Kurse oder Buchungen; er löst keine automatische Datenmutation aus. |
 
-### Bewertung
-
-Dies ist noch kein unstrittiger Rechenfehler, sondern ein **offener Produktvertragskonflikt**: Ein Schutz gegen offensichtliche Kursfehler ist legitim; eine nicht markierte Kappung verändert aber eine berichtete historische Performance. Erhöhte tägliche Renditen können bei Corporate Actions, Korrekturen, illiquiden Instrumenten oder ETPs vorkommen.
-
-### Fix-Gate
-
-Vor einer Änderung muss entschieden werden, ob die Anwendung:
-
-1. unveränderte TTWROR aus geprüften adjustierten Preisen zeigt und Anomalien separat markiert;
-2. eine Datenqualitätsregel anwendet, die die Beobachtung verwirft statt die Rendite zu verändern; oder
-3. Kappung als bewusstes Produktmodell beibehält, sie aber in Ergebnis, Audit-Trail und UI sichtbar offenlegt.
+Der rote Referenzfall CHF 100'000 auf CHF 160'000 ergab vor dem Fix fälschlich +50 %. Nach dem Fix wird die tatsächliche Rendite **+60 %** ausgewiesen und als `extreme_daily_return` markiert. Damit bleiben reale extreme Ereignisse sowie Datenfehler unterscheidbar und auditierbar.
 
 ## F1-03 — Punkt-in-Zeit-Filter liess Meldungen am Entscheidungsstichtag bereits zu — **verifiziert behoben**
 

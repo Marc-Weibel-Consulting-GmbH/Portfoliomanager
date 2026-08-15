@@ -498,6 +498,7 @@ function emptyResult(startDate: string, endDate: string): PortfolioPerformanceRe
       annualizedReturn: 0,
       periodDays: 0,
       dailySeries: [],
+      dataQualityWarnings: [],
     },
     irr: {
       annualizedIRR: 0,

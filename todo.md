@@ -554,3 +554,16 @@
 - [x] Universe-/Listenfilter, Ausschlussregeln und jüngste Änderungen auf eine Ausblendung statt einen Datenverlust prüfen
 - [x] Überschreib-, Lösch- und Archivierungspfade anhand von Job-Logs, SQL-Historie und Git-Diffs ausschliessen oder belegen
 - [x] Ursache mit minimalem Test und ohne Neuberechnung korrigieren; Datenbestand und UI anschliessend gegenprüfen
+
+## Priorisierte Auditfortsetzung (2026-08-15)
+- [x] F1-02: verbindlichen TTWROR-Datenqualitäts- und Reportingvertrag entscheiden und testgetrieben umsetzen
+- [ ] Fehlerursache des fehlgeschlagenen Screener-Laufs #90002 analysieren und den neuen Universumsimport stabilisieren
+- [ ] Bekannte vollständige Test-Suite-Fehler in Formatierung, TradingView-MCP und Sornette einzeln reproduzieren und getrennt priorisieren
+- [ ] Phase 2 Security & Governance durchführen: Authentisierung, Autorisierung, Mandantentrennung, Secrets, Abhängigkeiten und Datenschutz
+- [ ] Externe Zweitquelle für KGV/PEG in die wöchentliche Screener-Validierung integrieren
+
+## Audit-Remediation — F1-02 TTWROR (2026-08-15)
+- [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
+- [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern
+- [x] Roten Referenztest für eine echte Tagesrendite oberhalb 50 % ergänzen und minimal implementieren
+- [x] Performance-, UI- und Regressionstests ausführen sowie Audit-Nachweis aktualisieren

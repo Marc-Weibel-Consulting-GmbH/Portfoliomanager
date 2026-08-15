@@ -114,6 +114,24 @@ describe('performanceEngine', () => {
       // Return = 0 (money just arrived, no gain)
       expect(result.totalReturn).toBeCloseTo(0, 2);
     });
+
+    it('reports an actual daily return above 50% and flags it instead of silently capping it', () => {
+      const valuations: DailyValuation[] = [
+        { date: '2025-01-01', marketValue: 100000 },
+        { date: '2025-01-02', marketValue: 160000 },
+      ];
+
+      const result = calculateTTWROR(valuations, []);
+
+      expect(result.totalReturn).toBeCloseTo(0.6, 8);
+      expect(result.dataQualityWarnings).toHaveLength(1);
+      expect(result.dataQualityWarnings[0]).toMatchObject({
+        code: 'extreme_daily_return',
+        date: '2025-01-02',
+        threshold: 0.5,
+      });
+      expect(result.dataQualityWarnings[0].rawDailyReturn).toBeCloseTo(0.6, 8);
+    });
   });
 
   describe('calculateIRR', () => {

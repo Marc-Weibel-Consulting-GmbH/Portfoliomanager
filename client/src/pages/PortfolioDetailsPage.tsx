@@ -1976,6 +1976,14 @@ export default function PortfolioDetailsPage() {
                       die Portfolio-Kurve ist unvollständig und erscheint zu flach.
                     </p>
                   )}
+                  {(perfMetrics?.dataQualityWarnings?.length ?? 0) > 0 && (
+                    <p className="mt-2 text-xs text-amber-400/90">
+                      ⚠ {perfMetrics!.dataQualityWarnings.length} auffällige Tagesrendite{perfMetrics!.dataQualityWarnings.length === 1 ? '' : 'n'}
+                      {perfMetrics!.dataQualityWarnings.length === 1
+                        ? ` am ${perfMetrics!.dataQualityWarnings[0].date}`
+                        : ''} werden unverändert ausgewiesen und sollten auf Corporate Actions oder Datenfehler geprüft werden.
+                    </p>
+                  )}
                 </div>
               </div>
 

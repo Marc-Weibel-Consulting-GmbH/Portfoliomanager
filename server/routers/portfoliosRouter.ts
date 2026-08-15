@@ -3352,6 +3352,9 @@ export const portfoliosRouter = router({
             // unvollständig (Client zeigt einen ehrlichen Hinweis statt
             // einer kommentarlos flachen Linie).
             unpricedTickers: result.unpricedTickers ?? [],
+            // Echte, aber auffällige Tagesrenditen werden nicht geglättet.
+            // Der Client markiert sie als Datenqualitätsprüfung.
+            dataQualityWarnings: result.ttwror.dataQualityWarnings,
           };
         } catch (err) {
           console.error(`[portfolios.getPerformanceMetrics] Error for portfolio ${portfolioId}:`, err);
@@ -3366,6 +3369,12 @@ export const portfoliosRouter = router({
             dailySeries: [],
             converged: false,
             unpricedTickers: [] as string[],
+            dataQualityWarnings: [] as Array<{
+              code: 'extreme_daily_return';
+              date: string;
+              rawDailyReturn: number;
+              threshold: number;
+            }>,
           };
         }
       }),
