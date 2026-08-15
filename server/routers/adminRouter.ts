@@ -3351,17 +3351,30 @@ export const adminRouter = router({
   screenerStatus: adminProcedure
     .input(z.object({ topN: z.number().int().min(5).max(500).default(30) }).optional())
     .query(async ({ input }) => {
-      const { letzterLauf, besteKandidaten, setzeLaufStatus, verteilungJeBoerse, zaehleOhneHerleitung } = await import("../lib/screenerStore");
-      const lauf = await letzterLauf();
+      const {
+        letzterLauf,
+        letzterLaufMitErgebnissen,
+        waehleAnzeigbarenLauf,
+        besteKandidaten,
+        setzeLaufStatus,
+        verteilungJeBoerse,
+        zaehleOhneHerleitung,
+      } = await import("../lib/screenerStore");
+      let neuesterLauf = await letzterLauf();
       // Verwaister Sammel-Lauf (Prozessneustart oder Abbruch vor der
       // Statusfortschreibung): ehrlich als gescheitert markieren, sonst sieht
       // er für immer aus, als arbeite er noch.
-      if (lauf && lauf.status === "sammelt" && !screener.aktiv) {
+      if (neuesterLauf && neuesterLauf.status === "sammelt" && !screener.aktiv) {
         const hinweis = "Sammeln abgebrochen (Prozessneustart oder Fehler) — bitte neuen Lauf starten.";
-        try { await setzeLaufStatus(lauf.id, "fehler", { fehler: hinweis }); } catch { /* Anzeige unten reicht */ }
-        lauf.status = "fehler";
-        lauf.fehler = hinweis;
+        try { await setzeLaufStatus(neuesterLauf.id, "fehler", { fehler: hinweis }); } catch { /* Anzeige unten reicht */ }
+        neuesterLauf.status = "fehler";
+        neuesterLauf.fehler = hinweis;
       }
+      const auswahl = waehleAnzeigbarenLauf(
+        neuesterLauf,
+        neuesterLauf?.status === "fehler" ? await letzterLaufMitErgebnissen() : null,
+      );
+      const lauf = auswahl.lauf;
       const beste = lauf ? await besteKandidaten(lauf.id, input?.topN ?? 30) : [];
       const jeBoerse = lauf ? await verteilungJeBoerse(lauf.id) : [];
       const ohneHerleitung = lauf ? await zaehleOhneHerleitung(lauf.id) : 0;
@@ -3382,6 +3395,7 @@ export const adminRouter = router({
         haengt: screenerGiltAlsTot(),
         meldungen: screener.meldungen.slice(-12),
         lauf,
+        ausgeblendeterFehlerLauf: auswahl.ausgeblendeterFehlerLauf,
         beste,
         jeBoerse,
         ohneHerleitung,
@@ -3433,4 +3447,3 @@ export const adminRouter = router({
       return { ok: true, message: `${input.ticker} in die Watchlist übernommen — Kurshistorie wird nachgeladen.` };
     }),
 });
-

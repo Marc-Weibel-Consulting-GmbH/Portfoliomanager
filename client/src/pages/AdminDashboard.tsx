@@ -631,6 +631,15 @@ export default function AdminDashboard() {
               «Universum sichten» startet einen neuen Lauf.
             </p>
           )}
+          {screenerStatusQ.data?.ausgeblendeterFehlerLauf && (
+            <p className="text-xs text-amber-400">
+              Der neueste Lauf #{screenerStatusQ.data.ausgeblendeterFehlerLauf.id} ist fehlgeschlagen
+              {screenerStatusQ.data.ausgeblendeterFehlerLauf.fehler
+                ? `: ${screenerStatusQ.data.ausgeblendeterFehlerLauf.fehler}`
+                : "."} Die angezeigten Werte stammen deshalb weiterhin aus dem letzten berechneten Lauf
+              #{screenerStatusQ.data.lauf?.id} und sind nicht verloren.
+            </p>
+          )}
           {screenerStatusQ.data && (
             <p className="text-xs text-muted-foreground">
               Watchlist aktuell: {screenerStatusQ.data.watchlistGroesse.toLocaleString("de-CH")} Titel

@@ -548,3 +548,9 @@
 - [x] Dividende, Kurs, Einheiten, Ausschüttungsfrequenz und Corporate-Actions gegen offizielle sowie unabhängige Quellen abgleichen
 - [x] Bestätigte Ursache mit rotem Test beheben und Screenerwert neu berechnen — keine Ursache bestätigt, daher keine spekulative Mutation
 - [x] Regression über weitere Dividendenaktien durchführen, Auditnachweis aktualisieren und Checkpoint sichern — bestehende 16 Dividendenrendite-Regressionstests bestanden
+
+## Datenintegrität — vermeintlich verlorene Screener-Berechnungen (2026-08-15)
+- [x] Aktuelle und historische Anzahl berechneter Cache-Einträge, Stammdaten und sichtbarer Screener-Zeilen erfassen
+- [x] Universe-/Listenfilter, Ausschlussregeln und jüngste Änderungen auf eine Ausblendung statt einen Datenverlust prüfen
+- [x] Überschreib-, Lösch- und Archivierungspfade anhand von Job-Logs, SQL-Historie und Git-Diffs ausschliessen oder belegen
+- [x] Ursache mit minimalem Test und ohne Neuberechnung korrigieren; Datenbestand und UI anschliessend gegenprüfen

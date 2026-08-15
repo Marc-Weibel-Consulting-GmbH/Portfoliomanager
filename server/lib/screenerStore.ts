@@ -330,14 +330,26 @@ export interface LaufUebersicht {
   abgelehnt: number;
 }
 
-/** Jüngster Lauf mit Zählern je Status. */
-export async function letzterLauf(): Promise<LaufUebersicht | null> {
-  const db = await dbOderFehler();
-  const { sql } = await import("drizzle-orm");
-  const res: any = await db.execute(sql`SELECT * FROM screener_lauf ORDER BY id DESC LIMIT 1`);
-  const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
-  const lauf = (liste as any[])[0];
+/** Ergebnis der Anzeigeauswahl: Ein fehlerhafter neuer Lauf darf die zuletzt
+ * verfügbaren, bereits berechneten Kandidaten nicht aus dem Admin verdrängen. */
+export interface AnzeigbarerLauf {
+  lauf: LaufUebersicht | null;
+  ausgeblendeterFehlerLauf: LaufUebersicht | null;
+}
+
+export function waehleAnzeigbarenLauf(
+  neuesterLauf: LaufUebersicht | null,
+  letzterLaufMitErgebnissen: LaufUebersicht | null,
+): AnzeigbarerLauf {
+  if (neuesterLauf?.status === "fehler" && letzterLaufMitErgebnissen) {
+    return { lauf: letzterLaufMitErgebnissen, ausgeblendeterFehlerLauf: neuesterLauf };
+  }
+  return { lauf: neuesterLauf, ausgeblendeterFehlerLauf: null };
+}
+
+async function mappeLaufUebersicht(db: any, lauf: any): Promise<LaufUebersicht | null> {
   if (!lauf) return null;
+  const { sql } = await import("drizzle-orm");
   const zres: any = await db.execute(sql`
     SELECT status, COUNT(*) AS anzahl FROM screener_kandidat
     WHERE laufId = ${lauf.id} GROUP BY status`);
@@ -358,6 +370,32 @@ export async function letzterLauf(): Promise<LaufUebersicht | null> {
     uebernommen: zaehler["uebernommen"] ?? 0,
     abgelehnt: zaehler["abgelehnt"] ?? 0,
   };
+}
+
+/** Jüngster Lauf mit Zählern je Status. */
+export async function letzterLauf(): Promise<LaufUebersicht | null> {
+  const db = await dbOderFehler();
+  const { sql } = await import("drizzle-orm");
+  const res: any = await db.execute(sql`SELECT * FROM screener_lauf ORDER BY id DESC LIMIT 1`);
+  const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
+  return mappeLaufUebersicht(db, (liste as any[])[0]);
+}
+
+/** Letzter Lauf mit tatsächlich sichtbaren berechneten/entschiedenen Titeln. */
+export async function letzterLaufMitErgebnissen(): Promise<LaufUebersicht | null> {
+  const db = await dbOderFehler();
+  const { sql } = await import("drizzle-orm");
+  const res: any = await db.execute(sql`
+    SELECT l.* FROM screener_lauf l
+    WHERE EXISTS (
+      SELECT 1 FROM screener_kandidat k
+      WHERE k.laufId = l.id
+        AND k.status IN ('berechnet', 'uebernommen', 'abgelehnt')
+    )
+    ORDER BY l.id DESC
+    LIMIT 1`);
+  const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
+  return mappeLaufUebersicht(db, (liste as any[])[0]);
 }
 
 /** Beste berechnete Kandidaten eines Laufs, sortiert nach Signal-Score. */
