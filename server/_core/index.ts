@@ -1,5 +1,4 @@
 import express from "express";
-import "./secretsTimingTest"; // Start timing tests on server boot
 import "./logMonitor"; // Start log monitoring
 import { createServer } from "http";
 import net from "net";

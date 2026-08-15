@@ -15,7 +15,7 @@
  */
 
 import { z } from "zod";
-import { publicProcedure, router } from "../_core/trpc";
+import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import YahooFinanceClass from 'yahoo-finance2';
 import { calculateQualityScore, calculateMomentumScore, extractQualityFromYahoo } from '../analytics/qualityMomentumEngine';
@@ -176,7 +176,7 @@ async function mcp<T = unknown>(
 export const tradingviewRouter = router({
 
   /** Check if the MCP server is configured and reachable */
-  status: publicProcedure.query(async () => {
+  status: protectedProcedure.query(async () => {
     if (!MCP_BASE) return { configured: false, reachable: false, url: null };
     try {
       const sessionId = await mcpInit();
@@ -187,14 +187,14 @@ export const tradingviewRouter = router({
   }),
 
   /** Live price from Yahoo Finance */
-  price: publicProcedure
+  price: protectedProcedure
     .input(z.object({ symbol: z.string().min(1) }))
     .query(async ({ input }) => {
       return mcp("yahoo_price", { symbol: input.symbol });
     }),
 
   /** Multi-timeframe technical analysis (1h / 4h / 1d) */
-  analysis: publicProcedure
+  analysis: protectedProcedure
     .input(z.object({
       symbol: z.string().min(1),
       exchange: z.string().optional(),
@@ -210,7 +210,7 @@ export const tradingviewRouter = router({
     }),
 
   /** Combined TA signals (summary + oscillators + MAs) */
-  signals: publicProcedure
+  signals: protectedProcedure
     .input(z.object({
       symbol: z.string().min(1),
       exchange: z.string().optional(),
@@ -228,7 +228,7 @@ export const tradingviewRouter = router({
     }),
 
   /** Backtest a single strategy */
-  backtest: publicProcedure
+  backtest: protectedProcedure
     .input(z.object({
       symbol: z.string().min(1),
       strategy: z.enum([
@@ -249,7 +249,7 @@ export const tradingviewRouter = router({
     }),
 
   /** Compare all strategies on a symbol */
-  compareStrategies: publicProcedure
+  compareStrategies: protectedProcedure
     .input(z.object({
       symbol: z.string().min(1),
       period: z.string().default("1y"),
@@ -264,7 +264,7 @@ export const tradingviewRouter = router({
     }),
 
   /** Walk-forward backtest */
-  walkForwardBacktest: publicProcedure
+  walkForwardBacktest: protectedProcedure
     .input(z.object({
       symbol: z.string().min(1),
       strategy: z.string().default("macd_crossover"),
@@ -283,14 +283,14 @@ export const tradingviewRouter = router({
     }),
 
   /** Market snapshot (top gainers/losers) */
-  marketSnapshot: publicProcedure
+  marketSnapshot: protectedProcedure
     .input(z.object({ market: z.string().default("america") }))
     .query(async ({ input }) => {
       return mcp("get_market_snapshot", { market: input.market }, 20_000);
     }),
 
   /** Financial news for a symbol */
-  news: publicProcedure
+  news: protectedProcedure
     .input(z.object({
       symbol: z.string().min(1),
       limit: z.number().default(10),
@@ -300,14 +300,14 @@ export const tradingviewRouter = router({
     }),
 
   /** Social sentiment */
-  sentiment: publicProcedure
+  sentiment: protectedProcedure
     .input(z.object({ symbol: z.string().min(1) }))
     .query(async ({ input }) => {
       return mcp("market_sentiment", { symbol: input.symbol }, 20_000);
     }),
 
   /** Volume breakout scanner */
-  volumeBreakout: publicProcedure
+  volumeBreakout: protectedProcedure
     .input(z.object({
       exchange: z.string().default("NASDAQ"),
       screener: z.string().default("america"),
@@ -324,7 +324,7 @@ export const tradingviewRouter = router({
     }),
 
   /** Top gainers */
-  topGainers: publicProcedure
+  topGainers: protectedProcedure
     .input(z.object({
       exchange: z.string().default("NASDAQ"),
       screener: z.string().default("america"),
@@ -339,7 +339,7 @@ export const tradingviewRouter = router({
     }),
 
   /** Top losers */
-  topLosers: publicProcedure
+  topLosers: protectedProcedure
     .input(z.object({
       exchange: z.string().default("NASDAQ"),
       screener: z.string().default("america"),
@@ -354,7 +354,7 @@ export const tradingviewRouter = router({
     }),
 
   /** Bollinger Band scanner */
-  bollingerScan: publicProcedure
+  bollingerScan: protectedProcedure
     .input(z.object({
       exchange: z.string().default("NASDAQ"),
       screener: z.string().default("america"),
@@ -369,7 +369,7 @@ export const tradingviewRouter = router({
     }),
 
   /** Multi-agent analysis (Technical + Sentiment + Risk) */
-  multiAgentAnalysis: publicProcedure
+  multiAgentAnalysis: protectedProcedure
     .input(z.object({
       symbol: z.string().min(1),
       interval: z.string().default("1d"),
@@ -385,7 +385,7 @@ export const tradingviewRouter = router({
     }),
 
   /** Combined Momentum + Quality + LPPL Scoring */
-  stockScoring: publicProcedure
+  stockScoring: protectedProcedure
     .input(z.object({ symbol: z.string().min(1) }))
     .query(async ({ input }) => {
       const ticker = input.symbol.toUpperCase();
@@ -491,7 +491,7 @@ export const tradingviewRouter = router({
     }),
 
   /** Batch scoring: score multiple symbols, returns sorted array */
-  batchScoring: publicProcedure
+  batchScoring: protectedProcedure
     .input(z.object({ symbols: z.array(z.string().min(1)).min(1).max(20) }))
     .query(async ({ input }) => {
       const results: any[] = [];
@@ -548,4 +548,3 @@ export const tradingviewRouter = router({
       return results.sort((a, b) => b.combinedScore - a.combinedScore);
     }),
 });
-

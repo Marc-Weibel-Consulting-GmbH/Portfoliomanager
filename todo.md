@@ -598,6 +598,15 @@
 - [x] Fingerprinting, MIME-Sniffing, Clickjacking, Referrer- und Geräteberechtigungen mit getesteten HTTP-Headern begrenzen
 - [ ] Restriktive Content-Security-Policy erst nach verifizierter Inventur aller Produktionsressourcen, Einbettungen und API-Ursprünge ergänzen
 
+## Security-Remediation — Globales Transaktions-Auditlog (2026-08-15)
+- [x] Anonymen und regulären Nutzerzugriff auf das nicht mandantierbare Transaktions-Auditlog vor jeder DB-Abfrage bzw. Löschung fail-fast abweisen
+
+## Security-Remediation — TradingView-Analysebrücke (2026-08-15)
+- [x] Öffentliche, kosten- und lastintensive TradingView-Analyse-, Scan- und Backtestprozeduren vor jeder MCP-Initialisierung auf `protectedProcedure` begrenzen
+
+## Security-Remediation — Secret-Metadaten in Logs (2026-08-15)
+- [x] Automatische Boot- und Verzögerungslogs mit Secret-Präfixen und -längen entfernen; nur wertfreie, explizite Verfügbarkeitsdiagnostik belassen
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern

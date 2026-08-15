@@ -426,11 +426,13 @@ export const appRouter = router({
   }),
 
   transactions: router({
-    list: publicProcedure.query(async () => {
+    // Legacy-Auditlog ohne Nutzer- oder Portfolio-Fremdschlüssel: es darf
+    // deshalb weder anonym noch für reguläre Nutzer einsehbar oder löschbar sein.
+    list: adminProcedure.query(async () => {
       const { getAllTransactions } = await import("./db");
       return await getAllTransactions();
     }),
-    deleteAll: protectedProcedure.mutation(async () => {
+    deleteAll: adminProcedure.mutation(async () => {
       const { deleteAllTransactions } = await import("./db");
       await deleteAllTransactions();
       return { success: true };

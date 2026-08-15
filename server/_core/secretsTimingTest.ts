@@ -1,75 +1,46 @@
 import { ENV } from "./env";
-/**
- * Timing test for secret initialization
- * Tests whether secrets become available after a delay
- */
 
-interface SecretTimingResult {
+export interface SecretTimingResult {
   timestamp: string;
   elapsedSeconds: number;
   secrets: {
-    STRIPE_SECRET_KEY: { available: boolean; length: number; prefix: string };
-    FINNHUB_API_KEY: { available: boolean; length: number; prefix: string };
-    EODHD_API_KEY: { available: boolean; length: number; prefix: string };
+    STRIPE_SECRET_KEY: { available: boolean };
+    FINNHUB_API_KEY: { available: boolean };
+    EODHD_API_KEY: { available: boolean };
   };
 }
 
 const startTime = Date.now();
 const timingResults: SecretTimingResult[] = [];
 
-function checkSecrets(label: string): SecretTimingResult {
+/**
+ * Value-free diagnostic for an explicitly initiated health check. This module
+ * must never log secret lengths, prefixes or values, and it performs no work
+ * on module import.
+ */
+export function getCurrentSecretStatus(label = "On-Demand Check"): SecretTimingResult {
   const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  
   const result: SecretTimingResult = {
     timestamp: new Date().toISOString(),
     elapsedSeconds: elapsed,
     secrets: {
       STRIPE_SECRET_KEY: {
         available: !!process.env.STRIPE_SECRET_KEY,
-        length: process.env.STRIPE_SECRET_KEY?.length || 0,
-        prefix: process.env.STRIPE_SECRET_KEY?.substring(0, 7) || "N/A",
       },
       FINNHUB_API_KEY: {
         available: !!ENV.finnhubApiKey,
-        length: ENV.finnhubApiKey.length || 0,
-        prefix: ENV.finnhubApiKey.substring(0, 7) || "N/A",
       },
       EODHD_API_KEY: {
         available: !!ENV.eodhdApiKey,
-        length: ENV.eodhdApiKey.length || 0,
-        prefix: ENV.eodhdApiKey.substring(0, 7) || "N/A",
       },
     },
   };
-  
-  console.log(`[TIMING TEST ${elapsed}s] ${label}:`, JSON.stringify(result.secrets, null, 2));
+
+  void label;
   timingResults.push(result);
-  
   return result;
 }
 
-// Check immediately on module load
-checkSecrets("Module Load (0s)");
-
-// Check after 5 seconds
-setTimeout(() => {
-  checkSecrets("Delayed Check (5s)");
-}, 5000);
-
-// Check after 30 seconds
-setTimeout(() => {
-  checkSecrets("Delayed Check (30s)");
-}, 30000);
-
-// Check after 60 seconds
-setTimeout(() => {
-  checkSecrets("Delayed Check (60s)");
-}, 60000);
-
 export function getTimingResults(): SecretTimingResult[] {
   return timingResults;
-}
-
-export function getCurrentSecretStatus(): SecretTimingResult {
-  return checkSecrets("On-Demand Check");
 }
