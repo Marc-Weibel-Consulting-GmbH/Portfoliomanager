@@ -1,0 +1,64 @@
+server/routers.ts:7:import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
+server/routers.ts:266:    me: publicProcedure.query(opts => {
+server/routers.ts:272:    logout: publicProcedure.mutation(({ ctx }) => {
+server/routers.ts:283:    register: publicProcedure
+server/routers.ts:300:    login: publicProcedure
+server/routers.ts:355:    getByTicker: publicProcedure
+server/routers.ts:377:    getAll: publicProcedure.query(async () => {
+server/routers.ts:397:    getPortfolioNews: publicProcedure.query(async () => {
+server/routers.ts:443:    list: publicProcedure.query(async () => {
+server/routers.ts:551:    subscribe: publicProcedure
+server/routers.ts:763:    send: publicProcedure
+server/routers.ts:925:    calculateScores: publicProcedure.query(async () => {
+server/routers.ts:934:    list: publicProcedure.query(async () => {
+server/routers.ts:989:    list: publicProcedure.query(async () => {
+server/routers.ts:1072:    getCurrentRate: publicProcedure
+server/routers.ts:1112:    getLogoUrl: publicProcedure
+server/routers.ts:1126:    getBatchLogos: publicProcedure
+server/routers/authRouter.ts:2:import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
+server/routers/authRouter.ts:32:  requestPasswordReset: publicProcedure
+server/routers/authRouter.ts:68:  verifyResetToken: publicProcedure
+server/routers/authRouter.ts:76:  resetPassword: publicProcedure
+server/routers/authRouter.ts:134:  verifyEmail: publicProcedure
+server/routers/fxRatesRouter.ts:2:import { publicProcedure, router } from "../_core/trpc";
+server/routers/fxRatesRouter.ts:23:  getRate: publicProcedure
+server/routers/fxRatesRouter.ts:42:  convert: publicProcedure
+server/routers/fxRatesRouter.ts:63:  getMultiple: publicProcedure
+server/routers/kiBoomRouter.ts:13:import { adminProcedure, publicProcedure, router } from "../_core/trpc";
+server/routers/kiBoomRouter.ts:542:  getDashboard: publicProcedure.query(async (): Promise<KiBoomData> => {
+server/routers/kiBoomRouter.ts:549:  getHistory: publicProcedure
+server/routers/kiBoomRouter.ts:620:  getDynamicMetrics: publicProcedure.query(async () => {
+server/routers/marketRegimeRouter.ts:2:import { publicProcedure, router } from "../_core/trpc";
+server/routers/marketRegimeRouter.ts:436:  getCapitalFlows: publicProcedure.query(async () => {
+server/routers/marketRegimeRouter.ts:441:  sectorPerformance: publicProcedure.query(async () => {
+server/routers/marketRegimeRouter.ts:453:  getIndices: publicProcedure.query(async () => {
+server/routers/marketRegimeRouter.ts:595:  getRegime: publicProcedure.query(async () => {
+server/routers/marketRegimeRouter.ts:612:  getHistory: publicProcedure
+server/routers/marketRegimeRouter.ts:652:  getFactorETFs: publicProcedure
+server/routers/marketRegimeRouter.ts:726:  getRrg: publicProcedure.query(async () => {
+server/routers/marketReportRouter.ts:8:import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
+server/routers/marketReportRouter.ts:16:  getLatest: publicProcedure.query(async () => {
+server/routers/marketReportRouter.ts:30:  list: publicProcedure
+server/routers/newsRouter.ts:2:import { protectedProcedure, publicProcedure, router } from "../_core/trpc";
+server/routers/performanceRouter.ts:1:import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
+server/routers/stocksRouter.ts:1:import { publicProcedure, protectedProcedure, adminProcedure, router } from "../_core/trpc";
+server/routers/stocksRouter.ts:52:    getAll: publicProcedure.query(async () => {
+server/routers/stocksRouter.ts:57:    getDailyPerformance: publicProcedure.query(async () => {
+server/routers/stocksRouter.ts:133:    getByTicker: publicProcedure
+server/routers/stocksRouter.ts:283:    getByTickers: publicProcedure
+server/routers/stocksRouter.ts:305:    getLogo: publicProcedure
+server/routers/stocksRouter.ts:315:    getHistoricalPE: publicProcedure
+server/routers/stocksRouter.ts:325:    getHistoricalMetrics: publicProcedure
+server/routers/stocksRouter.ts:409:    searchTicker: publicProcedure
+server/routers/stocksRouter.ts:505:    list: publicProcedure.query(async () => {
+server/routers/stocksRouter.ts:509:    getFxRates: publicProcedure.query(async () => {
+server/routers/stocksRouter.ts:520:    byCategory: publicProcedure
+server/routers/stocksRouter.ts:526:    byTicker: publicProcedure
+server/routers/stocksRouter.ts:634:    stats: publicProcedure.query(async () => {
+server/routers/stocksRouter.ts:1281:    portfolioPerformance: publicProcedure.query(async () => {
+server/routers/stocksRouter.ts:1319:    dailyNews: publicProcedure
+server/routers/stocksRouter.ts:1498:    getHistoricalPrices: publicProcedure
+server/routers/weeklyOverviewRouter.ts:1:import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
+server/_core/systemRouter.ts:3:import { adminProcedure, publicProcedure, router } from "./trpc";
+server/_core/systemRouter.ts:7:  health: publicProcedure
+server/_core/trpc.ts:11:export const publicProcedure = t.procedure;

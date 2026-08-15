@@ -1,0 +1,203 @@
+{
+  "highFindingCount": 26,
+  "byModule": [
+    {
+      "module": "brace-expansion",
+      "advisoryCount": 6,
+      "titles": [
+        "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+        "brace-expansion: DoS via exponential-time expansion of consecutive non-expanding {} groups",
+        "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+        "brace-expansion: DoS via unbounded expansion length causing an out-of-memory process crash",
+        "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation",
+        "brace-expansion: DoS via unbounded intermediate arrays, bypassing the CVE-2026-14257 mitigation"
+      ],
+      "patchedVersions": [
+        ">=2.1.2",
+        ">=1.1.16",
+        ">=1.1.17",
+        ">=2.1.3",
+        ">=2.1.4",
+        ">=1.1.18"
+      ],
+      "paths": [
+        ". > exceljs@4.4.0 > archiver@5.3.2 > readdir-glob@1.1.3 > minimatch@5.1.6 > brace-expansion@2.0.2",
+        ". > exceljs@4.4.0 > archiver@5.3.2 > archiver-utils@2.1.0 > glob@7.2.3 > minimatch@3.1.2 > brace-expansion@1.1.12",
+        ". > exceljs@4.4.0 > archiver@5.3.2 > zip-stream@4.1.1 > archiver-utils@3.0.4 > glob@7.2.3 > minimatch@3.1.2 > brace-expansion@1.1.12",
+        ". > exceljs@4.4.0 > unzipper@0.10.14 > fstream@1.0.12 > rimraf@2.7.1 > glob@7.2.3 > minimatch@3.1.2 > brace-expansion@1.1.12"
+      ]
+    },
+    {
+      "module": "minimatch",
+      "advisoryCount": 6,
+      "titles": [
+        "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern",
+        "minimatch has a ReDoS via repeated wildcards with non-matching literal in pattern",
+        "minimatch has ReDoS: matchOne() combinatorial backtracking via multiple non-adjacent GLOBSTAR segments",
+        "minimatch has ReDoS: matchOne() combinatorial backtracking via multiple non-adjacent GLOBSTAR segments",
+        "minimatch ReDoS: nested *() extglobs generate catastrophically backtracking regular expressions",
+        "minimatch ReDoS: nested *() extglobs generate catastrophically backtracking regular expressions"
+      ],
+      "patchedVersions": [
+        ">=3.1.3",
+        ">=5.1.7",
+        ">=5.1.8",
+        ">=3.1.4"
+      ],
+      "paths": [
+        ". > exceljs@4.4.0 > archiver@5.3.2 > archiver-utils@2.1.0 > glob@7.2.3 > minimatch@3.1.2",
+        ". > exceljs@4.4.0 > archiver@5.3.2 > zip-stream@4.1.1 > archiver-utils@3.0.4 > glob@7.2.3 > minimatch@3.1.2",
+        ". > exceljs@4.4.0 > unzipper@0.10.14 > fstream@1.0.12 > rimraf@2.7.1 > glob@7.2.3 > minimatch@3.1.2",
+        ". > exceljs@4.4.0 > archiver@5.3.2 > readdir-glob@1.1.3 > minimatch@5.1.6"
+      ]
+    },
+    {
+      "module": "image-size",
+      "advisoryCount": 2,
+      "titles": [
+        "image-size: ICNS parser allows denial of service through an infinite loop",
+        "image-size: JXL and HEIF parsers allow denial of service through infinite loops"
+      ],
+      "patchedVersions": [
+        "<0.0.0"
+      ],
+      "paths": [
+        ". > pptxgenjs@4.0.1 > image-size@1.2.1"
+      ]
+    },
+    {
+      "module": "nodemailer",
+      "advisoryCount": 2,
+      "titles": [
+        "Nodemailer: Message-level raw option bypasses disableFileAccess/disableUrlAccess, enabling arbitrary file read and full-response SSRF in the delivered message",
+        "Nodemailer’s addressparser is vulnerable to DoS caused by recursive calls"
+      ],
+      "patchedVersions": [
+        ">=9.0.1",
+        ">=7.0.11"
+      ],
+      "paths": [
+        ". > nodemailer@7.0.10"
+      ]
+    },
+    {
+      "module": "xlsx",
+      "advisoryCount": 2,
+      "titles": [
+        "Prototype Pollution in sheetJS",
+        "SheetJS Regular Expression Denial of Service (ReDoS)"
+      ],
+      "patchedVersions": [
+        "<0.0.0"
+      ],
+      "paths": [
+        ". > xlsx@0.18.5"
+      ]
+    },
+    {
+      "module": "adm-zip",
+      "advisoryCount": 1,
+      "titles": [
+        "adm-zip: Crafted ZIP file triggers 4GB memory allocation"
+      ],
+      "patchedVersions": [
+        ">=0.6.0"
+      ],
+      "paths": [
+        ". > onnxruntime-node@1.27.0 > adm-zip@0.5.17"
+      ]
+    },
+    {
+      "module": "axios",
+      "advisoryCount": 1,
+      "titles": [
+        "Axios Node HTTP adapter can use an inherited proxy after interceptor config cloning"
+      ],
+      "patchedVersions": [
+        ">=1.18.0"
+      ],
+      "paths": [
+        ". > axios@1.16.0",
+        ". > twilio@5.10.4 > axios@1.16.0"
+      ]
+    },
+    {
+      "module": "jws",
+      "advisoryCount": 1,
+      "titles": [
+        "auth0/node-jws Improperly Verifies HMAC Signature"
+      ],
+      "patchedVersions": [
+        ">=3.2.3"
+      ],
+      "paths": [
+        ". > twilio@5.10.4 > jsonwebtoken@9.0.2 > jws@3.2.2"
+      ]
+    },
+    {
+      "module": "lodash",
+      "advisoryCount": 1,
+      "titles": [
+        "lodash vulnerable to Code Injection via `_.template` imports key names"
+      ],
+      "patchedVersions": [
+        ">=4.18.0"
+      ],
+      "paths": [
+        ". > recharts@2.15.4 > lodash@4.17.21"
+      ]
+    },
+    {
+      "module": "path-to-regexp",
+      "advisoryCount": 1,
+      "titles": [
+        "path-to-regexp vulnerable to Regular Expression Denial of Service via multiple route parameters"
+      ],
+      "patchedVersions": [
+        ">=0.1.13"
+      ],
+      "paths": [
+        ". > express@4.21.2 > path-to-regexp@0.1.12"
+      ]
+    },
+    {
+      "module": "pdfjs-dist",
+      "advisoryCount": 1,
+      "titles": [
+        "PDF.js: Arbitrary JavaScript execution upon opening a malicious PDF "
+      ],
+      "patchedVersions": [
+        ">=6.2.108"
+      ],
+      "paths": [
+        ". > officeparser@7.6.1 > pdfjs-dist@6.1.200"
+      ]
+    },
+    {
+      "module": "tmp",
+      "advisoryCount": 1,
+      "titles": [
+        "tmp has Path Traversal via unsanitized prefix/postfix that enables directory escape"
+      ],
+      "patchedVersions": [
+        ">=0.2.6"
+      ],
+      "paths": [
+        ". > exceljs@4.4.0 > tmp@0.2.5"
+      ]
+    },
+    {
+      "module": "undici",
+      "advisoryCount": 1,
+      "titles": [
+        "undici vulnerable to cross-user information disclosure and parse-time crash via degenerate private cache directives"
+      ],
+      "patchedVersions": [
+        ">=7.29.0"
+      ],
+      "paths": [
+        ". > jsdom@29.1.1 > undici@7.28.0"
+      ]
+    }
+  ]
+}

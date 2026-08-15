@@ -3,6 +3,10 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { loginSchema, loginUser, registerSchema, registerUser, SESSION_MAX_AGE_MS } from "./_core/authService";
 import { getClientIp, isRateLimited, LOGIN_RATE_LIMIT, RATE_LIMIT_MESSAGE, REGISTER_RATE_LIMIT } from "./_core/rateLimit";
+
+const NEWSLETTER_RATE_LIMIT = { limit: 3, windowMs: 60 * 60 * 1000 };
+const CONTACT_RATE_LIMIT = { limit: 3, windowMs: 60 * 60 * 1000 };
+
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure, adminProcedure } from "./_core/trpc";
 import { ENV } from "./_core/env";
@@ -549,8 +553,11 @@ export const appRouter = router({
 
   newsletter: router({
     subscribe: publicProcedure
-      .input(z.object({ email: z.string() }))
-      .mutation(async ({ input }) => {
+      .input(z.object({ email: z.string().trim().email().max(320) }))
+      .mutation(async ({ input, ctx }) => {
+        if (isRateLimited(`newsletter:${getClientIp(ctx.req)}`, NEWSLETTER_RATE_LIMIT)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: RATE_LIMIT_MESSAGE });
+        }
         const { getDb } = await import("./db");
         const { newsletter } = await import("../drizzle/schema");
         const { eq } = await import("drizzle-orm");
@@ -762,14 +769,17 @@ export const appRouter = router({
   contact: router({
     send: publicProcedure
       .input(z.object({
-        name: z.string(),
-        email: z.string(),
-        message: z.string(),
+        name: z.string().trim().min(1).max(160),
+        email: z.string().trim().email().max(320),
+        message: z.string().trim().min(1).max(5000),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
+        if (isRateLimited(`contact:${getClientIp(ctx.req)}`, CONTACT_RATE_LIMIT)) {
+          throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: RATE_LIMIT_MESSAGE });
+        }
         // TODO: Implement email sending logic here
-        // For now, just log the contact form submission
-        console.log("Contact form submission:", input);
+        // Do not log contact details: this public endpoint accepts PII.
+        void input;
         
         // You can integrate with an email service like SendGrid, Mailgun, or AWS SES
         // Example:

@@ -559,15 +559,15 @@
 - [x] F1-02: verbindlichen TTWROR-Datenqualitäts- und Reportingvertrag entscheiden und testgetrieben umsetzen
 - [x] Fehlerursache des fehlgeschlagenen Screener-Laufs #90002 analysieren und den neuen Universumsimport stabilisieren — Prozessneustart während des Sammelns, 598 Kandidaten erhalten; gültiger Lauf bleibt per Fallback sichtbar
 - [x] Bekannte vollständige Test-Suite-Fehler in Formatierung, TradingView-MCP und Sornette einzeln reproduzieren und getrennt priorisieren — 145 Dateien / 1'289 Tests grün; TradingView-Upstream-Healthcheck bewusst opt-in
-- [ ] Phase 2 Security & Governance durchführen: Authentisierung, Autorisierung, Mandantentrennung, Secrets, Abhängigkeiten und Datenschutz
+- [x] Phase 2 Security & Governance durchführen: Authentisierung, Autorisierung, Mandantentrennung, Secrets, Abhängigkeiten und Datenschutz — technische Remediations und Release-Gates dokumentiert
 - [x] Externe Zweitquelle für KGV/PEG in die wöchentliche Screener-Validierung integrieren — unabhängige Finnhub-TTM-Referenz (`peTTM`, `pegTTM`) mit Parser- und Vergleichstests ergänzt
 
 ## Audit — Phase 2 Security & Governance (2026-08-15)
-- [ ] Öffentliche, geschützte und administrative tRPC-Prozeduren auf Authentisierung und fail-fast Schreibschutz prüfen
-- [ ] Portfolio-, Transaktions- und Dokumentzugriffe auf Mandantentrennung und IDOR-Risiken prüfen
-- [ ] Geheimnisse, HTTP-Sicherheitsheader, Eingabevalidierung, Logs und Datenschutzflächen prüfen — Basis-Header umgesetzt; CSP sowie Restprüfung noch offen
-- [ ] Produktionsabhängigkeiten, kritische Schwachstellen und Lizenzbefunde erneut bewerten
-- [ ] Reproduzierbare Security-Befunde mit minimalen Fixes, Tests, Auditnachweis und Freigabe-Gates vorlegen
+- [x] Öffentliche, geschützte und administrative tRPC-Prozeduren auf Authentisierung und fail-fast Schreibschutz prüfen — Inventar und priorisierte Remediations dokumentiert
+- [x] Portfolio-, Transaktions- und Dokumentzugriffe auf Mandantentrennung und IDOR-Risiken prüfen — Ownership-Guards und globales Legacy-Log geprüft
+- [x] Geheimnisse, HTTP-Sicherheitsheader, Eingabevalidierung, Logs und Datenschutzflächen prüfen — CSP, PII-/Secretlog- und Formularremediations verifiziert
+- [x] Produktionsabhängigkeiten, kritische Schwachstellen und Lizenzbefunde erneut bewerten — 0 kritisch, 22 hoch; Rest und fünf unbekannte Lizenzmetadaten als Gate erfasst
+- [x] Reproduzierbare Security-Befunde mit minimalen Fixes, Tests, Auditnachweis und Freigabe-Gates vorlegen
 
 ## Security-Remediation — Kritische PDF-Abhängigkeiten (2026-08-15)
 - [x] jsPDF auf die auditbereinigte 4.x-Linie und jsPDF-AutoTable auf die kompatible 5.0.8-Linie aktualisieren
@@ -593,10 +593,12 @@
 
 ## Teststabilität — Externe Kimi-API (2026-08-15)
 - [x] Kimi-K3-Provider-Healthcheck wie alle externen Live-Integrationsprüfungen nur mit `RUN_LIVE_INTEGRATION_TESTS=true` ausführen
+- [x] Perplexity-Provider-Healthcheck auf dasselbe explizite Live-Opt-in umstellen
+- [x] Ungültige ISIN-Werte vor dem Yahoo-/EODHD-Fallback abweisen, damit Negativtests keine Netzabhängigkeit auslösen
 
 ## Security-Remediation — HTTP-Transport (2026-08-15)
 - [x] Fingerprinting, MIME-Sniffing, Clickjacking, Referrer- und Geräteberechtigungen mit getesteten HTTP-Headern begrenzen
-- [ ] Restriktive Content-Security-Policy erst nach verifizierter Inventur aller Produktionsressourcen, Einbettungen und API-Ursprünge ergänzen
+- [x] Restriktive Content-Security-Policy nach verifizierter Inventur aller Produktionsressourcen, Einbettungen und API-Ursprünge ergänzen
 
 ## Security-Remediation — Globales Transaktions-Auditlog (2026-08-15)
 - [x] Anonymen und regulären Nutzerzugriff auf das nicht mandantierbare Transaktions-Auditlog vor jeder DB-Abfrage bzw. Löschung fail-fast abweisen

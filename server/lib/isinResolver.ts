@@ -141,7 +141,9 @@ export async function resolveIsinViaEodhd(isin: string): Promise<string | null> 
  * Returns null when nothing usable is found.
  */
 export async function resolveIsinToTicker(search: YahooSearchFn, isin: string): Promise<string | null> {
-  if (!isin) return null;
+  // This resolver accepts ISINs only. Reject malformed values before either
+  // upstream search so user/import noise cannot trigger a network fallback.
+  if (!isLikelyIsin(isin)) return null;
 
   // 1. Try Yahoo Finance
   try {

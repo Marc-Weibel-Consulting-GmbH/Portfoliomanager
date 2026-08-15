@@ -29,11 +29,15 @@ describe("applyHttpSecurityHeaders", () => {
     expect(headers.has("Strict-Transport-Security")).toBe(false);
   });
 
-  it("setzt HSTS nur in Produktion", () => {
+  it("setzt HSTS und eine produktive CSP nur in Produktion", () => {
     const { headers, response } = createResponse();
 
     applyHttpSecurityHeaders(response, true);
 
     expect(headers.get("Strict-Transport-Security")).toBe("max-age=15552000; includeSubDomains");
+    expect(headers.get("Content-Security-Policy")).toContain("default-src 'self'");
+    expect(headers.get("Content-Security-Policy")).toContain("object-src 'none'");
+    expect(headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+    expect(headers.get("Content-Security-Policy")).toContain("img-src 'self' data: blob: https:");
   });
 });

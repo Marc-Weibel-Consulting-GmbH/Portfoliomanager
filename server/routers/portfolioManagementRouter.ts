@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { protectedProcedure, router } from "../_core/trpc";
+import { adminProcedure, protectedProcedure, router } from "../_core/trpc";
 import {
   activatePortfolio,
   calculatePortfolioMetrics,
@@ -116,7 +116,7 @@ export const portfolioManagementRouter = router({
   /**
    * Upsert benchmark data (admin only - for data seeding)
    */
-  upsertBenchmarkData: protectedProcedure
+  upsertBenchmarkData: adminProcedure
     .input(
       z.object({
         benchmark: z.enum(["SMI", "SP500", "MSCI_WORLD"]),
@@ -125,12 +125,7 @@ export const portfolioManagementRouter = router({
         source: z.string().optional(),
       })
     )
-    .mutation(async ({ ctx, input }) => {
-      // Only allow admin users to seed benchmark data
-      if (ctx.user.role !== "admin") {
-        throw new Error("Unauthorized: Admin access required");
-      }
-
+    .mutation(async ({ input }) => {
       const result = await upsertBenchmarkData(input);
 
       if (!result) {

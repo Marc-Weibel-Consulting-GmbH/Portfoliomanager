@@ -44,6 +44,14 @@ describe("isinResolver", () => {
     await expect(resolveIsinToTicker(vi.fn().mockRejectedValue(new Error("boom")), "XX123")).resolves.toBeNull();
   });
 
+  it("rejects malformed identifiers before starting a Yahoo or EODHD lookup", async () => {
+    const search = vi.fn();
+
+    await expect(resolveIsinToTicker(search, "XX123")).resolves.toBeNull();
+
+    expect(search).not.toHaveBeenCalled();
+  });
+
   it("isLikelyIsin erkennt ISINs und weist Ticker ab (L-20)", () => {
     // echte ISINs (12 Zeichen: 2 Buchstaben + 9 alphanumerisch + Prüfziffer)
     expect(isLikelyIsin("US02079K1079")).toBe(true); // Alphabet

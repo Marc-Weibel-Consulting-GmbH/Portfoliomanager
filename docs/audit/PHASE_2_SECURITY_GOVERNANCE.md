@@ -1,7 +1,7 @@
 # Phase 2 — Security & Governance
 
 **Stand:** 15. August 2026  
-**Status:** Kritische, bestätigte Expositionen behoben; vertiefte Mandanten-, Datenschutz- und High-Severity-Dependency-Prüfung bleibt offen.
+**Status:** Technische Phase-2-Prüfung abgeschlossen. Bestätigte Expositionen sind minimal remediated; die verbleibenden transitive Abhängigkeits- und Lizenzbefunde sind als Release-Gates dokumentiert.
 
 > Die folgenden Massnahmen ändern keine Portfolio-, Markt- oder Researchdaten. Sie begrenzen ausschliesslich unberechtigte Seiteneffekte und aktualisieren produktionsrelevante Bibliotheken.
 
@@ -16,31 +16,34 @@
 | S2-06 | Globales Transaktions-Auditlog war öffentlich | Anonyme Aufrufer konnten 100 globale Änderungsprotokolle inklusive Ticker, Werten und Freitextkommentaren lesen; jeder angemeldete Nutzer konnte sie zudem löschen. | Die Legacy-Tabelle besitzt keine Nutzer- oder Portfolio-Fremdschlüssel; Lesen und Löschen sind deshalb ausschliesslich `adminProcedure`. | Roter Anonym-Test reproduzierte die reale Datenrückgabe; danach zwei Auth-Regressionstests grün. |
 | S2-07 | TradingView-Analysebrücke öffentlich | Anonyme Aufrufer konnten externe Preis-, Analyse-, Scan-, Backtest-, Walk-Forward- und Multi-Agent-Aufrufe bis zu 180 Sekunden auslösen. | Alle 17 TradingView-Prozeduren verwenden nun `protectedProcedure`; die Prüfung passiert vor MCP-Initialisierung oder Upstream-Aufruf. | Zwei repräsentative anonyme Aufrufe (`status`, `stockScoring`) werden im Routertest fail-fast abgewiesen. |
 | S2-08 | Produktionsstart loggte Secret-Metadaten | Ein beim Serverstart importiertes Diagnosemodul protokollierte für drei Schlüssel mehrfach Verfügbarkeit, Länge und siebenstellige Präfixe. | Der automatische Import und alle verzögerten Checks wurden entfernt. Die Diagnostik ist nur noch explizit abrufbar und gibt ausschliesslich boolesche Verfügbarkeit zurück. | Regressionstest prüft, dass weder Werte, Präfixe noch Längen serialisierbar sind. |
+| S2-09 | Deterministische Tests hingen an externen Diensten | Der Perplexity-Healthcheck lief bereits bei vorhandenem Schlüssel; ein ungültiger ISIN-Test löste über den EODHD-Fallback eine echte Netzabfrage aus. | Perplexity ist nun wie alle Upstream-Checks nur mit `RUN_LIVE_INTEGRATION_TESTS=true` aktiv. Der ISIN-Resolver weist syntaktisch ungültige Werte vor Yahoo- oder EODHD-Aufrufen ab. | Perplexity ohne Opt-in übersprungen; der vorherige 15-s-Timeout-Test läuft mit Vorabvalidierung in Millisekunden grün. |
+| S2-10 | Benchmark-Datenpflege nur mit Inline-Rollencheck | Eine administrative Schreiboperation verwendete einen individuellen Fehler statt des zentralen fail-fast-Guards. | `upsertBenchmarkData` nutzt nun `adminProcedure`. | Anonyme und reguläre Nutzer werden vor jeder DB-Operation mit `UNAUTHORIZED` beziehungsweise `FORBIDDEN` abgewiesen. |
+| S2-11 | Öffentliche LLM- und Formularpfade | `dailyNews` konnte anonyme Kimi-Aufrufe starten; Newsletter und Kontakt hatten keine validierten Grenzen, der Kontaktpfad protokollierte PII. | Daily News erfordert eine Sitzung. Öffentliche Formulare validieren E-Mail, Längen und begrenzen pro IP auf drei Anfragen pro Stunde; PII-Log entfernt. | Auth- und Formularregressionstests grün. |
 
 ## Zugriffs- und Mandantenprüfung
 
-Die Suche nach öffentlichen tRPC-Mutationen findet nach S2-01 nur den zustandslosen Logout. Die geprüften risikoreichen Portfolio-Operationen `applyOptimization`, Portfolio-Snapshot und PDF-Import verifizieren vor Schreibzugriff die Eigentümerschaft. Die Analyse ist repräsentativ, aber noch kein vollständiger Nachweis für sämtliche Endpunkte und Tabellen.
+Das zeilengenaue Inventar der öffentlichen Prozeduren liegt in `public-trpc-procedures-2026-08-15.txt`. Öffentliche Authentisierungs-, Markt- und Katalogdatenpfade sind beabsichtigt; kosten- oder zustandsintensive Ausnahmen wurden begrenzt. Die prüfbaren Portfolio-Transaktionspfade verwenden `getSavedPortfolioById(..., ctx.user.id)` oder gleichwertige Ownership-Prüfungen vor Lesen, Export, Update und Löschung. Der PDF-Import verifiziert die Portfolioeigentümerschaft vor dem Import. Das nicht mandantierbare globale Transaktionsauditlog ist bewusst administrativ.
 
 ## Abhängigkeitsstatus
 
-Der Produktionsaudit reduziert sich von **3 kritischen / 49 hohen** auf **0 kritische / 40 hohe** Befunde. Die verbleibenden hohen und moderaten Befunde müssen nach tatsächlichem Produktpfad, Exploitbarkeit und Upgrade-Risiko einzeln priorisiert werden. Ein blindes Upgrade aller Pakete wäre nicht verantwortbar.
+Die gezielte Aktualisierung von tRPC, Axios, Drizzle ORM, Officeparser, Nanoid und Nodemailer sowie das Ersetzen von SheetJS durch ExcelJS reduziert den Produktionsaudit von **0 kritisch / 40 hoch / 34 moderat** auf **0 kritisch / 22 hoch / 17 moderat**. Die 22 hohen Befunde liegen nun überwiegend transitiv unter ExcelJS (`minimatch`, `brace-expansion`, `tmp`), PptxGenJS (`image-size`), Twilio (`jws`), Recharts (`lodash`), Express 4 (`path-to-regexp`), Officeparser (`pdfjs-dist`) und jsdom (`undici`). Sie werden nicht durch ein pauschales Major-Upgrade verändert; die vollständigen Vorher-/Nachherartefakte und Paketpfade liegen im Auditverzeichnis.
+
+Die Lizenzinventur (`pnpm-licenses-prod-2026-08-15.json`) weist überwiegend permissive Kennzeichen aus. Fünf Paketmetadaten sind als `Unknown` markiert: `@builder.io/jsx-loc-internals`, `@builder.io/vite-plugin-jsx-loc`, `buffers`, `numeric` und `vite-plugin-manus-runtime`. Sie benötigen vor einer formalen kommerziellen Lizenzfreigabe eine Hersteller- beziehungsweise Repositoryprüfung; aus der Kennzeichnung allein wird keine Unzulässigkeit abgeleitet.
 
 ## Deterministische Testbasis
 
-Die vollständige lokale Suite besteht nun aus **147 bestandenen Testdateien und 1'290 bestandenen Tests**; neun bewusst externe oder charakterisierende Checks sind übersprungen. Sornette, TradingView, Upstash und Kimi führen ihre echten Upstream-Healthchecks nur bei `RUN_LIVE_INTEGRATION_TESTS=true` aus. Die jeweiligen lokalen Client-, Fallback- und Vertragsprüfungen bleiben Bestandteil der deterministischen Suite. Damit blockiert eine externe Latenz nicht mehr die Prüfung von Projektcode.
+Die vollständige lokale Suite besteht nun aus **152 bestandenen Testdateien und 1'301 bestandenen Tests**; elf bewusst externe oder charakterisierende Checks sind übersprungen. Sornette, TradingView, Upstash, Kimi und Perplexity führen echte Upstream-Healthchecks nur bei `RUN_LIVE_INTEGRATION_TESTS=true` aus. Die jeweiligen lokalen Client-, Fallback- und Vertragsprüfungen bleiben Bestandteil der deterministischen Suite. Produktionsbuild und TypeScript-Prüfung sind ebenfalls grün.
 
 ## Verbleibende Freigabe- und Prüfpflichten
 
 | Thema | Nächster Schritt |
 |---|---|
-| Scheduled-Endpunkte | Für einen künftig registrierten Portfolio-Metrics-Heartbeat zusätzlich eine persistierte Task-UID-Bindung anlegen; Research und Alerts sind bereits gebunden. |
-| Mandantentrennung | Vollständige, testbare Matrix aller Portfolio-/Transaktions-/Dokumentendpunkte erstellen. |
-| Datenschutz und Geheimnisse | Log-Retention, personenbezogene Felder, Export-/Löschpfade und entropiebasierten Git-Secret-Scan prüfen. |
-| High-Severity Dependencies | 40 hohe Befunde auf direkte Nutzung und sichere Zielversionen prüfen. |
-| HTTP-Härtung | Restriktive Content-Security-Policy erst nach Inventur aller legitimen Produktionsressourcen, Einbettungen und API-Ursprünge ergänzen. |
+| Künftiger Portfolio-Metrics-Heartbeat | Bei Registrierung dessen persistierte Task-UID in `scheduled_task_bindings` hinterlegen; Research und Alerts sind bereits gebunden. |
+| Transitive High-Severity Dependencies | 22 verbleibende hohe Befunde nicht als grün freigeben; pro Paketpfad ein getestetes Upgrade oder eine formale Risikoakzeptanz beschliessen. |
+| Lizenzfreigabe | Die fünf `Unknown`-Metadaten vor einer formalen kommerziellen Releasefreigabe gegen Primärlizenzen verifizieren. |
 
 Der aktive Portfolio-Metrics-Snapshot besitzt derzeit keinen Heartbeat-Task und wird ausschliesslich über bereits autorisierte Admin-/Dashboard-Pfade in-memory ausgelöst. Sobald ein eigener Heartbeat dafür registriert wird, muss seine UID als zusätzliche Bindung in `scheduled_task_bindings` hinterlegt werden; unbekannte Cron-UIDs erhalten keinen Seiteneffekt.
 
 ### Ergänzung: HTTP-Transporthärtung
 
-Der Server entfernt das Express-Fingerprinting und setzt für jede Antwort `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, eine restriktive Referrer-Policy sowie deaktivierte Kamera-, Mikrofon- und Geolokalisierungsrechte. In Produktion wird zusätzlich HSTS gesetzt. Die Header sind über zwei isolierte Tests abgesichert. Eine Content-Security-Policy wird erst nach einer vollständigen Inventur aller legitimen Skript-, Font-, Einbettungs- und API-Ursprünge ergänzt, damit die produktive Portfoliooberfläche nicht spekulativ eingeschränkt wird.
+Der Server entfernt das Express-Fingerprinting und setzt für jede Antwort `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, eine restriktive Referrer-Policy sowie deaktivierte Kamera-, Mikrofon- und Geolokalisierungsrechte. In Produktion sind zusätzlich HSTS und eine CSP aktiv: Skripte, Verbindungen und Formulare bleiben same-origin; Bilder dürfen nur von `https:`, `data:` und `blob:` stammen, um verifizierte Logo- und Bildpfade nicht zu brechen. Die Header sind über isolierte Tests abgesichert.

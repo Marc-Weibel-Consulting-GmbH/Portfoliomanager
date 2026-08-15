@@ -1316,7 +1316,7 @@ export const stocksRouter = router({
         
         return analysis;
       }),
-    dailyNews: publicProcedure
+    dailyNews: protectedProcedure
       .input(z.object({
         ticker: z.string(),
         companyName: z.string(),
@@ -1369,32 +1369,41 @@ export const stocksRouter = router({
               }
             }
           } else {
-            // Parse Excel using xlsx package
-            const XLSX = await import('xlsx');
-            const workbook = XLSX.read(buffer, { type: 'buffer' });
-            const sheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[sheetName];
-            const jsonData = XLSX.utils.sheet_to_json(sheet);
-            
-            // Find ticker and price columns (case-insensitive)
-            parsedData = jsonData.map((row: any) => {
-              const keys = Object.keys(row).map(k => k.toLowerCase());
-              const tickerKey = Object.keys(row).find(k => 
-                k.toLowerCase().includes('ticker') || k.toLowerCase().includes('symbol')
-              );
-              const priceKey = Object.keys(row).find(k => 
-                k.toLowerCase().includes('price') || k.toLowerCase().includes('kurs') || k.toLowerCase().includes('close')
-              );
-              const companyKey = Object.keys(row).find(k => 
-                k.toLowerCase().includes('company') || k.toLowerCase().includes('firma') || k.toLowerCase().includes('name')
-              );
-              
-              return {
-                ticker: tickerKey ? row[tickerKey] : '',
-                price: priceKey ? row[priceKey] : '',
-                company: companyKey ? row[companyKey] : '',
-              };
-            }).filter((item: any) => item.ticker && item.price);
+            // ExcelJS is also used by the research import path. Using one
+            // maintained parser removes the unpatched SheetJS CE reader.
+            const ExcelJS = (await import("exceljs")).default;
+            const workbook = new ExcelJS.Workbook();
+            await workbook.xlsx.load(buffer as any);
+            const sheet = workbook.worksheets[0];
+            if (!sheet) throw new Error("Excel-Datei enthält kein Arbeitsblatt");
+
+            const headers = new Map<string, number>();
+            const headerRow = sheet.getRow(1);
+            for (let column = 1; column <= headerRow.cellCount; column++) {
+              const value = headerRow.getCell(column).text.trim().toLowerCase();
+              if (value) headers.set(value, column);
+            }
+            const findColumn = (names: string[]) =>
+              [...headers.entries()].find(([header]) => names.some(name => header.includes(name)))?.[1];
+            const tickerColumn = findColumn(["ticker", "symbol"]);
+            const priceColumn = findColumn(["price", "kurs", "close"]);
+            const companyColumn = findColumn(["company", "firma", "name"]);
+            if (!tickerColumn || !priceColumn) {
+              throw new Error("Excel muss 'Ticker' und 'Price' Spalten enthalten");
+            }
+
+            for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber++) {
+              const row = sheet.getRow(rowNumber);
+              const ticker = row.getCell(tickerColumn).text.trim();
+              const price = row.getCell(priceColumn).text.trim();
+              if (ticker && price) {
+                parsedData.push({
+                  ticker,
+                  price,
+                  company: companyColumn ? row.getCell(companyColumn).text.trim() : "",
+                });
+              }
+            }
           }
         } catch (error: any) {
           throw new Error(`Fehler beim Parsen der Datei: ${error.message}`, { cause: error });
