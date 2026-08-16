@@ -422,7 +422,10 @@ export async function besteKandidaten(laufId: number, limit: number): Promise<Sc
   const res: any = await db.execute(sql`
     SELECT * FROM (
       SELECT k.*, ROW_NUMBER() OVER (
-        PARTITION BY COALESCE(sektor, '?')
+        -- KEIN Fragezeichen in SQL-Literalen: der mysql2-Treiber ersetzt
+        -- Platzhalter auch INNERHALB von Strings — ein '?' hier frass den
+        -- laufId-Parameter und kippte die ganze Status-Abfrage (Befund 16.08.).
+        PARTITION BY COALESCE(sektor, '')
         ORDER BY (signalScore IS NULL), signalScore DESC, bewertung DESC
       ) AS rangJeSektor
       FROM screener_kandidat k
