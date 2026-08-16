@@ -159,10 +159,29 @@ export function getHistoricalPriceCurrency(dbTicker: string, nativeCurrency: str
  * hinterlegt, wird der Ticker unverändert zurückgegeben (der Aufrufer behält seine
  * bestehende Suffix-Logik). Endpunkt-agnostisch (gilt für /eod, /div, /real-time).
  */
+/**
+ * Generische Suffix-Regeln DB-Konvention → EODHD-Exchange-Code. Der
+ * Screener-Live-Lauf #150001 bewies, dass die Regel fehlt: ALLE 405
+ * XETRA- und 140 LSE-Titel liefen ohne Fundamentaldaten (`SAP.DE` und
+ * `AZN.L` sind bei EODHD 404 — dort heisst es `.XETRA`/`.LSE`), und die
+ * Einzel-Einträge oben (ALV.DE, BATS.L, …) waren nur Handflicken genau
+ * dieser Regel. Die Gegenrichtung normalisiert `vergleichsTicker`
+ * (screenerLauf) seit jeher identisch: XETRA≙DE, LSE≙L.
+ */
+const SUFFIX_ALIAS: Record<string, string> = {
+  DE: "XETRA",
+  L: "LSE",
+};
+
 export function toEodhdSymbol(ticker: string): string {
   if (!ticker) return ticker;
   // Explizite Mappings haben Vorrang
   if (EODHD_TICKER_MAPPING[ticker]) return EODHD_TICKER_MAPPING[ticker];
+  const punkt = ticker.lastIndexOf(".");
+  if (punkt > 0) {
+    const alias = SUFFIX_ALIAS[ticker.slice(punkt + 1).toUpperCase()];
+    if (alias) return `${ticker.slice(0, punkt)}.${alias}`;
+  }
   // Generische Regel: Japanische Aktien (.T) — EODHD hat kein .TSE-Exchange.
   // Unbekannte .T-Ticker werden als nicht verfügbar behandelt (UNAVAILABLE_TICKERS).
   // Bekannte Ticker sind explizit in EODHD_TICKER_MAPPING oben eingetragen.
