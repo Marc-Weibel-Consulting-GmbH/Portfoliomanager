@@ -3523,16 +3523,21 @@ export const adminRouter = router({
         { header: "F-Score (0–9)", key: "fScore", width: 12 },
         { header: "Bewertung", key: "bewertung", width: 10 },
       ];
+      // Hinweis je Faktor mit exportieren — «PEG fehlt» ohne das Warum
+      // (kein Vendor-PEG, Wachstum unter 2 %, selbst gerechnet …) ist für
+      // eine externe Prüfung wertlos (Befund aus Marcs Excel-Durchsicht).
       const faktorSpalten = [
         ...qNamen.flatMap((n) => [
           { header: `Q: ${n} — Wert`, key: `qw:${n}`, width: 14 },
           { header: `Q: ${n} — Punkte`, key: `qp:${n}`, width: 14 },
           { header: `Q: ${n} — Gewicht`, key: `qg:${n}`, width: 14 },
+          { header: `Q: ${n} — Hinweis`, key: `qh:${n}`, width: 40 },
         ]),
         ...bNamen.flatMap((n) => [
           { header: `B: ${n} — Wert`, key: `bw:${n}`, width: 14 },
           { header: `B: ${n} — Punkte`, key: `bp:${n}`, width: 14 },
           { header: `B: ${n} — Gewicht`, key: `bg:${n}`, width: 14 },
+          { header: `B: ${n} — Hinweis`, key: `bh:${n}`, width: 40 },
         ]),
       ];
       blatt.columns = [...basisSpalten, ...faktorSpalten];
@@ -3563,12 +3568,14 @@ export const adminRouter = router({
           zeile[`qw:${f.name}`] = f.wert ?? null;
           zeile[`qp:${f.name}`] = f.punkte ?? null;
           zeile[`qg:${f.name}`] = f.gewicht ?? null;
+          zeile[`qh:${f.name}`] = f.hinweis ?? null;
         }
         for (const f of (k.bewertungFaktoren as Faktor[] | null) ?? []) {
           if (!f?.name) continue;
           zeile[`bw:${f.name}`] = f.wert ?? null;
           zeile[`bp:${f.name}`] = f.punkte ?? null;
           zeile[`bg:${f.name}`] = f.gewicht ?? null;
+          zeile[`bh:${f.name}`] = f.hinweis ?? null;
         }
         blatt.addRow(zeile);
       }

@@ -248,7 +248,10 @@ interface TitelStammdaten {
 
 async function holeStammdaten(ticker: string): Promise<TitelStammdaten | null> {
   if (!ENV.eodhdApiKey) return null;
-  const symbol = ticker.includes(".") ? ticker : `${ticker}.US`;
+  // Über die zentrale Symbol-Auflösung: `SAP.DE`/`AZN.L` sind bei EODHD 404
+  // (dort `.XETRA`/`.LSE`) — im Lauf #150001 scheiterte dadurch JEDE
+  // Stammdaten-Prüfung für XETRA und LSE, und die Zweitkotierungen blieben drin.
+  const symbol = toEodhdSymbol(ticker.includes(".") ? ticker : `${ticker}.US`);
   const url = `${EODHD_BASE_URL}/fundamentals/${encodeURIComponent(symbol)}` +
     `?api_token=${ENV.eodhdApiKey}&filter=General&fmt=json`;
   const resp = await retryFetch(url, {}, { maxRetries: 1, baseDelay: 500 });
@@ -472,7 +475,7 @@ export async function uebernimmKandidat(k: {
   let kurs = "0";
   try {
     if (ENV.eodhdApiKey) {
-      const eoTicker = k.ticker.includes(".") ? k.ticker : `${k.ticker}.US`;
+      const eoTicker = toEodhdSymbol(k.ticker.includes(".") ? k.ticker : `${k.ticker}.US`);
       const resp = await fetch(`${EODHD_BASE_URL}/real-time/${eoTicker}?api_token=${ENV.eodhdApiKey}&fmt=json`);
       if (resp.ok) {
         const data: any = await resp.json();
