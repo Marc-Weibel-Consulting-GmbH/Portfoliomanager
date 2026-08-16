@@ -440,6 +440,9 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
     qualityScore,
     epsWachstum5j: epsGrowth5y,
     epsWachstumTTM: epsGrowthTTM,
+    // Rückfall, wenn der Vendor kein PEG führt: selbst rechnen aus KGV und
+    // belegtem Wachstum (Screener-Befund — betraf reihenweise Nicht-US-Titel).
+    kgv: trailingPE,
   });
   const adjustedPeg = bereinigt.peg;
 

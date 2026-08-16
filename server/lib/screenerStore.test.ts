@@ -12,6 +12,7 @@ function lauf(overrides: Partial<LaufUebersicht> = {}): LaufUebersicht {
     berechnet: 331,
     fehlgeschlagen: 25,
     zweitkotierungen: 84,
+    ausgeschlossen: 0,
     vorhanden: 130,
     uebernommen: 0,
     abgelehnt: 1,

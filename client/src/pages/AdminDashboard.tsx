@@ -122,6 +122,17 @@ export default function AdminDashboard() {
     onSuccess: (d) => { toast.success(d.message); screenerStatusQ.refetch(); },
     onError: (err) => toast.error("Fehler", { description: err.message }),
   });
+  const screenerExport = trpc.admin.screenerExport.useMutation({
+    onSuccess: (d) => {
+      if (d.url) {
+        toast.success("Excel-Export bereit", { description: d.message });
+        window.open(d.url, "_blank");
+      } else {
+        toast.info(d.message ?? "Nichts zu exportieren.");
+      }
+    },
+    onError: (err) => toast.error("Export fehlgeschlagen", { description: err.message }),
+  });
   useEffect(() => {
     const s = screenerStatusQ.data;
     if (!screenerAuto || !s?.lauf) return;
@@ -650,6 +661,9 @@ export default function AdminDashboard() {
               {(screenerStatusQ.data.lauf?.zweitkotierungen ?? 0) > 0
                 ? ` ${screenerStatusQ.data.lauf!.zweitkotierungen} Zweitkotierungen aussortiert (nur der Hauptbörsenplatz zählt).`
                 : ""}
+              {(screenerStatusQ.data.lauf?.ausgeschlossen ?? 0) > 0
+                ? ` ${screenerStatusQ.data.lauf!.ausgeschlossen} ausgeschlossen (Vorzugsaktien, Fonds, OTC-Notizen).`
+                : ""}
             </p>
           )}
 
@@ -677,7 +691,15 @@ export default function AdminDashboard() {
                 disabled={screenerNeuBerechnen.isPending || !screenerStatusQ.data?.lauf}
                 onClick={() => screenerNeuBerechnen.mutate({ laufId: screenerStatusQ.data!.lauf!.id })}
               >
-                Alle neu rechnen (Herleitung & ADR-Filter)
+                Alle neu rechnen (Vorzugs-/OTC-Filter, PEG-Rückfall)
+              </Button>
+              <Button
+                size="sm" variant="outline" className="h-6 px-2 text-[11px]"
+                disabled={screenerExport.isPending || !screenerStatusQ.data?.lauf}
+                onClick={() => screenerExport.mutate({ laufId: screenerStatusQ.data!.lauf!.id })}
+                title="Alle berechneten Titel mit kompletter Faktor-Herleitung als Excel-Datei — für die externe Überprüfung"
+              >
+                {screenerExport.isPending ? "Exportiere…" : "Excel-Export (alle Titel + Faktoren)"}
               </Button>
             </div>
           )}
@@ -706,7 +728,7 @@ export default function AdminDashboard() {
           {(screenerStatusQ.data?.beste?.length ?? 0) > 0 && (
             <div className="border-t pt-3 space-y-2">
               <p className="text-xs font-medium">
-                Beste Kandidaten (nach Signal-Score) — nicht in der Watchlist
+                Beste Kandidaten (sektorweise abwechselnd, je Sektor nach Signal-Score) — nicht in der Watchlist
                 <span className="text-muted-foreground font-normal">
                   {" "}· zeige {screenerStatusQ.data!.beste.length}
                   {screenerStatusQ.data?.lauf ? ` von ${screenerStatusQ.data.lauf.berechnet + screenerStatusQ.data.lauf.uebernommen + screenerStatusQ.data.lauf.abgelehnt} berechneten` : ""}
@@ -719,6 +741,7 @@ export default function AdminDashboard() {
                       <th className="py-1 pr-3">Ticker</th>
                       <th className="py-1 pr-3">Name</th>
                       <th className="py-1 pr-3">Börse</th>
+                      <th className="py-1 pr-3">Land</th>
                       <th className="py-1 pr-3">Sektor</th>
                       <th className="py-1 pr-3 text-right">Qualität</th>
                       <th className="py-1 pr-3 text-right">Bewertung</th>
@@ -737,6 +760,7 @@ export default function AdminDashboard() {
                         <td className="py-1.5 pr-3 font-mono">{k.ticker}</td>
                         <td className="py-1.5 pr-3 max-w-[220px] truncate">{k.name ?? "—"}</td>
                         <td className="py-1.5 pr-3">{k.boerse ?? "—"}</td>
+                        <td className="py-1.5 pr-3">{k.land ?? "—"}</td>
                         <td className="py-1.5 pr-3 max-w-[140px] truncate">{k.sektor ?? "—"}</td>
                         <td className="py-1.5 pr-3 text-right font-mono">
                           {k.qualitaet != null ? Math.round(k.qualitaet) : "—"}
@@ -778,7 +802,7 @@ export default function AdminDashboard() {
                           zeigen. Ohne sie liesse sich kein Score nachprüfen. */}
                       {screenerDetail === k.ticker && (
                         <tr key={`${k.ticker}-detail`} className="border-t border-white/5 bg-black/30">
-                          <td colSpan={8} className="py-2 px-3">
+                          <td colSpan={9} className="py-2 px-3">
                             {/* Die 60/40-Klammer der Qualität: Die Faktortabelle unten ist
                                 nur das Niveau — erst mit der Richtung (F-Score) lässt sich
                                 die Kopfzahl nachrechnen. */}

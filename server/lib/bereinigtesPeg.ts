@@ -35,8 +35,14 @@ export interface BereinigtesPegErgebnis {
   peg: number | null;
   /** Warum kein Wert ausgegeben wird; null, wenn `peg` belegt ist. */
   grund: BereinigtPegGrund | null;
-  /** Deutscher Anzeigetext für den Faktor-Hinweis; null bei belegtem Wert. */
+  /**
+   * Deutscher Anzeigetext für den Faktor-Hinweis. Bei ausgeblendetem Wert der
+   * Grund; bei selbst gerechnetem Wert die Herkunft; null nur beim
+   * unauffälligen Vendor-Fall.
+   */
   hinweis: string | null;
+  /** Woher das rohe PEG stammt; null, wenn keines zustande kam. */
+  quelle: "vendor" | "selbst" | null;
 }
 
 export interface BereinigtesPegEingabe {
@@ -50,43 +56,81 @@ export interface BereinigtesPegEingabe {
   epsWachstum5j: number | null;
   /** EPS-Wachstum TTM, % — Rückfall NUR wenn kein 5j-Wert existiert. */
   epsWachstumTTM: number | null;
+  /**
+   * Trailing-KGV — nur für den Rückfall, wenn der Vendor kein PEG liefert:
+   * Dann wird das rohe PEG selbst gerechnet (KGV ÷ belegtes Wachstum) statt
+   * den Faktor auszublenden. Screener-Befund: Bei vielen Nicht-US-Titeln
+   * fehlt die Zahl beim Vendor, nicht in den Daten.
+   */
+  kgv?: number | null;
 }
 
 export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis {
   const leer = (grund: BereinigtPegGrund, hinweis: string | null): BereinigtesPegErgebnis =>
-    ({ peg: null, grund, hinweis });
+    ({ peg: null, grund, hinweis, quelle: null });
 
-  if (e.vendorPeg === null || !Number.isFinite(e.vendorPeg) || e.vendorPeg <= 0) {
-    return leer("peg_fehlt", "kein Vendor-PEG von EODHD geliefert");
-  }
+  let rohesPeg: number;
+  let quelle: "vendor" | "selbst";
+  let quellenHinweis: string | null = null;
 
-  // ANDERS als in pegHistory ist das Wachstum hier nicht der Nenner der
-  // eigenen Rechnung, sondern nur die Plausibilitätsprüfung des
-  // Vendor-Nenners. Dafür genügt, dass IRGENDEINE der beiden Wachstumszahlen
-  // trägt — die strengere «5j führt, kein Ausweichen»-Regel der ersten
-  // Fassung blendete das PEG reihenweise aus, weil das 5j-CAGR oft fehlt
-  // oder von einem einzelnen schwachen Basisjahr gedrückt wird.
-  const belegte = [e.epsWachstum5j, e.epsWachstumTTM]
-    .filter((w): w is number => w !== null && Number.isFinite(w));
-  if (belegte.length === 0) {
-    return leer("wachstum_fehlt",
-      "PEG ausgeblendet — kein belegtes Gewinnwachstum, der Nenner der Vendor-Zahl ist nicht prüfbar");
-  }
-  if (Math.max(...belegte) < MIN_WACHSTUM_FUER_PEG) {
-    return leer("wachstum_zu_gering",
-      `PEG sagt hier nichts — Wachstum unter ${MIN_WACHSTUM_FUER_PEG} % p.a. ist eine Division durch fast null`);
+  if (e.vendorPeg !== null && Number.isFinite(e.vendorPeg) && e.vendorPeg > 0) {
+    rohesPeg = e.vendorPeg;
+    quelle = "vendor";
+
+    // ANDERS als in pegHistory ist das Wachstum hier nicht der Nenner der
+    // eigenen Rechnung, sondern nur die Plausibilitätsprüfung des
+    // Vendor-Nenners. Dafür genügt, dass IRGENDEINE der beiden Wachstumszahlen
+    // trägt — die strengere «5j führt, kein Ausweichen»-Regel der ersten
+    // Fassung blendete das PEG reihenweise aus, weil das 5j-CAGR oft fehlt
+    // oder von einem einzelnen schwachen Basisjahr gedrückt wird.
+    const belegte = [e.epsWachstum5j, e.epsWachstumTTM]
+      .filter((w): w is number => w !== null && Number.isFinite(w));
+    if (belegte.length === 0) {
+      return leer("wachstum_fehlt",
+        "PEG ausgeblendet — kein belegtes Gewinnwachstum, der Nenner der Vendor-Zahl ist nicht prüfbar");
+    }
+    if (Math.max(...belegte) < MIN_WACHSTUM_FUER_PEG) {
+      return leer("wachstum_zu_gering",
+        `PEG sagt hier nichts — Wachstum unter ${MIN_WACHSTUM_FUER_PEG} % p.a. ist eine Division durch fast null`);
+    }
+  } else {
+    // Kein Vendor-PEG: selbst rechnen, wenn KGV und ein tragfähiges Wachstum
+    // vorliegen. Hier IST das Wachstum der Nenner — 5j führt (wie in
+    // pegHistory), TTM nur als Rückfall, und die 2-%-Untergrenze gilt strikt.
+    const kgv = e.kgv !== null && e.kgv !== undefined && Number.isFinite(e.kgv) && e.kgv > 0 ? e.kgv : null;
+    if (kgv === null) {
+      return leer("peg_fehlt", "kein Vendor-PEG von EODHD geliefert");
+    }
+    const nenner =
+      e.epsWachstum5j !== null && Number.isFinite(e.epsWachstum5j) && e.epsWachstum5j >= MIN_WACHSTUM_FUER_PEG
+        ? e.epsWachstum5j
+        : e.epsWachstumTTM !== null && Number.isFinite(e.epsWachstumTTM) && e.epsWachstumTTM >= MIN_WACHSTUM_FUER_PEG
+          ? e.epsWachstumTTM
+          : null;
+    if (nenner === null) {
+      const irgendeinWachstum = [e.epsWachstum5j, e.epsWachstumTTM]
+        .some((w) => w !== null && Number.isFinite(w));
+      return irgendeinWachstum
+        ? leer("wachstum_zu_gering",
+            `PEG sagt hier nichts — Wachstum unter ${MIN_WACHSTUM_FUER_PEG} % p.a. ist eine Division durch fast null`)
+        : leer("wachstum_fehlt",
+            "PEG ausgeblendet — kein Vendor-PEG und kein belegtes Gewinnwachstum zum Selbstrechnen");
+    }
+    rohesPeg = kgv / nenner;
+    quelle = "selbst";
+    quellenHinweis = `selbst gerechnet: KGV ${kgv.toFixed(1)} ÷ ${nenner.toFixed(1)} % Wachstum (kein Vendor-PEG)`;
   }
 
   // Die bisherige Bereinigung, unverändert: Volatilitätsaufschlag und
   // Qualitätsmultiplikator.
   const volatilityPenalty = e.epsVolatility !== null ? Math.min(1.0, e.epsVolatility * 0.5) : 0.2;
   const qualityMultiplier = 0.7 + (e.qualityScore / 100) * 0.6; // 0.7–1.3
-  const peg = e.vendorPeg * (1 + volatilityPenalty) / qualityMultiplier;
+  const peg = rohesPeg * (1 + volatilityPenalty) / qualityMultiplier;
 
   if (peg > PEG_OBERGRENZE) {
     return leer("peg_extrem",
       `bereinigtes PEG ${peg.toFixed(1)} über der Obergrenze ${PEG_OBERGRENZE} — keine Aussage, Faktor ausgeblendet`);
   }
 
-  return { peg, grund: null, hinweis: null };
+  return { peg, grund: null, hinweis: quellenHinweis, quelle };
 }

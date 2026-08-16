@@ -445,7 +445,7 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
       punkte: pegPunkte,
       gewicht: 0.35,
       hinweis: e.adjustedPeg === null ? (e.pegHinweis ?? "nicht verfügbar")
-        : `${e.adjustedPeg.toFixed(2)} — Bewertung im Verhältnis zum Wachstum${richtungsText}`,
+        : `${e.adjustedPeg.toFixed(2)} — Bewertung im Verhältnis zum Wachstum${richtungsText}${e.pegHinweis ? ` · ${e.pegHinweis}` : ""}`,
     },
     // KGV auch als eigener Faktor, nicht nur als Deckel (FASSUNG 3): Das PEG
     // bestraft billige Wenig-Wächser — ein KGV von 12 bei 4 % Wachstum ergibt

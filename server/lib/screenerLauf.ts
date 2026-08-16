@@ -21,6 +21,7 @@ import { ENV } from "../_core/env";
 import { retryFetch } from "../_core/retryUtil";
 import { tickerAusScreenerCode } from "./universeExpansion";
 import { alsProzent } from "./dividendenrendite";
+import { toEodhdSymbol } from "./eodhdSymbol";
 
 const EODHD_BASE_URL = "https://eodhd.com/api";
 
@@ -112,6 +113,11 @@ export async function sammleUniversum(
         // die CEDEARs: Das Original gehört ins Universum, nicht das Zertifikat.
         const codeRoh = String(item.code || "").trim().toUpperCase();
         if (boerse === "lse" && codeRoh.startsWith("0")) { fremde++; continue; }
+        // US-Vorzugsaktien-Serien (MS-PF, MS-PA, …) schon am Code aussortieren —
+        // sie sind Zinspapiere im Aktienkleid und erschienen im Live-Lauf als
+        // fünffacher «Morgan Stanley». `General.Type` in Stufe 2 bleibt die
+        // Autorität; der Mustertest spart nur den Abruf für die offensichtlichen.
+        if (boerse === "us" && /-P[A-Z]?$/.test(codeRoh)) { fremde++; continue; }
         // ADRs/Zertifikate schon am Namen aussortieren — spart die
         // Hauptkotierungs-Abfrage in Stufe 2 für die offensichtlichen Fälle.
         if (ADR_NAMENSMUSTER.test(String(item.name || ""))) { fremde++; continue; }
@@ -156,11 +162,18 @@ export async function sammleUniversum(
   if (!db) throw new Error("Datenbank nicht verfügbar");
   const { stocks } = await import("../../drizzle/schema");
   const vorhandene = await db.select({ ticker: stocks.ticker }).from(stocks);
-  const vorhandeneSet = new Set(vorhandene.map((r: any) => String(r.ticker).toUpperCase()));
+  // Watchlist-Ticker auch in ihrer EODHD-Alias-Form merken (ROG.SW steht bei
+  // EODHD als RO.SW, XETRA≙DE usw.) — sonst erscheint ein Watchlist-Titel
+  // unter dem Alias als «neuer» Kandidat.
+  const vorhandeneSet = new Set(vorhandene.flatMap((r: any) => {
+    const t = String(r.ticker).toUpperCase();
+    return [t, vergleichsTicker(toEodhdSymbol(t))];
+  }));
 
   const { ergaenzeKandidaten } = await import("./screenerStore");
   const kandidaten = Array.from(gesehen.values()).map((k) => {
-    const inWatchlist = vorhandeneSet.has(k.ticker.toUpperCase()) ? 1 : 0;
+    const inWatchlist =
+      vorhandeneSet.has(k.ticker.toUpperCase()) || vorhandeneSet.has(vergleichsTicker(k.ticker)) ? 1 : 0;
     return { ...k, inWatchlist, status: inWatchlist ? "vorhanden" : "wartend" };
   });
   const ablage = await ergaenzeKandidaten(laufId, kandidaten);
@@ -190,6 +203,8 @@ export interface RechenErgebnis {
   berechnet: number;
   fehlgeschlagen: number;
   zweitkotierungen: number;
+  /** Vorzugsaktien, Fonds, OTC-Notizen — kein Stammtitel an regulärer Börse. */
+  ausgeschlossen: number;
   nochOffen: number;
   meldungen: string[];
 }
@@ -214,17 +229,44 @@ export function vergleichsTicker(t: string): string {
 export const ADR_NAMENSMUSTER = /\bADRs?\b|\bADS\b|American Depositary|CEDEAR|\bCDR\b|\bDRC\b/i;
 
 /**
- * Hauptkotierung eines Titels laut EODHD (`General::PrimaryTicker`), z. B.
- * NVDA.SW → NVDA.US. `null` wenn unbekannt.
+ * Stammdaten eines Titels aus dem EODHD-`General`-Block: Hauptkotierung,
+ * Instrumententyp, tatsächlicher Börsenplatz und Sitzland. Vorher wurde nur
+ * `General::PrimaryTicker` geholt — damit rutschten Vorzugsaktien (Typ
+ * «Preferred Stock», z. B. fünf Morgan-Stanley-Serien) und OTC-Zweitnotizen
+ * (China Life als CILJF am Pink-Market) durch, weil beide formal ihre eigene
+ * «Hauptkotierung» sind.
  */
-async function hauptkotierung(ticker: string): Promise<string | null> {
+interface TitelStammdaten {
+  primaerTicker: string | null;
+  /** z. B. "Common Stock", "Preferred Stock", "ETF". */
+  typ: string | null;
+  /** Tatsächlicher Handelsplatz laut EODHD, z. B. "NYSE", "PINK", "OTCQB". */
+  boersenplatz: string | null;
+  /** Sitzland ISO-2, z. B. "US", "CN". */
+  landIso: string | null;
+}
+
+async function holeStammdaten(ticker: string): Promise<TitelStammdaten | null> {
   if (!ENV.eodhdApiKey) return null;
   const symbol = ticker.includes(".") ? ticker : `${ticker}.US`;
   const url = `${EODHD_BASE_URL}/fundamentals/${encodeURIComponent(symbol)}` +
-    `?api_token=${ENV.eodhdApiKey}&filter=General::PrimaryTicker&fmt=json`;
+    `?api_token=${ENV.eodhdApiKey}&filter=General&fmt=json`;
   const resp = await retryFetch(url, {}, { maxRetries: 1, baseDelay: 500 });
-  const data: unknown = await resp.json();
-  return typeof data === "string" && data.trim() ? data.trim().toUpperCase() : null;
+  const data: any = await resp.json();
+  if (!data || typeof data !== "object") return null;
+  const text = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  return {
+    primaerTicker: text(data.PrimaryTicker)?.toUpperCase() ?? null,
+    typ: text(data.Type),
+    boersenplatz: text(data.Exchange)?.toUpperCase() ?? null,
+    landIso: text(data.CountryISO)?.toUpperCase() ?? null,
+  };
+}
+
+/** OTC-Handelsplätze — Zweitnotizen ohne reguläre Börsenaufsicht, kein Universum. */
+function istOtcPlatz(boersenplatz: string | null): boolean {
+  if (!boersenplatz) return false;
+  return boersenplatz.startsWith("OTC") || boersenplatz === "PINK" || boersenplatz === "NMFQS";
 }
 
 /**
@@ -271,6 +313,7 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
   let berechnet = 0;
   let fehlgeschlagen = 0;
   let zweitkotierungen = 0;
+  let ausgeschlossen = 0;
 
   for (const k of offen) {
     if (Date.now() - start > HAEPPCHEN_BUDGET_MS) {
@@ -292,13 +335,40 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         zweitkotierungen++;
         continue;
       }
-      const primaer = await mitTimeout(hauptkotierung(k.ticker), TITEL_TIMEOUT_MS, `${k.ticker} Hauptkotierung`)
+      const stamm = await mitTimeout(holeStammdaten(k.ticker), TITEL_TIMEOUT_MS, `${k.ticker} Stammdaten`)
         .catch(() => null);
-      const zweit = istVerzichtbareZweitkotierung(k.ticker, primaer);
+      // Nur Stammaktien: Vorzugsaktien-Serien (Preferred Stock), Fonds und
+      // Notes sind Zins-/Vehikelpapiere — im Live-Lauf stand Morgan Stanley
+      // fünffach in den Top 30, einmal je Vorzugsserie. Fehlt der Typ, wird
+      // normal weitergerechnet (lieber ein Fremdling zu viel als ein Titel
+      // grundlos verworfen — gleiche Linie wie bei der Hauptkotierung).
+      if (stamm?.typ && stamm.typ !== "Common Stock") {
+        await schreibeErgebnis(laufId, k.ticker, {
+          status: "ausgeschlossen",
+          fehler: `kein Stammtitel: ${stamm.typ}`,
+          land: stamm.landIso,
+        });
+        ausgeschlossen++;
+        continue;
+      }
+      // OTC-/Pink-Market-Notizen sind Zweitnotizen ohne reguläre Börse (China
+      // Life als CILJF) — der Screener-Exchange-Filter «us» lässt sie durch,
+      // weil EODHD sie unter dem US-Virtual-Exchange führt.
+      if (istOtcPlatz(stamm?.boersenplatz ?? null)) {
+        await schreibeErgebnis(laufId, k.ticker, {
+          status: "ausgeschlossen",
+          fehler: `OTC-Notiz (${stamm!.boersenplatz}) — kein regulärer Börsenplatz`,
+          land: stamm?.landIso ?? null,
+        });
+        ausgeschlossen++;
+        continue;
+      }
+      const zweit = istVerzichtbareZweitkotierung(k.ticker, stamm?.primaerTicker ?? null);
       if (zweit.ja) {
         await schreibeErgebnis(laufId, k.ticker, {
           status: "zweitkotierung",
           fehler: `Hauptbörse: ${zweit.hauptboerse}`,
+          land: stamm?.landIso ?? null,
         });
         zweitkotierungen++;
         continue;
@@ -320,6 +390,7 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
       );
       await schreibeErgebnis(laufId, k.ticker, {
         status: "berechnet",
+        land: stamm?.landIso ?? null,
         qualitaet: scores.qualitaet.gesamt,
         bewertung: scores.bewertung.score,
         signalScore: scores.signal.score,
@@ -350,7 +421,7 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
   const nochOffen = (await offeneKandidaten(laufId, 1)).length > 0
     ? (await zaehleOffene(laufId))
     : 0;
-  return { berechnet, fehlgeschlagen, zweitkotierungen, nochOffen, meldungen: meldungen.slice(0, 10) };
+  return { berechnet, fehlgeschlagen, zweitkotierungen, ausgeschlossen, nochOffen, meldungen: meldungen.slice(0, 10) };
 }
 
 async function zaehleOffene(laufId: number): Promise<number> {
@@ -383,12 +454,18 @@ export async function uebernimmKandidat(k: {
   const db = await getDb();
   if (!db) throw new Error("Datenbank nicht verfügbar");
   const { stocks } = await import("../../drizzle/schema");
-  const { eq } = await import("drizzle-orm");
 
-  const existing = await db.select({ id: stocks.id }).from(stocks)
-    .where(eq(stocks.ticker, k.ticker)).limit(1);
-  if (existing.length > 0) {
-    return { uebernommen: false, grund: "Titel steht bereits in der Tabelle" };
+  // Duplikatprüfung inklusive Alias-Formen: exakter Ticker UND die
+  // EODHD-Vergleichsform (ROG.SW ≙ RO.SW, .DE ≙ .XETRA). Ohne das liesse
+  // sich ein Watchlist-Titel unter seinem Alias ein zweites Mal übernehmen.
+  const alleVorhandenen = await db.select({ ticker: stocks.ticker }).from(stocks);
+  const ziel = vergleichsTicker(k.ticker);
+  const schonDa = alleVorhandenen.some((r: any) => {
+    const t = String(r.ticker).toUpperCase();
+    return t === k.ticker.toUpperCase() || vergleichsTicker(toEodhdSymbol(t)) === ziel;
+  });
+  if (schonDa) {
+    return { uebernommen: false, grund: "Titel steht bereits in der Watchlist (ggf. unter einem Ticker-Alias)" };
   }
 
   // Aktueller Kurs via EODHD, damit der Titel nicht mit Kurs 0 startet.

@@ -3331,7 +3331,8 @@ export const adminRouter = router({
           const ergebnis = await rechneHaeppchen(input.laufId, input.maxTitel);
           screener.meldungen = [
             `Häppchen: ${ergebnis.berechnet} berechnet, ${ergebnis.fehlgeschlagen} fehlgeschlagen, ` +
-            `${ergebnis.zweitkotierungen} Zweitkotierungen aussortiert, ${ergebnis.nochOffen} noch offen.`,
+            `${ergebnis.zweitkotierungen} Zweitkotierungen, ${ergebnis.ausgeschlossen} ausgeschlossen (Vorzugs/OTC), ` +
+            `${ergebnis.nochOffen} noch offen.`,
             ...ergebnis.meldungen,
           ];
           if (ergebnis.nochOffen === 0) {
@@ -3446,5 +3447,143 @@ export const adminRouter = router({
       }
       await setzeEntscheidung(input.laufId, input.ticker, "uebernommen");
       return { ok: true, message: `${input.ticker} in die Watchlist übernommen — Kurshistorie wird nachgeladen.` };
+    }),
+
+  /**
+   * Excel-Export aller Kandidaten eines Laufs für die externe Überprüfung:
+   * ein Blatt mit allen berechneten Titeln inkl. der kompletten
+   * Faktor-Herleitung (Wert, Punkte, Gewicht je Faktor), ein zweites mit
+   * allem Aussortierten samt Grund. Datei geht in den S3-Export-Ordner,
+   * zurück kommt ein zeitlich begrenzter Download-Link (Muster researchRouter).
+   */
+  screenerExport: adminProcedure
+    .input(z.object({ laufId: z.number().int() }))
+    .mutation(async ({ input }) => {
+      const { alleKandidaten } = await import("../lib/screenerStore");
+      const kandidaten = await alleKandidaten(input.laufId);
+      if (kandidaten.length === 0) {
+        return { url: null, filename: null, message: "Dieser Lauf hat keine Kandidaten." };
+      }
+
+      const ExcelJS = (await import("exceljs")).default;
+      const wb = new ExcelJS.Workbook();
+
+      const berechnete = kandidaten.filter((k) =>
+        ["berechnet", "uebernommen", "abgelehnt"].includes(k.status));
+      const aussortierte = kandidaten.filter((k) =>
+        !["berechnet", "uebernommen", "abgelehnt"].includes(k.status));
+
+      // Faktor-Spalten dynamisch aus den Herleitungen — so bleibt der Export
+      // korrekt, wenn Faktoren dazukommen oder wegfallen (FASSUNG-Wechsel).
+      type Faktor = { name?: string; wert?: number | null; punkte?: number | null; gewicht?: number; hinweis?: string };
+      const faktorNamen = (feld: "qualitaetFaktoren" | "bewertungFaktoren"): string[] => {
+        const namen: string[] = [];
+        for (const k of berechnete) {
+          for (const f of (k[feld] as Faktor[] | null) ?? []) {
+            if (f?.name && !namen.includes(f.name)) namen.push(f.name);
+          }
+        }
+        return namen;
+      };
+      const qNamen = faktorNamen("qualitaetFaktoren");
+      const bNamen = faktorNamen("bewertungFaktoren");
+
+      const blatt = wb.addWorksheet("Berechnete Kandidaten");
+      const basisSpalten = [
+        { header: "Ticker", key: "ticker", width: 12 },
+        { header: "Name", key: "name", width: 34 },
+        { header: "Börse", key: "boerse", width: 8 },
+        { header: "Land", key: "land", width: 6 },
+        { header: "Sektor", key: "sektor", width: 22 },
+        { header: "Währung", key: "waehrung", width: 8 },
+        { header: "MarktKap (Mrd.)", key: "marktKap", width: 14 },
+        { header: "Div.-Rendite %", key: "div", width: 12 },
+        { header: "Status", key: "status", width: 12 },
+        { header: "Signal-Score", key: "signalScore", width: 12 },
+        { header: "Signal", key: "signalLabel", width: 10 },
+        { header: "Qualität", key: "qualitaet", width: 10 },
+        { header: "Q-Niveau (60 %)", key: "qNiveau", width: 13 },
+        { header: "Q-Richtung (40 %)", key: "qRichtung", width: 14 },
+        { header: "F-Score (0–9)", key: "fScore", width: 12 },
+        { header: "Bewertung", key: "bewertung", width: 10 },
+      ];
+      const faktorSpalten = [
+        ...qNamen.flatMap((n) => [
+          { header: `Q: ${n} — Wert`, key: `qw:${n}`, width: 14 },
+          { header: `Q: ${n} — Punkte`, key: `qp:${n}`, width: 14 },
+          { header: `Q: ${n} — Gewicht`, key: `qg:${n}`, width: 14 },
+        ]),
+        ...bNamen.flatMap((n) => [
+          { header: `B: ${n} — Wert`, key: `bw:${n}`, width: 14 },
+          { header: `B: ${n} — Punkte`, key: `bp:${n}`, width: 14 },
+          { header: `B: ${n} — Gewicht`, key: `bg:${n}`, width: 14 },
+        ]),
+      ];
+      blatt.columns = [...basisSpalten, ...faktorSpalten];
+      blatt.getRow(1).font = { bold: true };
+      blatt.views = [{ state: "frozen", xSplit: 2, ySplit: 1 }];
+
+      for (const k of berechnete) {
+        const zeile: Record<string, unknown> = {
+          ticker: k.ticker,
+          name: k.name,
+          boerse: k.boerse,
+          land: k.land,
+          sektor: k.sektor,
+          waehrung: k.waehrung,
+          marktKap: k.marktKap != null ? Math.round(k.marktKap / 1e7) / 100 : null,
+          div: k.dividendenrendite,
+          status: k.status,
+          signalScore: k.signalScore,
+          signalLabel: k.signalLabel,
+          qualitaet: k.qualitaet,
+          qNiveau: k.qualitaetNiveau,
+          qRichtung: k.qualitaetRichtung,
+          fScore: k.fScore,
+          bewertung: k.bewertung,
+        };
+        for (const f of (k.qualitaetFaktoren as Faktor[] | null) ?? []) {
+          if (!f?.name) continue;
+          zeile[`qw:${f.name}`] = f.wert ?? null;
+          zeile[`qp:${f.name}`] = f.punkte ?? null;
+          zeile[`qg:${f.name}`] = f.gewicht ?? null;
+        }
+        for (const f of (k.bewertungFaktoren as Faktor[] | null) ?? []) {
+          if (!f?.name) continue;
+          zeile[`bw:${f.name}`] = f.wert ?? null;
+          zeile[`bp:${f.name}`] = f.punkte ?? null;
+          zeile[`bg:${f.name}`] = f.gewicht ?? null;
+        }
+        blatt.addRow(zeile);
+      }
+
+      const blatt2 = wb.addWorksheet("Aussortiert");
+      blatt2.columns = [
+        { header: "Ticker", key: "ticker", width: 12 },
+        { header: "Name", key: "name", width: 34 },
+        { header: "Börse", key: "boerse", width: 8 },
+        { header: "Land", key: "land", width: 6 },
+        { header: "Status", key: "status", width: 16 },
+        { header: "Grund", key: "grund", width: 60 },
+      ];
+      blatt2.getRow(1).font = { bold: true };
+      for (const k of aussortierte) {
+        blatt2.addRow({
+          ticker: k.ticker, name: k.name, boerse: k.boerse, land: k.land,
+          status: k.status, grund: k.fehler,
+        });
+      }
+
+      const buffer = Buffer.from(await wb.xlsx.writeBuffer());
+      const { storagePut, storageGet } = await import("../storage");
+      const filename = `screener-lauf-${input.laufId}-${Date.now()}.xlsx`;
+      await storagePut(`exports/${filename}`, buffer,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      const { url } = await storageGet(`exports/${filename}`, 3600);
+      return {
+        url,
+        filename,
+        message: `${berechnete.length} berechnete und ${aussortierte.length} aussortierte Titel exportiert.`,
+      };
     }),
 });
