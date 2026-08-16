@@ -3362,7 +3362,19 @@ export const adminRouter = router({
         verteilungJeBoerse,
         zaehleOhneHerleitung,
       } = await import("../lib/screenerStore");
-      const neuesterLauf = await letzterLauf();
+      // Teilfehler dürfen die Karte nicht leeren: Scheitert eine der
+      // Abfragen (z. B. eine selbstheilende Spalten-Migration direkt nach
+      // einem Deploy), soll die Karte den Fehlertext ZEIGEN statt komplett
+      // zu verschwinden — sonst steht der Admin vor einer leeren Karte ohne
+      // jeden Anhaltspunkt (Live-Befund 16.08.).
+      const teilFehler: string[] = [];
+      const sicher = async <T>(was: string, f: () => Promise<T>, ersatz: T): Promise<T> => {
+        try { return await f(); } catch (e) {
+          teilFehler.push(`${was}: ${(e as Error).message}`);
+          return ersatz;
+        }
+      };
+      const neuesterLauf = await sicher("Lauf lesen", () => letzterLauf(), null);
       // Verwaister Sammel-Lauf (Prozessneustart oder Abbruch vor der
       // Statusfortschreibung): ehrlich als gescheitert markieren, sonst sieht
       // er für immer aus, als arbeite er noch.
@@ -3374,12 +3386,14 @@ export const adminRouter = router({
       }
       const auswahl = waehleAnzeigbarenLauf(
         neuesterLauf,
-        neuesterLauf?.status === "fehler" ? await letzterLaufMitErgebnissen() : null,
+        neuesterLauf?.status === "fehler"
+          ? await sicher("Lauf mit Ergebnissen", () => letzterLaufMitErgebnissen(), null)
+          : null,
       );
       const lauf = auswahl.lauf;
-      const beste = lauf ? await besteKandidaten(lauf.id, input?.topN ?? 30) : [];
-      const jeBoerse = lauf ? await verteilungJeBoerse(lauf.id) : [];
-      const ohneHerleitung = lauf ? await zaehleOhneHerleitung(lauf.id) : 0;
+      const beste = lauf ? await sicher("beste Kandidaten", () => besteKandidaten(lauf.id, input?.topN ?? 30), []) : [];
+      const jeBoerse = lauf ? await sicher("Verteilung je Börse", () => verteilungJeBoerse(lauf.id), []) : [];
+      const ohneHerleitung = lauf ? await sicher("ohne Herleitung", () => zaehleOhneHerleitung(lauf.id), 0) : 0;
       // Watchlist-Grösse für den Deckel-Hinweis (Ziel: max. ~500 Titel).
       let watchlistGroesse = 0;
       try {
@@ -3402,6 +3416,8 @@ export const adminRouter = router({
         jeBoerse,
         ohneHerleitung,
         watchlistGroesse,
+        /** Fehlgeschlagene Teilabfragen — die Karte zeigt sie an. */
+        teilFehler,
       };
     }),
 
