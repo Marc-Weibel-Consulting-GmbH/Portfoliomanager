@@ -419,12 +419,15 @@ export async function letzterLaufMitErgebnissen(): Promise<LaufUebersicht | null
 export async function besteKandidaten(laufId: number, limit: number): Promise<ScreenerKandidat[]> {
   const db = await dbOderFehler();
   const { sql } = await import("drizzle-orm");
+  // ACHTUNG: KEIN Fragezeichen irgendwo im SQL-TEXT — weder in Literalen noch
+  // in SQL-Kommentaren. Der mysql2-Treiber ersetzt Platzhalter rein textuell
+  // und quote-blind: Ein Fragezeichen im COALESCE-Literal frass den
+  // laufId-Parameter (leere Screener-Karte, Befund 16.08.), und der zuerst als
+  // SQL-Kommentar formulierte Warnhinweis enthielt selbst eines und
+  // reproduzierte den Fehler gleich nochmal.
   const res: any = await db.execute(sql`
     SELECT * FROM (
       SELECT k.*, ROW_NUMBER() OVER (
-        -- KEIN Fragezeichen in SQL-Literalen: der mysql2-Treiber ersetzt
-        -- Platzhalter auch INNERHALB von Strings — ein '?' hier frass den
-        -- laufId-Parameter und kippte die ganze Status-Abfrage (Befund 16.08.).
         PARTITION BY COALESCE(sektor, '')
         ORDER BY (signalScore IS NULL), signalScore DESC, bewertung DESC
       ) AS rangJeSektor
