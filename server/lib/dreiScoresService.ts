@@ -121,6 +121,7 @@ export async function getDreiScores(
   const bewertung = berechneBewertung({
     adjustedPeg: qm.adjustedPeg,
     pegHinweis: qm.adjustedPegHinweis,
+    pegRechnung: qm.adjustedPegRechnung,
     kgv: qm.forwardPE ?? qm.trailingPE,
     fcfRendite: qm.fcfYield,
     dividendenrendite,

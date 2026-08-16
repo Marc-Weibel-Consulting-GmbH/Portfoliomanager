@@ -89,6 +89,8 @@ export default function AdminDashboard() {
   const [screenerAuto, setScreenerAuto] = useState(true);
   // Aufgeklappter Kandidat (Ticker) — zeigt die Faktorwerte hinter den Scores.
   const [screenerDetail, setScreenerDetail] = useState<string | null>(null);
+  // Aufgeklappte Faktor-Herleitung im Detail («per Klick nachvollziehbar»).
+  const [screenerFaktorRechnung, setScreenerFaktorRechnung] = useState<string | null>(null);
   // Wie viele Kandidaten die Tabelle zeigt — «Mehr anzeigen» erweitert schrittweise.
   const [screenerTopN, setScreenerTopN] = useState(30);
   const screenerStatusQ = trpc.admin.screenerStatus.useQuery({ topN: screenerTopN }, {
@@ -862,7 +864,16 @@ export default function AdminDashboard() {
                                     <table className="w-full text-[11px]">
                                       <tbody>
                                         {faktoren.map((f: any, i: number) => (
-                                          <tr key={i} className="border-t border-white/5" title={f?.hinweis ?? ""}>
+                                          <tr
+                                            key={i}
+                                            className={`border-t border-white/5 ${f?.rechnung ? "cursor-pointer hover:bg-white/[0.03]" : ""}`}
+                                            title={f?.rechnung ? "Klicken für die Herleitung" : (f?.hinweis ?? "")}
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              if (f?.rechnung) setScreenerFaktorRechnung(
+                                                screenerFaktorRechnung === `${k.ticker}|${titel}|${f.name}` ? null : `${k.ticker}|${titel}|${f.name}`);
+                                            }}
+                                          >
                                             <td className="py-0.5 pr-2">
                                               {f?.name ?? "—"}
                                               {Number.isFinite(f?.gewicht) ? <span className="text-muted-foreground"> · {Math.round(f.gewicht * 100)}%</span> : null}
@@ -870,6 +881,10 @@ export default function AdminDashboard() {
                                                   daneben — ein Strich allein liest sich wie ein Fehler. */}
                                               {f?.punkte == null && f?.hinweis && (
                                                 <span className="block text-[10px] text-muted-foreground/70">{f.hinweis}</span>
+                                              )}
+                                              {/* Herleitung auf Klick: Anker, Formel, Zahlen. */}
+                                              {screenerFaktorRechnung === `${k.ticker}|${titel}|${f?.name}` && f?.rechnung && (
+                                                <span className="block text-[10px] text-emerald-400/80 font-mono mt-0.5">{f.rechnung}</span>
                                               )}
                                             </td>
                                             <td className="py-0.5 pr-2 text-right font-mono">

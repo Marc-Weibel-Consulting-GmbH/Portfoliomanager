@@ -101,6 +101,16 @@ dieses Dokument.
 - **FASSUNG 4 (2026-08):** Gewinnstabilität robust — nur benachbarte
   Geschäftsjahre bilden Wachstumsraten, Raten bei ±100 % gekappt, mindestens
   4 Jahresraten (`gewinnStabilitaet.ts`). Befund 1 der Scoring-Prüfung.
+- **PEG-Wachstumsquellen (2026-08, ohne FASSUNG-Wechsel):** Der selbst
+  gerechnete PEG-Nenner kennt vier Quellen in fester Rangfolge:
+  5-Jahres-CAGR → TTM → robustes Raten-Mittel (aus `gewinnStabilitaet`) →
+  erwartetes Wachstum (Analystenschätzung, wie Yahoo). Begründung
+  (Schindler-Fall): Der CAGR ist eine Endpunkt-Rechnung — ein starkes
+  Basisjahr drückte ihn unter 2 % und blendete das PEG aus, obwohl die
+  Jahresraten im Mittel klar wuchsen. 2-%-Untergrenze gilt je Quelle
+  strikt; die Herleitung steht als `rechnung` an jedem Faktor. Kein
+  FASSUNG-Wechsel: Der PEG-Faktor ist als geschätzt markiert und in der
+  Rekonstruktion ohnehin `null`.
 - **FASSUNG 5 (2026-08):** Gewinnstabilität — Raten-Kappung ±100 % → ±50 %.
   Begründung nach Regel 1: Im vollständigen Screener-Lauf #150001 standen
   167 von 296 berechneten Stabilitätswerten auf exakt 0 (56 %) — ein Faktor,

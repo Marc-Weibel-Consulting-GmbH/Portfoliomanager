@@ -102,6 +102,10 @@ export default function StockDetail() {
   const [showScoreExplanation, setShowScoreExplanation] = useState(false);
   const [showSignalExplanation, setShowSignalExplanation] = useState(false);
   const [showBewertungExplanation, setShowBewertungExplanation] = useState(false);
+  // Aufgeklappte Faktor-Herleitung («per Klick nachvollziehbar»): Schlüssel
+  // ist "q:<Name>" bzw. "b:<Name>", damit ein Klick im einen Dialog nicht den
+  // anderen aufklappt.
+  const [faktorRechnung, setFaktorRechnung] = useState<string | null>(null);
   const [showAddToPortfolio, setShowAddToPortfolio] = useState(false);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
   // UX2-1: Alarm-Dialog verdrahtet (vorher toter Button ohne onClick/State)
@@ -1154,13 +1158,22 @@ export default function StockDetail() {
                     <table className="w-full text-xs">
                       <tbody>
                         {dreiScores.qualitaet.niveau.faktoren.map((f: any) => (
-                          <tr key={f.name} className="border-t border-white/5" title={f.hinweis ?? ""}>
+                          <tr
+                            key={f.name}
+                            className={`border-t border-white/5 ${f.rechnung ? "cursor-pointer hover:bg-white/[0.03]" : ""}`}
+                            title={f.rechnung ? "Klicken für die Herleitung" : (f.hinweis ?? "")}
+                            onClick={() => f.rechnung && setFaktorRechnung(faktorRechnung === `q:${f.name}` ? null : `q:${f.name}`)}
+                          >
                             <td className="px-3 py-1.5 text-gray-300">{f.name}
                               <span className="text-gray-600"> · {Math.round(f.gewicht * 100)}%</span>
                               {/* Ausgeblendete Faktoren: das «Warum» direkt zeigen —
                                   ein blosser Strich liest sich wie ein Fehler. */}
                               {f.punkte === null && f.hinweis && (
                                 <span className="block text-[10px] text-gray-500">{f.hinweis}</span>
+                              )}
+                              {/* Die Herleitung auf Klick: Anker, Formel, Zahlen. */}
+                              {faktorRechnung === `q:${f.name}` && f.rechnung && (
+                                <span className="block text-[10px] text-[#00CFC1]/80 font-mono mt-0.5">{f.rechnung}</span>
                               )}
                             </td>
                             <td className="px-2 py-1.5 text-right text-gray-400 font-mono">
@@ -1264,13 +1277,21 @@ export default function StockDetail() {
                   <div>
                     <p className="font-semibold text-white mb-1">Für diesen Titel</p>
                     <ul className="space-y-1.5">
-                      {dreiScores.bewertung.faktoren.map((f) => (
-                        <li key={f.name} className="flex items-start gap-2">
+                      {dreiScores.bewertung.faktoren.map((f: any) => (
+                        <li
+                          key={f.name}
+                          className={`flex items-start gap-2 ${f.rechnung ? "cursor-pointer" : ""}`}
+                          title={f.rechnung ? "Klicken für die Herleitung" : undefined}
+                          onClick={() => f.rechnung && setFaktorRechnung(faktorRechnung === `b:${f.name}` ? null : `b:${f.name}`)}
+                        >
                           <div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div>
                           <span>
                             <strong>{f.name}{f.gewicht > 0 ? ` (${Math.round(f.gewicht * 100)}%)` : ""}:</strong>{" "}
                             {f.hinweis}
                             {f.punkte !== null && <span className="text-gray-500"> — {Math.round(f.punkte)} Punkte</span>}
+                            {faktorRechnung === `b:${f.name}` && f.rechnung && (
+                              <span className="block text-[10px] text-[#00CFC1]/80 font-mono mt-0.5">{f.rechnung}</span>
+                            )}
                           </span>
                         </li>
                       ))}

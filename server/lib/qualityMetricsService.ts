@@ -27,6 +27,8 @@ export interface QualityMetrics {
   adjustedPegGrund: string | null;
   /** Deutscher Anzeigetext zum Ausblendgrund — für den Faktor-Hinweis. */
   adjustedPegHinweis: string | null;
+  /** Komplette PEG-Herleitung (Quelle, Nenner, Bereinigung) — für die Klick-Nachvollziehbarkeit. */
+  adjustedPegRechnung: string | null;
   pegQuadrant: PegQuadrant;
   pegQuadrantLabel: string;
 
@@ -450,12 +452,25 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
   // die das forward PEG längst hatte — ein Vendor-PEG von 15.63 (BCHN.SW)
   // drückte so den Bewertungs-Faktor grundlos auf 0/100. Rechnung und Wächter
   // liegen jetzt in `bereinigtesPeg` (rein, getestet); Formel unverändert.
+  // Zwei zusätzliche Wachstumsquellen für das PEG (Schindler-Befund: der
+  // 5-Jahres-CAGR ist eine Endpunkt-Rechnung, ein starkes Basisjahr blendete
+  // das PEG aus, obwohl die Jahresraten im Mittel klar wuchsen):
+  // das robuste Raten-Mittel aus der Stabilitätsrechnung (bereits vorhanden)
+  // und das erwartete Wachstum aus der Analystenschätzung (wie Yahoo & Co.).
+  const wachstumRatenMittel = stabilitaet.mittel !== null ? stabilitaet.mittel * 100 : null;
+  let wachstumErwartet: number | null = null;
+  if (eps !== null && eps > 0.1 && epsEstimateNextYear !== null && epsEstimateNextYear > 0) {
+    wachstumErwartet = ((epsEstimateNextYear - eps) / eps) * 100;
+  }
+
   const bereinigt = bereinigtesPeg({
     vendorPeg: trailingPeg,
     epsVolatility,
     qualityScore,
     epsWachstum5j: epsGrowth5y,
     epsWachstumTTM: epsGrowthTTM,
+    wachstumRatenMittel,
+    wachstumErwartet,
     // Rückfall, wenn der Vendor kein PEG führt: selbst rechnen aus KGV und
     // belegtem Wachstum (Screener-Befund — betraf reihenweise Nicht-US-Titel).
     kgv: trailingPE,
@@ -492,6 +507,7 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
     adjustedPeg,
     adjustedPegGrund: bereinigt.grund,
     adjustedPegHinweis: bereinigt.hinweis,
+    adjustedPegRechnung: bereinigt.rechnung,
     pegQuadrant,
     pegQuadrantLabel: pegQuadrantLabel(pegQuadrant),
     roic,
@@ -530,7 +546,7 @@ function buildFallback(ticker: string, reason: string): QualityMetrics {
   console.warn(`[QualityMetrics] Fallback for ${ticker}: ${reason}`);
   return {
     trailingPeg: null, forwardPeg: null, adjustedPeg: null,
-    adjustedPegGrund: null, adjustedPegHinweis: null,
+    adjustedPegGrund: null, adjustedPegHinweis: null, adjustedPegRechnung: null,
     pegQuadrant: "unknown", pegQuadrantLabel: "Unbekannt",
     roic: null, returnOnEquity: null, grossMargin: null, operatingMargin: null,
     fcfYield: null, freeCashflow: null, evToEbitda: null, priceToBook: null,
