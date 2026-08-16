@@ -1340,7 +1340,7 @@ export const stocksRouter = router({
         const base64Data = data.fileData.split(',')[1];
         const buffer = Buffer.from(base64Data, 'base64');
         
-        let parsedData: any[] = [];
+        const parsedData: any[] = [];
         
         try {
           // Check if it's CSV or Excel
