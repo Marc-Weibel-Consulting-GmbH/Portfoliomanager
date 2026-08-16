@@ -67,4 +67,41 @@ describe("bereinigtesPeg", () => {
     // Ohne Volatilität gilt der bisherige Standard-Aufschlag 0.2 — kein null.
     expect(ohneVol.peg).toBeCloseTo((1.4 * 1.2) / 1.12, 3);
   });
+
+  it("rechnet das PEG selbst (KGV ÷ Wachstum), wenn der Vendor keins liefert", () => {
+    // Screener-Befund: Viele Nicht-US-Titel haben kein Vendor-PEG, obwohl KGV
+    // und belegtes Wachstum vorliegen — die Zahl fehlt beim Vendor, nicht in
+    // den Daten. 18.3er-KGV bei 6 % Wachstum → rohes PEG 3.05, dann dieselbe
+    // Bereinigung wie beim Vendor-Wert.
+    const r = bereinigtesPeg({ ...STANDARD, vendorPeg: null, kgv: 18.3, epsWachstum5j: 6, epsWachstumTTM: null });
+    expect(r.grund).toBeNull();
+    expect(r.quelle).toBe("selbst");
+    expect(r.peg).toBeCloseTo(((18.3 / 6) * 1.15) / 1.12, 3);
+    expect(r.hinweis).toMatch(/selbst gerechnet/);
+  });
+
+  it("selbst gerechnet: 5j-Wachstum führt, TTM nur als Rückfall", () => {
+    const beide = bereinigtesPeg({ ...STANDARD, vendorPeg: null, kgv: 20, epsWachstum5j: 5, epsWachstumTTM: 10 });
+    expect(beide.peg).toBeCloseTo(((20 / 5) * 1.15) / 1.12, 3); // 5j, nicht TTM
+    const nurTtm = bereinigtesPeg({ ...STANDARD, vendorPeg: null, kgv: 20, epsWachstum5j: null, epsWachstumTTM: 10 });
+    expect(nurTtm.peg).toBeCloseTo(((20 / 10) * 1.15) / 1.12, 3);
+  });
+
+  it("selbst gerechnet gelten dieselben Wächter: Mini-Wachstum und Extremwerte bleiben ausgeblendet", () => {
+    // Wachstum unter 2 % ist als NENNER erst recht tabu (Division durch fast null).
+    expect(bereinigtesPeg({ ...STANDARD, vendorPeg: null, kgv: 15, epsWachstum5j: 1, epsWachstumTTM: 0.5 }).grund)
+      .toBe("wachstum_zu_gering");
+    // KGV 40 bei 2.5 % Wachstum → rohes PEG 16 → jenseits der Obergrenze.
+    expect(bereinigtesPeg({ ...STANDARD, vendorPeg: null, kgv: 40, epsWachstum5j: 2.5, epsWachstumTTM: null }).grund)
+      .toBe("peg_extrem");
+    // Ohne KGV bleibt es beim bisherigen «peg_fehlt».
+    expect(bereinigtesPeg({ ...STANDARD, vendorPeg: null, kgv: null }).grund).toBe("peg_fehlt");
+  });
+
+  it("liegt ein Vendor-PEG vor, hat es Vorrang vor der eigenen Rechnung", () => {
+    const r = bereinigtesPeg({ ...STANDARD, kgv: 99 });
+    expect(r.quelle).toBe("vendor");
+    expect(r.peg).toBeCloseTo((1.4 * 1.15) / 1.12, 3);
+    expect(r.hinweis).toBeNull();
+  });
 });

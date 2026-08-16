@@ -98,6 +98,18 @@ dieses Dokument.
   begrenzt), nie nach unten (billig belohnt). Nebenwirkung, bewusst in Kauf
   genommen: Titel ohne PEG erreichen mit KGV+FCF+Dividende jetzt 65 %
   Abdeckung und bekommen wieder einen vollen Bewertungs-Score.
+- **FASSUNG 4 (2026-08):** Gewinnstabilität robust — nur benachbarte
+  Geschäftsjahre bilden Wachstumsraten, Raten bei ±100 % gekappt, mindestens
+  4 Jahresraten (`gewinnStabilitaet.ts`). Befund 1 der Scoring-Prüfung.
+- **PEG-Rückfall (2026-08, ohne FASSUNG-Wechsel):** Fehlt das Vendor-PEG,
+  wird das rohe PEG selbst gerechnet — KGV ÷ belegtes Gewinnwachstum
+  (5-Jahres-CAGR führt, TTM als Rückfall, 2-%-Untergrenze strikt), danach
+  dieselbe Bereinigung und dieselben Wächter (`bereinigtesPeg.ts`).
+  Screener-Befund: Bei vielen Nicht-US-Titeln fehlt die Zahl beim Vendor,
+  nicht in den Daten; der Faktor-Hinweis weist «selbst gerechnet» aus. Kein
+  FASSUNG-Wechsel, weil die Rekonstruktion das bereinigte PEG ohnehin nicht
+  rechnet (`punktInZeitKennzahlen.adjustedPeg = null`, Vendor-Schätzungen von
+  damals sind nicht archiviert) — die Historie bleibt vergleichbar.
 
 ## 6. Fahrplan
 

@@ -62,6 +62,9 @@ async function stelleTabellenSicher(db: any): Promise<void> {
     ["qualitaetNiveau", "decimal(6,2)"],
     ["qualitaetRichtung", "decimal(6,2)"],
     ["fScore", "tinyint"],
+    // Sitzland (ISO-2) aus den EODHD-Stammdaten — macht die Länder-
+    // Konzentration («zu viele China-Titel») sichtbar und prüfbar.
+    ["land", "varchar(2)"],
   ];
   for (const [name, typ] of nachgetragen) {
     const res: any = await db.execute(sql`
@@ -94,8 +97,10 @@ export interface ScreenerKandidat {
   waehrung: string | null;
   marktKap: number | null;
   dividendenrendite: number | null;
+  /** Sitzland ISO-2 aus den EODHD-Stammdaten, z. B. "US", "CN". */
+  land: string | null;
   inWatchlist: number;
-  /** wartend | berechnet | fehler | vorhanden | uebernommen | abgelehnt */
+  /** wartend | berechnet | fehler | vorhanden | uebernommen | abgelehnt | zweitkotierung | ausgeschlossen */
   status: string;
   qualitaet: number | null;
   bewertung: number | null;
@@ -160,7 +165,7 @@ export async function ergaenzeKandidaten(
   laufId: number,
   kandidaten: Array<Omit<ScreenerKandidat,
     "laufId" | "qualitaet" | "bewertung" | "signalScore" | "signalLabel"
-    | "qualitaetFaktoren" | "bewertungFaktoren" | "qualitaetNiveau" | "qualitaetRichtung" | "fScore" | "fehler">>,
+    | "qualitaetFaktoren" | "bewertungFaktoren" | "qualitaetNiveau" | "qualitaetRichtung" | "fScore" | "fehler" | "land">>,
 ): Promise<{ eingefuegt: number; zeilenFehler: number; ersterFehler: string | null }> {
   if (kandidaten.length === 0) return { eingefuegt: 0, zeilenFehler: 0, ersterFehler: null };
   const db = await dbOderFehler();
@@ -269,7 +274,8 @@ export async function schreibeErgebnis(
   laufId: number,
   ticker: string,
   ergebnis: {
-    status: "berechnet" | "fehler" | "zweitkotierung";
+    status: "berechnet" | "fehler" | "zweitkotierung" | "ausgeschlossen";
+    land?: string | null;
     qualitaet?: number | null;
     bewertung?: number | null;
     signalScore?: number | null;
@@ -287,6 +293,7 @@ export async function schreibeErgebnis(
   await db.execute(sql`
     UPDATE screener_kandidat
     SET status = ${ergebnis.status},
+        land = COALESCE(${ergebnis.land ?? null}, land),
         qualitaet = ${ergebnis.qualitaet ?? null},
         bewertung = ${ergebnis.bewertung ?? null},
         signalScore = ${ergebnis.signalScore ?? null},
@@ -325,6 +332,8 @@ export interface LaufUebersicht {
   fehlgeschlagen: number;
   /** Aussortierte Zweitkotierungen (Hauptbörse liegt selbst im Universum). */
   zweitkotierungen: number;
+  /** Kein Stammtitel an regulärer Börse: Vorzugsaktien, Fonds, OTC-Notizen. */
+  ausgeschlossen: number;
   vorhanden: number;
   uebernommen: number;
   abgelehnt: number;
@@ -366,6 +375,7 @@ async function mappeLaufUebersicht(db: any, lauf: any): Promise<LaufUebersicht |
     berechnet: zaehler["berechnet"] ?? 0,
     fehlgeschlagen: zaehler["fehler"] ?? 0,
     zweitkotierungen: zaehler["zweitkotierung"] ?? 0,
+    ausgeschlossen: zaehler["ausgeschlossen"] ?? 0,
     vorhanden: zaehler["vorhanden"] ?? 0,
     uebernommen: zaehler["uebernommen"] ?? 0,
     abgelehnt: zaehler["abgelehnt"] ?? 0,
@@ -398,15 +408,44 @@ export async function letzterLaufMitErgebnissen(): Promise<LaufUebersicht | null
   return mappeLaufUebersicht(db, (liste as any[])[0]);
 }
 
-/** Beste berechnete Kandidaten eines Laufs, sortiert nach Signal-Score. */
+/**
+ * Beste berechnete Kandidaten eines Laufs — SEKTORWEISE ABWECHSELND (je
+ * Sektor nach Signal-Score absteigend), gleiches Muster wie das börsenweise
+ * Rechnen. Vorher strikt nach Signal-Score über alles: Die Spitze der Liste
+ * war dann ein Klumpen des gerade günstigsten Sektors (Energie), und alles
+ * andere kam nie ins Blickfeld. Die Scores selbst bleiben unangetastet —
+ * nur die Reihenfolge der Anzeige mischt die Sektoren.
+ */
 export async function besteKandidaten(laufId: number, limit: number): Promise<ScreenerKandidat[]> {
   const db = await dbOderFehler();
   const { sql } = await import("drizzle-orm");
   const res: any = await db.execute(sql`
-    SELECT * FROM screener_kandidat
-    WHERE laufId = ${laufId} AND status IN ('berechnet', 'uebernommen', 'abgelehnt')
-    ORDER BY (signalScore IS NULL), signalScore DESC, bewertung DESC
+    SELECT * FROM (
+      SELECT k.*, ROW_NUMBER() OVER (
+        PARTITION BY COALESCE(sektor, '?')
+        ORDER BY (signalScore IS NULL), signalScore DESC, bewertung DESC
+      ) AS rangJeSektor
+      FROM screener_kandidat k
+      WHERE laufId = ${laufId} AND status IN ('berechnet', 'uebernommen', 'abgelehnt')
+    ) t
+    ORDER BY rangJeSektor, (signalScore IS NULL), signalScore DESC, bewertung DESC
     LIMIT ${limit}`);
+  const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
+  return (liste as any[]).map(mappeKandidat);
+}
+
+/**
+ * ALLE Kandidaten eines Laufs für den Excel-Export — inklusive der
+ * aussortierten (Zweitkotierung/ausgeschlossen/Fehler), damit die externe
+ * Prüfung auch sieht, WAS aussortiert wurde und warum.
+ */
+export async function alleKandidaten(laufId: number): Promise<ScreenerKandidat[]> {
+  const db = await dbOderFehler();
+  const { sql } = await import("drizzle-orm");
+  const res: any = await db.execute(sql`
+    SELECT * FROM screener_kandidat
+    WHERE laufId = ${laufId}
+    ORDER BY (signalScore IS NULL), signalScore DESC, marktKap DESC`);
   const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
   return (liste as any[]).map(mappeKandidat);
 }
@@ -431,6 +470,7 @@ function mappeKandidat(r: any): ScreenerKandidat {
     waehrung: r.waehrung ?? null,
     marktKap: zahl(r.marktKap),
     dividendenrendite: zahl(r.dividendenrendite),
+    land: r.land ?? null,
     inWatchlist: Number(r.inWatchlist ?? 0),
     status: String(r.status),
     qualitaet: zahl(r.qualitaet),
