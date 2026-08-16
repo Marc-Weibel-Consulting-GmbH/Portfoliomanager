@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { vergleichsTicker, istVerzichtbareZweitkotierung, ADR_NAMENSMUSTER } from "./screenerLauf";
+import { vergleichsTicker, istVerzichtbareZweitkotierung, ADR_NAMENSMUSTER, istLseDollarNotiz } from "./screenerLauf";
 
 describe("vergleichsTicker", () => {
   it("behandelt US-Ticker ohne Suffix wie .US", () => {
@@ -48,10 +48,34 @@ describe("ADR_NAMENSMUSTER", () => {
     expect(ADR_NAMENSMUSTER.test("Chevron Corp. CEDEAR")).toBe(true);
   });
 
+  it("erkennt auch GDR-Namen (Hinterlegungsscheine ausserhalb der USA)", () => {
+    expect(ADR_NAMENSMUSTER.test("Samsung Electronics Co Ltd GDR")).toBe(true);
+    expect(ADR_NAMENSMUSTER.test("Gazprom PJSC Global Depositary Receipt")).toBe(true);
+    expect(ADR_NAMENSMUSTER.test("TCS Group Holding GDS")).toBe(true);
+  });
+
   it("lässt gewöhnliche Firmennamen durch", () => {
     expect(ADR_NAMENSMUSTER.test("Nestlé SA")).toBe(false);
     expect(ADR_NAMENSMUSTER.test("American Express Company")).toBe(false);
     expect(ADR_NAMENSMUSTER.test("Adecco Group AG")).toBe(false);
     expect(ADR_NAMENSMUSTER.test("Roadside Holdings")).toBe(false);
+  });
+});
+
+describe("istLseDollarNotiz", () => {
+  it("erkennt Dollarlinien an der LSE als IOB-GDR (Live-Fund Samsung BC94.L)", () => {
+    // Samsung-GDR: Won-Cashflows über Dollar-Marktkapitalisierung ergaben
+    // «FCF-Rendite 2605 %», Dividende 19.7 % und ein STRONG BUY.
+    expect(istLseDollarNotiz("LSE", "USD")).toBe(true);
+    expect(istLseDollarNotiz("L", "usd")).toBe(true);
+  });
+
+  it("lässt reguläre Londoner Stammaktien durch (Pence/Pfund, auch USD-Berichtswährung)", () => {
+    // Shell & Co. BERICHTEN in Dollar, HANDELN aber in Pence — nur die
+    // Handelswährung zählt, sonst flögen echte Hauptkotierungen raus.
+    expect(istLseDollarNotiz("LSE", "GBX")).toBe(false);
+    expect(istLseDollarNotiz("LSE", "GBP")).toBe(false);
+    expect(istLseDollarNotiz("LSE", null)).toBe(false);
+    expect(istLseDollarNotiz("US", "USD")).toBe(false);
   });
 });

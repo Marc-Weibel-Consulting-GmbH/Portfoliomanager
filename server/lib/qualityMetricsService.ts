@@ -360,6 +360,14 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
   let fcfYield: number | null = null;
   if (freeCashflow !== null && marktkapitalisierung !== null && marktkapitalisierung > 0) {
     fcfYield = (freeCashflow / marktkapitalisierung) * 100;
+    // Plausibilitätswächter: Eine FCF-Rendite jenseits von ±40 % ist in der
+    // Praxis kein Bewertungssignal, sondern ein Einheitenkonflikt — beim
+    // Samsung-GDR (BC94.LSE) standen Won-Cashflows über einer
+    // Dollar-Marktkapitalisierung: «FCF-Rendite 2605 %», Bewertung 100,
+    // STRONG BUY. Lieber kein Wert als ein Wechselkurs als Kennzahl.
+    if (Math.abs(fcfYield) > 40) {
+      fcfYield = null;
+    }
   }
 
   // Ertragsqualität: Deckt der Zahlungsstrom den ausgewiesenen Gewinn?
