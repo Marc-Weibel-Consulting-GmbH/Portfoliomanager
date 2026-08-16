@@ -104,4 +104,55 @@ describe("bereinigtesPeg", () => {
     expect(r.peg).toBeCloseTo((1.4 * 1.15) / 1.12, 3);
     expect(r.hinweis).toBeNull();
   });
+
+  // Schindler-Befund: Der 5-Jahres-CAGR ist eine Endpunkt-Rechnung — ein
+  // starkes Basisjahr drückt ihn unter 2 %, und das PEG verschwand, obwohl
+  // die Jahresraten im Mittel klar wachsen (und Yahoo längst ein PEG aus
+  // erwartetem Wachstum zeigt).
+  it("robustes Raten-Mittel trägt den Nenner, wenn CAGR und TTM versagen", () => {
+    const r = bereinigtesPeg({
+      ...STANDARD, vendorPeg: null, kgv: 26,
+      epsWachstum5j: 0.8, epsWachstumTTM: null, wachstumRatenMittel: 5.4,
+    });
+    expect(r.grund).toBeNull();
+    expect(r.peg).toBeCloseTo(((26 / 5.4) * 1.15) / 1.12, 3);
+    expect(r.hinweis).toContain("Raten-Mittel");
+  });
+
+  it("erwartetes Wachstum ist die letzte Stufe und wird als Schätzung benannt", () => {
+    const r = bereinigtesPeg({
+      ...STANDARD, vendorPeg: null, kgv: 26,
+      epsWachstum5j: 0.8, epsWachstumTTM: null, wachstumRatenMittel: 1.2, wachstumErwartet: 7.9,
+    });
+    expect(r.grund).toBeNull();
+    expect(r.peg).toBeCloseTo(((26 / 7.9) * 1.15) / 1.12, 3);
+    expect(r.hinweis).toContain("Analystenschätzung");
+  });
+
+  it("die Rangfolge bleibt: eine tragfähige frühere Quelle schlägt die spätere", () => {
+    const r = bereinigtesPeg({
+      ...STANDARD, vendorPeg: null, kgv: 20,
+      epsWachstum5j: 5, epsWachstumTTM: null, wachstumRatenMittel: 10, wachstumErwartet: 15,
+    });
+    expect(r.peg).toBeCloseTo(((20 / 5) * 1.15) / 1.12, 3); // 5j-CAGR, nicht 10 oder 15
+  });
+
+  it("bleiben alle vier Quellen unter 2 %, bleibt das PEG ausgeblendet — mit Beleg im Hinweis", () => {
+    const r = bereinigtesPeg({
+      ...STANDARD, vendorPeg: null, kgv: 20,
+      epsWachstum5j: 1, epsWachstumTTM: 0.5, wachstumRatenMittel: 1.8, wachstumErwartet: 1.2,
+    });
+    expect(r.grund).toBe("wachstum_zu_gering");
+    expect(r.hinweis).toContain("geprüft:");
+  });
+
+  it("liefert die komplette Herleitung als Rechnung — für die Klick-Nachvollziehbarkeit", () => {
+    const vendor = bereinigtesPeg(STANDARD);
+    expect(vendor.rechnung).toContain("Vendor-PEG 1.40");
+    expect(vendor.rechnung).toContain("Volatilitätsaufschlag");
+    expect(vendor.rechnung).toContain("Qualitätsmultiplikator");
+    const selbst = bereinigtesPeg({ ...STANDARD, vendorPeg: null, kgv: 18.3, epsWachstum5j: 6, epsWachstumTTM: null });
+    expect(selbst.rechnung).toContain("KGV 18.3 ÷ 6.0 % 5-Jahres-CAGR");
+    expect(selbst.rechnung).toContain("bereinigt");
+  });
 });

@@ -39,6 +39,12 @@ export interface Teilfaktor {
   /** Klartext für die Oberfläche. */
   hinweis: string;
   /**
+   * Die Herleitung als Satz — Rohwert, Anker, Formel, Ergebnis. Erscheint
+   * auf Klick in der Faktortabelle, damit jede Punktzahl von Hand
+   * nachrechenbar ist (Wunsch aus der Screener-Prüfung).
+   */
+  rechnung?: string;
+  /**
    * Beruht dieser Faktor auf einer SCHÄTZUNG statt auf berichteten Zahlen?
    *
    * Betrifft heute nur das PEG: Es enthält eine Wachstumserwartung, und
@@ -79,6 +85,18 @@ export function punkteAus(wert: number | null, beiSchlecht: number, beiGut: numb
   if (beiGut === beiSchlecht) return 50;
   const anteil = (wert - beiSchlecht) / (beiGut - beiSchlecht);
   return Math.max(0, Math.min(100, anteil * 100));
+}
+
+/**
+ * Herleitung eines Anker-Faktors als Satz: Wert, beide Anker, Punkte.
+ * Dieselbe Rechnung wie `punkteAus` — nur ausformuliert, damit sie in der
+ * Oberfläche auf Klick nachvollziehbar ist.
+ */
+export function ankerRechnung(wert: number | null, beiSchlecht: number, beiGut: number): string | undefined {
+  const punkte = punkteAus(wert, beiSchlecht, beiGut);
+  if (wert === null || punkte === null) return undefined;
+  return `Anker: ${beiSchlecht} = 0 Punkte, ${beiGut} = 100 Punkte (linear, an den Ankern gekappt) · `
+    + `Wert ${wert.toFixed(2)} → ${punkte.toFixed(0)} Punkte`;
 }
 
 function baueTeilScore(faktoren: Teilfaktor[]): TeilScore {
@@ -178,6 +196,7 @@ export function berechneNiveau(e: QualitaetsEingang): TeilScore {
       wert: e.roic,
       punkte: punkteAus(e.roic, 4, 25),
       gewicht: 0.25,
+      rechnung: ankerRechnung(e.roic, 4, 25),
       // Sekundärbefund der Scoring-Prüfung: Definition NOPAT ÷ (Eigenkapital +
       // Nettoschulden). Bei Netto-Cash-Gesellschaften schrumpft der Nenner —
       // Werte weit über 50 % messen dann die Kasse, nicht das Geschäft. Auf
@@ -192,6 +211,7 @@ export function berechneNiveau(e: QualitaetsEingang): TeilScore {
       wert: e.betriebsmarge,
       punkte: punkteAus(e.betriebsmarge, 2, 30),
       gewicht: 0.20,
+      rechnung: ankerRechnung(e.betriebsmarge, 2, 30),
       hinweis: e.betriebsmarge === null ? "nicht verfügbar" : `${e.betriebsmarge.toFixed(1)} % vom Umsatz`,
     },
     {
@@ -201,6 +221,7 @@ export function berechneNiveau(e: QualitaetsEingang): TeilScore {
       // deutlich übererfüllt. Darüber bringt mehr keinen Zusatznutzen.
       punkte: punkteAus(e.ertragsdeckung, 0.6, 1.5),
       gewicht: 0.20,
+      rechnung: ankerRechnung(e.ertragsdeckung, 0.6, 1.5),
       hinweis: e.ertragsdeckung === null ? "nicht verfügbar"
         : e.ertragsdeckung >= 1
           ? `Cashflow deckt den Gewinn ${e.ertragsdeckung.toFixed(2)}-fach`
@@ -211,6 +232,8 @@ export function berechneNiveau(e: QualitaetsEingang): TeilScore {
       wert: e.epsStabilitaet,
       punkte: e.epsStabilitaet === null ? null : Math.max(0, Math.min(100, e.epsStabilitaet)),
       gewicht: 0.15,
+      rechnung: e.epsStabilitaet === null ? undefined
+        : `Skala: Streuung der Jahresraten 5 pp \u2192 100 Punkte, 50 pp \u2192 0 (linear)${e.epsStabilitaetHinweis ? ` \u00b7 ${e.epsStabilitaetHinweis}` : ""}`,
       hinweis: e.epsStabilitaet === null
         ? (e.epsStabilitaetHinweis ?? "nicht verfügbar")
         : (e.epsStabilitaet >= 70 ? "sehr gleichmässige Gewinne"
@@ -224,6 +247,7 @@ export function berechneNiveau(e: QualitaetsEingang): TeilScore {
       // erhält die Bestnote, nicht mehr.
       punkte: punkteAus(e.netDebtToEbitda === null ? null : Math.max(0, e.netDebtToEbitda), 4, 0),
       gewicht: 0.10,
+      rechnung: ankerRechnung(e.netDebtToEbitda === null ? null : Math.max(0, e.netDebtToEbitda), 4, 0),
       hinweis: e.netDebtToEbitda === null ? "nicht verfügbar"
         : e.netDebtToEbitda <= 0 ? "Nettoguthaben statt Schulden"
         : `Nettoschulden entsprechen dem ${e.netDebtToEbitda.toFixed(1)}-fachen EBITDA`,
@@ -233,6 +257,7 @@ export function berechneNiveau(e: QualitaetsEingang): TeilScore {
       wert: e.bruttomarge,
       punkte: punkteAus(e.bruttomarge, 10, 65),
       gewicht: 0.10,
+      rechnung: ankerRechnung(e.bruttomarge, 10, 65),
       hinweis: e.bruttomarge === null ? "nicht verfügbar" : `${e.bruttomarge.toFixed(1)} % vom Umsatz`,
     },
   ];
@@ -319,6 +344,8 @@ export interface BewertungsEingang {
    * Faktor-Hinweis, damit «kein Wert» von «kein Wert, weil …» unterscheidbar ist.
    */
   pegHinweis?: string | null;
+  /** Komplette PEG-Herleitung (Quelle, Nenner, Bereinigung) aus `bereinigtesPeg`. */
+  pegRechnung?: string | null;
   /** Forward-KGV, ersatzweise trailing. */
   kgv: number | null;
   /** % freier Cashflow ÷ Marktkapitalisierung. */
@@ -406,6 +433,7 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
     wert: e.dividendenrendite,
     punkte: punkteAus(e.dividendenrendite, 0, 5),
     gewicht: 0,
+    rechnung: ankerRechnung(e.dividendenrendite, 0, 5),
     hinweis: e.dividendenrendite === null ? "nicht verfügbar" : `${e.dividendenrendite.toFixed(2)} %`,
   };
 
@@ -416,6 +444,7 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
         wert: e.kursBuchwert,
         punkte: punkteAus(e.kursBuchwert === null || e.kursBuchwert <= 0 ? null : e.kursBuchwert, 3, 0.7),
         gewicht: 0.35,
+        rechnung: ankerRechnung(e.kursBuchwert === null || e.kursBuchwert <= 0 ? null : e.kursBuchwert, 3, 0.7),
         hinweis: e.kursBuchwert === null ? "nicht verfügbar" : `${e.kursBuchwert.toFixed(2)}-facher Buchwert`,
       },
       {
@@ -423,6 +452,7 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
         wert: e.kgv,
         punkte: punkteAus(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 20, 7),
         gewicht: 0.30,
+        rechnung: ankerRechnung(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 20, 7),
         hinweis: e.kgv === null ? "nicht verfügbar" : `${e.kgv.toFixed(1)}-facher Jahresgewinn`,
       },
       { ...dividende, gewicht: 0.35 },
@@ -446,6 +476,12 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
       gewicht: 0.35,
       hinweis: e.adjustedPeg === null ? (e.pegHinweis ?? "nicht verfügbar")
         : `${e.adjustedPeg.toFixed(2)} — Bewertung im Verhältnis zum Wachstum${richtungsText}${e.pegHinweis ? ` · ${e.pegHinweis}` : ""}`,
+      rechnung: e.adjustedPeg === null ? undefined
+        : [
+            e.pegRechnung,
+            ankerRechnung(e.adjustedPeg, 3, 0.8),
+            faktor !== 1 ? `× Richtungsfaktor ${faktor.toFixed(2)} (Wachstum zieht an/lässt nach) = ${pegPunkte?.toFixed(0)} Punkte` : undefined,
+          ].filter(Boolean).join(" · "),
     },
     // KGV auch als eigener Faktor, nicht nur als Deckel (FASSUNG 3): Das PEG
     // bestraft billige Wenig-Wächser — ein KGV von 12 bei 4 % Wachstum ergibt
@@ -459,6 +495,7 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
       wert: e.kgv,
       punkte: punkteAus(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 35, 10),
       gewicht: 0.15,
+      rechnung: ankerRechnung(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 35, 10),
       hinweis: e.kgv === null ? "nicht verfügbar" : `${e.kgv.toFixed(1)}-facher Jahresgewinn`,
     },
     {
@@ -466,6 +503,7 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
       wert: e.fcfRendite,
       punkte: punkteAus(e.fcfRendite, 0, 8),
       gewicht: 0.30,
+      rechnung: ankerRechnung(e.fcfRendite, 0, 8),
       hinweis: e.fcfRendite === null ? "nicht verfügbar" : `${e.fcfRendite.toFixed(1)} % — schwerer zu beschönigen als der Gewinn`,
     },
     { ...dividende, gewicht: 0.20 },
