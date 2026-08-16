@@ -86,6 +86,25 @@ Für P1 speichert der Screener nach erfolgreicher Stammdatenauflösung zusätzli
 
 Die **Neuberechnung von Lauf 150001 ist bewusst noch nicht ausgeführt**, weil sie bestehende berechnete Ergebnisfelder temporär zurücksetzt und neu schreibt. Kandidaten und Entscheidungen bleiben zwar erhalten, die Operation berührt aber produktive Laufdaten und benötigt deshalb eine explizite Freigabe.
 
+## 6b. Kontrollierte Neuberechnung und Endvalidierung
+
+Nach expliziter Freigabe wurden die 914 berechneten Zeilen seriell in 37 Häppchen neu bewertet. Der Lauf endete mit Status `fertig` und ohne Laufabbruch: 634 berechnete Titel, 300 als Zweitkotierungen, 114 bereits vorhandene Watchlist-Titel, 103 Ausschlüsse und ein fachlich separater Fehlerfall. Es wurden keine Kandidaten oder Entscheidungszeilen gelöscht.
+
+Die aktuelle Abdeckung der 634 berechneten Titel ist deutlich präziser als im Ursprungsstand: 630 besitzen einen Qualitätsscore, 569 eine vollständige Bewertung und 568 ein abgeleitetes Signal. Alle haben plausible Dividendenrenditen; kein Wert liegt über 25 %. 632 besitzen Land und Währung. Unter berechneten Titeln gibt es keinen mehrfach verwendeten Primärticker. Die volle Auswertung nach Börse bestätigt insbesondere die Wiederherstellung der XETRA- und LSE-Fundamentaldatenpfade: XETRA 143 von 146 und LSE 119 von 119 mit Qualitätsscore.
+
+Ein enger Retry-Lauf der 66 Titel ohne vollständige Bewertung änderte die Restzahl nicht. Daher handelt es sich dort nicht um einmalige Netzwerkaussetzer, sondern überwiegend um eine bewusst nicht erfüllte Mindestabdeckung der Bewertungsformel: weniger als drei verfügbare Faktoren aus PEG, KGV, Free-Cash-Flow-Rendite und Dividendenrendite. Beispiele wie BP-A.L und Wise.L haben valide Qualitätsdaten, jedoch nicht genügend unabhängige Bewertungsfaktoren. Die Formel bleibt in diesem Fall absichtlich bei `null`, statt einen scheinpräzisen Score zu erzeugen.
+
+Der QualityMetrics-Pfad wiederholt nun jedoch temporäre EODHD-Timeouts zweimal mit eigenem Acht-Sekunden-Timeout pro Versuch. Der neue Regressionstest belegt, dass ein einmaliger Timeout nicht mehr als leere Fundamentaldaten in den Screener eingeht.
+
+## 6c. Konsolidierte Restpunkte
+
+| Priorität | Punkt | Befund | Empfohlene nächste Entscheidung |
+|---|---|---|---|
+| P1 | Primärticker-Lücken | 84 der 634 berechneten Titel besitzen keinen EODHD-Primärticker; dies betrifft vor allem Zweit- und Sondernotierungen. Vier berechnete Titel haben zudem keinen Qualitätsscore: `RNL.PA`, `3HM.DE`, `NAQ.DE`, `P2H.DE`. | ISIN als ergänzenden, quellenunabhängigeren Emittentenschlüssel evaluieren; keine Namensheuristik und keine automatische Löschung. |
+| P1 | Transparenz für unvollständige Scores | 65 Bewertungs- und 66 Signalwerte sind absichtlich leer, weil die Mindestabdeckung nicht erreicht ist. Im Export ist der Faktorhinweis sichtbar, ein verdichteter Statusgrund fehlt aber noch. | Datenqualitätsstatus und Faktorabdeckung als eigene Export-/UI-Spalten ergänzen. |
+| P2 | Bewertungsabdeckung | Die 3-Faktoren-Mindestregel schützt vor Pseudoscores, schliesst aber Titel ohne PEG oder Dividendenrendite aus. | Nur nach einer gesonderten Modellentscheidung und OOS-Validierung prüfen, ob sektorabhängig zwei starke Faktoren genügen dürfen. Keine spontane Lockerung. |
+| P2 | Parallele Claude-Arbeit | Beim Abgleich waren keine offenen Bug-PRs in `main` vorhanden; die relevante EODHD-Suffixänderung aus PR #297 ist bereits konfliktfrei mit diesem Stand zusammengeführt. | Neue Claude-Fixes erst nach eigenem Commit/PR gezielt gegen diese Restpunkte abgleichen, nicht pauschal erneut implementieren. |
+
 ## 7. Prüfdisclosure
 
 **Basis:** Qualität und Bewertung wurden gemäss der im Projekt implementierten Drei-Score-Formeln sowie deren 60-%-Mindestabdeckung geprüft. **Zeit:** Stichtag der Laufdaten ist der 16. August 2026; EODHD-Proben wurden am selben Tag ausgeführt. **Annahmen:** Kein fehlender Wert wurde als Null interpretiert und keine Dublette allein wegen eines identischen Namens entfernt. **Quellen und Sicherheit:** Hohe Sicherheit für Status-, Skalierungs- und Symbolbefunde, weil sie im gelieferten Export, der Datenbank und durch direkte EODHD-HTTP-Proben übereinstimmend belegt sind. **Compliance:** Diese Prüfung bewertet Datenqualität und Berechnungswege; sie ist Forschung und Analyse, keine persönliche Anlageberatung.

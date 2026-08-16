@@ -9,8 +9,8 @@
  * Die Tests halten beides fest.
  */
 
-import { describe, it, expect } from "vitest";
-import { extractMetrics } from "./qualityMetricsService";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { clearQualityMetricsCache, extractMetrics, getQualityMetrics } from "./qualityMetricsService";
 
 /** EODHD-Antwort mit einer EPS-Jahresreihe; alles andere bleibt leer. */
 function payload(epsJahre: number[], extra: Record<string, unknown> = {}) {
@@ -99,5 +99,24 @@ describe("Forward PEG", () => {
     expect(m.epsGrowth5y!).toBeGreaterThan(2);
     expect(m.forwardPeg).not.toBeNull();
     expect(m.forwardPeg!).toBeCloseTo(32 / m.epsGrowth5y!, 6);
+  });
+});
+
+describe("temporäre EODHD-Ausfälle", () => {
+  afterEach(() => {
+    clearQualityMetricsCache("RETRY.XETRA");
+    vi.restoreAllMocks();
+  });
+
+  it("wiederholt einen einmaligen Timeout statt sofort leere Qualitätsdaten zu liefern", async () => {
+    const response = new Response(JSON.stringify(payload([2, 2.2, 2.4, 2.6, 2.9, 3.2, 3.6])));
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new DOMException("temporär", "TimeoutError"))
+      .mockResolvedValueOnce(response);
+
+    const metrics = await getQualityMetrics("RETRY.XETRA");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(metrics.dataSource).toBe("EODHD");
   });
 });

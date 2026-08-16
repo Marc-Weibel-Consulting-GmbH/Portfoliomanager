@@ -10,6 +10,7 @@
  */
 
 import { ENV } from "../_core/env";
+import { retryWithBackoff } from "../_core/retryUtil";
 import { toEodhdSymbol } from "./eodhdSymbol";
 import { berechnePiotroski, type PiotroskiErgebnis } from "./piotroski";
 import { bereinigtesPeg } from "./bereinigtesPeg";
@@ -156,12 +157,19 @@ export async function getQualityMetrics(ticker: string): Promise<QualityMetrics>
 
   try {
     const url = `https://eodhd.com/api/fundamentals/${eodhdTicker}?api_token=${apiKey}&fmt=json`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) }); // 8s Timeout (reduziert von 15s — schnellerer Fallback bei EODHD-Latenz)
-
-    if (!res.ok) {
-      console.warn(`[QualityMetrics] EODHD ${eodhdTicker} returned ${res.status}`);
-      return buildFallback(ticker, `EODHD HTTP ${res.status}`);
-    }
+    // Jede Wiederholung erhält einen eigenen Timeout. Ein einmaliger EODHD-
+    // Aussetzer darf nicht als dauerhaft fehlende Fundamentaldaten in einen
+    // Screener-Lauf eingehen; nach den begrenzten Versuchen bleibt der
+    // Fallback weiterhin explizit und fehlertolerant.
+    const res = await retryWithBackoff(async () => {
+      const response = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!response.ok) {
+        const error: Error & { status?: number } = new Error(`EODHD HTTP ${response.status}`);
+        error.status = response.status;
+        throw error;
+      }
+      return response;
+    }, { maxRetries: 2, baseDelay: 250, maxDelay: 1000 });
 
     const d = await res.json();
     const metrics = extractMetrics(d, ticker);

@@ -621,7 +621,9 @@
 - [x] P0 umgesetzt: EODHD-Fundamentalsymbole für XETRA/LSE zentral korrekt auflösen; kontrollierte Neuberechnung von Lauf 150001 ist vorbereitet
 - [x] P0 umgesetzt: Dividendenrenditen über einen expliziten Einheitenvertrag statt über die `<0.3`-Heuristik normalisieren
 - [x] P1 umgesetzt: ISO-Stammdaten, Emittentenschlüssel, Zweitnotierungsregeln und Transparenzfelder im Screener-Export ergänzen
-- [ ] Freigabe erforderlich: Lauf 150001 kontrolliert neu rechnen, damit die korrigierten Daten- und Symbolpfade die bestehenden Ergebnisfelder aktualisieren
+- [x] Lauf 150001 kontrolliert neu rechnen, damit die korrigierten Daten- und Symbolpfade die bestehenden Ergebnisfelder aktualisieren — 914 berechnete Zeilen seriell verarbeitet; Lauf `fertig`, keine Kandidaten oder Entscheidungen gelöscht
+- [x] Nach dem neu gerechneten Screener-Lauf die verbleibenden Punkte gegen Claudes parallele Bugprüfung konsolidieren und doppelte Befunde bereinigen — PR #297 konfliktfrei enthalten; keine offenen Claude-Bug-PRs in `main`, Restpunkte dokumentiert
+- [x] QualityMetrics-EODHD-Timeouts begrenzt wiederholen, damit einzelne Provider-Aussetzer keine stillen Screener-Leerdaten erzeugen
 
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
