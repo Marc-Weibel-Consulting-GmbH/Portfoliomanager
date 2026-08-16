@@ -3361,6 +3361,7 @@ export const adminRouter = router({
         setzeLaufStatus,
         verteilungJeBoerse,
         zaehleOhneHerleitung,
+        abdeckungJeBoerse,
       } = await import("../lib/screenerStore");
       // Teilfehler dürfen die Karte nicht leeren: Scheitert eine der
       // Abfragen (z. B. eine selbstheilende Spalten-Migration direkt nach
@@ -3394,6 +3395,7 @@ export const adminRouter = router({
       const beste = lauf ? await sicher("beste Kandidaten", () => besteKandidaten(lauf.id, input?.topN ?? 30), []) : [];
       const jeBoerse = lauf ? await sicher("Verteilung je Börse", () => verteilungJeBoerse(lauf.id), []) : [];
       const ohneHerleitung = lauf ? await sicher("ohne Herleitung", () => zaehleOhneHerleitung(lauf.id), 0) : 0;
+      const abdeckung = lauf ? await sicher("Score-Abdeckung", () => abdeckungJeBoerse(lauf.id), []) : [];
       // Watchlist-Grösse für den Deckel-Hinweis (Ziel: max. ~500 Titel).
       let watchlistGroesse = 0;
       try {
@@ -3415,6 +3417,8 @@ export const adminRouter = router({
         beste,
         jeBoerse,
         ohneHerleitung,
+        /** Score-Abdeckung der Berechneten je Börse — Frühwarn-KPI. */
+        abdeckung,
         watchlistGroesse,
         /** Fehlgeschlagene Teilabfragen — die Karte zeigt sie an. */
         teilFehler,
@@ -3510,6 +3514,7 @@ export const adminRouter = router({
         { header: "Name", key: "name", width: 34 },
         { header: "Börse", key: "boerse", width: 8 },
         { header: "Primärticker", key: "primaerTicker", width: 16 },
+        { header: "ISIN", key: "isin", width: 14 },
         { header: "Land", key: "land", width: 6 },
         { header: "Sektor", key: "sektor", width: 22 },
         { header: "Währung", key: "waehrung", width: 8 },
@@ -3523,21 +3528,31 @@ export const adminRouter = router({
         { header: "Q-Richtung (40 %)", key: "qRichtung", width: 14 },
         { header: "F-Score (0–9)", key: "fScore", width: 12 },
         { header: "Bewertung", key: "bewertung", width: 10 },
+        // Datenqualität auf einen Blick (Manus P1 + KIMI «effektive
+        // Gewichte»): Ein leerer Score ohne verdichteten Grund zwang die
+        // externe Prüfung bisher, die Faktorspalten selbst auszuzählen.
+        { header: "Score-Status", key: "scoreStatus", width: 34 },
+        { header: "Abdeckung Qualität %", key: "abdQ", width: 16 },
+        { header: "Abdeckung Bewertung %", key: "abdB", width: 17 },
+        { header: "KGV-Deckel aktiv", key: "deckelAktiv", width: 14 },
       ];
       // Hinweis je Faktor mit exportieren — «PEG fehlt» ohne das Warum
       // (kein Vendor-PEG, Wachstum unter 2 %, selbst gerechnet …) ist für
       // eine externe Prüfung wertlos (Befund aus Marcs Excel-Durchsicht).
+      // Gewicht EFFEKTIV, nicht nominell (KIMI-Punkt): Ein ausgeblendeter
+      // Faktor trägt 0, nicht 0.35 — sonst rechnet die externe Prüfung mit
+      // Gewichten, die die Renormierung längst umverteilt hat.
       const faktorSpalten = [
         ...qNamen.flatMap((n) => [
           { header: `Q: ${n} — Wert`, key: `qw:${n}`, width: 14 },
           { header: `Q: ${n} — Punkte`, key: `qp:${n}`, width: 14 },
-          { header: `Q: ${n} — Gewicht`, key: `qg:${n}`, width: 14 },
+          { header: `Q: ${n} — Gewicht effektiv`, key: `qg:${n}`, width: 16 },
           { header: `Q: ${n} — Hinweis`, key: `qh:${n}`, width: 40 },
         ]),
         ...bNamen.flatMap((n) => [
           { header: `B: ${n} — Wert`, key: `bw:${n}`, width: 14 },
           { header: `B: ${n} — Punkte`, key: `bp:${n}`, width: 14 },
-          { header: `B: ${n} — Gewicht`, key: `bg:${n}`, width: 14 },
+          { header: `B: ${n} — Gewicht effektiv`, key: `bg:${n}`, width: 16 },
           { header: `B: ${n} — Hinweis`, key: `bh:${n}`, width: 40 },
         ]),
       ];
@@ -3545,12 +3560,37 @@ export const adminRouter = router({
       blatt.getRow(1).font = { bold: true };
       blatt.views = [{ state: "frozen", xSplit: 2, ySplit: 1 }];
 
+      // Belegter Gewichtsanteil einer Faktorliste (0–100 %); Faktoren mit
+      // Gewicht 0 (Deckel, kontextlose Dividende) zählen nicht zum Budget.
+      const abdeckungProzent = (faktoren: Faktor[] | null): number | null => {
+        if (!faktoren || faktoren.length === 0) return null;
+        let budget = 0;
+        let belegt = 0;
+        for (const f of faktoren) {
+          const g = f?.gewicht ?? 0;
+          if (g <= 0) continue;
+          budget += g;
+          if (f.punkte !== null && f.punkte !== undefined) belegt += g;
+        }
+        return budget > 0 ? Math.round((belegt / budget) * 100) : null;
+      };
+      const scoreStatus = (k: (typeof berechnete)[number]): string => {
+        if (k.qualitaet != null && k.bewertung != null && k.signalScore != null) return "vollständig";
+        if (k.qualitaet == null && k.bewertung == null) return "keine Säule berechenbar";
+        if (k.bewertung == null) return "Bewertung unter Mindestabdeckung (unter 60 % belegtes Gewicht)";
+        if (k.qualitaet == null) return "Qualität unter Mindestabdeckung";
+        return "Signal unter Mindestabdeckung";
+      };
+
       for (const k of berechnete) {
+        const bFaktoren = (k.bewertungFaktoren as Faktor[] | null) ?? null;
+        const deckel = bFaktoren?.find((f) => f?.name === "KGV-Deckel");
         const zeile: Record<string, unknown> = {
           ticker: k.ticker,
           name: k.name,
           boerse: k.boerse,
           primaerTicker: k.primaerTicker,
+          isin: k.isin,
           land: k.land,
           sektor: k.sektor,
           waehrung: k.waehrung,
@@ -3564,19 +3604,26 @@ export const adminRouter = router({
           qRichtung: k.qualitaetRichtung,
           fScore: k.fScore,
           bewertung: k.bewertung,
+          scoreStatus: scoreStatus(k),
+          abdQ: abdeckungProzent(k.qualitaetFaktoren as Faktor[] | null),
+          abdB: abdeckungProzent(bFaktoren),
+          // Der Deckel-Faktor steht nur in der Liste, wenn er angewendet wurde
+          // — mit Gewicht 0 war er bisher unsichtbar, obwohl er die Säule
+          // begrenzt (4 Titel im Lauf #150001 standen auf exakt 25.0).
+          deckelAktiv: deckel ? "ja" : "nein",
         };
         for (const f of (k.qualitaetFaktoren as Faktor[] | null) ?? []) {
           if (!f?.name) continue;
           zeile[`qw:${f.name}`] = f.wert ?? null;
           zeile[`qp:${f.name}`] = f.punkte ?? null;
-          zeile[`qg:${f.name}`] = f.gewicht ?? null;
+          zeile[`qg:${f.name}`] = f.punkte != null ? (f.gewicht ?? null) : 0;
           zeile[`qh:${f.name}`] = f.hinweis ?? null;
         }
-        for (const f of (k.bewertungFaktoren as Faktor[] | null) ?? []) {
+        for (const f of bFaktoren ?? []) {
           if (!f?.name) continue;
           zeile[`bw:${f.name}`] = f.wert ?? null;
           zeile[`bp:${f.name}`] = f.punkte ?? null;
-          zeile[`bg:${f.name}`] = f.gewicht ?? null;
+          zeile[`bg:${f.name}`] = f.punkte != null ? (f.gewicht ?? null) : 0;
           zeile[`bh:${f.name}`] = f.hinweis ?? null;
         }
         blatt.addRow(zeile);
@@ -3588,6 +3635,7 @@ export const adminRouter = router({
         { header: "Name", key: "name", width: 34 },
         { header: "Börse", key: "boerse", width: 8 },
         { header: "Primärticker", key: "primaerTicker", width: 16 },
+        { header: "ISIN", key: "isin", width: 14 },
         { header: "Land", key: "land", width: 6 },
         { header: "Status", key: "status", width: 16 },
         { header: "Grund", key: "grund", width: 60 },
@@ -3595,9 +3643,55 @@ export const adminRouter = router({
       blatt2.getRow(1).font = { bold: true };
       for (const k of aussortierte) {
         blatt2.addRow({
-          ticker: k.ticker, name: k.name, boerse: k.boerse, primaerTicker: k.primaerTicker, land: k.land,
+          ticker: k.ticker, name: k.name, boerse: k.boerse, primaerTicker: k.primaerTicker,
+          isin: k.isin, land: k.land,
           status: k.status, grund: screenerStatusGrund(k.status, k.fehler),
         });
+      }
+
+      // Abdeckungs-KPIs je Börse und je Faktor (KIMI Punkt 6, Manus
+      // Release-Gate 1): Der 63-%-Datenausfall des Laufs #150001 fiel erst
+      // bei manueller Excel-Analyse auf — dieses Blatt macht ihn zur ersten
+      // Zeile, die man sieht.
+      const blatt3 = wb.addWorksheet("Abdeckung");
+      blatt3.columns = [
+        { header: "Ebene", key: "ebene", width: 10 },
+        { header: "Segment", key: "segment", width: 30 },
+        { header: "Zeilen", key: "zeilen", width: 10 },
+        { header: "mit Qualität", key: "mitQ", width: 12 },
+        { header: "mit Bewertung", key: "mitB", width: 13 },
+        { header: "mit Signal", key: "mitS", width: 11 },
+        { header: "Qualität %", key: "pq", width: 11 },
+        { header: "Bewertung %", key: "pb", width: 12 },
+      ];
+      blatt3.getRow(1).font = { bold: true };
+      const proz = (teil: number, ganz: number) => (ganz > 0 ? Math.round((teil / ganz) * 100) : null);
+      const boersen = [...new Set(berechnete.map((k) => k.boerse ?? "?"))].sort();
+      for (const b of ["ALLE", ...boersen]) {
+        const teilmenge = b === "ALLE" ? berechnete : berechnete.filter((k) => (k.boerse ?? "?") === b);
+        const mitQ = teilmenge.filter((k) => k.qualitaet != null).length;
+        const mitB = teilmenge.filter((k) => k.bewertung != null).length;
+        const mitS = teilmenge.filter((k) => k.signalScore != null).length;
+        blatt3.addRow({
+          ebene: "Börse", segment: b, zeilen: teilmenge.length,
+          mitQ, mitB, mitS,
+          pq: proz(mitQ, teilmenge.length), pb: proz(mitB, teilmenge.length),
+        });
+      }
+      for (const [praefix, namen, feld] of [
+        ["Q", qNamen, "qualitaetFaktoren"],
+        ["B", bNamen, "bewertungFaktoren"],
+      ] as const) {
+        for (const n of namen) {
+          const belegt = berechnete.filter((k) =>
+            ((k[feld] as Faktor[] | null) ?? []).some((f) => f?.name === n && f.punkte != null)).length;
+          blatt3.addRow({
+            ebene: "Faktor", segment: `${praefix}: ${n}`, zeilen: berechnete.length,
+            mitQ: null, mitB: null, mitS: null,
+            pq: praefix === "Q" ? proz(belegt, berechnete.length) : null,
+            pb: praefix === "B" ? proz(belegt, berechnete.length) : null,
+          });
+        }
       }
 
       const buffer = Buffer.from(await wb.xlsx.writeBuffer());

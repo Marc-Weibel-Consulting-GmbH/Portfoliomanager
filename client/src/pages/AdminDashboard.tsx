@@ -690,6 +690,29 @@ export default function AdminDashboard() {
             </p>
           )}
 
+          {/* Score-Abdeckung als Frühwarn-KPI: Lauf #150001 hatte 63 % tote
+              Zeilen (Symbolformat-Fehler), und niemand sah es vor der
+              manuellen Excel-Analyse. Eine Börse unter 90 % Qualität wird
+              amber — das ist fast immer ein Datenpfad-Problem, kein Markt. */}
+          {(screenerStatusQ.data?.abdeckung?.length ?? 0) > 0 && (() => {
+            const a = screenerStatusQ.data!.abdeckung;
+            const ges = { berechnet: 0, q: 0, bw: 0, sig: 0 };
+            for (const b of a) {
+              ges.berechnet += b.berechnet ?? 0;
+              ges.q += b.mitQualitaet ?? 0;
+              ges.bw += b.mitBewertung ?? 0;
+              ges.sig += b.mitSignal ?? 0;
+            }
+            const auffaellig = a.filter((b) => (b.berechnet ?? 0) > 0 && (b.mitQualitaet ?? 0) / (b.berechnet ?? 1) < 0.9);
+            return (
+              <p className={`text-xs ${auffaellig.length > 0 ? "text-amber-400" : "text-muted-foreground"}`}>
+                Score-Abdeckung: Qualität {ges.q}/{ges.berechnet} · Bewertung {ges.bw}/{ges.berechnet} · Signal {ges.sig}/{ges.berechnet}
+                {auffaellig.length > 0 &&
+                  ` — auffällig tief: ${auffaellig.map((b) => `${b.boerse} (Q ${b.mitQualitaet}/${b.berechnet})`).join(", ")} — vermutlich Datenpfad, nicht Markt`}
+              </p>
+            );
+          })()}
+
           {/* Nachrechnen: Lief ein Teil des Laufs, bevor Herleitungs-Speicherung
               oder ADR-Filter deployed waren, fehlen den Berechneten diese
               Prüfungen — hier alles zurück in die Warteschlange legen. */}

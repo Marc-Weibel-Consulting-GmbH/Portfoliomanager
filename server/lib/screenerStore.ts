@@ -67,6 +67,9 @@ async function stelleTabellenSicher(db: any): Promise<void> {
     // Sitzland (ISO-2) aus den EODHD-Stammdaten — macht die Länder-
     // Konzentration («zu viele China-Titel») sichtbar und prüfbar.
     ["land", "varchar(2)"],
+    // ISIN als quellenunabhängiger Emittentenschlüssel — 84 berechnete Titel
+    // des Laufs #150001 hatten keinen EODHD-Primärticker (Manus-Restpunkt).
+    ["isin", "varchar(12)"],
   ];
   for (const [name, typ] of nachgetragen) {
     const res: any = await db.execute(sql`
@@ -97,6 +100,8 @@ export interface ScreenerKandidat {
   boerse: string | null;
   /** Kanonische EODHD-Hauptnotiz als prüfbarer Emittentenschlüssel. */
   primaerTicker: string | null;
+  /** ISIN — quellenunabhängiger Emittentenschlüssel, nur informativ. */
+  isin: string | null;
   sektor: string | null;
   waehrung: string | null;
   marktKap: number | null;
@@ -169,7 +174,7 @@ export async function ergaenzeKandidaten(
   laufId: number,
   kandidaten: Array<Omit<ScreenerKandidat,
     "laufId" | "qualitaet" | "bewertung" | "signalScore" | "signalLabel"
-    | "qualitaetFaktoren" | "bewertungFaktoren" | "qualitaetNiveau" | "qualitaetRichtung" | "fScore" | "fehler" | "land" | "primaerTicker">>,
+    | "qualitaetFaktoren" | "bewertungFaktoren" | "qualitaetNiveau" | "qualitaetRichtung" | "fScore" | "fehler" | "land" | "primaerTicker" | "isin">>,
 ): Promise<{ eingefuegt: number; zeilenFehler: number; ersterFehler: string | null }> {
   if (kandidaten.length === 0) return { eingefuegt: 0, zeilenFehler: 0, ersterFehler: null };
   const db = await dbOderFehler();
@@ -274,6 +279,44 @@ export async function verteilungJeBoerse(laufId: number): Promise<Array<{ boerse
   }));
 }
 
+export interface AbdeckungJeBoerse {
+  boerse: string;
+  berechnet: number;
+  mitQualitaet: number;
+  mitBewertung: number;
+  mitSignal: number;
+}
+
+/**
+ * Score-Abdeckung der BERECHNETEN Kandidaten je Börse — der Frühwarn-KPI aus
+ * den Prüfungen (KIMI Punkt 6, Manus Release-Gate 1): Der Lauf #150001 hatte
+ * 63 % tote Zeilen, und niemand sah es, bis ein Mensch das Excel durchging.
+ * Eine Börse mit 0 % Bewertungsabdeckung ist ein Datenpfad-Problem, kein
+ * Marktbefund — das gehört auf die Karte, nicht in die Nachanalyse.
+ */
+export async function abdeckungJeBoerse(laufId: number): Promise<AbdeckungJeBoerse[]> {
+  const db = await dbOderFehler();
+  const { sql } = await import("drizzle-orm");
+  const res: any = await db.execute(sql`
+    SELECT boerse,
+           COUNT(*) AS berechnet,
+           SUM(CASE WHEN qualitaet IS NOT NULL THEN 1 ELSE 0 END) AS mitQualitaet,
+           SUM(CASE WHEN bewertung IS NOT NULL THEN 1 ELSE 0 END) AS mitBewertung,
+           SUM(CASE WHEN signalScore IS NOT NULL THEN 1 ELSE 0 END) AS mitSignal
+    FROM screener_kandidat
+    WHERE laufId = ${laufId} AND status IN ('berechnet', 'uebernommen', 'abgelehnt')
+    GROUP BY boerse
+    ORDER BY berechnet DESC`);
+  const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
+  return (liste as any[]).map((r) => ({
+    boerse: String(r.boerse ?? "?"),
+    berechnet: Number(r.berechnet ?? 0),
+    mitQualitaet: Number(r.mitQualitaet ?? 0),
+    mitBewertung: Number(r.mitBewertung ?? 0),
+    mitSignal: Number(r.mitSignal ?? 0),
+  }));
+}
+
 export async function schreibeErgebnis(
   laufId: number,
   ticker: string,
@@ -282,6 +325,7 @@ export async function schreibeErgebnis(
     land?: string | null;
     waehrung?: string | null;
     primaerTicker?: string | null;
+    isin?: string | null;
     qualitaet?: number | null;
     bewertung?: number | null;
     signalScore?: number | null;
@@ -302,6 +346,7 @@ export async function schreibeErgebnis(
         land = COALESCE(${ergebnis.land ?? null}, land),
         waehrung = COALESCE(${ergebnis.waehrung ?? null}, waehrung),
         primaerTicker = COALESCE(${ergebnis.primaerTicker ?? null}, primaerTicker),
+        isin = COALESCE(${ergebnis.isin ?? null}, isin),
         qualitaet = ${ergebnis.qualitaet ?? null},
         bewertung = ${ergebnis.bewertung ?? null},
         signalScore = ${ergebnis.signalScore ?? null},
@@ -489,6 +534,7 @@ function mappeKandidat(r: any): ScreenerKandidat {
     name: r.name ?? null,
     boerse: r.boerse ?? null,
     primaerTicker: r.primaerTicker ?? null,
+    isin: r.isin ?? null,
     sektor: r.sektor ?? null,
     waehrung: r.waehrung ?? null,
     marktKap: zahl(r.marktKap),
