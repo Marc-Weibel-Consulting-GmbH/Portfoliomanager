@@ -603,6 +603,20 @@ export default function AdminDashboard() {
             </Button>
           </div>
 
+          {/* Ein Fehler der Status-Abfrage darf die Karte nicht leeren — sonst
+              steht hier nur noch der Start-Knopf und niemand weiss, warum
+              (Live-Befund 16.08.: leere Karte nach Deploy). */}
+          {screenerStatusQ.error && (
+            <p className="text-xs text-amber-400 border-t pt-3">
+              Status-Abfrage fehlgeschlagen: {screenerStatusQ.error.message}
+            </p>
+          )}
+          {(screenerStatusQ.data?.teilFehler?.length ?? 0) > 0 && (
+            <p className="text-xs text-amber-400 border-t pt-3">
+              Teilabfragen fehlgeschlagen: {screenerStatusQ.data!.teilFehler.join(" · ")}
+            </p>
+          )}
+
           {screenerStatusQ.data?.lauf && (
             <div className="grid grid-cols-2 md:grid-cols-6 gap-3 border-t pt-3 text-sm">
               <div>
