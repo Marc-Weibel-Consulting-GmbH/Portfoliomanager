@@ -225,7 +225,7 @@ export function vergleichsTicker(t: string): string {
  * CEDEARs, CDRs). Billiger Vorfilter vor der teuren Hauptkotierungs-Abfrage —
  * und die einzige Handhabe für Altbestände ohne erneuten API-Abruf.
  */
-export const ADR_NAMENSMUSTER = /\bADRs?\b|\bADS\b|American Depositary|CEDEAR|\bCDR\b|\bDRC\b/i;
+export const ADR_NAMENSMUSTER = /\bADRs?\b|\bADS\b|American Depositary|\bGDRs?\b|\bGDS\b|Global Depositary|CEDEAR|\bCDR\b|\bDRC\b/i;
 
 /**
  * Stammdaten eines Titels aus dem EODHD-`General`-Block: Hauptkotierung,
@@ -279,6 +279,22 @@ async function holeStammdaten(ticker: string): Promise<TitelStammdaten | null> {
 function istOtcPlatz(boersenplatz: string | null): boolean {
   if (!boersenplatz) return false;
   return boersenplatz.startsWith("OTC") || boersenplatz === "PINK" || boersenplatz === "NMFQS";
+}
+
+/**
+ * LSE-Notiz in Dollar = International-Order-Book-GDR, kein Stammtitel.
+ *
+ * Reguläre Londoner Stammaktien handeln in Pence/Pfund (GBX/GBP, vereinzelt
+ * EUR); die Dollarlinien am IOB sind Hinterlegungsscheine (Samsung als
+ * BC94.L, Lukoil-artige GDRs). Sie tragen weder «GDR» im Namen noch die
+ * führende «0» der numerischen IOB-Codes — die Handelswährung ist das
+ * verlässliche Erkennungszeichen. Ihre Kennzahlen sind zudem regelmässig
+ * Währungsmüll (Won-Cashflow ÷ Dollar-Marktkapitalisierung ⇒ «FCF-Rendite
+ * 2605 %» beim Live-Fund).
+ */
+export function istLseDollarNotiz(boerse: string | null, waehrungIso: string | null): boolean {
+  const b = (boerse ?? "").toUpperCase();
+  return (b === "LSE" || b === "L") && (waehrungIso ?? "").toUpperCase() === "USD";
 }
 
 /**
@@ -376,6 +392,15 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         await schreibeErgebnis(laufId, k.ticker, {
           status: "ausgeschlossen",
           fehler: `OTC-Notiz (${stamm!.boersenplatz}) — kein regulärer Börsenplatz`,
+          ...metadaten,
+        });
+        ausgeschlossen++;
+        continue;
+      }
+      if (istLseDollarNotiz(k.boerse, stamm?.waehrungIso ?? null)) {
+        await schreibeErgebnis(laufId, k.ticker, {
+          status: "ausgeschlossen",
+          fehler: "LSE-Dollarnotiz (IOB-GDR) — Hinterlegungsschein, kein Stammtitel",
           ...metadaten,
         });
         ausgeschlossen++;
