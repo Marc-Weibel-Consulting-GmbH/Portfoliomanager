@@ -101,6 +101,16 @@ dieses Dokument.
 - **FASSUNG 4 (2026-08):** Gewinnstabilität robust — nur benachbarte
   Geschäftsjahre bilden Wachstumsraten, Raten bei ±100 % gekappt, mindestens
   4 Jahresraten (`gewinnStabilitaet.ts`). Befund 1 der Scoring-Prüfung.
+- **FASSUNG 5 (2026-08):** Gewinnstabilität — Raten-Kappung ±100 % → ±50 %.
+  Begründung nach Regel 1: Im vollständigen Screener-Lauf #150001 standen
+  167 von 296 berechneten Stabilitätswerten auf exakt 0 (56 %) — ein Faktor,
+  der die Hälfte des Universums identisch bestraft, unterscheidet nicht
+  zwischen «etwas zyklisch» und «chaotisch» und trägt praktisch keine
+  Information (15 % Gewicht als Rauschen). Ein einzelnes Extremjahr
+  (Einmalgewinn, Split-Artefakt, Basiseffekt) zählt jetzt als
+  50-%-Ereignis; erst WIEDERHOLTE grosse Sprünge (Wechselreihe ±50 %)
+  erreichen weiterhin die 50-pp-Nullmarke. Anker unverändert
+  (5 pp → 100, 50 pp → 0).
 - **PEG-Rückfall (2026-08, ohne FASSUNG-Wechsel):** Fehlt das Vendor-PEG,
   wird das rohe PEG selbst gerechnet — KGV ÷ belegtes Gewinnwachstum
   (5-Jahres-CAGR führt, TTM als Rückfall, 2-%-Untergrenze strikt), danach

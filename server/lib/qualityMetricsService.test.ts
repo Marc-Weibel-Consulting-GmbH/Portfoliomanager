@@ -106,9 +106,14 @@ describe("temporäre EODHD-Ausfälle", () => {
   afterEach(() => {
     clearQualityMetricsCache("RETRY.XETRA");
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
   });
 
   it("wiederholt einen einmaligen Timeout statt sofort leere Qualitätsdaten zu liefern", async () => {
+    // Ohne Schlüssel kehrt getQualityMetrics vor dem ersten fetch um — in
+    // CI/Sandbox ist keiner gesetzt, der Test muss ihn selbst stellen
+    // (ENV liest process.env über Getter, stubEnv greift also).
+    vi.stubEnv("EODHD_API_KEY", "test-schluessel");
     const response = new Response(JSON.stringify(payload([2, 2.2, 2.4, 2.6, 2.9, 3.2, 3.6])));
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockRejectedValueOnce(new DOMException("temporär", "TimeoutError"))

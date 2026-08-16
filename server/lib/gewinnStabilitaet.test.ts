@@ -81,4 +81,30 @@ describe("stabilitaetAusJahresEps", () => {
     expect(r.raten.every((x) => Number.isFinite(x))).toBe(true);
     expect(r.score).not.toBeNull();
   });
+
+  // FASSUNG 5: Kappung ±50 %. Beleg aus Lauf #150001: 167 von 296 berechneten
+  // Stabilitätswerten standen auf exakt 0 — ein Faktor, der die Hälfte des
+  // Universums identisch bestraft, unterscheidet nicht mehr zwischen «etwas
+  // zyklisch» und «chaotisch» und trägt praktisch keine Information.
+  it("FASSUNG 5: ein Verdopplungsjahr in einer sonst ruhigen Reihe drückt nicht mehr Richtung 0", () => {
+    // Sondereffekt-Jahr (Übernahme, Einmalgewinn): EPS ×2, davor und danach ruhig.
+    const r = stabilitaetAusJahresEps(jahre([
+      [2019, 10], [2020, 10.5], [2021, 11], [2022, 23], [2023, 24],
+      [2024, 25], [2025, 26.5], [2026, 28],
+    ]));
+    // Mit ±100-%-Kappung blieb die Rate des Sonderjahres bei +100 % und zog
+    // die Streuung auf ~36 pp (Score ~31); mit ±50 % bleibt die Reihe als
+    // das erkennbar, was sie ist: ruhig mit einem Ereignis.
+    expect(r.score!).toBeGreaterThanOrEqual(60);
+  });
+
+  it("FASSUNG 5: eine chaotische Wechselreihe bleibt bei 0", () => {
+    // Jedes Jahr Verdoppelung/Halbierung im Wechsel — das ist echte
+    // Sprunghaftigkeit, kein Einmaleffekt, und muss weiterhin 0 ergeben.
+    const r = stabilitaetAusJahresEps(jahre([
+      [2020, 1], [2021, 2.2], [2022, 0.9], [2023, 2.1],
+      [2024, 0.8], [2025, 2.0], [2026, 0.7],
+    ]));
+    expect(r.score).toBe(0);
+  });
 });

@@ -245,6 +245,12 @@ interface TitelStammdaten {
   landIso: string | null;
   /** Handelswährung als ISO-Code, z. B. "CHF", "EUR", "GBP". */
   waehrungIso: string | null;
+  /**
+   * ISIN als quellenunabhängiger Emittentenschlüssel (Manus-Restpunkt: 84
+   * berechnete Titel ohne EODHD-Primärticker). Nur gespeichert und
+   * ausgewiesen — keine automatische Löschlogik darauf.
+   */
+  isin: string | null;
 }
 
 async function holeStammdaten(ticker: string): Promise<TitelStammdaten | null> {
@@ -265,6 +271,7 @@ async function holeStammdaten(ticker: string): Promise<TitelStammdaten | null> {
     boersenplatz: text(data.Exchange)?.toUpperCase() ?? null,
     landIso: text(data.CountryISO)?.toUpperCase() ?? null,
     waehrungIso: text(data.CurrencyCode)?.toUpperCase() ?? null,
+    isin: text(data.ISIN)?.toUpperCase() ?? null,
   };
 }
 
@@ -346,6 +353,7 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         land: stamm?.landIso ?? null,
         waehrung: stamm?.waehrungIso ?? null,
         primaerTicker: stamm?.primaerTicker ?? null,
+        isin: stamm?.isin ?? null,
       };
       // Nur Stammaktien: Vorzugsaktien-Serien (Preferred Stock), Fonds und
       // Notes sind Zins-/Vehikelpapiere — im Live-Lauf stand Morgan Stanley
@@ -391,6 +399,20 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         TITEL_TIMEOUT_MS,
         k.ticker,
       );
+      // Keine einzige Säule berechenbar → das ist kein Kandidat, sondern eine
+      // Datenlücke. Vorher stand so ein Titel als «berechnet» mit leeren
+      // Scores in der Rangliste (4 Fälle im Lauf #150001, Manus-Restpunkt und
+      // KIMI Befund 1): Status «fehler» mit Grund, damit Export und Zähler
+      // ihn als das ausweisen, was er ist.
+      if (scores.qualitaet.gesamt === null && scores.bewertung.score === null) {
+        await schreibeErgebnis(laufId, k.ticker, {
+          status: "fehler",
+          fehler: "keine Fundamentaldaten — keine Säule berechenbar",
+          ...metadaten,
+        });
+        fehlgeschlagen++;
+        continue;
+      }
       await schreibeErgebnis(laufId, k.ticker, {
         status: "berechnet",
         ...metadaten,

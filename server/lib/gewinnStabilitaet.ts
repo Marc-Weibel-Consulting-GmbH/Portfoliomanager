@@ -11,11 +11,17 @@
  *     behandelt — eine «Jahresrate» über eine mehrjährige Lücke blähte die
  *     Streuung künstlich auf. Gleiches Muster wie bei den Kursreihen
  *     (keine Rendite über eine Datenlücke).
- *  2. RATEN WERDEN BEI ±100 % GEKAPPT (winsorisiert). Ein einzelnes
- *     Artefaktjahr — Split-Inkonsistenz, Basiseffekt nahe null — trieb die
+ *  2. RATEN WERDEN BEI ±50 % GEKAPPT (winsorisiert; FASSUNG 5, vorher
+ *     ±100 %). Ein einzelnes Artefakt- oder Ereignisjahr — Split-
+ *     Inkonsistenz, Basiseffekt nahe null, Einmalgewinn — trieb die
  *     Standardabweichung sonst allein über die 50-pp-Schwelle und nullte
- *     den Faktor. Die Information «extremes Jahr» bleibt erhalten, ihr
- *     Hebel wird begrenzt.
+ *     den Faktor. Beleg für die engere Kappung: Im Screener-Lauf #150001
+ *     standen 167 von 296 berechneten Werten auf exakt 0 — der Faktor war
+ *     praktisch binär und unterschied nicht mehr zwischen «etwas zyklisch»
+ *     und «chaotisch». Mit ±50 % bleibt ein Extremjahr als solches sichtbar
+ *     (die Kappungsgrenze IST die Sprunghaftigkeits-Schwelle), aber erst
+ *     WIEDERHOLTE grosse Sprünge treiben die Streuung auf 0 — eine
+ *     Wechselreihe ±50 % erreicht weiterhin exakt die 50-pp-Nullmarke.
  *
  * Null-Semantik unverändert: zu wenig zusammenhängende Jahre → null
  * («nicht berechenbar»), niemals eine erfundene 0. Der `hinweis` nennt die
@@ -31,8 +37,8 @@
 export const STREUUNG_SEHR_GLEICHMAESSIG_PP = 5;
 /** Ab dieser Streuung (Prozentpunkte) gilt die Reihe als sehr sprunghaft. */
 export const STREUUNG_SEHR_SPRUNGHAFT_PP = 50;
-/** Kappung der einzelnen Jahresrate (±100 %) — Anteil, nicht Prozent. */
-export const RATEN_KAPPUNG = 1.0;
+/** Kappung der einzelnen Jahresrate (±50 %) — Anteil, nicht Prozent. */
+export const RATEN_KAPPUNG = 0.5;
 /** Mindestzahl zusammenhängender Jahresraten für eine Streuungsaussage. */
 export const MIN_RATEN = 4;
 

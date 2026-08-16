@@ -29,11 +29,15 @@
  * 4 — Gewinnstabilität robust (`gewinnStabilitaet`): nur benachbarte
  *     Geschäftsjahre gepaart, Raten bei ±100 % gekappt — Lückenraten und
  *     Artefaktjahre nullten den Faktor (Befund 1 der Scoring-Prüfung).
+ * 5 — Gewinnstabilität: Raten-Kappung ±100 % → ±50 %. Beleg Lauf #150001:
+ *     167 von 296 berechneten Werten exakt 0 — der Faktor war praktisch
+ *     binär. Ein einzelnes Extremjahr zählt jetzt als 50-%-Ereignis;
+ *     nur wiederholte grosse Sprünge treiben den Score auf 0.
  *
  * Ersetzt die frühere Behelfsprüfung «hat die Zeile ein Regime». Bei der
  * nächsten Formeländerung genügt eine neue Nummer.
  */
-export const FASSUNG = 4;
+export const FASSUNG = 5;
 
 let tabelleGeprueft = false;
 
