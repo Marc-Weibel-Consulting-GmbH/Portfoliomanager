@@ -3475,7 +3475,7 @@ export const adminRouter = router({
   screenerExport: adminProcedure
     .input(z.object({ laufId: z.number().int() }))
     .mutation(async ({ input }) => {
-      const { alleKandidaten } = await import("../lib/screenerStore");
+      const { alleKandidaten, screenerStatusGrund } = await import("../lib/screenerStore");
       const kandidaten = await alleKandidaten(input.laufId);
       if (kandidaten.length === 0) {
         return { url: null, filename: null, message: "Dieser Lauf hat keine Kandidaten." };
@@ -3509,6 +3509,7 @@ export const adminRouter = router({
         { header: "Ticker", key: "ticker", width: 12 },
         { header: "Name", key: "name", width: 34 },
         { header: "Börse", key: "boerse", width: 8 },
+        { header: "Primärticker", key: "primaerTicker", width: 16 },
         { header: "Land", key: "land", width: 6 },
         { header: "Sektor", key: "sektor", width: 22 },
         { header: "Währung", key: "waehrung", width: 8 },
@@ -3544,6 +3545,7 @@ export const adminRouter = router({
           ticker: k.ticker,
           name: k.name,
           boerse: k.boerse,
+          primaerTicker: k.primaerTicker,
           land: k.land,
           sektor: k.sektor,
           waehrung: k.waehrung,
@@ -3578,6 +3580,7 @@ export const adminRouter = router({
         { header: "Ticker", key: "ticker", width: 12 },
         { header: "Name", key: "name", width: 34 },
         { header: "Börse", key: "boerse", width: 8 },
+        { header: "Primärticker", key: "primaerTicker", width: 16 },
         { header: "Land", key: "land", width: 6 },
         { header: "Status", key: "status", width: 16 },
         { header: "Grund", key: "grund", width: 60 },
@@ -3585,8 +3588,8 @@ export const adminRouter = router({
       blatt2.getRow(1).font = { bold: true };
       for (const k of aussortierte) {
         blatt2.addRow({
-          ticker: k.ticker, name: k.name, boerse: k.boerse, land: k.land,
-          status: k.status, grund: k.fehler,
+          ticker: k.ticker, name: k.name, boerse: k.boerse, primaerTicker: k.primaerTicker, land: k.land,
+          status: k.status, grund: screenerStatusGrund(k.status, k.fehler),
         });
       }
 

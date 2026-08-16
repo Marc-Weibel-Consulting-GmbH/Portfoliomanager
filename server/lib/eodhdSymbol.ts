@@ -163,6 +163,14 @@ export function toEodhdSymbol(ticker: string): string {
   if (!ticker) return ticker;
   // Explizite Mappings haben Vorrang
   if (EODHD_TICKER_MAPPING[ticker]) return EODHD_TICKER_MAPPING[ticker];
+  // Die Anwendung verwendet aus Gründen der lesbaren, providerneutralen
+  // Anzeige `.DE` und `.L`. Der EODHD-Fundamentals-Endpunkt akzeptiert für
+  // diese Handelsplätze jedoch ausschliesslich `.XETRA` bzw. `.LSE`.
+  // Diese Umwandlung findet nur an der Anbietergrenze statt; DB- und UI-Ticker
+  // bleiben unverändert. Ohne sie liefern die vollständigen XETRA-/LSE-Läufe
+  // HTTP 404 und können keine Fundamentaldaten oder Scores erhalten.
+  if (ticker.endsWith(".DE")) return `${ticker.slice(0, -3)}.XETRA`;
+  if (ticker.endsWith(".L")) return `${ticker.slice(0, -2)}.LSE`;
   // Generische Regel: Japanische Aktien (.T) — EODHD hat kein .TSE-Exchange.
   // Unbekannte .T-Ticker werden als nicht verfügbar behandelt (UNAVAILABLE_TICKERS).
   // Bekannte Ticker sind explizit in EODHD_TICKER_MAPPING oben eingetragen.

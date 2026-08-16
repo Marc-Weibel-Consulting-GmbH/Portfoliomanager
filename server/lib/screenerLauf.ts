@@ -20,7 +20,7 @@
 import { ENV } from "../_core/env";
 import { retryFetch } from "../_core/retryUtil";
 import { tickerAusScreenerCode } from "./universeExpansion";
-import { alsProzent } from "./dividendenrendite";
+import { eodhdBruchZuProzent } from "./dividendenrendite";
 import { toEodhdSymbol } from "./eodhdSymbol";
 
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -130,12 +130,11 @@ export async function sammleUniversum(
           sektor: item.sector ?? null,
           waehrung: item.currency ?? null,
           marktKap: Number.isFinite(item.market_capitalization) ? item.market_capitalization : null,
-          // Der EODHD-Screener liefert die Dividendenrendite als BRUCH (0.03 =
-          // 3 %); Ablage und Bewertungs-Formel führen Prozent. Ohne die
-          // Umrechnung bekam Roche für 3 % Dividende 1 von 100 Punkten.
-          dividendenrendite: Number.isFinite(item.dividend_yield)
-            ? alsProzent(item.dividend_yield * 100, `screener/${ticker}`)
-            : null,
+          // Vertrag an der Anbietergrenze: EODHD liefert einen Bruch (0.03 =
+          // 3 %), Ablage und Bewertungsformel führen Prozent. Der Wert wird
+          // exakt hier einmalig konvertiert und später nie anhand seiner Höhe
+          // geraten oder nochmals skaliert.
+          dividendenrendite: eodhdBruchZuProzent(item.dividend_yield),
         });
         jeBoerse++;
       }
@@ -244,11 +243,16 @@ interface TitelStammdaten {
   boersenplatz: string | null;
   /** Sitzland ISO-2, z. B. "US", "CN". */
   landIso: string | null;
+  /** Handelswährung als ISO-Code, z. B. "CHF", "EUR", "GBP". */
+  waehrungIso: string | null;
 }
 
 async function holeStammdaten(ticker: string): Promise<TitelStammdaten | null> {
   if (!ENV.eodhdApiKey) return null;
-  const symbol = ticker.includes(".") ? ticker : `${ticker}.US`;
+  const intern = ticker.includes(".") ? ticker : `${ticker}.US`;
+  // Stammdaten und QualityMetrics müssen dieselbe Anbieterauflösung benutzen.
+  // `.DE`/`.L` sind interne Darstellungen; EODHD erwartet `.XETRA`/`.LSE`.
+  const symbol = toEodhdSymbol(intern);
   const url = `${EODHD_BASE_URL}/fundamentals/${encodeURIComponent(symbol)}` +
     `?api_token=${ENV.eodhdApiKey}&filter=General&fmt=json`;
   const resp = await retryFetch(url, {}, { maxRetries: 1, baseDelay: 500 });
@@ -260,6 +264,7 @@ async function holeStammdaten(ticker: string): Promise<TitelStammdaten | null> {
     typ: text(data.Type),
     boersenplatz: text(data.Exchange)?.toUpperCase() ?? null,
     landIso: text(data.CountryISO)?.toUpperCase() ?? null,
+    waehrungIso: text(data.CurrencyCode)?.toUpperCase() ?? null,
   };
 }
 
@@ -337,6 +342,11 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
       }
       const stamm = await mitTimeout(holeStammdaten(k.ticker), TITEL_TIMEOUT_MS, `${k.ticker} Stammdaten`)
         .catch(() => null);
+      const metadaten = {
+        land: stamm?.landIso ?? null,
+        waehrung: stamm?.waehrungIso ?? null,
+        primaerTicker: stamm?.primaerTicker ?? null,
+      };
       // Nur Stammaktien: Vorzugsaktien-Serien (Preferred Stock), Fonds und
       // Notes sind Zins-/Vehikelpapiere — im Live-Lauf stand Morgan Stanley
       // fünffach in den Top 30, einmal je Vorzugsserie. Fehlt der Typ, wird
@@ -346,7 +356,7 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         await schreibeErgebnis(laufId, k.ticker, {
           status: "ausgeschlossen",
           fehler: `kein Stammtitel: ${stamm.typ}`,
-          land: stamm.landIso,
+          ...metadaten,
         });
         ausgeschlossen++;
         continue;
@@ -358,7 +368,7 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         await schreibeErgebnis(laufId, k.ticker, {
           status: "ausgeschlossen",
           fehler: `OTC-Notiz (${stamm!.boersenplatz}) — kein regulärer Börsenplatz`,
-          land: stamm?.landIso ?? null,
+          ...metadaten,
         });
         ausgeschlossen++;
         continue;
@@ -368,29 +378,22 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         await schreibeErgebnis(laufId, k.ticker, {
           status: "zweitkotierung",
           fehler: `Hauptbörse: ${zweit.hauptboerse}`,
-          land: stamm?.landIso ?? null,
+          ...metadaten,
         });
         zweitkotierungen++;
         continue;
       }
-      // Übergangsheilung: Vor dem Prozent-Fix wurden Kandidaten mit der
-      // Dividendenrendite als Bruch abgelegt (0.03 statt 3). Werte unter 0.3
-      // werden deshalb als Bruch gelesen — echte Renditen unter 0.3 % sind
-      // praktisch inexistent (wer so wenig ausschüttet, schüttet nichts aus).
-      const divRendite = k.dividendenrendite != null && k.dividendenrendite > 0 && k.dividendenrendite < 0.3
-        ? alsProzent(k.dividendenrendite * 100, `screener-altbestand/${k.ticker}`)
-        : k.dividendenrendite;
       const scores = await mitTimeout(
         getDreiScores(k.ticker, {
           sektor: k.sektor,
-          dividendenrendite: divRendite,
+          dividendenrendite: k.dividendenrendite,
         }),
         TITEL_TIMEOUT_MS,
         k.ticker,
       );
       await schreibeErgebnis(laufId, k.ticker, {
         status: "berechnet",
-        land: stamm?.landIso ?? null,
+        ...metadaten,
         qualitaet: scores.qualitaet.gesamt,
         bewertung: scores.bewertung.score,
         signalScore: scores.signal.score,

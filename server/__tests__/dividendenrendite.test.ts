@@ -19,6 +19,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   alsProzent,
+  eodhdBruchZuProzent,
   istPlausibleRendite,
   PLAUSIBEL_MAX_PROZENT,
 } from "../lib/dividendenrendite";
@@ -72,6 +73,19 @@ describe("alsProzent", () => {
     expect(alsProzent(null)).toBeNull();
     expect(alsProzent(undefined)).toBeNull();
     expect(alsProzent(-5)).toBeNull();
+  });
+});
+
+describe("eodhdBruchZuProzent", () => {
+  it("rechnet nur den dokumentierten EODHD-Rohbruch einmalig in Prozent um", () => {
+    expect(eodhdBruchZuProzent(0.0024)).toBeCloseTo(0.24, 10);
+    expect(eodhdBruchZuProzent(0.0002)).toBeCloseTo(0.02, 10);
+  });
+
+  it("verwirft fehlende oder ungültige Rohwerte statt ihre Einheit zu raten", () => {
+    expect(eodhdBruchZuProzent(null)).toBeNull();
+    expect(eodhdBruchZuProzent(-0.01)).toBeNull();
+    expect(eodhdBruchZuProzent(Number.NaN)).toBeNull();
   });
 });
 

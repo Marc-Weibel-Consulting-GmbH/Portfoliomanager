@@ -43,6 +43,18 @@ export function istPlausibleRendite(wert: number | null | undefined): boolean {
 }
 
 /**
+ * EODHD-Screener-Rohwert in die projektweite Prozentkonvention überführen.
+ *
+ * Der Vertrag ist quellenspezifisch und absichtlich frei von Plausibilitäts-
+ * heuristiken: 0.0024 bedeutet bei EODHD immer 0.24 %. Eine bereits in Prozent
+ * vorliegende Zahl darf diese Funktion deshalb nie erneut durchlaufen.
+ */
+export function eodhdBruchZuProzent(wert: number | null | undefined): number | null {
+  if (wert == null || !Number.isFinite(wert) || wert < 0 || wert > 1) return null;
+  return wert * 100;
+}
+
+/**
  * Bringt einen Wert auf die Prozent-Konvention.
  *
  * Liegt er über der Plausibilitätsschranke, war er hundertfach zu hoch und wird

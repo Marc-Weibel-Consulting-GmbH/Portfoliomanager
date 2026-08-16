@@ -78,6 +78,14 @@ Der Screener-Endpunkt liefert ein Währungssymbol, aber kein eindeutiges ISO-Lan
 3. Kandidaten ohne Qualität **oder** Bewertung nicht in eine gemeinsame Signalrangfolge einmischen; sie müssen eine gesonderte Datenlückenklasse erhalten.
 4. Ein Lauf gilt erst als fachlich vollständig, wenn jede Statuszeile einen maschinenlesbaren Grund, einen Datenzeitpunkt und eine Metadatenauflösung besitzt.
 
+## 6a. Umsetzungsstand nach der Prüfung
+
+Die beiden P0-Ursachen wurden anschliessend minimal und testgetrieben im Code behoben: Der zentrale EODHD-Resolver bildet interne `.DE`-/`.L`-Ticker nun auf `.XETRA`/`.LSE` ab, und der Screener konvertiert den dokumentierten EODHD-Rohbruch für die Dividendenrendite ausschliesslich bei der Sammlung einmalig in Prozent. Die frühere `<0.3`-Wertheuristik im Rechenpfad ist entfernt.
+
+Für P1 speichert der Screener nach erfolgreicher Stammdatenauflösung zusätzlich ISO-Land, ISO-Währung und den Anbieter-Primärticker. Der Export weist den Primärticker aus und erklärt den Status `vorhanden` mit „Bereits in der Watchlist“. Die 155 Testdateien mit 1'323 Tests sowie Build und TypeScript bestanden nach diesen Änderungen.
+
+Die **Neuberechnung von Lauf 150001 ist bewusst noch nicht ausgeführt**, weil sie bestehende berechnete Ergebnisfelder temporär zurücksetzt und neu schreibt. Kandidaten und Entscheidungen bleiben zwar erhalten, die Operation berührt aber produktive Laufdaten und benötigt deshalb eine explizite Freigabe.
+
 ## 7. Prüfdisclosure
 
 **Basis:** Qualität und Bewertung wurden gemäss der im Projekt implementierten Drei-Score-Formeln sowie deren 60-%-Mindestabdeckung geprüft. **Zeit:** Stichtag der Laufdaten ist der 16. August 2026; EODHD-Proben wurden am selben Tag ausgeführt. **Annahmen:** Kein fehlender Wert wurde als Null interpretiert und keine Dublette allein wegen eines identischen Namens entfernt. **Quellen und Sicherheit:** Hohe Sicherheit für Status-, Skalierungs- und Symbolbefunde, weil sie im gelieferten Export, der Datenbank und durch direkte EODHD-HTTP-Proben übereinstimmend belegt sind. **Compliance:** Diese Prüfung bewertet Datenqualität und Berechnungswege; sie ist Forschung und Analyse, keine persönliche Anlageberatung.

@@ -32,6 +32,7 @@ async function stelleTabellenSicher(db: any): Promise<void> {
     \`ticker\` varchar(24) NOT NULL,
     \`name\` varchar(255),
     \`boerse\` varchar(12),
+    \`primaerTicker\` varchar(24),
     \`sektor\` varchar(64),
     \`waehrung\` varchar(8),
     \`marktKap\` decimal(20,0),
@@ -62,6 +63,7 @@ async function stelleTabellenSicher(db: any): Promise<void> {
     ["qualitaetNiveau", "decimal(6,2)"],
     ["qualitaetRichtung", "decimal(6,2)"],
     ["fScore", "tinyint"],
+    ["primaerTicker", "varchar(24)"],
     // Sitzland (ISO-2) aus den EODHD-Stammdaten — macht die Länder-
     // Konzentration («zu viele China-Titel») sichtbar und prüfbar.
     ["land", "varchar(2)"],
@@ -93,6 +95,8 @@ export interface ScreenerKandidat {
   ticker: string;
   name: string | null;
   boerse: string | null;
+  /** Kanonische EODHD-Hauptnotiz als prüfbarer Emittentenschlüssel. */
+  primaerTicker: string | null;
   sektor: string | null;
   waehrung: string | null;
   marktKap: number | null;
@@ -165,7 +169,7 @@ export async function ergaenzeKandidaten(
   laufId: number,
   kandidaten: Array<Omit<ScreenerKandidat,
     "laufId" | "qualitaet" | "bewertung" | "signalScore" | "signalLabel"
-    | "qualitaetFaktoren" | "bewertungFaktoren" | "qualitaetNiveau" | "qualitaetRichtung" | "fScore" | "fehler" | "land">>,
+    | "qualitaetFaktoren" | "bewertungFaktoren" | "qualitaetNiveau" | "qualitaetRichtung" | "fScore" | "fehler" | "land" | "primaerTicker">>,
 ): Promise<{ eingefuegt: number; zeilenFehler: number; ersterFehler: string | null }> {
   if (kandidaten.length === 0) return { eingefuegt: 0, zeilenFehler: 0, ersterFehler: null };
   const db = await dbOderFehler();
@@ -276,6 +280,8 @@ export async function schreibeErgebnis(
   ergebnis: {
     status: "berechnet" | "fehler" | "zweitkotierung" | "ausgeschlossen";
     land?: string | null;
+    waehrung?: string | null;
+    primaerTicker?: string | null;
     qualitaet?: number | null;
     bewertung?: number | null;
     signalScore?: number | null;
@@ -294,6 +300,8 @@ export async function schreibeErgebnis(
     UPDATE screener_kandidat
     SET status = ${ergebnis.status},
         land = COALESCE(${ergebnis.land ?? null}, land),
+        waehrung = COALESCE(${ergebnis.waehrung ?? null}, waehrung),
+        primaerTicker = COALESCE(${ergebnis.primaerTicker ?? null}, primaerTicker),
         qualitaet = ${ergebnis.qualitaet ?? null},
         bewertung = ${ergebnis.bewertung ?? null},
         signalScore = ${ergebnis.signalScore ?? null},
@@ -344,6 +352,14 @@ export interface LaufUebersicht {
 export interface AnzeigbarerLauf {
   lauf: LaufUebersicht | null;
   ausgeblendeterFehlerLauf: LaufUebersicht | null;
+}
+
+/** Menschlich lesbarer, vollständiger Grund für Export und Admin-Prüfung. */
+export function screenerStatusGrund(status: string, fehler: string | null): string | null {
+  if (fehler?.trim()) return fehler;
+  if (status === "vorhanden") return "Bereits in der Watchlist";
+  if (status === "wartend") return "Noch nicht berechnet";
+  return null;
 }
 
 export function waehleAnzeigbarenLauf(
@@ -472,6 +488,7 @@ function mappeKandidat(r: any): ScreenerKandidat {
     ticker: String(r.ticker),
     name: r.name ?? null,
     boerse: r.boerse ?? null,
+    primaerTicker: r.primaerTicker ?? null,
     sektor: r.sektor ?? null,
     waehrung: r.waehrung ?? null,
     marktKap: zahl(r.marktKap),

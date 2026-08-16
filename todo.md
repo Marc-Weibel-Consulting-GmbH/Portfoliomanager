@@ -618,9 +618,10 @@
 - [x] Exportarbeitsmappe, Laufstatus und Kandidatenbestand auf Vollständigkeit, Dubletten und konsistente Identifikatoren prüfen
 - [x] Kennzahlen, Quellenfrische, Einheiten und Berechnungslogik auf Ausreisser und reproduzierbare Datenfehler untersuchen
 - [x] Ursachen bis zum Import-, Normalisierungs- oder Berechnungspfad zurückverfolgen und priorisierte, testbare Remediation vorschlagen
-- [ ] P0 nach Freigabe umsetzen: EODHD-Fundamentalsymbole für XETRA/LSE korrekt auflösen und die kontrollierte Neuberechnung von Lauf 150001 vorbereiten
-- [ ] P0 nach Freigabe umsetzen: Dividendenrenditen über einen expliziten Einheitenvertrag statt über die `<0.3`-Heuristik normalisieren
-- [ ] P1 nach Freigabe umsetzen: ISO-Stammdaten, Emittentenschlüssel, Zweitnotierungsregeln und Transparenzfelder im Screener-Export ergänzen
+- [x] P0 umgesetzt: EODHD-Fundamentalsymbole für XETRA/LSE zentral korrekt auflösen; kontrollierte Neuberechnung von Lauf 150001 ist vorbereitet
+- [x] P0 umgesetzt: Dividendenrenditen über einen expliziten Einheitenvertrag statt über die `<0.3`-Heuristik normalisieren
+- [x] P1 umgesetzt: ISO-Stammdaten, Emittentenschlüssel, Zweitnotierungsregeln und Transparenzfelder im Screener-Export ergänzen
+- [ ] Freigabe erforderlich: Lauf 150001 kontrolliert neu rechnen, damit die korrigierten Daten- und Symbolpfade die bestehenden Ergebnisfelder aktualisieren
 
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen

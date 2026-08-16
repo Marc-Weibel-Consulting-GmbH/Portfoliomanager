@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { waehleAnzeigbarenLauf, type LaufUebersicht } from "./screenerStore";
+import { screenerStatusGrund, waehleAnzeigbarenLauf, type LaufUebersicht } from "./screenerStore";
 
 function lauf(overrides: Partial<LaufUebersicht> = {}): LaufUebersicht {
   return {
@@ -45,5 +45,16 @@ describe("waehleAnzeigbarenLauf", () => {
       lauf: aktuellerLauf,
       ausgeblendeterFehlerLauf: null,
     });
+  });
+});
+
+describe("screenerStatusGrund", () => {
+  it("macht bereits vorhandene Titel im Export nachvollziehbar", () => {
+    expect(screenerStatusGrund("vorhanden", null)).toBe("Bereits in der Watchlist");
+  });
+
+  it("bewahrt einen konkreten technischen oder fachlichen Ausschlussgrund", () => {
+    expect(screenerStatusGrund("zweitkotierung", "Hauptbörse: ABBN.SW"))
+      .toBe("Hauptbörse: ABBN.SW");
   });
 });
