@@ -479,9 +479,20 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         fehlgeschlagen++;
         continue;
       }
+      // KGV-Schattenwerte (KIMI-PEG-Audit R2, Schattenphase): Vendor-Felder
+      // und Selbstrechnung nebeneinander persistieren — der Cache macht den
+      // Zweitaufruf kostenlos. Kein Score-Eingang; Grundlage für den
+      // Umstellungs-Entscheid nach dem Beleg-Lauf.
+      const { getQualityMetrics } = await import("./qualityMetricsService");
+      const qm = await getQualityMetrics(k.ticker).catch(() => null);
       await schreibeErgebnis(laufId, k.ticker, {
         status: "berechnet",
         ...metadaten,
+        kgvTrailing: qm?.trailingPE ?? null,
+        kgvForward: qm?.forwardPE ?? null,
+        kgvSelbst: qm?.kgvSelbst ?? null,
+        kgvSelbstHinweis: qm?.kgvSelbstHinweis ?? null,
+        pegRoh: qm?.adjustedPegRoh ?? null,
         qualitaet: scores.qualitaet.gesamt,
         bewertung: scores.bewertung.score,
         signalScore: scores.signal.score,

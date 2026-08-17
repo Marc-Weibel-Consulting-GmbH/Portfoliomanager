@@ -3554,6 +3554,17 @@ export const adminRouter = router({
         { header: "Abdeckung Qualität %", key: "abdQ", width: 16 },
         { header: "Abdeckung Bewertung %", key: "abdB", width: 17 },
         { header: "KGV-Deckel aktiv", key: "deckelAktiv", width: 14 },
+        // KGV-Transparenz (KIMI-PEG-Audit + Manus P1): Welche PE-Basis der
+        // Nutzer sieht, muss erkennbar sein — und die Selbstrechnung steht
+        // als Schattenwert daneben, samt Abweichungs-Flag für den
+        // Umstellungs-Entscheid.
+        { header: "KGV (forward, EODHD)", key: "kgvForward", width: 16 },
+        { header: "KGV (trailing, EODHD)", key: "kgvTrailing", width: 17 },
+        { header: "KGV (selbst, MK÷TTM-Gewinn)", key: "kgvSelbst", width: 20 },
+        { header: "KGV-Selbst-Basis", key: "kgvSelbstHinweis", width: 34 },
+        { header: "KGV-Abweichung Vendor/selbst", key: "kgvAbweichung", width: 20 },
+        { header: "PEG (roh)", key: "pegRoh", width: 10 },
+        { header: "PEG-Bereinigungsfaktor", key: "pegBereinigungsFaktor", width: 18 },
       ];
       // Hinweis je Faktor mit exportieren — «PEG fehlt» ohne das Warum
       // (kein Vendor-PEG, Wachstum unter 2 %, selbst gerechnet …) ist für
@@ -3639,6 +3650,22 @@ export const adminRouter = router({
           // — mit Gewicht 0 war er bisher unsichtbar, obwohl er die Säule
           // begrenzt (4 Titel im Lauf #150001 standen auf exakt 25.0).
           deckelAktiv: deckel ? "ja" : "nein",
+          kgvForward: k.kgvForward,
+          kgvTrailing: k.kgvTrailing,
+          kgvSelbst: k.kgvSelbst != null ? Math.round(k.kgvSelbst * 100) / 100 : null,
+          kgvSelbstHinweis: k.kgvSelbstHinweis,
+          // Abweichungs-Flag: Vendor (trailing) vs. Selbstrechnung über
+          // Faktor 1.5 — der Kandidatenkreis für den Umstellungs-Entscheid.
+          kgvAbweichung: k.kgvTrailing != null && k.kgvSelbst != null && k.kgvSelbst > 0
+            ? (Math.max(k.kgvTrailing / k.kgvSelbst, k.kgvSelbst / k.kgvTrailing) > 1.5 ? "über Faktor 1.5" : "ok")
+            : null,
+          pegRoh: k.pegRoh,
+          pegBereinigungsFaktor: (() => {
+            const pegFaktor = bFaktoren?.find((f) => f?.name === "PEG (bereinigt)");
+            return k.pegRoh != null && k.pegRoh > 0 && pegFaktor?.wert != null
+              ? Math.round((pegFaktor.wert / k.pegRoh) * 100) / 100
+              : null;
+          })(),
         };
         for (const f of (k.qualitaetFaktoren as Faktor[] | null) ?? []) {
           if (!f?.name) continue;
@@ -3705,6 +3732,25 @@ export const adminRouter = router({
         }
       }
 
+      // KGV-Duplikate über Titel hinweg (KIMI-PEG-Audit R3/R6): identische
+      // Werte verschiedener Emittenten auf 4 Dezimalstellen sind kein
+      // Marktbefund, sondern ein Datenartefakt (Lauf #150001: 83 Gruppen,
+      // 31 % der Zeilen). Ausweis-Stufe — keine Score-Änderung.
+      const { kgvDuplikate } = await import("../lib/kgvDuplikate");
+      const kgvVerwendet = (k: (typeof berechnete)[number]): number | null => {
+        const f = ((k.bewertungFaktoren as Faktor[] | null) ?? []).find((x) => x?.name === "KGV");
+        return f?.wert ?? null;
+      };
+      const duplikatGruppen = kgvDuplikate(berechnete.map((k) => ({ ticker: k.ticker, kgv: kgvVerwendet(k) })));
+      const duplikatZeilen = duplikatGruppen.reduce((s, g) => s + g.ticker.length, 0);
+      for (const g of duplikatGruppen) {
+        blattPruefung.addRow({
+          ticker: g.ticker[0], name: null, boerse: null, isin: null, primaerTicker: null,
+          kategorie: "KGV-Duplikat",
+          grund: `KGV ${g.wert.toFixed(4)} bit-identisch bei ${g.ticker.length} Titeln: ${g.ticker.join(", ")} — Datenartefakt, kein Marktbefund.`,
+        });
+      }
+
       // Abdeckungs-KPIs je Börse und je Faktor (KIMI Punkt 6, Manus
       // Release-Gate 1): Der 63-%-Datenausfall des Laufs #150001 fiel erst
       // bei manueller Excel-Analyse auf — dieses Blatt macht ihn zur ersten
@@ -3758,6 +3804,12 @@ export const adminRouter = router({
         ebene: "Hinweis",
         segment: "Signal ohne Timing-Säule gerechnet — Qualität/Bewertung renormiert (rund 54/46). " +
           "Timing folgt nach Übernahme in die Watchlist.",
+      });
+      // KIMI R6: Erst wenn diese Zeile 0 zeigt, ist der KGV-Punkt geschlossen.
+      blatt3.addRow({
+        ebene: "Hinweis",
+        segment: `KGV-Duplikate über Titel hinweg: ${duplikatGruppen.length} Gruppen / ${duplikatZeilen} Zeilen ` +
+          `(Details im Datenqualitäts-Review; Ziel 0 nach Umstellung auf die Selbstrechnung).`,
       });
 
       const buffer = Buffer.from(await wb.xlsx.writeBuffer());
