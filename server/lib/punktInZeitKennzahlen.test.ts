@@ -133,6 +133,39 @@ describe("kennzahlenPerStichtag", () => {
     expect(leer.piotroski.berechenbar).toBe(0);
   });
 
+  // Pin-Tests der Wächter (KIMI-Prüfung, Punkte 1+2): Beide Guards leben
+  // VORGELAGERT — hier und wortgleich im Live-Pfad (`qualityMetricsService`,
+  // `ebitda > 0` bzw. `gewinn > 0`). Diese Tests halten fest, dass sie nie
+  // stillschweigend wegrefaktoriert werden.
+  it("Wächter: bei negativem EBITDA gibt es keine Verschuldungsratio — auch keine geklemmte", () => {
+    // Betriebsverlust 2000 bei 420 Abschreibungen → EBITDA −1580. Mit
+    // Nettoschulden 900 wäre die Ratio negativ; auf 0 geklemmt ergäbe sie die
+    // Bestnote «Nettoguthaben» für einen verlustschreibenden Schuldner.
+    const verlust = structuredClone(ABSCHLUSS);
+    (verlust.Financials.Income_Statement.yearly as any)["2023-12-31"].operatingIncome = -2000;
+    const k = kennzahlenPerStichtag({
+      beschnitten: beschneideFundamentals(verlust, stichtag), kurs: 22,
+    });
+    expect(k.qualitaet.netDebtToEbitda).toBeNull();
+    // Randfall EBITDA exakt 0: Betriebsergebnis −420 hebt die Abschreibungen
+    // genau auf — auch hier keine Division.
+    const nullEbitda = structuredClone(ABSCHLUSS);
+    (nullEbitda.Financials.Income_Statement.yearly as any)["2023-12-31"].operatingIncome = -420;
+    const k0 = kennzahlenPerStichtag({
+      beschnitten: beschneideFundamentals(nullEbitda, stichtag), kurs: 22,
+    });
+    expect(k0.qualitaet.netDebtToEbitda).toBeNull();
+  });
+
+  it("Wächter: bei negativem Gewinn gibt es keine Ertragsdeckung — kein Vorzeichenartefakt", () => {
+    const verlust = structuredClone(ABSCHLUSS);
+    (verlust.Financials.Income_Statement.yearly as any)["2023-12-31"].netIncome = -500;
+    const k = kennzahlenPerStichtag({
+      beschnitten: beschneideFundamentals(verlust, stichtag), kurs: 22,
+    });
+    expect(k.qualitaet.ertragsdeckung).toBeNull();
+  });
+
   it("verwendet den älteren Abschluss, solange der neuere nicht gemeldet war", () => {
     // Am 01.02.2024 lag der Abschluss 2023 noch nicht vor.
     const frueher = kennzahlenPerStichtag({

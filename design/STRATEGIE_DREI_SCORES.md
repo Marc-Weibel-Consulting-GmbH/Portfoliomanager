@@ -142,6 +142,29 @@ dieses Dokument.
   Abgrenzungstest (kursunabhängig) gehört Wachstum in die Qualität, nicht
   in die Bewertung. Vorwärts-Beleg: Rekonstruktion FASSUNG 6 +
   «Scores diagnostizieren» nach dem Deploy.
+- **PEG-Wachstums-Obergrenze (2026-08, ohne FASSUNG-Wechsel):** Der
+  PEG-Nenner akzeptiert nur Quellen im Korridor 2–50 % p.a.; unplausible
+  Quellen werden übersprungen, greift keine, wird der Faktor mit Grund
+  «Basiseffekt» ausgeblendet. Begründung (FDJ-Fall): Ein Mini-Ausgangsgewinn
+  erzeugte «erwartetes Wachstum» +1944 %, PEG 0.09 und volle Punktzahl —
+  das G im PEG meint nachhaltiges Mehrjahres-Wachstum, über 50 % p.a. ist
+  das nie plausibel. Kein FASSUNG-Wechsel (Rekonstruktion rechnet kein PEG).
+- **Vendor-PEG-Konsistenz (2026-08, ohne FASSUNG-Wechsel):** Liegen
+  Vendor-PEG UND eigene Rechnung (KGV ÷ tragfähige Quelle im Korridor) vor
+  und weichen sie um mehr als Faktor 2 voneinander ab, zählt die eigene
+  Rechnung — mit Hinweis am Faktor. Begründung (KIMI Punkt 7): Ein
+  Vendor-PEG zwischen den Wächtern (≤ 8, Wachstum plausibel) kann trotzdem
+  falsch sein, wenn der Vendor-Nenner nicht zu den belegten Zahlen passt;
+  die nachvollziehbare Rechnung schlägt die Blackbox. Kein FASSUNG-Wechsel
+  (Rekonstruktion rechnet kein PEG).
+- **Dividenden-Gegenprobe als Wächter (2026-08, ohne FASSUNG-Wechsel):**
+  Widerlegt die unabhängige Gegenprobe (Yahoo-Ausschüttungen, ab 8 %
+  Rendite) den EODHD-Quellenwert materiell, wird der Dividenden-Faktor im
+  Screener ausgeblendet (Renormierung) statt still gekappt — mit beiden
+  Zahlen im Hinweis. Begründung (LISP.SW: EODHD 18.98 %, Yahoo 1.93 %):
+  Ein widerlegter Quellenwert trüge sonst bis zu 20 % (bzw. 35 % bei
+  Finanzwerten) der Bewertung. Kein FASSUNG-Wechsel: Die Rekonstruktion
+  rechnet die Dividende aus dem Zahlungsstrom, nicht aus dem Vendor-Feld.
 
 ## 6. Fahrplan
 

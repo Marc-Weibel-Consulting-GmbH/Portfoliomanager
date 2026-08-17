@@ -321,6 +321,15 @@ const HAEPPCHEN_BUDGET_MS = 150_000;
 /** Ein Titel darf bei einem transienten Gesamtzeitlimit höchstens zweimal erneut laufen. */
 export const MAX_TITEL_WIEDERANLAEUFE = 2;
 
+/**
+ * Beim Wiederanlauf mehr Zeit: EXO.AS fiel in zwei Läufen in Folge am selben
+ * 25-s-Limit aus — ein Retry mit identischem Limit scheitert an derselben
+ * Stelle erneut. Timeout heisst «zu langsam», nicht «kaputt».
+ */
+export function titelZeitlimitMs(retryCount: number): number {
+  return retryCount > 0 ? 40_000 : TITEL_TIMEOUT_MS;
+}
+
 export function titelFehlerBehandlung(
   fehler: string,
   retryCount: number,
@@ -382,7 +391,8 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         zweitkotierungen++;
         continue;
       }
-      const stamm = await mitTimeout(holeStammdaten(k.ticker), TITEL_TIMEOUT_MS, `${k.ticker} Stammdaten`)
+      const zeitlimit = titelZeitlimitMs(k.retryCount);
+      const stamm = await mitTimeout(holeStammdaten(k.ticker), zeitlimit, `${k.ticker} Stammdaten`)
         .catch(() => null);
       const metadaten = {
         land: stamm?.landIso ?? null,
@@ -435,12 +445,24 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         zweitkotierungen++;
         continue;
       }
+      // Die Gegenprobe VOR der Score-Rechnung: Ein widerlegter Quellenwert
+      // (LISP.SW: EODHD 18.98 %, Yahoo 1.93 %) darf die Bewertung nicht
+      // tragen — der Wächter blendet den Faktor aus statt still zu kappen.
+      // Unter der 8-%-Schwelle kommt die Prüfung ohne Netzwerkabruf zurück.
+      const dividendenCheck = await validateDividendYield(k.ticker, stamm?.isin ?? null, k.dividendenrendite);
+      const dividendenWiderlegtHinweis =
+        dividendenCheck.status === "zu_pruefen" && k.dividendenrendite !== null
+          ? `${k.dividendenrendite.toFixed(2)} % durch unabhängige Gegenprobe widerlegt` +
+            (dividendenCheck.externalYield !== null ? ` (Yahoo ${dividendenCheck.externalYield.toFixed(2)} %)` : "") +
+            " — Faktor ausgeblendet"
+          : null;
       const scores = await mitTimeout(
         getDreiScores(k.ticker, {
           sektor: k.sektor,
           dividendenrendite: k.dividendenrendite,
+          dividendenWiderlegtHinweis,
         }),
-        TITEL_TIMEOUT_MS,
+        zeitlimit,
         k.ticker,
       );
       // Keine einzige Säule berechenbar → das ist kein Kandidat, sondern eine
@@ -457,7 +479,6 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         fehlgeschlagen++;
         continue;
       }
-      const dividendenCheck = await validateDividendYield(k.ticker, stamm?.isin ?? null, k.dividendenrendite);
       await schreibeErgebnis(laufId, k.ticker, {
         status: "berechnet",
         ...metadaten,
@@ -497,7 +518,44 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
   const nochOffen = (await offeneKandidaten(laufId, 1)).length > 0
     ? (await zaehleOffene(laufId))
     : 0;
+  // Namensabgleich erst am Laufende: Die Partnerzeile einer Kreuznotierung
+  // kann in einem späteren Häppchen liegen — vorher fehlt der Anker.
+  if (nochOffen === 0) {
+    const namensbereinigt = await bereinigeNamensDuplikate(laufId);
+    if (namensbereinigt > 0) {
+      zweitkotierungen += namensbereinigt;
+      meldungen.push(`${namensbereinigt} namensgleiche Zweitnotizen ohne Anbieteridentität aussortiert.`);
+    }
+  }
   return { berechnet, fehlgeschlagen, zweitkotierungen, ausgeschlossen, nochOffen, meldungen: meldungen.slice(0, 10) };
+}
+
+/**
+ * Letzte Dedup-Stufe (KIMI Punkt 4): namensgleiche Zeilen ohne ISIN und
+ * Primärticker als Zweitkotierung aussortieren, wenn eine identifizierte
+ * Partnerzeile an anderer Börse existiert. Idempotent — aussortierte Zeilen
+ * verlassen den Status «berechnet» und tauchen im nächsten Aufruf nicht mehr auf.
+ */
+async function bereinigeNamensDuplikate(laufId: number): Promise<number> {
+  const { alleKandidaten, schreibeErgebnis } = await import("./screenerStore");
+  const { namensDuplikate } = await import("./namensDedup");
+  const alle = await alleKandidaten(laufId);
+  const duplikate = namensDuplikate(
+    alle
+      .filter((k) => k.status === "berechnet")
+      .map((k) => ({
+        ticker: k.ticker,
+        name: k.name ?? null,
+        boerse: k.boerse ?? null,
+        sektor: k.sektor ?? null,
+        isin: k.isin ?? null,
+        primaerTicker: k.primaerTicker ?? null,
+      })),
+  );
+  for (const d of duplikate) {
+    await schreibeErgebnis(laufId, d.ticker, { status: "zweitkotierung", fehler: d.grund });
+  }
+  return duplikate.length;
 }
 
 async function zaehleOffene(laufId: number): Promise<number> {

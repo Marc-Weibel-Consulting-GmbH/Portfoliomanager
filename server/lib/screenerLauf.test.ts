@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { vergleichsTicker, istVerzichtbareZweitkotierung, ADR_NAMENSMUSTER, istLseDollarNotiz, titelFehlerBehandlung } from "./screenerLauf";
+import { vergleichsTicker, istVerzichtbareZweitkotierung, ADR_NAMENSMUSTER, istLseDollarNotiz, titelFehlerBehandlung, titelZeitlimitMs } from "./screenerLauf";
 
 describe("vergleichsTicker", () => {
   it("behandelt US-Ticker ohne Suffix wie .US", () => {
@@ -93,5 +93,15 @@ describe("titelFehlerBehandlung", () => {
   it("markiert nicht-transiente Fehler sofort als endgültigen Fehler", () => {
     expect(titelFehlerBehandlung("keine Fundamentaldaten — keine Säule berechenbar", 0))
       .toEqual({ status: "fehler", retryCount: 0, fehler: "keine Fundamentaldaten — keine Säule berechenbar" });
+  });
+});
+
+describe("titelZeitlimitMs", () => {
+  it("gibt dem Wiederanlauf mehr Zeit als dem Erstversuch", () => {
+    // EXO.AS fiel in zwei Läufen in Folge am selben 25-s-Limit aus — ein
+    // Retry mit identischem Limit scheitert an derselben Stelle erneut.
+    expect(titelZeitlimitMs(0)).toBe(25_000);
+    expect(titelZeitlimitMs(1)).toBe(40_000);
+    expect(titelZeitlimitMs(2)).toBe(40_000);
   });
 });

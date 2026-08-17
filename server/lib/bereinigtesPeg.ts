@@ -41,6 +41,15 @@ export type BereinigtPegGrund =
  */
 export const MAX_WACHSTUM_FUER_PEG = 50;
 
+/**
+ * Konsistenz-Gegenprobe: Ein Vendor-PEG innerhalb der Wächter (≤ 8, Wachstum
+ * plausibel) kann trotzdem falsch sein, wenn der Vendor-Nenner nicht zu den
+ * belegten Wachstumszahlen passt. Weichen Vendor- und eigene Rechnung
+ * (KGV ÷ tragfähige Quelle) um mehr als diesen Faktor voneinander ab, zählt
+ * die eigene Rechnung — mit Hinweis, nicht still.
+ */
+export const VENDOR_PEG_ABWEICHUNG_FAKTOR = 2;
+
 export interface BereinigtesPegErgebnis {
   peg: number | null;
   /** Warum kein Wert ausgegeben wird; null, wenn `peg` belegt ist. */
@@ -123,6 +132,13 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
   let quellenHinweis: string | null = null;
   let rechnungKopf: string;
 
+  // Die eigene Rechnung (KGV ÷ erste tragfähige Quelle im Korridor 2–50 %) —
+  // im Vendor-Zweig die Gegenprobe, im Rückfall-Zweig der Wert selbst.
+  const kgv = e.kgv !== null && e.kgv !== undefined && Number.isFinite(e.kgv) && e.kgv > 0 ? e.kgv : null;
+  const eigenerNenner = belegte.find((q) =>
+    q.wert >= MIN_WACHSTUM_FUER_PEG && q.wert <= MAX_WACHSTUM_FUER_PEG) ?? null;
+  const eigenesPeg = kgv !== null && eigenerNenner !== null ? kgv / eigenerNenner.wert : null;
+
   if (e.vendorPeg !== null && Number.isFinite(e.vendorPeg) && e.vendorPeg > 0) {
     // ANDERS als in pegHistory ist das Wachstum hier nicht der Nenner der
     // eigenen Rechnung, sondern nur die Plausibilitätsprüfung des
@@ -135,18 +151,31 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
       return leer("wachstum_zu_gering",
         `PEG sagt hier nichts — Wachstum unter ${MIN_WACHSTUM_FUER_PEG} % p.a. ist eine Division durch fast null`);
     }
-    rohesPeg = e.vendorPeg;
-    quelle = "vendor";
-    rechnungKopf = `Vendor-PEG ${e.vendorPeg.toFixed(2)} (EODHD)`;
+    if (eigenesPeg !== null &&
+        (e.vendorPeg / eigenesPeg > VENDOR_PEG_ABWEICHUNG_FAKTOR ||
+         eigenesPeg / e.vendorPeg > VENDOR_PEG_ABWEICHUNG_FAKTOR)) {
+      // KIMI Punkt 7: Der Vendor-Wert widerspricht den belegten Zahlen — die
+      // nachvollziehbare Rechnung schlägt die Blackbox. Landet sie jenseits
+      // der Obergrenze, blendet der bestehende Wächter unten aus.
+      rohesPeg = eigenesPeg;
+      quelle = "selbst";
+      quellenHinweis = `Vendor-PEG ${e.vendorPeg.toFixed(2)} weicht von der eigenen Rechnung ` +
+        `${eigenesPeg.toFixed(2)} um mehr als Faktor ${VENDOR_PEG_ABWEICHUNG_FAKTOR} ab — eigene Rechnung verwendet`;
+      rechnungKopf = `KGV ${kgv!.toFixed(1)} ÷ ${eigenerNenner!.wert.toFixed(1)} % ${eigenerNenner!.label} ` +
+        `= ${eigenesPeg.toFixed(2)} roh (Vendor-PEG ${e.vendorPeg.toFixed(2)} verworfen — ` +
+        `Abweichung über Faktor ${VENDOR_PEG_ABWEICHUNG_FAKTOR})`;
+    } else {
+      rohesPeg = e.vendorPeg;
+      quelle = "vendor";
+      rechnungKopf = `Vendor-PEG ${e.vendorPeg.toFixed(2)} (EODHD)`;
+    }
   } else {
     // Kein Vendor-PEG: selbst rechnen. Hier IST das Wachstum der Nenner —
     // erste tragfähige Quelle der Rangfolge, 2-%-Untergrenze strikt.
-    const kgv = e.kgv !== null && e.kgv !== undefined && Number.isFinite(e.kgv) && e.kgv > 0 ? e.kgv : null;
     if (kgv === null) {
       return leer("peg_fehlt", "kein Vendor-PEG von EODHD geliefert");
     }
-    const nenner = belegte.find((q) =>
-      q.wert >= MIN_WACHSTUM_FUER_PEG && q.wert <= MAX_WACHSTUM_FUER_PEG) ?? null;
+    const nenner = eigenerNenner;
     if (nenner === null) {
       if (belegte.length === 0) {
         return leer("wachstum_fehlt",

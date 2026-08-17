@@ -3750,6 +3750,16 @@ export const adminRouter = router({
         }
       }
 
+      // KIMI Doku-Punkt 10: Das Signal im Screener rechnet OHNE Timing-Säule
+      // (keine Kurshistorie) — die externe Prüfung muss das sehen, sonst
+      // vergleicht sie gegen die Drei-Säulen-Formel und findet Abweichungen.
+      blatt3.addRow({});
+      blatt3.addRow({
+        ebene: "Hinweis",
+        segment: "Signal ohne Timing-Säule gerechnet — Qualität/Bewertung renormiert (rund 54/46). " +
+          "Timing folgt nach Übernahme in die Watchlist.",
+      });
+
       const buffer = Buffer.from(await wb.xlsx.writeBuffer());
       const { storagePut, storageGet } = await import("../storage");
       const filename = `screener-lauf-${input.laufId}-${Date.now()}.xlsx`;
