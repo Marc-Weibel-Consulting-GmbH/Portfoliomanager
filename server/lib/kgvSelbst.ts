@@ -33,7 +33,7 @@ export function kgvSelbst(e: {
   }
 
   const quartale = e.quartalsGewinne.filter((v) => Number.isFinite(v));
-  let gewinn: number | null = null;
+  let gewinn: number;
   let basis: string;
   if (quartale.length >= 4) {
     gewinn = quartale.slice(-4).reduce((s, v) => s + v, 0);
