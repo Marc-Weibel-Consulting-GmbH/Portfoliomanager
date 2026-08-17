@@ -639,6 +639,9 @@
 - [x] P0 umgesetzt: auffällige Dividendenrenditen mit ISIN-gebundener Zweitquelle als Datenqualitätsstatus validieren
 - [x] P1 umgesetzt: Identitäts-Review-Queue und Exportstatus für fehlende Anbieter-Primärticker und ISIN ergänzen
 
+## Screener-Detailaudit — PDF-Review (2026-08-17)
+- [x] Den aktuellen Screener-Detailaudit als professionellen PDF-Review erzeugen und lesbar verifizieren
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern
