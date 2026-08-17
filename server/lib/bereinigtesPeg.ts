@@ -122,6 +122,13 @@ export interface BereinigtesPegEingabe {
    * fehlt die Zahl beim Vendor, nicht in den Daten.
    */
   kgv?: number | null;
+  /**
+   * Forward-KGV — Zähler, wenn der Nenner das ERWARTETE Wachstum ist
+   * (Frame-Konsistenz, so rechnen FactSet & Co.): Ein Schätzungs-Nenner
+   * gegen das trailing KGV überzeichnet das PEG, wenn die berichteten
+   * Gewinne gedrückt sind. Historische Nenner bleiben beim Trailing-KGV.
+   */
+  kgvForward?: number | null;
 }
 
 export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis {
@@ -153,14 +160,33 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
   let quellenHinweis: string | null = null;
   let rechnungKopf: string;
 
-  // Die eigene Rechnung (trailing KGV ÷ erste tragfähige Quelle im Korridor
-  // 2–35 %) — im Vendor-Zweig die Gegenprobe, im Rückfall-Zweig der Wert selbst.
+  // Die eigene Rechnung (KGV ÷ erste tragfähige Quelle im Korridor 2–35 %) —
+  // im Vendor-Zweig die Gegenprobe, im Rückfall-Zweig der Wert selbst.
+  // Frame-Konsistenz: Ein Schätzungs-Nenner (erwartetes Wachstum) paart mit
+  // dem Forward-KGV, historische Nenner mit dem Trailing-KGV — sonst
+  // überzeichnet das PEG bei gedrückten berichteten Gewinnen (Roche).
   const kgv = e.kgv !== null && e.kgv !== undefined && Number.isFinite(e.kgv) && e.kgv > 0 ? e.kgv : null;
+  const kgvForward = e.kgvForward !== null && e.kgvForward !== undefined &&
+    Number.isFinite(e.kgvForward) && e.kgvForward > 0 ? e.kgvForward : null;
   const eigenerNenner = belegte.find((q) =>
     q.wert >= MIN_WACHSTUM_FUER_PEG && q.wert <= MAX_WACHSTUM_FUER_PEG) ?? null;
-  const eigenesPeg = kgv !== null && eigenerNenner !== null ? kgv / eigenerNenner.wert : null;
+  const nennerIstSchaetzung = eigenerNenner !== null && eigenerNenner.label.startsWith("erwartetes Wachstum");
+  const eigenerZaehler = nennerIstSchaetzung ? (kgvForward ?? kgv) : kgv;
+  const zaehlerLabel = nennerIstSchaetzung && kgvForward !== null ? "KGV (forward)" : "KGV (trailing)";
+  const eigenesPeg = eigenerZaehler !== null && eigenerNenner !== null
+    ? eigenerZaehler / eigenerNenner.wert
+    : null;
 
-  if (e.vendorPeg !== null && Number.isFinite(e.vendorPeg) && e.vendorPeg > 0) {
+  // Sanofi-Befund: Ein Vendor-Wert, der bereinigt jenseits der Obergrenze
+  // läge (EODHD lieferte ~50, FactSet 1.20), trägt keine Aussage — er ist
+  // kein «vorsichtiger» Wert, sondern gar keiner. Er gilt als fehlend, die
+  // Selbstrechnung übernimmt mit allen Wächtern.
+  const vendorRoh = e.vendorPeg !== null && Number.isFinite(e.vendorPeg) && e.vendorPeg > 0 ? e.vendorPeg : null;
+  const vendorUnbrauchbar = vendorRoh !== null && bereinigung(vendorRoh) > PEG_OBERGRENZE
+    ? `Vendor-PEG ${vendorRoh.toFixed(1)} unbrauchbar (bereinigt über der Obergrenze ${PEG_OBERGRENZE})`
+    : null;
+
+  if (vendorRoh !== null && vendorUnbrauchbar === null) {
     // ANDERS als in pegHistory ist das Wachstum hier nicht der Nenner der
     // eigenen Rechnung, sondern nur die Plausibilitätsprüfung des
     // Vendor-Nenners: IRGENDEINE tragfähige Wachstumszahl genügt.
@@ -173,35 +199,38 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
         `PEG sagt hier nichts — Wachstum unter ${MIN_WACHSTUM_FUER_PEG} % p.a. ist eine Division durch fast null`);
     }
     if (eigenesPeg !== null &&
-        (e.vendorPeg / eigenesPeg > VENDOR_PEG_ABWEICHUNG_FAKTOR ||
-         eigenesPeg / e.vendorPeg > VENDOR_PEG_ABWEICHUNG_FAKTOR)) {
+        (vendorRoh / eigenesPeg > VENDOR_PEG_ABWEICHUNG_FAKTOR ||
+         eigenesPeg / vendorRoh > VENDOR_PEG_ABWEICHUNG_FAKTOR)) {
       // Widerspruch: Die vorsichtigere Zahl (höheres PEG) zählt — landet sie
       // jenseits der Obergrenze, blendet der bestehende Wächter unten aus.
-      const widerspruch = `Vendor-PEG ${e.vendorPeg.toFixed(2)} und eigene Rechnung ` +
+      const widerspruch = `Vendor-PEG ${vendorRoh.toFixed(2)} und eigene Rechnung ` +
         `${eigenesPeg.toFixed(2)} widersprechen sich (über Faktor ${VENDOR_PEG_ABWEICHUNG_FAKTOR}) — ` +
         `vorsichtigere Zahl verwendet`;
       quellenHinweis = widerspruch;
-      if (eigenesPeg > e.vendorPeg) {
+      if (eigenesPeg > vendorRoh) {
         rohesPeg = eigenesPeg;
         quelle = "selbst";
-        rechnungKopf = `KGV (trailing) ${kgv!.toFixed(1)} ÷ ${eigenerNenner!.wert.toFixed(1)} % ${eigenerNenner!.label} ` +
-          `= ${eigenesPeg.toFixed(2)} roh (vorsichtigere Zahl — Vendor-PEG ${e.vendorPeg.toFixed(2)} widersprochen)`;
+        rechnungKopf = `${zaehlerLabel} ${eigenerZaehler!.toFixed(1)} ÷ ${eigenerNenner!.wert.toFixed(1)} % ${eigenerNenner!.label} ` +
+          `= ${eigenesPeg.toFixed(2)} roh (vorsichtigere Zahl — Vendor-PEG ${vendorRoh.toFixed(2)} widersprochen)`;
       } else {
-        rohesPeg = e.vendorPeg;
+        rohesPeg = vendorRoh;
         quelle = "vendor";
-        rechnungKopf = `Vendor-PEG ${e.vendorPeg.toFixed(2)} (EODHD; vorsichtigere Zahl — ` +
+        rechnungKopf = `Vendor-PEG ${vendorRoh.toFixed(2)} (EODHD; vorsichtigere Zahl — ` +
           `eigene Rechnung ${eigenesPeg.toFixed(2)} widersprochen)`;
       }
     } else {
-      rohesPeg = e.vendorPeg;
+      rohesPeg = vendorRoh;
       quelle = "vendor";
-      rechnungKopf = `Vendor-PEG ${e.vendorPeg.toFixed(2)} (EODHD)`;
+      rechnungKopf = `Vendor-PEG ${vendorRoh.toFixed(2)} (EODHD)`;
     }
   } else {
-    // Kein Vendor-PEG: selbst rechnen. Hier IST das Wachstum der Nenner —
-    // erste tragfähige Quelle der Rangfolge, 2-%-Untergrenze strikt.
-    if (kgv === null) {
-      return leer("peg_fehlt", "kein Vendor-PEG von EODHD geliefert");
+    // Kein (brauchbares) Vendor-PEG: selbst rechnen. Hier IST das Wachstum
+    // der Nenner — erste tragfähige Quelle der Rangfolge, Korridor strikt.
+    const vendorNote = vendorUnbrauchbar ?? "kein Vendor-PEG";
+    if (eigenerZaehler === null) {
+      return vendorUnbrauchbar !== null
+        ? leer("peg_extrem", `${vendorUnbrauchbar} — und kein KGV für die eigene Rechnung`)
+        : leer("peg_fehlt", "kein Vendor-PEG von EODHD geliefert");
     }
     const nenner = eigenerNenner;
     if (nenner === null) {
@@ -220,10 +249,10 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
             `PEG sagt hier nichts — Wachstum unter ${MIN_WACHSTUM_FUER_PEG} % p.a. ist eine Division durch fast null ` +
             `(geprüft: ${geprueft})`);
     }
-    rohesPeg = kgv / nenner.wert;
+    rohesPeg = eigenesPeg!;
     quelle = "selbst";
-    quellenHinweis = `selbst gerechnet: KGV (trailing) ${kgv.toFixed(1)} ÷ ${nenner.wert.toFixed(1)} % ${nenner.label} (kein Vendor-PEG)`;
-    rechnungKopf = `KGV (trailing) ${kgv.toFixed(1)} ÷ ${nenner.wert.toFixed(1)} % ${nenner.label} = ${rohesPeg.toFixed(2)} roh`;
+    quellenHinweis = `selbst gerechnet: ${zaehlerLabel} ${eigenerZaehler.toFixed(1)} ÷ ${nenner.wert.toFixed(1)} % ${nenner.label} (${vendorNote})`;
+    rechnungKopf = `${zaehlerLabel} ${eigenerZaehler.toFixed(1)} ÷ ${nenner.wert.toFixed(1)} % ${nenner.label} = ${rohesPeg.toFixed(2)} roh`;
   }
 
   const peg = bereinigung(rohesPeg);

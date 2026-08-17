@@ -159,6 +159,68 @@ describe("bereinigtesPeg", () => {
     });
   });
 
+  // Sanofi-Befund: EODHDs PEG-Feld lieferte ~50 (FactSet: 1.20). Ein Wert,
+  // der bereinigt jenseits der Obergrenze läge, trägt keine Aussage — er ist
+  // kein «vorsichtiger» Wert, sondern gar keiner. Er gilt als fehlend, und
+  // die Selbstrechnung übernimmt mit allen Wächtern.
+  describe("unbrauchbarer Vendor-Wert (jenseits der Obergrenze)", () => {
+    it("Sanofi-Fall: Müll-Vendor gilt als fehlend — die Selbstrechnung übernimmt", () => {
+      const r = bereinigtesPeg({
+        ...STANDARD, vendorPeg: 50, kgv: 12, kgvForward: 8.6,
+        epsWachstum5j: null, epsWachstumTTM: null, wachstumErwartet: 6.1,
+      });
+      expect(r.quelle).toBe("selbst");
+      expect(r.peg).toBeCloseTo(((8.6 / 6.1) * 1.15) / 1.12, 3);
+      expect(r.hinweis).toContain("unbrauchbar");
+    });
+
+    it("ohne eigene Rechenbasis bleibt es beim Ausblenden mit Grund", () => {
+      const r = bereinigtesPeg({
+        ...STANDARD, vendorPeg: 50, kgv: null,
+        epsWachstum5j: 8, epsWachstumTTM: null,
+      });
+      expect(r.peg).toBeNull();
+      expect(r.grund).toBe("peg_extrem");
+      expect(r.hinweis).toContain("unbrauchbar");
+    });
+  });
+
+  // Frame-Konsistenz: Vendor-PEGs und FactSet & Co. rechnen mit erwartetem
+  // Wachstum das Forward-KGV. Ein Schätzungs-Nenner gegen das trailing KGV
+  // überzeichnet das PEG, wenn die berichteten Gewinne gedrückt sind (Roche:
+  // 23.6 ÷ 6.1 = 3.9 statt 18.3 ÷ 6.1 = 3.0) — und kippte den Vergleich mit
+  // dem Vendor-Wert fälschlich in den Widerspruchsfall.
+  describe("KGV-Paarung nach Nenner-Zeitrahmen", () => {
+    it("Schätzungs-Nenner paart mit dem Forward-KGV", () => {
+      const r = bereinigtesPeg({
+        ...STANDARD, vendorPeg: null, kgv: 20, kgvForward: 15,
+        epsWachstum5j: null, epsWachstumTTM: null, wachstumErwartet: 10,
+      });
+      expect(r.peg).toBeCloseTo(((15 / 10) * 1.15) / 1.12, 3);
+      expect(r.rechnung).toContain("KGV (forward) 15.0");
+    });
+
+    it("historische Nenner bleiben beim Trailing-KGV", () => {
+      const r = bereinigtesPeg({
+        ...STANDARD, vendorPeg: null, kgv: 20, kgvForward: 15,
+        epsWachstum5j: 10, epsWachstumTTM: null,
+      });
+      expect(r.peg).toBeCloseTo(((20 / 10) * 1.15) / 1.12, 3);
+      expect(r.rechnung).toContain("KGV (trailing) 20.0");
+    });
+
+    it("Roche-Fall komplett: Vendor plausibel, eigene Forward-Rechnung bestätigt ihn", () => {
+      // Eigene Rechnung 18.28 ÷ 6.07 = 3.01; Vendor 1.68 → Faktor 1.79 —
+      // KEIN Widerspruch (unter 2), der Vendor-Wert bleibt in Kraft.
+      const r = bereinigtesPeg({
+        ...STANDARD, vendorPeg: 1.68, kgv: 23.6, kgvForward: 18.28,
+        epsWachstum5j: null, epsWachstumTTM: null, wachstumErwartet: 6.07,
+      });
+      expect(r.quelle).toBe("vendor");
+      expect(r.peg).toBeCloseTo((1.68 * 1.15) / 1.12, 3);
+    });
+  });
+
   // Roche-Befund, Wurzel: «erwartetes Wachstum» verglich die Analystenschätzung
   // (Core-EPS-Basis) mit dem berichteten IFRS-EPS — bei grosser Core/IFRS-Lücke
   // entsteht ein künstlicher Sprung (+45.8 % statt ~8 %). Schätzung gegen

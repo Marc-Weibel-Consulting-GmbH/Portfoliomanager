@@ -479,6 +479,8 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
     // Rückfall, wenn der Vendor kein PEG führt: selbst rechnen aus KGV und
     // belegtem Wachstum (Screener-Befund — betraf reihenweise Nicht-US-Titel).
     kgv: trailingPE,
+    // Frame-Konsistenz: Schätzungs-Nenner paart mit dem Forward-KGV.
+    kgvForward: forwardPE,
   });
   const adjustedPeg = bereinigt.peg;
 
