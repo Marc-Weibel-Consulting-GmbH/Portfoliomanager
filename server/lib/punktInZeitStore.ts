@@ -293,10 +293,12 @@ export async function leseHistorie(ticker: string): Promise<HistorienSatz[]> {
 export async function historienUmfang(): Promise<{
   zeilen: number; titel: number; von: string | null; bis: string | null;
   titelMitRegime: number; zeilenMitTiming: number;
+  /** Zeilen der AKTUELLEN Fassung — nur die zählen für Diagnose und Messung. */
+  zeilenAktuell: number;
 }> {
   const leer = {
     zeilen: 0, titel: 0, von: null, bis: null,
-    titelMitRegime: 0, zeilenMitTiming: 0,
+    titelMitRegime: 0, zeilenMitTiming: 0, zeilenAktuell: 0,
   };
   try {
     const { getDb } = await import("../db");
@@ -308,7 +310,8 @@ export async function historienUmfang(): Promise<{
       SELECT COUNT(*) AS zeilen, COUNT(DISTINCT ticker) AS titel,
              MIN(datum) AS von, MAX(datum) AS bis,
              COUNT(DISTINCT CASE WHEN fassung >= 2 THEN ticker END) AS titelMitRegime,
-             SUM(CASE WHEN timing IS NOT NULL THEN 1 ELSE 0 END) AS zeilenMitTiming
+             SUM(CASE WHEN timing IS NOT NULL THEN 1 ELSE 0 END) AS zeilenMitTiming,
+             SUM(CASE WHEN fassung >= ${FASSUNG} THEN 1 ELSE 0 END) AS zeilenAktuell
       FROM stock_scores_history`);
     const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
     const r = (liste as any[])[0];
@@ -320,6 +323,7 @@ export async function historienUmfang(): Promise<{
       bis: r.bis ? String(r.bis) : null,
       titelMitRegime: Number(r.titelMitRegime ?? 0),
       zeilenMitTiming: Number(r.zeilenMitTiming ?? 0),
+      zeilenAktuell: Number(r.zeilenAktuell ?? 0),
     };
   } catch {
     return leer;
