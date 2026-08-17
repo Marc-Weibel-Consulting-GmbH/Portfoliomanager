@@ -287,6 +287,22 @@ describe("Bewertung — hoch heisst günstig", () => {
     expect(r.score).toBeNull();
   });
 
+  it("ein widerlegter Dividenden-Quellenwert wird ausgeblendet, nicht verrechnet (LISP-Fall)", () => {
+    // EODHD meldete für LISP.SW 18.98 % — die unabhängige Gegenprobe 1.93 %.
+    // Der Wächter blendet aus (Renormierung), er kappt nicht still.
+    const mit = berechneBewertung({
+      adjustedPeg: 1.2, kgv: 15, fcfRendite: 4, dividendenrendite: 18.98, kursBuchwert: null,
+      dividendenWiderlegtHinweis: "18.98 % durch unabhängige Gegenprobe widerlegt (Yahoo 1.93 %) — Faktor ausgeblendet",
+    });
+    const dividende = mit.faktoren.find((f) => f.name === "Dividendenrendite")!;
+    expect(dividende.punkte).toBeNull();
+    expect(dividende.hinweis).toContain("widerlegt");
+    const ohne = berechneBewertung({
+      adjustedPeg: 1.2, kgv: 15, fcfRendite: 4, dividendenrendite: null, kursBuchwert: null,
+    });
+    expect(mit.score).toBeCloseTo(ohne.score!, 4);
+  });
+
   it("ein negatives KGV wird nicht als günstig gelesen", () => {
     // Ein Verlusttitel darf ueber den KGV-Deckel keinen Vorteil erhalten.
     const verlust = berechneBewertung({

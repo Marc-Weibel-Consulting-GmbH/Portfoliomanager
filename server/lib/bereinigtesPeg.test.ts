@@ -98,11 +98,55 @@ describe("bereinigtesPeg", () => {
     expect(bereinigtesPeg({ ...STANDARD, vendorPeg: null, kgv: null }).grund).toBe("peg_fehlt");
   });
 
-  it("liegt ein Vendor-PEG vor, hat es Vorrang vor der eigenen Rechnung", () => {
-    const r = bereinigtesPeg({ ...STANDARD, kgv: 99 });
+  it("liegt ein bestätigtes Vendor-PEG vor, hat es Vorrang vor der eigenen Rechnung", () => {
+    // KGV 11.2 bei 8 % Wachstum → eigene Rechnung 1.40 = Vendor-Wert. Bestätigt.
+    const r = bereinigtesPeg({ ...STANDARD, kgv: 11.2 });
     expect(r.quelle).toBe("vendor");
     expect(r.peg).toBeCloseTo((1.4 * 1.15) / 1.12, 3);
     expect(r.hinweis).toBeNull();
+  });
+
+  // KIMI Punkt 7: Ein Vendor-PEG von 5–8 passierte alle Wächter, auch wenn
+  // KGV ÷ belegtes Wachstum etwas völlig anderes ergibt — der Vendor-Nenner
+  // passt dann nicht zu den belegten Zahlen.
+  describe("Konsistenz-Gegenprobe gegen die eigene Rechnung", () => {
+    it("verwirft ein Vendor-PEG, das um mehr als Faktor 2 abweicht, zugunsten der eigenen Rechnung", () => {
+      // Eigene Rechnung: 20 ÷ 8 = 2.50. Vendor 6.00 → Faktor 2.4 daneben.
+      const r = bereinigtesPeg({ ...STANDARD, vendorPeg: 6, kgv: 20 });
+      expect(r.quelle).toBe("selbst");
+      expect(r.peg).toBeCloseTo(((20 / 8) * 1.15) / 1.12, 3);
+      expect(r.hinweis).toContain("weicht von der eigenen Rechnung");
+      expect(r.rechnung).toContain("verworfen");
+    });
+
+    it("greift in beide Richtungen — auch ein zu tiefes Vendor-PEG wird verworfen", () => {
+      // Eigene Rechnung: 24 ÷ 8 = 3.00. Vendor 0.9 → Faktor 3.3 zu tief.
+      const r = bereinigtesPeg({ ...STANDARD, vendorPeg: 0.9, kgv: 24 });
+      expect(r.quelle).toBe("selbst");
+      expect(r.peg).toBeCloseTo(((24 / 8) * 1.15) / 1.12, 3);
+    });
+
+    it("ohne KGV bleibt der Vendor-Wert ungeprüft in Kraft — keine Gegenprobe möglich", () => {
+      const r = bereinigtesPeg({ ...STANDARD, kgv: null });
+      expect(r.quelle).toBe("vendor");
+      expect(r.hinweis).toBeNull();
+    });
+
+    it("ohne tragfähigen eigenen Nenner (Korridor 2–50 %) bleibt der Vendor-Wert in Kraft", () => {
+      // Einzige Quelle 60 % p.a.: plausibilisiert den Vendor (irgendeine ≥ 2 %),
+      // trägt aber selbst keinen Nenner — keine Gegenprobe.
+      const r = bereinigtesPeg({ ...STANDARD, epsWachstum5j: 60, epsWachstumTTM: null, kgv: 20 });
+      expect(r.quelle).toBe("vendor");
+      expect(r.peg).toBeCloseTo((1.4 * 1.15) / 1.12, 3);
+    });
+
+    it("landet die eigene Rechnung jenseits der Obergrenze, wird ausgeblendet statt geraten", () => {
+      // Vendor 1.4 wirkt gesund, aber KGV 99 bei 8 % Wachstum heisst PEG 12.4 —
+      // der Vendor-Nenner (implizit ~70 % Wachstum) ist ein Basiseffekt.
+      const r = bereinigtesPeg({ ...STANDARD, kgv: 99 });
+      expect(r.grund).toBe("peg_extrem");
+      expect(r.peg).toBeNull();
+    });
   });
 
   // Schindler-Befund: Der 5-Jahres-CAGR ist eine Endpunkt-Rechnung — ein

@@ -380,6 +380,13 @@ export interface BewertungsEingang {
   fcfRendite: number | null;
   /** % Dividendenrendite. */
   dividendenrendite: number | null;
+  /**
+   * Gesetzt, wenn die unabhängige Dividenden-Gegenprobe den Quellenwert
+   * materiell widerlegt hat (LISP.SW: EODHD 18.98 %, Yahoo 1.93 %). Der Faktor
+   * wird dann ausgeblendet (Renormierung) statt still gekappt — der Text
+   * erscheint als Faktor-Hinweis.
+   */
+  dividendenWiderlegtHinweis?: string | null;
   /** Kurs-Buchwert-Verhältnis. */
   kursBuchwert: number | null;
   /** % EPS-Wachstum der letzten zwölf Monate. */
@@ -456,13 +463,17 @@ export function kgvDeckel(kgv: number | null): number {
  * alle übrigen das PEG, gedeckelt durch das absolute KGV.
  */
 export function berechneBewertung(e: BewertungsEingang): TeilScore {
+  // Widerlegter Quellenwert → ausblenden (punkte null, Renormierung), nie eine
+  // erfundene 0 und nie eine stille Kappung — gleiche Linie wie der FCF-Wächter.
+  const dividendeWiderlegt = e.dividendenWiderlegtHinweis ?? null;
   const dividende: Teilfaktor = {
     name: "Dividendenrendite",
     wert: e.dividendenrendite,
-    punkte: punkteAus(e.dividendenrendite, 0, 5),
+    punkte: dividendeWiderlegt !== null ? null : punkteAus(e.dividendenrendite, 0, 5),
     gewicht: 0,
-    rechnung: ankerRechnung(e.dividendenrendite, 0, 5),
-    hinweis: e.dividendenrendite === null ? "nicht verfügbar" : `${e.dividendenrendite.toFixed(2)} %`,
+    rechnung: dividendeWiderlegt !== null ? undefined : ankerRechnung(e.dividendenrendite, 0, 5),
+    hinweis: dividendeWiderlegt !== null ? dividendeWiderlegt
+      : e.dividendenrendite === null ? "nicht verfügbar" : `${e.dividendenrendite.toFixed(2)} %`,
   };
 
   if (nutztBuchwert(e.sektor)) {

@@ -64,7 +64,12 @@ export async function getDreiScores(
    * der Screener kennt Sektor und Dividendenrendite aus der EODHD-Antwort.
    * Werte aus der Datenbank haben Vorrang.
    */
-  kontext?: { sektor?: string | null; dividendenrendite?: number | null },
+  kontext?: {
+    sektor?: string | null;
+    dividendenrendite?: number | null;
+    /** Gesetzt, wenn die Dividenden-Gegenprobe den Quellenwert widerlegt hat — blendet den Faktor aus. */
+    dividendenWiderlegtHinweis?: string | null;
+  },
 ): Promise<DreiScores> {
   // Zuerst die vorgerechneten Werte: Der stuendliche Signal-Cron legt sie ab.
   // Nur wenn dort nichts steht — neuer Titel, Cron noch nicht gelaufen —, wird
@@ -126,6 +131,7 @@ export async function getDreiScores(
     kgv: qm.forwardPE ?? qm.trailingPE,
     fcfRendite: qm.fcfYield,
     dividendenrendite,
+    dividendenWiderlegtHinweis: kontext?.dividendenWiderlegtHinweis ?? null,
     kursBuchwert: qm.priceToBook,
     epsWachstumTTM: qm.epsGrowthTTM,
     epsWachstum5j: qm.epsGrowth5y,
