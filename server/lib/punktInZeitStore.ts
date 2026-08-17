@@ -295,23 +295,35 @@ export async function historienUmfang(): Promise<{
   titelMitRegime: number; zeilenMitTiming: number;
   /** Zeilen der AKTUELLEN Fassung — nur die zählen für Diagnose und Messung. */
   zeilenAktuell: number;
+  /**
+   * Alt-Fassungs-Zeilen von Titeln OHNE Datenreihe (`stock_scores_ohne_reihe`)
+   * — die kann kein Nachlegen je aktualisieren. Ohne diese Zahl hielt das
+   * Selbst-Nachlegen 67 solcher Zeilen für «veraltet» und startete endlos
+   * neue Läufe für 3 Titel, die die Quelle nachweislich nicht führt (266×).
+   */
+  zeilenNichtNachziehbar: number;
 }> {
   const leer = {
     zeilen: 0, titel: 0, von: null, bis: null,
     titelMitRegime: 0, zeilenMitTiming: 0, zeilenAktuell: 0,
+    zeilenNichtNachziehbar: 0,
   };
   try {
     const { getDb } = await import("../db");
     const db = await getDb();
     if (!db) return leer;
     await stelleTabelleSicher(db);
+    await stelleLeerTabelleSicher(db);
     const { sql } = await import("drizzle-orm");
     const rows: any = await db.execute(sql`
       SELECT COUNT(*) AS zeilen, COUNT(DISTINCT ticker) AS titel,
              MIN(datum) AS von, MAX(datum) AS bis,
              COUNT(DISTINCT CASE WHEN fassung >= 2 THEN ticker END) AS titelMitRegime,
              SUM(CASE WHEN timing IS NOT NULL THEN 1 ELSE 0 END) AS zeilenMitTiming,
-             SUM(CASE WHEN fassung >= ${FASSUNG} THEN 1 ELSE 0 END) AS zeilenAktuell
+             SUM(CASE WHEN fassung >= ${FASSUNG} THEN 1 ELSE 0 END) AS zeilenAktuell,
+             SUM(CASE WHEN fassung < ${FASSUNG} AND EXISTS (
+               SELECT 1 FROM stock_scores_ohne_reihe o WHERE o.ticker = stock_scores_history.ticker
+             ) THEN 1 ELSE 0 END) AS zeilenNichtNachziehbar
       FROM stock_scores_history`);
     const liste = Array.isArray(rows) ? (rows[0] ?? rows) : (rows?.rows ?? []);
     const r = (liste as any[])[0];
@@ -324,6 +336,7 @@ export async function historienUmfang(): Promise<{
       titelMitRegime: Number(r.titelMitRegime ?? 0),
       zeilenMitTiming: Number(r.zeilenMitTiming ?? 0),
       zeilenAktuell: Number(r.zeilenAktuell ?? 0),
+      zeilenNichtNachziehbar: Number(r.zeilenNichtNachziehbar ?? 0),
     };
   } catch {
     return leer;

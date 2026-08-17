@@ -56,8 +56,11 @@ export default function AdminDashboard() {
     // Deploy geleert), aber die Historie liegt komplett in der alten Fassung —
     // ohne diesen Zweig musste jemand von Hand «Rekonstruieren» klicken, und
     // «Scores diagnostizieren» zeigte derweil kommentarlos 0 Titel.
+    // Zeilen von Titeln OHNE Datenreihe kann kein Lauf je nachziehen — sie
+    // dürfen das Nachlegen nicht antreiben (Endlosschleife: 3 Titel, 266×).
+    const nichtNachziehbar = (s.umfang as any)?.zeilenNichtNachziehbar ?? 0;
     const veraltet = (s.umfang?.zeilen ?? 0) > 0
-      && (s.umfang?.zeilenAktuell ?? 0) < (s.umfang?.zeilen ?? 0);
+      && ((s.umfang?.zeilenAktuell ?? 0) + nichtNachziehbar) < (s.umfang?.zeilen ?? 0);
     if ((s.nochOffen ?? 0) <= 0 && !veraltet) return;
     if (starteReko.isPending) return;
     const t = setTimeout(() => {
@@ -511,11 +514,21 @@ export default function AdminDashboard() {
               die Zähler oben sehen «fertig» aus — genau daran scheiterte die
               Diagnose nach FASSUNG 6 kommentarlos mit 0 Titeln. */}
           {rekoStatus.data?.umfang && rekoStatus.data.umfang.zeilen > 0
-            && ((rekoStatus.data.umfang as any).zeilenAktuell ?? 0) < rekoStatus.data.umfang.zeilen && (
+            && (((rekoStatus.data.umfang as any).zeilenAktuell ?? 0) + ((rekoStatus.data.umfang as any).zeilenNichtNachziehbar ?? 0)) < rekoStatus.data.umfang.zeilen && (
             <p className="text-xs text-amber-400">
-              {(rekoStatus.data.umfang.zeilen - ((rekoStatus.data.umfang as any).zeilenAktuell ?? 0)).toLocaleString("de-CH")} von{" "}
+              {(rekoStatus.data.umfang.zeilen - ((rekoStatus.data.umfang as any).zeilenAktuell ?? 0) - ((rekoStatus.data.umfang as any).zeilenNichtNachziehbar ?? 0)).toLocaleString("de-CH")} von{" "}
               {rekoStatus.data.umfang.zeilen.toLocaleString("de-CH")} Zeilen liegen in einer älteren FASSUNG vor —
               die Rekonstruktion zieht sie nach{autoWeiter ? " (Nachlegen aktiv, Seite offen lassen)" : " — «Rekonstruieren» klicken"}.
+            </p>
+          )}
+          {/* Zeilen von Titeln ohne Datenreihe: informativ, nicht amber — sie
+              treiben das Nachlegen nicht mehr an (Endlosschleife, 3 Titel 266×).
+              Diagnose und Messung ignorieren sie ohnehin (FASSUNG-Filter). */}
+          {(((rekoStatus.data?.umfang as any)?.zeilenNichtNachziehbar ?? 0) > 0) && (
+            <p className="text-xs text-gray-500">
+              {((rekoStatus.data!.umfang as any).zeilenNichtNachziehbar).toLocaleString("de-CH")} Zeilen stammen von
+              Titeln ohne Datenreihe bei der Quelle — nicht nachziehbar, bleiben in der alten FASSUNG und werden von
+              Diagnose und Messung ignoriert.
             </p>
           )}
 
