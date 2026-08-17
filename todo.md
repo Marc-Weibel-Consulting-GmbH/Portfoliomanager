@@ -642,6 +642,10 @@
 ## Screener-Detailaudit — PDF-Review (2026-08-17)
 - [x] Den aktuellen Screener-Detailaudit als professionellen PDF-Review erzeugen und lesbar verifizieren
 
+## KGV-Rohdiagnose — Vendor oder App (2026-08-17)
+- [x] Sechs EODHD-Fundamentalsantworten read-only mit den vorgegebenen EODHD-Symbolen abrufen und Rohfelder belegen
+- [x] Bit-identische PERatio-/ForwardPE-Werte je Partnergruppe auf vier Dezimalstellen vergleichen und Vendor oder App eindeutig klassifizieren — Ursache: EODHD `Valuation.ForwardPE`, nicht die App
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern
