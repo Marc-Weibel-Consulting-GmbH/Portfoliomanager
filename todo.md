@@ -625,6 +625,12 @@
 - [x] Nach dem neu gerechneten Screener-Lauf die verbleibenden Punkte gegen Claudes parallele Bugprüfung konsolidieren und doppelte Befunde bereinigen — PR #297 konfliktfrei enthalten; keine offenen Claude-Bug-PRs in `main`, Restpunkte dokumentiert
 - [x] QualityMetrics-EODHD-Timeouts begrenzt wiederholen, damit einzelne Provider-Aussetzer keine stillen Screener-Leerdaten erzeugen
 
+## Research-Triage-Loop — offene Issues (2026-08-16)
+- [x] Offene `[Research]`-Issues ohne Fortschrittslabel nach Konfidenz laden, filtern und maximal zwei priorisieren — keine qualifizierenden offenen Issues vorhanden
+- [x] Daten- und Engine-Umsetzbarkeit der priorisierten Hypothesen prüfen und nicht umsetzbare Issues nachvollziehbar ablehnen — keine priorisierten Issues vorhanden
+- [x] Für umsetzbare Hypothesen Feature-flagged Prototypen sowie echte OOS-Backtests mit Regime- und Sensitivitätschecks ausführen — keine qualifizierenden Issues vorhanden
+- [x] Backtestnachweis, Labels, Research-Branches, Draft-PRs und Abschlusskommentare auf GitHub veröffentlichen — keine qualifizierenden Issues vorhanden
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern
