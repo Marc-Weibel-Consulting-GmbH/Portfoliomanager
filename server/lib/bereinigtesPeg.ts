@@ -36,19 +36,40 @@ export type BereinigtPegGrund =
  * Oberhalb dieser Rate (% p.a.) ist ein Wachstum kein tragfähiger PEG-Nenner
  * mehr, sondern ein Basiseffekt: FDJ (FDJU.PA) stand nach Einmaleffekten mit
  * Mini-Gewinn da — trailing KGV 172, «erwartetes Wachstum» +1944 %, PEG 0.09,
- * volle Punktzahl. Das G im PEG meint nachhaltiges Mehrjahres-Wachstum; über
- * 50 % p.a. ist das nie plausibel — die Rangfolge überspringt solche Quellen.
+ * volle Punktzahl. Das G im PEG meint nachhaltiges Mehrjahres-Wachstum; die
+ * Rangfolge überspringt Quellen darüber. 50 → 35 nach dem Roche-Fall: Ein
+ * kaputter Schätzwert von 45.8 % schlüpfte knapp unter die alte Grenze —
+ * nachhaltige Raten über 35 % p.a. sind praktisch nie real.
  */
-export const MAX_WACHSTUM_FUER_PEG = 50;
+export const MAX_WACHSTUM_FUER_PEG = 35;
 
 /**
- * Konsistenz-Gegenprobe: Ein Vendor-PEG innerhalb der Wächter (≤ 8, Wachstum
- * plausibel) kann trotzdem falsch sein, wenn der Vendor-Nenner nicht zu den
- * belegten Wachstumszahlen passt. Weichen Vendor- und eigene Rechnung
- * (KGV ÷ tragfähige Quelle) um mehr als diesen Faktor voneinander ab, zählt
- * die eigene Rechnung — mit Hinweis, nicht still.
+ * Konsistenz-Gegenprobe: Weichen Vendor-PEG und eigene Rechnung (KGV ÷
+ * tragfähige Quelle) um mehr als diesen Faktor voneinander ab, ist EINE der
+ * beiden Zahlen kaputt — welche, ist nicht entscheidbar. Es zählt dann die
+ * VORSICHTIGERE (das höhere PEG, weniger Punkte): Bei widersprüchlichen
+ * Quellen gibt es nie die günstigere Lesart. Roche-Lehre: Die frühere Regel
+ * «eigene Rechnung gewinnt» machte aus Vendor 1.68 ein 100/100-«Schnäppchen»,
+ * weil ausgerechnet der eigene Nenner der kaputte war.
  */
 export const VENDOR_PEG_ABWEICHUNG_FAKTOR = 2;
+
+/**
+ * Erwartetes EPS-Wachstum aus zwei Analystenschätzungen — Schätzung gegen
+ * Schätzung, NIE Schätzung gegen berichtetes EPS: Schätzungen basieren oft
+ * auf einer bereinigten EPS-Definition (Roche: Core EPS), das berichtete EPS
+ * ist IFRS — bei grosser Lücke entsteht ein künstlicher Sprung (Roche:
+ * +45.8 % statt ~8 %). Mini-Basen unter 0.1 tragen keinen Nenner.
+ */
+export function erwartetesWachstum(
+  schaetzungLaufend: number | null,
+  schaetzungNaechstes: number | null,
+): number | null {
+  if (schaetzungLaufend === null || schaetzungNaechstes === null) return null;
+  if (!Number.isFinite(schaetzungLaufend) || !Number.isFinite(schaetzungNaechstes)) return null;
+  if (schaetzungLaufend <= 0.1) return null;
+  return ((schaetzungNaechstes - schaetzungLaufend) / schaetzungLaufend) * 100;
+}
 
 export interface BereinigtesPegErgebnis {
   peg: number | null;
@@ -132,8 +153,8 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
   let quellenHinweis: string | null = null;
   let rechnungKopf: string;
 
-  // Die eigene Rechnung (KGV ÷ erste tragfähige Quelle im Korridor 2–50 %) —
-  // im Vendor-Zweig die Gegenprobe, im Rückfall-Zweig der Wert selbst.
+  // Die eigene Rechnung (trailing KGV ÷ erste tragfähige Quelle im Korridor
+  // 2–35 %) — im Vendor-Zweig die Gegenprobe, im Rückfall-Zweig der Wert selbst.
   const kgv = e.kgv !== null && e.kgv !== undefined && Number.isFinite(e.kgv) && e.kgv > 0 ? e.kgv : null;
   const eigenerNenner = belegte.find((q) =>
     q.wert >= MIN_WACHSTUM_FUER_PEG && q.wert <= MAX_WACHSTUM_FUER_PEG) ?? null;
@@ -154,16 +175,23 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
     if (eigenesPeg !== null &&
         (e.vendorPeg / eigenesPeg > VENDOR_PEG_ABWEICHUNG_FAKTOR ||
          eigenesPeg / e.vendorPeg > VENDOR_PEG_ABWEICHUNG_FAKTOR)) {
-      // KIMI Punkt 7: Der Vendor-Wert widerspricht den belegten Zahlen — die
-      // nachvollziehbare Rechnung schlägt die Blackbox. Landet sie jenseits
-      // der Obergrenze, blendet der bestehende Wächter unten aus.
-      rohesPeg = eigenesPeg;
-      quelle = "selbst";
-      quellenHinweis = `Vendor-PEG ${e.vendorPeg.toFixed(2)} weicht von der eigenen Rechnung ` +
-        `${eigenesPeg.toFixed(2)} um mehr als Faktor ${VENDOR_PEG_ABWEICHUNG_FAKTOR} ab — eigene Rechnung verwendet`;
-      rechnungKopf = `KGV ${kgv!.toFixed(1)} ÷ ${eigenerNenner!.wert.toFixed(1)} % ${eigenerNenner!.label} ` +
-        `= ${eigenesPeg.toFixed(2)} roh (Vendor-PEG ${e.vendorPeg.toFixed(2)} verworfen — ` +
-        `Abweichung über Faktor ${VENDOR_PEG_ABWEICHUNG_FAKTOR})`;
+      // Widerspruch: Die vorsichtigere Zahl (höheres PEG) zählt — landet sie
+      // jenseits der Obergrenze, blendet der bestehende Wächter unten aus.
+      const widerspruch = `Vendor-PEG ${e.vendorPeg.toFixed(2)} und eigene Rechnung ` +
+        `${eigenesPeg.toFixed(2)} widersprechen sich (über Faktor ${VENDOR_PEG_ABWEICHUNG_FAKTOR}) — ` +
+        `vorsichtigere Zahl verwendet`;
+      quellenHinweis = widerspruch;
+      if (eigenesPeg > e.vendorPeg) {
+        rohesPeg = eigenesPeg;
+        quelle = "selbst";
+        rechnungKopf = `KGV (trailing) ${kgv!.toFixed(1)} ÷ ${eigenerNenner!.wert.toFixed(1)} % ${eigenerNenner!.label} ` +
+          `= ${eigenesPeg.toFixed(2)} roh (vorsichtigere Zahl — Vendor-PEG ${e.vendorPeg.toFixed(2)} widersprochen)`;
+      } else {
+        rohesPeg = e.vendorPeg;
+        quelle = "vendor";
+        rechnungKopf = `Vendor-PEG ${e.vendorPeg.toFixed(2)} (EODHD; vorsichtigere Zahl — ` +
+          `eigene Rechnung ${eigenesPeg.toFixed(2)} widersprochen)`;
+      }
     } else {
       rohesPeg = e.vendorPeg;
       quelle = "vendor";
@@ -194,8 +222,8 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
     }
     rohesPeg = kgv / nenner.wert;
     quelle = "selbst";
-    quellenHinweis = `selbst gerechnet: KGV ${kgv.toFixed(1)} ÷ ${nenner.wert.toFixed(1)} % ${nenner.label} (kein Vendor-PEG)`;
-    rechnungKopf = `KGV ${kgv.toFixed(1)} ÷ ${nenner.wert.toFixed(1)} % ${nenner.label} = ${rohesPeg.toFixed(2)} roh`;
+    quellenHinweis = `selbst gerechnet: KGV (trailing) ${kgv.toFixed(1)} ÷ ${nenner.wert.toFixed(1)} % ${nenner.label} (kein Vendor-PEG)`;
+    rechnungKopf = `KGV (trailing) ${kgv.toFixed(1)} ÷ ${nenner.wert.toFixed(1)} % ${nenner.label} = ${rohesPeg.toFixed(2)} roh`;
   }
 
   const peg = bereinigung(rohesPeg);

@@ -13,7 +13,7 @@ import { ENV } from "../_core/env";
 import { retryWithBackoff } from "../_core/retryUtil";
 import { toEodhdSymbol } from "./eodhdSymbol";
 import { berechnePiotroski, type PiotroskiErgebnis } from "./piotroski";
-import { bereinigtesPeg } from "./bereinigtesPeg";
+import { bereinigtesPeg, erwartetesWachstum } from "./bereinigtesPeg";
 import { stabilitaetAusJahresEps } from "./gewinnStabilitaet";
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
@@ -460,10 +460,13 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
   // das robuste Raten-Mittel aus der Stabilitätsrechnung (bereits vorhanden)
   // und das erwartete Wachstum aus der Analystenschätzung (wie Yahoo & Co.).
   const wachstumRatenMittel = stabilitaet.mittel !== null ? stabilitaet.mittel * 100 : null;
-  let wachstumErwartet: number | null = null;
-  if (eps !== null && eps > 0.1 && epsEstimateNextYear !== null && epsEstimateNextYear > 0) {
-    wachstumErwartet = ((epsEstimateNextYear - eps) / eps) * 100;
-  }
+  // Schätzung GEGEN Schätzung (Roche-Befund): Die frühere Rechnung
+  // (Schätzung ÷ berichtetes EPS) brach bei abweichender EPS-Definition —
+  // Roches Core-Schätzung gegen IFRS-Gewinn ergab +45.8 % statt ~8 %.
+  const wachstumErwartet = erwartetesWachstum(
+    parseFloatOrNull(highlights.EPSEstimateCurrentYear),
+    epsEstimateNextYear,
+  );
 
   const bereinigt = bereinigtesPeg({
     vendorPeg: trailingPeg,

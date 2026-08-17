@@ -157,6 +157,18 @@ dieses Dokument.
   falsch sein, wenn der Vendor-Nenner nicht zu den belegten Zahlen passt;
   die nachvollziehbare Rechnung schlägt die Blackbox. Kein FASSUNG-Wechsel
   (Rekonstruktion rechnet kein PEG).
+- **PEG-Nachschärfung am Roche-Fall (2026-08, ohne FASSUNG-Wechsel):**
+  Drei Korrekturen nach einem Live-Befund (ROG: Vendor-PEG 1.68 wurde von
+  einer kaputten Eigenrechnung 0.49 verdrängt → 100/100). (1) «Erwartetes
+  Wachstum» rechnet Schätzung GEGEN Schätzung (laufendes vs. nächstes Jahr)
+  statt Schätzung gegen berichtetes EPS — Analystenschätzungen basieren oft
+  auf bereinigten EPS-Definitionen (Roche: Core vs. IFRS), der Bruch erzeugte
+  +45.8 % statt ~8 %. (2) Die Konsistenz-Gegenprobe bevorzugt bei Widerspruch
+  über Faktor 2 die VORSICHTIGERE Zahl (höheres PEG) statt pauschal die
+  eigene Rechnung — bei widersprüchlichen Quellen nie die günstigere Lesart.
+  (3) Wachstums-Obergrenze 50 → 35 % p.a.: 45.8 % schlüpfte knapp unter die
+  alte Grenze; nachhaltige Raten darüber sind praktisch nie real. Kein
+  FASSUNG-Wechsel (Rekonstruktion rechnet kein PEG).
 - **Dividenden-Gegenprobe als Wächter (2026-08, ohne FASSUNG-Wechsel):**
   Widerlegt die unabhängige Gegenprobe (Yahoo-Ausschüttungen, ab 8 %
   Rendite) den EODHD-Quellenwert materiell, wird der Dividenden-Faktor im
