@@ -29,7 +29,17 @@ export type BereinigtPegGrund =
   | "peg_fehlt"            // Vendor-PEG fehlt, NaN oder ≤ 0 (Vorzeichen-Artefakt)
   | "wachstum_fehlt"       // weder 5j-CAGR noch TTM belegt — der Vendor-Nenner ist nicht prüfbar
   | "wachstum_zu_gering"   // unter MIN_WACHSTUM_FUER_PEG — Division durch fast null
+  | "wachstum_extrem"      // über MAX_WACHSTUM_FUER_PEG — Basiseffekt, keine tragfähige Rate
   | "peg_extrem";          // bereinigter Wert jenseits jeder Aussage
+
+/**
+ * Oberhalb dieser Rate (% p.a.) ist ein Wachstum kein tragfähiger PEG-Nenner
+ * mehr, sondern ein Basiseffekt: FDJ (FDJU.PA) stand nach Einmaleffekten mit
+ * Mini-Gewinn da — trailing KGV 172, «erwartetes Wachstum» +1944 %, PEG 0.09,
+ * volle Punktzahl. Das G im PEG meint nachhaltiges Mehrjahres-Wachstum; über
+ * 50 % p.a. ist das nie plausibel — die Rangfolge überspringt solche Quellen.
+ */
+export const MAX_WACHSTUM_FUER_PEG = 50;
 
 export interface BereinigtesPegErgebnis {
   peg: number | null;
@@ -135,14 +145,23 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
     if (kgv === null) {
       return leer("peg_fehlt", "kein Vendor-PEG von EODHD geliefert");
     }
-    const nenner = belegte.find((q) => q.wert >= MIN_WACHSTUM_FUER_PEG) ?? null;
+    const nenner = belegte.find((q) =>
+      q.wert >= MIN_WACHSTUM_FUER_PEG && q.wert <= MAX_WACHSTUM_FUER_PEG) ?? null;
     if (nenner === null) {
-      return belegte.length > 0
-        ? leer("wachstum_zu_gering",
+      if (belegte.length === 0) {
+        return leer("wachstum_fehlt",
+          "PEG ausgeblendet — kein Vendor-PEG und kein belegtes Gewinnwachstum zum Selbstrechnen");
+      }
+      const geprueft = belegte.map((q) => `${q.label} ${q.wert.toFixed(1)} %`).join(", ");
+      // Alle Quellen ausserhalb des Korridors: die Meldung nennt die
+      // dominierende Ursache — Basiseffekt (zu gross) oder fast null.
+      return belegte.some((q) => q.wert > MAX_WACHSTUM_FUER_PEG)
+        ? leer("wachstum_extrem",
+            `PEG sagt hier nichts — Wachstum über ${MAX_WACHSTUM_FUER_PEG} % p.a. ist ein Basiseffekt ` +
+            `(winziger Ausgangsgewinn), keine tragfähige Rate (geprüft: ${geprueft})`)
+        : leer("wachstum_zu_gering",
             `PEG sagt hier nichts — Wachstum unter ${MIN_WACHSTUM_FUER_PEG} % p.a. ist eine Division durch fast null ` +
-            `(geprüft: ${belegte.map((q) => `${q.label} ${q.wert.toFixed(1)} %`).join(", ")})`)
-        : leer("wachstum_fehlt",
-            "PEG ausgeblendet — kein Vendor-PEG und kein belegtes Gewinnwachstum zum Selbstrechnen");
+            `(geprüft: ${geprueft})`);
     }
     rohesPeg = kgv / nenner.wert;
     quelle = "selbst";
