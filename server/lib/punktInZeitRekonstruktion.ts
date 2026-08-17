@@ -23,6 +23,15 @@ const TITEL_JE_BLOCK = 10;
 /** Länge dieser Pause. */
 const PAUSE_JE_BLOCK_MS = 2000;
 
+/**
+ * Ab so vielen vermerkten Fehlversuchen gilt eine Datenlücke («keine
+ * Fundamentaldaten», «keine Kurse») als dauerhaft: Der Titel wird wie «ohne
+ * Reihe» vermerkt statt erneut ans Warteschlangen-Ende zu rutschen. Live-Fall:
+ * 3 Titel wurden 266× erneut versucht — das Selbst-Nachlegen hielt ihre
+ * Alt-Fassungs-Zeilen für nachziehbar und startete endlos neue Läufe.
+ */
+export const DAUERHAFT_NACH_FEHLVERSUCHEN = 5;
+
 export interface RekonstruktionsErgebnis {
   titel: number;
   zeilen: number;
@@ -243,17 +252,32 @@ export async function rekonstruiere(
     try {
       const fundamentals = await holeFundamentals(ticker);
       if (!fundamentals) {
-        uebersprungen.push(`${ticker} (keine Fundamentaldaten)`);
         // Fehlversuch, NICHT Ausschluss: Ein leeres Ergebnis kann am Titel
         // liegen oder an der Gegenstelle. Der Vermerk verschiebt ihn nur nach
-        // hinten, damit er den Häppchen-Anfang nicht dauerhaft besetzt.
-        fehlversuche.push({ ticker, grund: "keine Fundamentaldaten" });
+        // hinten — ABER: Ab der Schwelle ist die Datenlücke keine Störung
+        // mehr, sondern eine Eigenschaft des Titels bei dieser Quelle. Live-
+        // Fall: 3 Titel ohne Fundamentaldaten wurden 266× erneut versucht,
+        // weil das Selbst-Nachlegen ihre Alt-Zeilen für nachziehbar hielt.
+        if ((nachrangig.get(ticker) ?? 0) >= DAUERHAFT_NACH_FEHLVERSUCHEN) {
+          uebersprungen.push(`${ticker} (keine Fundamentaldaten — dauerhaft übersprungen nach ` +
+            `${nachrangig.get(ticker)} Fehlversuchen)`);
+          ohneReihe.push(ticker);
+        } else {
+          uebersprungen.push(`${ticker} (keine Fundamentaldaten)`);
+          fehlversuche.push({ ticker, grund: "keine Fundamentaldaten" });
+        }
         continue;
       }
       const kurse = await holeKurse(ticker);
       if (!kurse.length) {
-        uebersprungen.push(`${ticker} (keine Kurse)`);
-        fehlversuche.push({ ticker, grund: "keine Kurse" });
+        if ((nachrangig.get(ticker) ?? 0) >= DAUERHAFT_NACH_FEHLVERSUCHEN) {
+          uebersprungen.push(`${ticker} (keine Kurse — dauerhaft übersprungen nach ` +
+            `${nachrangig.get(ticker)} Fehlversuchen)`);
+          ohneReihe.push(ticker);
+        } else {
+          uebersprungen.push(`${ticker} (keine Kurse)`);
+          fehlversuche.push({ ticker, grund: "keine Kurse" });
+        }
         continue;
       }
 

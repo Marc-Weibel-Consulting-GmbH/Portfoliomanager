@@ -276,6 +276,43 @@ describe("rekonstruiere", () => {
     expect(fortschritt.at(-1)).toContain("übersprungen");
   });
 
+  it("eskaliert chronische Datenlücken zum dauerhaften Ausschluss — Ende der Endlosschleife", async () => {
+    // Live-Fall: 3 Titel ohne Fundamentaldaten wurden 266× erneut versucht,
+    // weil «ans Ende der Warteschlange» keine Antwort auf einen Titel ist,
+    // den die Quelle nachweislich nicht führt. Ab der Schwelle wird der
+    // Titel wie «ohne Reihe» vermerkt — das Selbst-Nachlegen kommt zur Ruhe.
+    const r = await rekonstruiere(
+      [{ ticker: "LEER.SG", sektor: null }],
+      "2023-06-01", "2024-06-30",
+      async () => null,
+      async () => TAGESKURSE,
+      () => {},
+      undefined,
+      new Set<string>(),
+      25,
+      new Map([["LEER.SG", 5]]),
+    );
+    expect(r.ohneReihe).toContain("LEER.SG");
+    expect(r.fehlversuche).toHaveLength(0);
+    expect(r.uebersprungen[0]).toContain("dauerhaft");
+  });
+
+  it("unter der Schwelle bleibt eine Datenlücke ein Fehlversuch — kein vorschneller Ausschluss", async () => {
+    const r = await rekonstruiere(
+      [{ ticker: "LEER.SG", sektor: null }],
+      "2023-06-01", "2024-06-30",
+      async () => null,
+      async () => TAGESKURSE,
+      () => {},
+      undefined,
+      new Set<string>(),
+      25,
+      new Map([["LEER.SG", 4]]),
+    );
+    expect(r.ohneReihe).toHaveLength(0);
+    expect(r.fehlversuche).toEqual([{ ticker: "LEER.SG", grund: "keine Fundamentaldaten" }]);
+  });
+
   it("setzt fort, statt bereits erfasste Titel erneut zu holen", async () => {
     // Der Fall aus der Praxis: Ein Lauf ueber viele Titel bleibt in der Mitte
     // stehen. Ohne Fortsetzen holt der zweite Versuch alles noch einmal — mit
