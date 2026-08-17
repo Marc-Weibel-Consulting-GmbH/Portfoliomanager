@@ -154,6 +154,15 @@ export interface QualitaetsEingang {
   bruttomarge: number | null;
   /** Operativer Cashflow ÷ Nettogewinn. Über 1 heisst gedeckt. */
   ertragsdeckung: number | null;
+  /**
+   * % Gewinnwachstum p. a. — robustes Mittel der Jahres-EPS-Raten (aus
+   * `gewinnStabilitaet`, benachbarte Jahre, Kappung ±50 %). FASSUNG 6:
+   * Die Wachstums-HÖHE kam vorher nur als PEG-Nenner vor — wurde das PEG
+   * ausgeblendet, verschwand sie ganz. Nach dem Abgrenzungstest gehört sie
+   * in die Qualität (kursunabhängig), nicht in die Bewertung. Berichtete
+   * Zahlen, kein Schätzwert — voll rekonstruierbar.
+   */
+  gewinnwachstum?: number | null;
   /** 0–100, aus `qualityMetricsService.epsStabilityScore`. */
   epsStabilitaet: number | null;
   /** Belegtext zur Stabilität (Raten + Streuung) — erscheint im Faktor-Hinweis. */
@@ -220,7 +229,7 @@ export function berechneNiveau(e: QualitaetsEingang): TeilScore {
       // Unter 1 ist der Gewinn nicht durch Zahlungsströme gedeckt; ab 1.5
       // deutlich übererfüllt. Darüber bringt mehr keinen Zusatznutzen.
       punkte: punkteAus(e.ertragsdeckung, 0.6, 1.5),
-      gewicht: 0.20,
+      gewicht: 0.15,
       rechnung: ankerRechnung(e.ertragsdeckung, 0.6, 1.5),
       hinweis: e.ertragsdeckung === null ? "nicht verfügbar"
         : e.ertragsdeckung >= 1
@@ -228,10 +237,26 @@ export function berechneNiveau(e: QualitaetsEingang): TeilScore {
           : `Cashflow deckt nur ${(e.ertragsdeckung * 100).toFixed(0)} % des Gewinns`,
     },
     {
+      // FASSUNG 6: Die Wachstums-Höhe als eigener Qualitätsfaktor. Ein
+      // stabiler Null-Wächser holte vorher Bestnoten (Stabilität misst nur
+      // Gleichmässigkeit, der F-Score nur das binäre Vorjahres-Delta), und
+      // mit ausgeblendetem PEG kam «kaum Wachstum» nirgends mehr vor.
+      // Quelle ist das robuste Raten-Mittel — berichtete Zahlen, deshalb
+      // rekonstruierbar und ehrlich backtestbar.
+      name: "Gewinnwachstum",
+      wert: e.gewinnwachstum ?? null,
+      punkte: punkteAus(e.gewinnwachstum ?? null, 0, 20),
+      gewicht: 0.15,
+      rechnung: ankerRechnung(e.gewinnwachstum ?? null, 0, 20),
+      hinweis: e.gewinnwachstum === null || e.gewinnwachstum === undefined
+        ? "nicht verfügbar (zu wenig zusammenhängende Jahres-EPS)"
+        : `${e.gewinnwachstum.toFixed(1)} % p.a. — robustes Mittel der Jahresraten`,
+    },
+    {
       name: "Gewinnstabilität",
       wert: e.epsStabilitaet,
       punkte: e.epsStabilitaet === null ? null : Math.max(0, Math.min(100, e.epsStabilitaet)),
-      gewicht: 0.15,
+      gewicht: 0.10,
       rechnung: e.epsStabilitaet === null ? undefined
         : `Skala: Streuung der Jahresraten 5 pp \u2192 100 Punkte, 50 pp \u2192 0 (linear)${e.epsStabilitaetHinweis ? ` \u00b7 ${e.epsStabilitaetHinweis}` : ""}`,
       hinweis: e.epsStabilitaet === null
@@ -256,7 +281,10 @@ export function berechneNiveau(e: QualitaetsEingang): TeilScore {
       name: "Bruttomarge",
       wert: e.bruttomarge,
       punkte: punkteAus(e.bruttomarge, 10, 65),
-      gewicht: 0.10,
+      // FASSUNG 6: 0.10 → 0.05 — überschneidet sich mit der Betriebsmarge
+      // am stärksten; finanziert zusammen mit Ertragsqualität (0.20 → 0.15)
+      // und Stabilität (0.15 → 0.10) das neue Gewinnwachstum (0.15).
+      gewicht: 0.05,
       rechnung: ankerRechnung(e.bruttomarge, 10, 65),
       hinweis: e.bruttomarge === null ? "nicht verfügbar" : `${e.bruttomarge.toFixed(1)} % vom Umsatz`,
     },

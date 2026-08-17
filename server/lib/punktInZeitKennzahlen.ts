@@ -54,6 +54,8 @@ export interface PunktInZeitKennzahlen {
     betriebsmarge: number | null;
     bruttomarge: number | null;
     ertragsdeckung: number | null;
+    /** % p.a. — robustes Raten-Mittel, Quelle des Faktors «Gewinnwachstum» (FASSUNG 6). */
+    gewinnwachstum: number | null;
     epsStabilitaet: number | null;
     netDebtToEbitda: number | null;
   };
@@ -153,9 +155,13 @@ export function kennzahlenPerStichtag(e: PunktInZeitEingaben): PunktInZeitKennza
   const annualKeys = Object.keys(annual).sort();
   const epsReihe = annualKeys.map((k) => zahl(annual[k]?.epsActual)).filter((v): v is number => v !== null);
   // Mit Geschäftsjahr, damit keine Rate über eine Datenlücke gebildet wird.
-  const epsStabilitaet = stabilitaetAusReihe(
+  // EINE Rechnung liefert Stabilität (Streuung) UND Wachstum (Raten-Mittel) —
+  // dieselbe Quelle wie im Live-Pfad, damit die Rekonstruktion identisch rechnet.
+  const stabilitaetErgebnis = stabilitaetAusJahresEps(
     annualKeys.map((k) => ({ jahr: parseInt(k.slice(0, 4), 10), eps: zahl(annual[k]?.epsActual) })),
   );
+  const epsStabilitaet = stabilitaetErgebnis.score;
+  const gewinnwachstum = stabilitaetErgebnis.mittel !== null ? stabilitaetErgebnis.mittel * 100 : null;
   const epsAktuell = epsReihe.at(-1) ?? null;
   const epsVorjahr = epsReihe.at(-2) ?? null;
   const epsVor5 = epsReihe.length >= 6 ? epsReihe.at(-6)! : null;
@@ -180,7 +186,7 @@ export function kennzahlenPerStichtag(e: PunktInZeitEingaben): PunktInZeitKennza
     ? (Math.abs(dividendenZahlung) / aktien / kurs) * 100
     : null;
 
-  const qualitaet = { roic, betriebsmarge, bruttomarge, ertragsdeckung, epsStabilitaet, netDebtToEbitda };
+  const qualitaet = { roic, betriebsmarge, bruttomarge, ertragsdeckung, gewinnwachstum, epsStabilitaet, netDebtToEbitda };
   const bewertung = {
     // Kein PEG: Es braucht eine Wachstumsschätzung, und die von heute gehört
     // nicht in eine Rechnung von damals.

@@ -131,6 +131,18 @@ dieses Dokument.
   rechnet (`punktInZeitKennzahlen.adjustedPeg = null`, Vendor-Schätzungen von
   damals sind nicht archiviert) — die Historie bleibt vergleichbar.
 
+- **FASSUNG 6 (2026-08):** Gewinnwachstum als siebter Niveau-Faktor der
+  Qualität — robustes Raten-Mittel der Jahres-EPS (berichtete Zahlen, voll
+  rekonstruierbar), Anker 0 % → 0 Punkte, 20 % → 100 Punkte, Gewicht 15 %
+  (finanziert aus Ertragsqualität 20→15, Stabilität 15→10, Bruttomarge
+  10→5). Begründung nach Regel 1: Die Wachstums-HÖHE kam nur als
+  PEG-Nenner vor — mit ausgeblendetem PEG verschwand sie ganz; der F-Score
+  prüft nur das binäre Vorjahres-Delta, die Stabilität nur die
+  Gleichmässigkeit — ein stabiler Null-Wächser holte Bestnoten. Nach dem
+  Abgrenzungstest (kursunabhängig) gehört Wachstum in die Qualität, nicht
+  in die Bewertung. Vorwärts-Beleg: Rekonstruktion FASSUNG 6 +
+  «Scores diagnostizieren» nach dem Deploy.
+
 ## 6. Fahrplan
 
 1. **Frontend-Konsolidierung** — eine Formel überall; drei Kreise + Signalskala

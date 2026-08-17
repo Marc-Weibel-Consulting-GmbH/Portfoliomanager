@@ -150,13 +150,32 @@ describe("punkteAus", () => {
 describe("Qualität — Niveau", () => {
   const gut = {
     roic: 22, betriebsmarge: 25, bruttomarge: 55,
-    ertragsdeckung: 1.3, epsStabilitaet: 80, netDebtToEbitda: 0.5,
+    ertragsdeckung: 1.3, gewinnwachstum: 12, epsStabilitaet: 80, netDebtToEbitda: 0.5,
   };
 
   it("ein starkes Unternehmen erreicht ein hohes Niveau", () => {
     const r = berechneNiveau(gut);
     expect(r.abdeckung).toBe(1);
     expect(r.score).toBeGreaterThan(70);
+  });
+
+  // FASSUNG 6: Die Wachstums-Höhe zählt zur Qualität. Vorher holte ein
+  // stabiler Null-Wächser Bestnoten — Stabilität misst nur Gleichmässigkeit,
+  // der F-Score nur das binäre Vorjahres-Delta.
+  it("FASSUNG 6: ein stabiler Null-Wächser verliert gegenüber einem Wächser", () => {
+    const nullWachser = berechneNiveau({ ...gut, gewinnwachstum: 0 });
+    const wachser = berechneNiveau({ ...gut, gewinnwachstum: 20 });
+    expect(nullWachser.score!).toBeLessThan(wachser.score!);
+    // Anker 0 → 0 Punkte, 20 → 100 Punkte, Gewicht 15 %: exakt 15 Punkte Abstand.
+    expect(wachser.score! - nullWachser.score!).toBeCloseTo(15, 1);
+  });
+
+  it("FASSUNG 6: fehlendes Wachstum wird ausgeblendet und renormiert, nie als 0 gewertet", () => {
+    const ohne = berechneNiveau({ ...gut, gewinnwachstum: null });
+    expect(ohne.abdeckung).toBeCloseTo(0.85, 3);
+    expect(ohne.score).not.toBeNull();
+    const alsNull = berechneNiveau({ ...gut, gewinnwachstum: 0 });
+    expect(ohne.score!).toBeGreaterThan(alsNull.score!);
   });
 
   it("ein schwaches Unternehmen fällt deutlich ab", () => {

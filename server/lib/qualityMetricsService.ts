@@ -46,6 +46,8 @@ export interface QualityMetrics {
 
   // Risiko / Stabilität
   epsVolatility: number | null;     // CV der jährlichen EPS-Wachstumsraten (0–1+)
+  /** % p.a. — robustes Mittel der Jahres-EPS-Raten (Quelle des Qualitätsfaktors «Gewinnwachstum», FASSUNG 6). */
+  epsWachstumRobust: number | null;
   /** 0–100 (100 = sehr gleichmässige Gewinne); null = nicht berechenbar. */
   epsStabilityScore: number | null;
   /** Belegtext zur Stabilität (verwendete Raten + Streuung) — macht die Zahl nachprüfbar. */
@@ -519,6 +521,7 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
     revenueGrowthTTM,
     epsGrowth5y,
     epsVolatility,
+    epsWachstumRobust: wachstumRatenMittel,
     epsStabilityScore,
     epsStabilitaetHinweis: stabilitaet.hinweis,
     surpriseRate,
@@ -554,7 +557,7 @@ function buildFallback(ticker: string, reason: string): QualityMetrics {
     piotroski: berechnePiotroski(null),
     qualityScore: 50,
     epsGrowthTTM: null, revenueGrowthTTM: null, epsGrowth5y: null,
-    epsVolatility: null, epsStabilityScore: null, epsStabilitaetHinweis: null,
+    epsVolatility: null, epsWachstumRobust: null, epsStabilityScore: null, epsStabilitaetHinweis: null,
     surpriseRate: null, netDebtToEbitda: null,
     trailingPE: null, forwardPE: null, eps: null, epsEstimateNextYear: null,
     investedCapital: null, nopat: null,
