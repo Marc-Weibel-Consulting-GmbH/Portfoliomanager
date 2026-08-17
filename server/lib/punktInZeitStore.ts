@@ -33,11 +33,15 @@
  *     167 von 296 berechneten Werten exakt 0 — der Faktor war praktisch
  *     binär. Ein einzelnes Extremjahr zählt jetzt als 50-%-Ereignis;
  *     nur wiederholte grosse Sprünge treiben den Score auf 0.
+ * 6 — Gewinnwachstum als siebter Niveau-Faktor (robustes Raten-Mittel,
+ *     Anker 0 % → 0 P., 20 % → 100 P., Gewicht 15; EQ 20→15, Stabilität
+ *     15→10, Brutto 10→5). Die Wachstums-HÖHE kam vorher nur als
+ *     PEG-Nenner vor; ein stabiler Null-Wächser holte Bestnoten.
  *
  * Ersetzt die frühere Behelfsprüfung «hat die Zeile ein Regime». Bei der
  * nächsten Formeländerung genügt eine neue Nummer.
  */
-export const FASSUNG = 5;
+export const FASSUNG = 6;
 
 let tabelleGeprueft = false;
 

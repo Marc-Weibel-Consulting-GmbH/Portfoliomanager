@@ -111,6 +111,7 @@ export async function getDreiScores(
       betriebsmarge: qm.operatingMargin,
       bruttomarge: qm.grossMargin,
       ertragsdeckung: qm.ertragsdeckung,
+      gewinnwachstum: qm.epsWachstumRobust,
       epsStabilitaet: qm.epsStabilityScore,
       epsStabilitaetHinweis: qm.epsStabilitaetHinweis,
       netDebtToEbitda: qm.netDebtToEbitda,
