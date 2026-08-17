@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { bereinigtesPeg, PEG_OBERGRENZE } from "./bereinigtesPeg";
+import { bereinigtesPeg, erwartetesWachstum, PEG_OBERGRENZE } from "./bereinigtesPeg";
 
 /**
  * Befund 2 der Scoring-Prüfung (BCHN.SW): Ein Vendor-PEG von 15.63 lief ohne
@@ -106,24 +106,29 @@ describe("bereinigtesPeg", () => {
     expect(r.hinweis).toBeNull();
   });
 
-  // KIMI Punkt 7: Ein Vendor-PEG von 5–8 passierte alle Wächter, auch wenn
-  // KGV ÷ belegtes Wachstum etwas völlig anderes ergibt — der Vendor-Nenner
-  // passt dann nicht zu den belegten Zahlen.
+  // KIMI Punkt 7, nachgeschärft am Roche-Fall: Weichen Vendor-Wert und eigene
+  // Rechnung um mehr als Faktor 2 voneinander ab, ist EINE der beiden Zahlen
+  // kaputt — welche, ist nicht entscheidbar. Es zählt die VORSICHTIGERE
+  // (das höhere PEG, weniger Punkte): Bei widersprüchlichen Quellen gibt es
+  // nie die günstigere Lesart. Vorher gewann die eigene Rechnung — und bei
+  // Roche machte ein kaputter Schätz-Nenner (45.8 %) aus Vendor 1.68 ein
+  // 100/100-«Schnäppchen» von 0.49.
   describe("Konsistenz-Gegenprobe gegen die eigene Rechnung", () => {
-    it("verwirft ein Vendor-PEG, das um mehr als Faktor 2 abweicht, zugunsten der eigenen Rechnung", () => {
-      // Eigene Rechnung: 20 ÷ 8 = 2.50. Vendor 6.00 → Faktor 2.4 daneben.
+    it("bei Widerspruch über Faktor 2 zählt die vorsichtigere Zahl — hier der Vendor-Wert", () => {
+      // Eigene Rechnung: 20 ÷ 8 = 2.50. Vendor 6.00 → Faktor 2.4 auseinander.
       const r = bereinigtesPeg({ ...STANDARD, vendorPeg: 6, kgv: 20 });
-      expect(r.quelle).toBe("selbst");
-      expect(r.peg).toBeCloseTo(((20 / 8) * 1.15) / 1.12, 3);
-      expect(r.hinweis).toContain("weicht von der eigenen Rechnung");
-      expect(r.rechnung).toContain("verworfen");
+      expect(r.quelle).toBe("vendor");
+      expect(r.peg).toBeCloseTo((6 * 1.15) / 1.12, 3);
+      expect(r.hinweis).toContain("widersprechen sich");
+      expect(r.rechnung).toContain("vorsichtigere Zahl");
     });
 
-    it("greift in beide Richtungen — auch ein zu tiefes Vendor-PEG wird verworfen", () => {
-      // Eigene Rechnung: 24 ÷ 8 = 3.00. Vendor 0.9 → Faktor 3.3 zu tief.
+    it("in der Gegenrichtung zählt die eigene Rechnung — weil sie die vorsichtigere ist", () => {
+      // Eigene Rechnung: 24 ÷ 8 = 3.00. Vendor 0.9 → Faktor 3.3 auseinander.
       const r = bereinigtesPeg({ ...STANDARD, vendorPeg: 0.9, kgv: 24 });
       expect(r.quelle).toBe("selbst");
       expect(r.peg).toBeCloseTo(((24 / 8) * 1.15) / 1.12, 3);
+      expect(r.hinweis).toContain("widersprechen sich");
     });
 
     it("ohne KGV bleibt der Vendor-Wert ungeprüft in Kraft — keine Gegenprobe möglich", () => {
@@ -132,20 +137,44 @@ describe("bereinigtesPeg", () => {
       expect(r.hinweis).toBeNull();
     });
 
-    it("ohne tragfähigen eigenen Nenner (Korridor 2–50 %) bleibt der Vendor-Wert in Kraft", () => {
-      // Einzige Quelle 60 % p.a.: plausibilisiert den Vendor (irgendeine ≥ 2 %),
-      // trägt aber selbst keinen Nenner — keine Gegenprobe.
-      const r = bereinigtesPeg({ ...STANDARD, epsWachstum5j: 60, epsWachstumTTM: null, kgv: 20 });
+    it("Roche-Fall: kaputte Schätzquelle über dem Korridor trägt keinen Gegen-Nenner — Vendor bleibt", () => {
+      // Einzige Quelle «erwartetes Wachstum» 45.8 % (Core-Schätzung ÷
+      // IFRS-Gewinn, Definitionsbruch) — über der 35-%-Obergrenze, wird
+      // übersprungen. Der plausible Vendor-Wert 1.68 bleibt in Kraft,
+      // statt von einer 0.52er-Eigenrechnung verdrängt zu werden.
+      const r = bereinigtesPeg({
+        ...STANDARD, vendorPeg: 1.68, kgv: 23.6,
+        epsWachstum5j: null, epsWachstumTTM: null, wachstumRatenMittel: null, wachstumErwartet: 45.8,
+      });
       expect(r.quelle).toBe("vendor");
-      expect(r.peg).toBeCloseTo((1.4 * 1.15) / 1.12, 3);
+      expect(r.peg).toBeCloseTo((1.68 * 1.15) / 1.12, 3);
     });
 
-    it("landet die eigene Rechnung jenseits der Obergrenze, wird ausgeblendet statt geraten", () => {
+    it("landet die vorsichtigere Zahl jenseits der Obergrenze, wird ausgeblendet statt geraten", () => {
       // Vendor 1.4 wirkt gesund, aber KGV 99 bei 8 % Wachstum heisst PEG 12.4 —
       // der Vendor-Nenner (implizit ~70 % Wachstum) ist ein Basiseffekt.
       const r = bereinigtesPeg({ ...STANDARD, kgv: 99 });
       expect(r.grund).toBe("peg_extrem");
       expect(r.peg).toBeNull();
+    });
+  });
+
+  // Roche-Befund, Wurzel: «erwartetes Wachstum» verglich die Analystenschätzung
+  // (Core-EPS-Basis) mit dem berichteten IFRS-EPS — bei grosser Core/IFRS-Lücke
+  // entsteht ein künstlicher Sprung (+45.8 % statt ~8 %). Schätzung gegen
+  // Schätzung hat dieselbe Definition auf beiden Seiten.
+  describe("erwartetesWachstum (Schätzung gegen Schätzung)", () => {
+    it("rechnet den Schritt zwischen laufender und nächster Jahresschätzung", () => {
+      expect(erwartetesWachstum(20, 21.6)).toBeCloseTo(8, 5);
+      expect(erwartetesWachstum(2.5, 2.4)).toBeCloseTo(-4, 5);
+    });
+
+    it("liefert ohne belastbare Basis keinen Wert — kein Mini-Nenner, kein null-Vergleich", () => {
+      expect(erwartetesWachstum(null, 21.6)).toBeNull();
+      expect(erwartetesWachstum(20, null)).toBeNull();
+      expect(erwartetesWachstum(0.05, 2)).toBeNull();   // Mini-Basis → Basiseffekt
+      expect(erwartetesWachstum(-1, 2)).toBeNull();
+      expect(erwartetesWachstum(Number.NaN, 2)).toBeNull();
     });
   });
 
@@ -222,7 +251,9 @@ describe("bereinigtesPeg", () => {
     expect(vendor.rechnung).toContain("Volatilitätsaufschlag");
     expect(vendor.rechnung).toContain("Qualitätsmultiplikator");
     const selbst = bereinigtesPeg({ ...STANDARD, vendorPeg: null, kgv: 18.3, epsWachstum5j: 6, epsWachstumTTM: null });
-    expect(selbst.rechnung).toContain("KGV 18.3 ÷ 6.0 % 5-Jahres-CAGR");
+    // «trailing» steht dabei, weil der KGV-Faktor daneben das Forward-KGV
+    // zeigt — zwei verschiedene Zahlen ohne Beschriftung verwirren (Roche).
+    expect(selbst.rechnung).toContain("KGV (trailing) 18.3 ÷ 6.0 % 5-Jahres-CAGR");
     expect(selbst.rechnung).toContain("bereinigt");
   });
 });
