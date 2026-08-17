@@ -524,8 +524,8 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
   // unabhängig vom Vendor-Feld, das Duplikat-Raster und Lücken zeigte.
   const isQuarterly = financials.Income_Statement?.quarterly || {};
   const quartalsGewinne = Object.keys(isQuarterly).sort()
-    .map((k) => parseFloatOrNull(isQuarterly[k]?.netIncome))
-    .filter((v): v is number => v !== null);
+    .map((k) => ({ datum: k, gewinn: parseFloatOrNull(isQuarterly[k]?.netIncome) }))
+    .filter((q): q is { datum: string; gewinn: number } => q.gewinn !== null);
   const selbstKgv = kgvSelbst({
     marktkapitalisierung,
     quartalsGewinne,
