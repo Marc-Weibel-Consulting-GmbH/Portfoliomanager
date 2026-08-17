@@ -14,6 +14,7 @@ import { retryWithBackoff } from "../_core/retryUtil";
 import { toEodhdSymbol } from "./eodhdSymbol";
 import { berechnePiotroski, type PiotroskiErgebnis } from "./piotroski";
 import { bereinigtesPeg, erwartetesWachstum } from "./bereinigtesPeg";
+import { kgvSelbst } from "./kgvSelbst";
 import { stabilitaetAusJahresEps } from "./gewinnStabilitaet";
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
@@ -29,8 +30,18 @@ export interface QualityMetrics {
   adjustedPegHinweis: string | null;
   /** Komplette PEG-Herleitung (Quelle, Nenner, Bereinigung) — für die Klick-Nachvollziehbarkeit. */
   adjustedPegRechnung: string | null;
+  /** Rohes PEG VOR der Bereinigung — mit externen Quellen vergleichbar (Manus-Audit P1). */
+  adjustedPegRoh: number | null;
   pegQuadrant: PegQuadrant;
   pegQuadrantLabel: string;
+  /**
+   * Selbst gerechnetes Trailing-KGV (Marktkapitalisierung ÷ TTM-Nettogewinn) —
+   * Schattenwert zum Vendor-Feld (KIMI-PEG-Audit: 83 Duplikat-Gruppen im
+   * Vendor-KGV, leere Highlights bei Schweizer Titeln). Kein Score-Eingang,
+   * bis der Beleg-Lauf die Umstellung rechtfertigt.
+   */
+  kgvSelbst: number | null;
+  kgvSelbstHinweis: string | null;
 
   // Qualität
   roic: number | null;              // % Return on Invested Capital
@@ -508,6 +519,19 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
   const growthForQuadrant = epsGrowthTTM ?? epsGrowth5y;
   const pegQuadrant = calcPegQuadrant(trailingPE, growthForQuadrant);
 
+  // ── Selbst gerechnetes KGV (Schattenwert, KIMI-PEG-Audit R2) ─────────────
+  // Marktkapitalisierung ÷ TTM-Nettogewinn aus den Quartalsabschlüssen —
+  // unabhängig vom Vendor-Feld, das Duplikat-Raster und Lücken zeigte.
+  const isQuarterly = financials.Income_Statement?.quarterly || {};
+  const quartalsGewinne = Object.keys(isQuarterly).sort()
+    .map((k) => parseFloatOrNull(isQuarterly[k]?.netIncome))
+    .filter((v): v is number => v !== null);
+  const selbstKgv = kgvSelbst({
+    marktkapitalisierung,
+    quartalsGewinne,
+    jahresGewinn: isKeys.length > 0 ? parseFloatOrNull(isYearly[isKeys.at(-1)!]?.netIncome) : null,
+  });
+
   return {
     trailingPeg,
     forwardPeg,
@@ -515,6 +539,9 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
     adjustedPegGrund: bereinigt.grund,
     adjustedPegHinweis: bereinigt.hinweis,
     adjustedPegRechnung: bereinigt.rechnung,
+    adjustedPegRoh: bereinigt.roh,
+    kgvSelbst: selbstKgv.kgv,
+    kgvSelbstHinweis: selbstKgv.hinweis,
     pegQuadrant,
     pegQuadrantLabel: pegQuadrantLabel(pegQuadrant),
     roic,
@@ -555,6 +582,7 @@ function buildFallback(ticker: string, reason: string): QualityMetrics {
   return {
     trailingPeg: null, forwardPeg: null, adjustedPeg: null,
     adjustedPegGrund: null, adjustedPegHinweis: null, adjustedPegRechnung: null,
+    adjustedPegRoh: null, kgvSelbst: null, kgvSelbstHinweis: null,
     pegQuadrant: "unknown", pegQuadrantLabel: "Unbekannt",
     roic: null, returnOnEquity: null, grossMargin: null, operatingMargin: null,
     fcfYield: null, freeCashflow: null, evToEbitda: null, priceToBook: null,

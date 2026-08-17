@@ -73,6 +73,8 @@ export function erwartetesWachstum(
 
 export interface BereinigtesPegErgebnis {
   peg: number | null;
+  /** Rohes PEG VOR der Bereinigung — mit externen Quellen vergleichbar; null bei ausgeblendetem Faktor. */
+  roh: number | null;
   /** Warum kein Wert ausgegeben wird; null, wenn `peg` belegt ist. */
   grund: BereinigtPegGrund | null;
   /**
@@ -133,7 +135,7 @@ export interface BereinigtesPegEingabe {
 
 export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis {
   const leer = (grund: BereinigtPegGrund, hinweis: string | null): BereinigtesPegErgebnis =>
-    ({ peg: null, grund, hinweis, quelle: null, rechnung: null });
+    ({ peg: null, roh: null, grund, hinweis, quelle: null, rechnung: null });
 
   // Wachstumsquellen in fester Rangfolge: belegt vor geschätzt, robust vor
   // zerbrechlich. Der 5-Jahres-CAGR bleibt vorne (etablierte Grösse), aber
@@ -263,5 +265,5 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
       `bereinigtes PEG ${peg.toFixed(1)} über der Obergrenze ${PEG_OBERGRENZE} — keine Aussage, Faktor ausgeblendet`);
   }
 
-  return { peg, grund: null, hinweis: quellenHinweis, quelle, rechnung };
+  return { peg, roh: rohesPeg, grund: null, hinweis: quellenHinweis, quelle, rechnung };
 }

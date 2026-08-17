@@ -76,6 +76,13 @@ async function stelleTabellenSicher(db: any): Promise<void> {
     ["dividendenValidierung", "varchar(32)"],
     ["externeDividendenrendite", "decimal(8,4)"],
     ["dividendenPruefgrund", "varchar(255)"],
+    // KGV-Transparenz (KIMI-PEG-Audit): Vendor-Felder + Selbstrechnung als
+    // Schattenwerte je Kandidat — Grundlage fuer den Umstellungs-Entscheid.
+    ["kgvTrailing", "decimal(10,4)"],
+    ["kgvForward", "decimal(10,4)"],
+    ["kgvSelbst", "decimal(10,4)"],
+    ["kgvSelbstHinweis", "varchar(120)"],
+    ["pegRoh", "decimal(10,4)"],
   ];
   for (const [name, typ] of nachgetragen) {
     const res: any = await db.execute(sql`
@@ -134,6 +141,13 @@ export interface ScreenerKandidat {
   dividendenValidierung: string | null;
   externeDividendenrendite: number | null;
   dividendenPruefgrund: string | null;
+  /** Vendor-KGVs und Selbstrechnung als Schattenwerte (KIMI-PEG-Audit) — Export-Transparenz. */
+  kgvTrailing: number | null;
+  kgvForward: number | null;
+  kgvSelbst: number | null;
+  kgvSelbstHinweis: string | null;
+  /** Rohes PEG vor der Bereinigung — mit externen Quellen vergleichbar. */
+  pegRoh: number | null;
 }
 
 function zahl(v: unknown): number | null {
@@ -185,7 +199,7 @@ export async function ergaenzeKandidaten(
   laufId: number,
   kandidaten: Array<Omit<ScreenerKandidat,
     "laufId" | "qualitaet" | "bewertung" | "signalScore" | "signalLabel"
-    | "qualitaetFaktoren" | "bewertungFaktoren" | "qualitaetNiveau" | "qualitaetRichtung" | "fScore" | "fehler" | "retryCount" | "dividendenValidierung" | "externeDividendenrendite" | "dividendenPruefgrund" | "land" | "primaerTicker" | "isin">>,
+    | "qualitaetFaktoren" | "bewertungFaktoren" | "qualitaetNiveau" | "qualitaetRichtung" | "fScore" | "fehler" | "retryCount" | "dividendenValidierung" | "externeDividendenrendite" | "dividendenPruefgrund" | "land" | "primaerTicker" | "isin" | "kgvTrailing" | "kgvForward" | "kgvSelbst" | "kgvSelbstHinweis" | "pegRoh">>,
 ): Promise<{ eingefuegt: number; zeilenFehler: number; ersterFehler: string | null }> {
   if (kandidaten.length === 0) return { eingefuegt: 0, zeilenFehler: 0, ersterFehler: null };
   const db = await dbOderFehler();
@@ -351,6 +365,11 @@ export async function schreibeErgebnis(
     dividendenValidierung?: string | null;
     externeDividendenrendite?: number | null;
     dividendenPruefgrund?: string | null;
+    kgvTrailing?: number | null;
+    kgvForward?: number | null;
+    kgvSelbst?: number | null;
+    kgvSelbstHinweis?: string | null;
+    pegRoh?: number | null;
   },
 ): Promise<void> {
   const db = await dbOderFehler();
@@ -376,6 +395,11 @@ export async function schreibeErgebnis(
         dividendenValidierung = ${ergebnis.dividendenValidierung ?? null},
         externeDividendenrendite = ${ergebnis.externeDividendenrendite ?? null},
         dividendenPruefgrund = ${ergebnis.dividendenPruefgrund?.slice(0, 250) ?? null},
+        kgvTrailing = ${ergebnis.kgvTrailing ?? null},
+        kgvForward = ${ergebnis.kgvForward ?? null},
+        kgvSelbst = ${ergebnis.kgvSelbst ?? null},
+        kgvSelbstHinweis = ${ergebnis.kgvSelbstHinweis?.slice(0, 120) ?? null},
+        pegRoh = ${ergebnis.pegRoh ?? null},
         berechnetAm = now()
     WHERE laufId = ${laufId} AND ticker = ${ticker}`);
 }
@@ -575,5 +599,10 @@ function mappeKandidat(r: any): ScreenerKandidat {
     dividendenValidierung: r.dividendenValidierung ?? null,
     externeDividendenrendite: zahl(r.externeDividendenrendite),
     dividendenPruefgrund: r.dividendenPruefgrund ?? null,
+    kgvTrailing: zahl(r.kgvTrailing),
+    kgvForward: zahl(r.kgvForward),
+    kgvSelbst: zahl(r.kgvSelbst),
+    kgvSelbstHinweis: r.kgvSelbstHinweis ?? null,
+    pegRoh: zahl(r.pegRoh),
   };
 }
