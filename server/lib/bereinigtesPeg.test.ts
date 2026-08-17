@@ -146,6 +146,32 @@ describe("bereinigtesPeg", () => {
     expect(r.hinweis).toContain("geprüft:");
   });
 
+  // FDJ-Befund (FDJU.PA): Einmaleffekte drückten den Gewinn auf ein
+  // Mini-Niveau — trailing KGV 172, «erwartetes Wachstum» +1944 %, PEG 0.09,
+  // 100/100 Punkte. Ein Basiseffekt ist keine tragfähige Wachstumsrate.
+  it("FDJ-Fall: Basiseffekt-Wachstum über der Obergrenze trägt den Nenner nicht", () => {
+    const r = bereinigtesPeg({
+      ...STANDARD, vendorPeg: null, kgv: 172.3,
+      epsWachstum5j: null, epsWachstumTTM: null, wachstumRatenMittel: null, wachstumErwartet: 1944.5,
+    });
+    expect(r.peg).toBeNull();
+    expect(r.grund).toBe("wachstum_extrem");
+    expect(r.hinweis).toMatch(/Basiseffekt/);
+    expect(r.hinweis).toContain("1944");
+  });
+
+  it("eine extreme Quelle wird übersprungen, eine tragfähige spätere übernimmt", () => {
+    // TTM +300 % (Erholungs-Basiseffekt), aber das robuste Raten-Mittel 8 %
+    // trägt — die Rangfolge überspringt die unplausible Quelle.
+    const r = bereinigtesPeg({
+      ...STANDARD, vendorPeg: null, kgv: 20,
+      epsWachstum5j: null, epsWachstumTTM: 300, wachstumRatenMittel: 8,
+    });
+    expect(r.grund).toBeNull();
+    expect(r.peg).toBeCloseTo(((20 / 8) * 1.15) / 1.12, 3);
+    expect(r.hinweis).toContain("Raten-Mittel");
+  });
+
   it("liefert die komplette Herleitung als Rechnung — für die Klick-Nachvollziehbarkeit", () => {
     const vendor = bereinigtesPeg(STANDARD);
     expect(vendor.rechnung).toContain("Vendor-PEG 1.40");
