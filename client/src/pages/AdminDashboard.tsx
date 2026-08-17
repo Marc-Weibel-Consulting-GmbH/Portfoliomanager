@@ -52,7 +52,13 @@ export default function AdminDashboard() {
     const s = rekoStatus.data;
     if (!autoWeiter || !s) return;
     if (s.aktiv || s.haengt) return;
-    if ((s.nochOffen ?? 0) <= 0) return;
+    // Nach einem FASSUNG-Wechsel ist `nochOffen` null (In-Memory-Zustand vom
+    // Deploy geleert), aber die Historie liegt komplett in der alten Fassung —
+    // ohne diesen Zweig musste jemand von Hand «Rekonstruieren» klicken, und
+    // «Scores diagnostizieren» zeigte derweil kommentarlos 0 Titel.
+    const veraltet = (s.umfang?.zeilen ?? 0) > 0
+      && (s.umfang?.zeilenAktuell ?? 0) < (s.umfang?.zeilen ?? 0);
+    if ((s.nochOffen ?? 0) <= 0 && !veraltet) return;
     if (starteReko.isPending) return;
     const t = setTimeout(() => {
       starteReko.mutate({ von: rekoVon, bis: rekoBis, fortsetzen: true, maxTitel: 25 });
@@ -499,6 +505,18 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Nach einem FASSUNG-Wechsel gilt die Historie als veraltet, aber
+              die Zähler oben sehen «fertig» aus — genau daran scheiterte die
+              Diagnose nach FASSUNG 6 kommentarlos mit 0 Titeln. */}
+          {rekoStatus.data?.umfang && rekoStatus.data.umfang.zeilen > 0
+            && ((rekoStatus.data.umfang as any).zeilenAktuell ?? 0) < rekoStatus.data.umfang.zeilen && (
+            <p className="text-xs text-amber-400">
+              {(rekoStatus.data.umfang.zeilen - ((rekoStatus.data.umfang as any).zeilenAktuell ?? 0)).toLocaleString("de-CH")} von{" "}
+              {rekoStatus.data.umfang.zeilen.toLocaleString("de-CH")} Zeilen liegen in einer älteren FASSUNG vor —
+              die Rekonstruktion zieht sie nach{autoWeiter ? " (Nachlegen aktiv, Seite offen lassen)" : " — «Rekonstruieren» klicken"}.
+            </p>
           )}
 
           {/* Der dritte Score. Zeilen aus der ersten Fassung tragen nur Qualität
@@ -1083,6 +1101,11 @@ export default function AdminDashboard() {
 
           {scoreDiagnose.data && (
             <div className="space-y-4 border-t pt-3">
+              {/* «0 Titel» ohne Grund liest sich wie ein Defekt — nach einem
+                  FASSUNG-Wechsel ist die Historie schlicht noch nicht nachgezogen. */}
+              {(scoreDiagnose.data as any).hinweis && (
+                <p className="text-xs text-amber-400">{(scoreDiagnose.data as any).hinweis}</p>
+              )}
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <p className="text-xs text-muted-foreground">
                   {scoreDiagnose.data.titel} Titel ·{" "}

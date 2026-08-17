@@ -1915,11 +1915,26 @@ export const adminRouter = router({
         const beobachtungen = [...reihen.values()]
           .flatMap((r) => beobachtungenAusReihe(r, input.horizontMonate));
 
+        // «0 Titel» ohne Grund liest sich wie ein Defekt. Der häufigste Grund
+        // ist ein FASSUNG-Wechsel: Die Historie liegt dann vollständig in
+        // einer älteren Fassung vor und ist für die Diagnose unsichtbar, bis
+        // die Rekonstruktion nachgezogen hat (Live-Befund nach FASSUNG 6).
+        let hinweis: string | null = null;
+        if (reihen.size === 0) {
+          const { historienUmfang, FASSUNG } = await import("../lib/punktInZeitStore");
+          const umfang = await historienUmfang();
+          hinweis = umfang.zeilen > 0
+            ? `Die ${umfang.zeilen.toLocaleString("de-CH")} Zeilen der Score-Historie liegen in einer älteren ` +
+              `FASSUNG vor (aktuell ${FASSUNG}) — zuerst «Rekonstruieren» klicken und nachziehen lassen, dann diagnostizieren.`
+            : "Die Score-Historie ist leer — zuerst «Rekonstruieren» klicken.";
+        }
+
         const felder: ScoreFeld[] = ["qualitaet", "bewertung", "timing"];
         return {
           horizontMonate: input.horizontMonate,
           titel: reihen.size,
           beobachtungen: beobachtungen.length,
+          hinweis,
           dauerSekunden: Math.round((Date.now() - begonnen) / 100) / 10,
           scores: felder.map((feld) => {
             const d = diagnostiziere(beobachtungen, feld);
