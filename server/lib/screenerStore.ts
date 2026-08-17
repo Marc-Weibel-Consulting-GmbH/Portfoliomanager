@@ -49,6 +49,7 @@ async function stelleTabellenSicher(db: any): Promise<void> {
     \`qualitaetRichtung\` decimal(6,2),
     \`fScore\` tinyint,
     \`fehler\` varchar(255),
+    \`retryCount\` int NOT NULL DEFAULT 0,
     \`berechnetAm\` timestamp NULL,
     PRIMARY KEY (\`laufId\`, \`ticker\`)
   )`));
@@ -70,6 +71,11 @@ async function stelleTabellenSicher(db: any): Promise<void> {
     // ISIN als quellenunabhängiger Emittentenschlüssel — 84 berechnete Titel
     // des Laufs #150001 hatten keinen EODHD-Primärticker (Manus-Restpunkt).
     ["isin", "varchar(12)"],
+    // Begrenzter Wiederanlauf für transiente Titel-Level-Timeouts.
+    ["retryCount", "int NOT NULL DEFAULT 0"],
+    ["dividendenValidierung", "varchar(32)"],
+    ["externeDividendenrendite", "decimal(8,4)"],
+    ["dividendenPruefgrund", "varchar(255)"],
   ];
   for (const [name, typ] of nachgetragen) {
     const res: any = await db.execute(sql`
@@ -123,6 +129,11 @@ export interface ScreenerKandidat {
   qualitaetRichtung: number | null;
   fScore: number | null;
   fehler: string | null;
+  /** Bereits verbrauchte Wiederanläufe für transiente Titel-Level-Timeouts. */
+  retryCount: number;
+  dividendenValidierung: string | null;
+  externeDividendenrendite: number | null;
+  dividendenPruefgrund: string | null;
 }
 
 function zahl(v: unknown): number | null {
@@ -174,7 +185,7 @@ export async function ergaenzeKandidaten(
   laufId: number,
   kandidaten: Array<Omit<ScreenerKandidat,
     "laufId" | "qualitaet" | "bewertung" | "signalScore" | "signalLabel"
-    | "qualitaetFaktoren" | "bewertungFaktoren" | "qualitaetNiveau" | "qualitaetRichtung" | "fScore" | "fehler" | "land" | "primaerTicker" | "isin">>,
+    | "qualitaetFaktoren" | "bewertungFaktoren" | "qualitaetNiveau" | "qualitaetRichtung" | "fScore" | "fehler" | "retryCount" | "dividendenValidierung" | "externeDividendenrendite" | "dividendenPruefgrund" | "land" | "primaerTicker" | "isin">>,
 ): Promise<{ eingefuegt: number; zeilenFehler: number; ersterFehler: string | null }> {
   if (kandidaten.length === 0) return { eingefuegt: 0, zeilenFehler: 0, ersterFehler: null };
   const db = await dbOderFehler();
@@ -321,7 +332,7 @@ export async function schreibeErgebnis(
   laufId: number,
   ticker: string,
   ergebnis: {
-    status: "berechnet" | "fehler" | "zweitkotierung" | "ausgeschlossen";
+    status: "wartend" | "berechnet" | "fehler" | "zweitkotierung" | "ausgeschlossen";
     land?: string | null;
     waehrung?: string | null;
     primaerTicker?: string | null;
@@ -336,6 +347,10 @@ export async function schreibeErgebnis(
     qualitaetRichtung?: number | null;
     fScore?: number | null;
     fehler?: string;
+    retryCount?: number;
+    dividendenValidierung?: string | null;
+    externeDividendenrendite?: number | null;
+    dividendenPruefgrund?: string | null;
   },
 ): Promise<void> {
   const db = await dbOderFehler();
@@ -357,6 +372,10 @@ export async function schreibeErgebnis(
         qualitaetRichtung = ${ergebnis.qualitaetRichtung ?? null},
         fScore = ${ergebnis.fScore ?? null},
         fehler = ${ergebnis.fehler?.slice(0, 250) ?? null},
+        retryCount = COALESCE(${ergebnis.retryCount ?? null}, retryCount),
+        dividendenValidierung = ${ergebnis.dividendenValidierung ?? null},
+        externeDividendenrendite = ${ergebnis.externeDividendenrendite ?? null},
+        dividendenPruefgrund = ${ergebnis.dividendenPruefgrund?.slice(0, 250) ?? null},
         berechnetAm = now()
     WHERE laufId = ${laufId} AND ticker = ${ticker}`);
 }
@@ -552,5 +571,9 @@ function mappeKandidat(r: any): ScreenerKandidat {
     qualitaetRichtung: zahl(r.qualitaetRichtung),
     fScore: zahl(r.fScore),
     fehler: r.fehler ?? null,
+    retryCount: Number(r.retryCount ?? 0),
+    dividendenValidierung: r.dividendenValidierung ?? null,
+    externeDividendenrendite: zahl(r.externeDividendenrendite),
+    dividendenPruefgrund: r.dividendenPruefgrund ?? null,
   };
 }

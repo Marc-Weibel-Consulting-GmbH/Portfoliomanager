@@ -635,9 +635,9 @@
 - [x] Den gelieferten Export strukturell gegen den aktuellen Laufbestand und die Persistenzschicht abgleichen
 - [x] Vollständigkeit, Statusgründe, Dubletten, Kennzahleneinheiten, Scoreabdeckung und Metadatenlücken reproduzierbar prüfen
 - [x] Einen revisionsfähigen Auditbericht mit quantifizierten Befunden, Ursachen, Restrisiken und priorisierten Massnahmen erstellen
-- [ ] P0 nach Freigabe umsetzen: Titel-Level-Timeouts mit begrenztem Wiederanlauf statt dauerhaftem Fehlerstatus behandeln
-- [ ] P0 nach Freigabe umsetzen: auffällige Dividendenrenditen mit ISIN-gebundener Zweitquelle als Datenqualitätsstatus validieren
-- [ ] P1 nach Freigabe umsetzen: Identitäts-Review-Queue und Exportstatus für fehlende Anbieter-Primärticker und ISIN ergänzen
+- [x] P0 umgesetzt: Titel-Level-Timeouts mit begrenztem Wiederanlauf statt dauerhaftem Fehlerstatus behandeln
+- [x] P0 umgesetzt: auffällige Dividendenrenditen mit ISIN-gebundener Zweitquelle als Datenqualitätsstatus validieren
+- [x] P1 umgesetzt: Identitäts-Review-Queue und Exportstatus für fehlende Anbieter-Primärticker und ISIN ergänzen
 
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen

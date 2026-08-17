@@ -40,6 +40,7 @@
 | T1-02 | Externe Integrationen | Sornette API | verifiziert | API-Vertrag auf `POST /v1/auth/login` und `accessToken` aktualisiert; Authentisierung, Confidence-Abruf und Bubble-Score bestehen gegen den Live-Dienst. |
 | T1-03 | Externe Integrationen | TradingView MCP | extern gestört, Produktpfad nicht betroffen | Connector ist aktiviert, Initialize liefert upstream 502 „Application failed to respond“. Keine produktive Codeverwendung der URL gefunden; Live-Healthcheck ist nur mit `RUN_LIVE_INTEGRATION_TESTS=true` aktiv. |
 | T1-04 | Testqualität | Deterministische Suite nach Security-Remediation | verifiziert | 147 Testdateien und 1'290 Tests bestehen. Sornette-, TradingView- und Upstash-Upstream-Healthchecks sind bewusst opt-in; lokale Verträge, Fallbacks und Clienttests bleiben verpflichtend. |
+| SCR-150001-02 | Datenintegrität | Titel-Timeouts, hohe Dividendenrenditen und unklare Emittentenidentitäten | verifiziert behoben | Titel-Timeouts werden maximal zweimal persistiert wiederholt. Hohe Dividendenrenditen mit ISIN werden gegen Yahoo-Kurs/Ausschüttungen als Status geprüft; LISP.SW und ML.PA als Quellenkonflikte markiert. Der Excel-Export enthält eine Datenqualitäts-Review-Queue für fehlende Primärticker/ISIN und Quellenkonflikte. |
 
 ## Statusdefinitionen
 

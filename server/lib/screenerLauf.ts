@@ -22,6 +22,7 @@ import { retryFetch } from "../_core/retryUtil";
 import { tickerAusScreenerCode } from "./universeExpansion";
 import { eodhdBruchZuProzent } from "./dividendenrendite";
 import { toEodhdSymbol } from "./eodhdSymbol";
+import { validateDividendYield } from "./dividendValidation";
 
 const EODHD_BASE_URL = "https://eodhd.com/api";
 
@@ -317,6 +318,24 @@ export function istVerzichtbareZweitkotierung(ticker: string, primaer: string | 
 const TITEL_TIMEOUT_MS = 25_000;
 /** Zeitbudget je Häppchen — danach wird sauber beendet statt weitergerechnet. */
 const HAEPPCHEN_BUDGET_MS = 150_000;
+/** Ein Titel darf bei einem transienten Gesamtzeitlimit höchstens zweimal erneut laufen. */
+export const MAX_TITEL_WIEDERANLAEUFE = 2;
+
+export function titelFehlerBehandlung(
+  fehler: string,
+  retryCount: number,
+): { status: "wartend" | "fehler"; retryCount: number; fehler: string } {
+  const istTimeout = fehler.startsWith("Zeitüberschreitung (");
+  if (!istTimeout || retryCount >= MAX_TITEL_WIEDERANLAEUFE) {
+    return { status: "fehler", retryCount, fehler };
+  }
+  const naechsterRetry = retryCount + 1;
+  return {
+    status: "wartend",
+    retryCount: naechsterRetry,
+    fehler: `Wiederanlauf ${naechsterRetry}/${MAX_TITEL_WIEDERANLAEUFE}: ${fehler}`,
+  };
+}
 
 function mitTimeout<T>(p: Promise<T>, ms: number, was: string): Promise<T> {
   return Promise.race([
@@ -438,6 +457,7 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         fehlgeschlagen++;
         continue;
       }
+      const dividendenCheck = await validateDividendYield(k.ticker, stamm?.isin ?? null, k.dividendenrendite);
       await schreibeErgebnis(laufId, k.ticker, {
         status: "berechnet",
         ...metadaten,
@@ -454,15 +474,21 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
         qualitaetNiveau: scores.qualitaet.niveau?.score ?? null,
         qualitaetRichtung: scores.qualitaet.richtung?.score ?? null,
         fScore: scores.qualitaet.richtung?.fScore ?? null,
+        retryCount: 0,
+        dividendenValidierung: dividendenCheck.status,
+        externeDividendenrendite: dividendenCheck.externalYield,
+        dividendenPruefgrund: dividendenCheck.reason,
       });
       berechnet++;
     } catch (err) {
+      const behandlung = titelFehlerBehandlung((err as Error).message, k.retryCount);
       await schreibeErgebnis(laufId, k.ticker, {
-        status: "fehler",
-        fehler: (err as Error).message,
+        status: behandlung.status,
+        retryCount: behandlung.retryCount,
+        fehler: behandlung.fehler,
       });
-      fehlgeschlagen++;
-      meldungen.push(`${k.ticker}: ${(err as Error).message}`);
+      if (behandlung.status === "fehler") fehlgeschlagen++;
+      meldungen.push(`${k.ticker}: ${behandlung.fehler}`);
     }
     // EODHD nicht fluten — die Fundamentaldaten-Abrufe laufen sequenziell.
     await new Promise((r) => setTimeout(r, 150));

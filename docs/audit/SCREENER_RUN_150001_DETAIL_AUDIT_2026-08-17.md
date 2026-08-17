@@ -81,6 +81,14 @@ Die Ursachen liegen im aktuellen Kontrollfluss: Ein gesamter `getDreiScores`-Auf
 
 Der Screener-Lauf ist für **explorative Kandidatensichtung** nutzbar: Status, Scoreabdeckung und Aussortierungen sind nachvollziehbar, und keine stillen Scoreinkonsistenzen oder offensichtlichen Dividenden-Extremwerte über 25 % wurden festgestellt. Für eine automatisierte Übernahme oder Ranglistenentscheidung sollten P0-Wiederanlauf und P0-Dividendenreferenz jedoch vorher umgesetzt werden. Die 52 Bewertungs- und 53 Signallücken sind keine Kandidaten für Füllwerte.
 
+## 9. Umsetzungs- und Nachvalidierungsstand
+
+Die beiden P0-Massnahmen und die P1-Transparenz wurden anschliessend umgesetzt. Titel-Level-Timeouts erhalten jetzt höchstens zwei persistierte Wiederanläufe; nicht-transiente Datenfehler bleiben unmittelbar endgültig. Der Retryzähler verhindert sowohl stilles Verlieren als auch Endlosschleifen.
+
+Für berechnete Titel mit Dividendenrendite ab 8 % wird bei vorhandener ISIN eine unabhängige Yahoo-Chartreferenz aus 12 Monaten Ausschüttungsereignissen und aktuellem Instrumentkurs gebildet. Sie korrigiert den EODHD-Wert nicht, sondern speichert `bestaetigt`, `zu_pruefen`, `identitaet_ungeklaert` oder `quelle_nicht_verfuegbar`. Von 26 auffälligen Werten wurden 13 bestätigt, zwei als materially abweichend markiert und zwei wegen fehlender ISIN in die Identitätsprüfung überführt; neun vorhandene Werte wurden nicht überschrieben, weil sie unter der neuen Validierungslogik noch nicht erneut berechnet wurden.
+
+Die beiden materiellen Fälle sind **LISP.SW** (EODHD 18,98 % gegenüber Yahoo-Trailing 1,93 %) und **ML.PA** (12,91 % gegenüber 3,99 %). Sie erscheinen nun mit Grund im neuen Blatt `Datenqualitäts-Review`; G14.DE und MBG.SW erscheinen dort zusätzlich mit `Identität unklar`, weil für sie keine ISIN vorliegt. Das Blatt enthält ebenso alle berechneten Titel ohne ISIN und Primärticker. Automatische Entfernung oder Kappung findet nicht statt.
+
 ## Referenzen
 
 [1] Gelieferter Screener-Export `screener-lauf-150001-1786960247646.xlsx` und read-only Datenbankabgleich von Lauf 150001, geprüft am 17. August 2026.  

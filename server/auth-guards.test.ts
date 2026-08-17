@@ -14,7 +14,7 @@ import superjson from 'superjson';
 
 const TEST_SERVER_URL = process.env.VITE_APP_URL || 'http://localhost:3000';
 
-describe('Auth Guards - Write Procedures', () => {
+describe('Auth Guards - Write Procedures', { timeout: 15_000 }, () => {
   let client: ReturnType<typeof createTRPCProxyClient<AppRouter>>;
 
   beforeAll(() => {

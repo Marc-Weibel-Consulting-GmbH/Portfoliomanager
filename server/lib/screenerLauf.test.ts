@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { vergleichsTicker, istVerzichtbareZweitkotierung, ADR_NAMENSMUSTER, istLseDollarNotiz } from "./screenerLauf";
+import { vergleichsTicker, istVerzichtbareZweitkotierung, ADR_NAMENSMUSTER, istLseDollarNotiz, titelFehlerBehandlung } from "./screenerLauf";
 
 describe("vergleichsTicker", () => {
   it("behandelt US-Ticker ohne Suffix wie .US", () => {
@@ -77,5 +77,21 @@ describe("istLseDollarNotiz", () => {
     expect(istLseDollarNotiz("LSE", "GBP")).toBe(false);
     expect(istLseDollarNotiz("LSE", null)).toBe(false);
     expect(istLseDollarNotiz("US", "USD")).toBe(false);
+  });
+});
+
+describe("titelFehlerBehandlung", () => {
+  it("plant maximal zwei Wiederanläufe für ein Titel-Level-Timeout", () => {
+    expect(titelFehlerBehandlung("Zeitüberschreitung (COST, 25s)", 0))
+      .toEqual({ status: "wartend", retryCount: 1, fehler: "Wiederanlauf 1/2: Zeitüberschreitung (COST, 25s)" });
+    expect(titelFehlerBehandlung("Zeitüberschreitung (COST, 25s)", 1))
+      .toEqual({ status: "wartend", retryCount: 2, fehler: "Wiederanlauf 2/2: Zeitüberschreitung (COST, 25s)" });
+    expect(titelFehlerBehandlung("Zeitüberschreitung (COST, 25s)", 2))
+      .toEqual({ status: "fehler", retryCount: 2, fehler: "Zeitüberschreitung (COST, 25s)" });
+  });
+
+  it("markiert nicht-transiente Fehler sofort als endgültigen Fehler", () => {
+    expect(titelFehlerBehandlung("keine Fundamentaldaten — keine Säule berechenbar", 0))
+      .toEqual({ status: "fehler", retryCount: 0, fehler: "keine Fundamentaldaten — keine Säule berechenbar" });
   });
 });

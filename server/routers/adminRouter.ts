@@ -3530,11 +3530,15 @@ export const adminRouter = router({
         { header: "Börse", key: "boerse", width: 8 },
         { header: "Primärticker", key: "primaerTicker", width: 16 },
         { header: "ISIN", key: "isin", width: 14 },
+        { header: "Identitätsstatus", key: "identitaet", width: 38 },
         { header: "Land", key: "land", width: 6 },
         { header: "Sektor", key: "sektor", width: 22 },
         { header: "Währung", key: "waehrung", width: 8 },
         { header: "MarktKap (Mrd.)", key: "marktKap", width: 14 },
         { header: "Div.-Rendite %", key: "div", width: 12 },
+        { header: "Div.-Prüfstatus", key: "divPruefung", width: 25 },
+        { header: "Div. Yahoo %", key: "divYahoo", width: 14 },
+        { header: "Div.-Prüfgrund", key: "divGrund", width: 42 },
         { header: "Status", key: "status", width: 12 },
         { header: "Signal-Score", key: "signalScore", width: 12 },
         { header: "Signal", key: "signalLabel", width: 10 },
@@ -3596,6 +3600,11 @@ export const adminRouter = router({
         if (k.qualitaet == null) return "Qualität unter Mindestabdeckung";
         return "Signal unter Mindestabdeckung";
       };
+      const identitaetsStatus = (k: (typeof berechnete)[number]): string => {
+        if (!k.primaerTicker && !k.isin) return "Identität unklar — keine ISIN und kein Primärticker";
+        if (!k.primaerTicker) return "Primärticker fehlt — ISIN vorhanden";
+        return "identifiziert";
+      };
 
       for (const k of berechnete) {
         const bFaktoren = (k.bewertungFaktoren as Faktor[] | null) ?? null;
@@ -3606,11 +3615,15 @@ export const adminRouter = router({
           boerse: k.boerse,
           primaerTicker: k.primaerTicker,
           isin: k.isin,
+          identitaet: identitaetsStatus(k),
           land: k.land,
           sektor: k.sektor,
           waehrung: k.waehrung,
           marktKap: k.marktKap != null ? Math.round(k.marktKap / 1e7) / 100 : null,
           div: k.dividendenrendite,
+          divPruefung: k.dividendenValidierung,
+          divYahoo: k.externeDividendenrendite,
+          divGrund: k.dividendenPruefgrund,
           status: k.status,
           signalScore: k.signalScore,
           signalLabel: k.signalLabel,
@@ -3662,6 +3675,34 @@ export const adminRouter = router({
           isin: k.isin, land: k.land,
           status: k.status, grund: screenerStatusGrund(k.status, k.fehler),
         });
+      }
+
+      const blattPruefung = wb.addWorksheet("Datenqualitäts-Review");
+      blattPruefung.columns = [
+        { header: "Ticker", key: "ticker", width: 12 },
+        { header: "Name", key: "name", width: 34 },
+        { header: "Börse", key: "boerse", width: 8 },
+        { header: "ISIN", key: "isin", width: 14 },
+        { header: "Primärticker", key: "primaerTicker", width: 16 },
+        { header: "Prüfkategorie", key: "kategorie", width: 24 },
+        { header: "Prüfgrund", key: "grund", width: 64 },
+      ];
+      blattPruefung.getRow(1).font = { bold: true };
+      for (const k of berechnete) {
+        if (!k.primaerTicker && !k.isin) {
+          blattPruefung.addRow({
+            ticker: k.ticker, name: k.name, boerse: k.boerse, isin: null, primaerTicker: null,
+            kategorie: "Emittentenidentität",
+            grund: "Keine ISIN und kein Anbieter-Primärticker: Zweitnotierung vor Auswahl manuell prüfen.",
+          });
+        }
+        if (k.dividendenValidierung && k.dividendenValidierung !== "nicht_erforderlich" && k.dividendenValidierung !== "bestaetigt") {
+          blattPruefung.addRow({
+            ticker: k.ticker, name: k.name, boerse: k.boerse, isin: k.isin, primaerTicker: k.primaerTicker,
+            kategorie: "Dividendenrendite",
+            grund: k.dividendenPruefgrund ?? k.dividendenValidierung,
+          });
+        }
       }
 
       // Abdeckungs-KPIs je Börse und je Faktor (KIMI Punkt 6, Manus
