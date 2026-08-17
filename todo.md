@@ -631,6 +631,14 @@
 - [x] Für umsetzbare Hypothesen Feature-flagged Prototypen sowie echte OOS-Backtests mit Regime- und Sensitivitätschecks ausführen — keine qualifizierenden Issues vorhanden
 - [x] Backtestnachweis, Labels, Research-Branches, Draft-PRs und Abschlusskommentare auf GitHub veröffentlichen — keine qualifizierenden Issues vorhanden
 
+## Screener-Lauf 150001 — erneuter Detailaudit (2026-08-17)
+- [x] Den gelieferten Export strukturell gegen den aktuellen Laufbestand und die Persistenzschicht abgleichen
+- [x] Vollständigkeit, Statusgründe, Dubletten, Kennzahleneinheiten, Scoreabdeckung und Metadatenlücken reproduzierbar prüfen
+- [x] Einen revisionsfähigen Auditbericht mit quantifizierten Befunden, Ursachen, Restrisiken und priorisierten Massnahmen erstellen
+- [ ] P0 nach Freigabe umsetzen: Titel-Level-Timeouts mit begrenztem Wiederanlauf statt dauerhaftem Fehlerstatus behandeln
+- [ ] P0 nach Freigabe umsetzen: auffällige Dividendenrenditen mit ISIN-gebundener Zweitquelle als Datenqualitätsstatus validieren
+- [ ] P1 nach Freigabe umsetzen: Identitäts-Review-Queue und Exportstatus für fehlende Anbieter-Primärticker und ISIN ergänzen
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern
