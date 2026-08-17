@@ -169,6 +169,20 @@ dieses Dokument.
   (3) Wachstums-Obergrenze 50 → 35 % p.a.: 45.8 % schlüpfte knapp unter die
   alte Grenze; nachhaltige Raten darüber sind praktisch nie real. Kein
   FASSUNG-Wechsel (Rekonstruktion rechnet kein PEG).
+- **PEG: Vendor-Unbrauchbarkeit + Frame-Konsistenz (2026-08, ohne
+  FASSUNG-Wechsel):** Sanofi-Befund: EODHDs PEG-Feld lieferte ~50 (FactSet:
+  1.20) — der Wächter blendete korrekt aus, aber die realistische Zahl
+  fehlte, und die Titelseite zeigte obendrein das rohe Vendor-Feld als
+  Ersatz. Drei Korrekturen: (1) Ein Vendor-Wert, der bereinigt jenseits der
+  Obergrenze 8 läge, trägt keine Aussage — er gilt als FEHLEND, und die
+  Selbstrechnung übernimmt mit allen Wächtern (Ziel: realistische Zahl
+  zeigen, nicht ausblenden). (2) Frame-Konsistenz: Ein Schätzungs-Nenner
+  (erwartetes Wachstum) paart mit dem Forward-KGV, historische Nenner mit
+  dem Trailing-KGV — so rechnen FactSet & Co.; die Mischung trailing-KGV ÷
+  Schätzwachstum überzeichnete das PEG bei gedrückten berichteten Gewinnen.
+  (3) Anzeige: Die PEG-Kennzahl fällt nie mehr auf das rohe Vendor-Feld
+  zurück — ausgeblendet heisst «—» mit Grund. Kein FASSUNG-Wechsel
+  (Rekonstruktion rechnet kein PEG).
 - **Dividenden-Gegenprobe als Wächter (2026-08, ohne FASSUNG-Wechsel):**
   Widerlegt die unabhängige Gegenprobe (Yahoo-Ausschüttungen, ab 8 %
   Rendite) den EODHD-Quellenwert materiell, wird der Dividenden-Faktor im

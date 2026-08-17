@@ -251,15 +251,19 @@ export function PegBadge({ ticker }: { ticker: string }) {
   if (isLoading) return <span className="text-gray-500 text-sm">—</span>;
   if (!data) return <span className="text-gray-500 text-sm">—</span>;
 
-  const peg = data.adjustedPeg ?? data.trailingPeg;
-  const label = data.pegQuadrantLabel;
+  // KEIN Rückfall auf das rohe Vendor-Feld: Wenn die Wächter das PEG
+  // ausblenden (adjustedPeg null), zeigte die Kennzahl vorher trotzdem den
+  // EODHD-Rohwert — also genau den Datenschrott, den die Rechnung soeben
+  // aussortiert hatte (Sanofi: ~50 statt «keine Aussage»).
+  const peg = data.adjustedPeg;
+  const label = peg === null ? "ausgeblendet" : data.pegQuadrantLabel;
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div className="flex items-center gap-1 cursor-help">
           <Badge
-            variant={pegBadgeVariant(peg)}
+            variant={peg === null ? "outline" : pegBadgeVariant(peg)}
             className="font-mono text-xs"
           >
             {fmt(peg, "", 2)}
@@ -270,7 +274,10 @@ export function PegBadge({ ticker }: { ticker: string }) {
       <TooltipContent className="max-w-xs bg-[#1a1f2e] border-[#00CFC1]/20 text-white">
         <div className="space-y-1 text-xs">
           <div className="font-semibold text-[#00CFC1]">Adjusted PEG</div>
-          <div>Trailing PEG: {fmt(data.trailingPeg, "", 2)}</div>
+          {data.adjustedPegHinweis && (
+            <div className="text-amber-300">{data.adjustedPegHinweis}</div>
+          )}
+          <div>Trailing PEG (roh, EODHD): {fmt(data.trailingPeg, "", 2)}</div>
           <div>Forward PEG: {fmt(data.forwardPeg, "", 2)}</div>
           <div>EPS-Stabilität: {data.epsStabilityScore === null ? "—" : `${data.epsStabilityScore}/100`}</div>
           <div>ROIC: {fmt(data.roic, "%")}</div>
