@@ -1,40 +1,52 @@
 /**
  * Selbst gerechnetes Trailing-KGV — KIMI-PEG-Audit R2 (Schattenphase).
  *
- * Befund: 83 Gruppen verschiedener Firmen mit bit-identischem Vendor-KGV
- * (31 % der Zeilen) plus leere Highlights-Blöcke bei Schweizer Titeln
- * (Novartis: 79 Quartale Rohdaten, aber PE null). Die Rohdaten sind da —
- * nur die fertigen Vendor-Felder taugen nichts. Marktkapitalisierung ÷
- * TTM-Nettogewinn umgeht EPS-Definitions- und Aktienzahl-Fallen.
+ * Der wichtigste Test ist der Halbjahres-Fall: EODHD legt für europäische
+ * Halbjahres-Berichterstatter die Semester in die «Quartals»-Slots. Eine
+ * stumpfe Summe der letzten 4 Einträge addiert dann ZWEI Jahre Gewinn und
+ * halbiert das KGV — genau das zeigte der Beleg-Lauf: Median-Abweichung
+ * zum Vendor-Feld ~1.9 an PA/SIX/LSE, aber 1.01 an US/XETRA (echte
+ * Quartale). Die TTM-Summe muss deshalb nach Datum fenstern, nicht zählen.
  */
 
 import { describe, it, expect } from "vitest";
 import { kgvSelbst } from "./kgvSelbst";
 
+const q = (datum: string, gewinn: number) => ({ datum, gewinn });
+
 describe("kgvSelbst", () => {
-  it("rechnet Marktkapitalisierung durch den TTM-Gewinn aus vier Quartalen", () => {
+  it("Quartals-Berichterstatter: TTM aus den letzten vier Quartalen", () => {
     const r = kgvSelbst({
       marktkapitalisierung: 120_000,
-      quartalsGewinne: [2_000, 2_500, 2_400, 3_100], // chronologisch, TTM = 10'000
+      quartalsGewinne: [
+        q("2024-06-30", 999),   // älter als das Fenster — zählt nicht
+        q("2024-09-30", 2_000), q("2024-12-31", 2_500),
+        q("2025-03-31", 2_400), q("2025-06-30", 3_100), // TTM = 10'000
+      ],
       jahresGewinn: 9_000,
     });
     expect(r.kgv).toBeCloseTo(12, 4);
-    expect(r.hinweis).toContain("4 Quartalen");
+    expect(r.hinweis).toContain("4 Berichtsperioden");
   });
 
-  it("nur die LETZTEN vier Quartale zählen", () => {
+  it("Halbjahres-Berichterstatter: nur die letzten ZWEI Semester zählen — nie zwei Jahre Gewinn", () => {
     const r = kgvSelbst({
       marktkapitalisierung: 100_000,
-      quartalsGewinne: [999_999, 2_500, 2_500, 2_500, 2_500],
+      quartalsGewinne: [
+        q("2023-12-31", 4_800), q("2024-06-30", 5_200), // Vorjahr — draussen
+        q("2024-12-31", 4_900), q("2025-06-30", 5_100), // TTM = 10'000
+      ],
       jahresGewinn: null,
     });
     expect(r.kgv).toBeCloseTo(10, 4);
+    expect(r.hinweis).toContain("2 Berichtsperioden");
   });
 
-  it("fällt ohne vier Quartale auf das letzte Geschäftsjahr zurück — mit Hinweis", () => {
+  it("deckt das Fenster kein volles Jahr, fällt die Rechnung aufs Geschäftsjahr zurück", () => {
+    // Junger Titel: erst zwei Quartale — deren Summe wäre ein Halbjahres-KGV.
     const r = kgvSelbst({
       marktkapitalisierung: 120_000,
-      quartalsGewinne: [3_000, 3_000],
+      quartalsGewinne: [q("2025-03-31", 3_000), q("2025-06-30", 3_000)],
       jahresGewinn: 10_000,
     });
     expect(r.kgv).toBeCloseTo(12, 4);
@@ -44,7 +56,10 @@ describe("kgvSelbst", () => {
   it("Verlust heisst kein KGV — kein Vorzeichenartefakt", () => {
     const r = kgvSelbst({
       marktkapitalisierung: 120_000,
-      quartalsGewinne: [5_000, -8_000, 1_000, 1_000], // TTM −1'000
+      quartalsGewinne: [
+        q("2024-09-30", 5_000), q("2024-12-31", -8_000),
+        q("2025-03-31", 1_000), q("2025-06-30", 1_000), // TTM −1'000
+      ],
       jahresGewinn: null,
     });
     expect(r.kgv).toBeNull();
@@ -52,8 +67,9 @@ describe("kgvSelbst", () => {
   });
 
   it("ohne Marktkapitalisierung oder Gewinnbasis gibt es keinen Wert", () => {
-    expect(kgvSelbst({ marktkapitalisierung: null, quartalsGewinne: [1, 1, 1, 1], jahresGewinn: null }).kgv).toBeNull();
-    expect(kgvSelbst({ marktkapitalisierung: 0, quartalsGewinne: [1, 1, 1, 1], jahresGewinn: null }).kgv).toBeNull();
+    const voll = [q("2024-09-30", 1), q("2024-12-31", 1), q("2025-03-31", 1), q("2025-06-30", 1)];
+    expect(kgvSelbst({ marktkapitalisierung: null, quartalsGewinne: voll, jahresGewinn: null }).kgv).toBeNull();
+    expect(kgvSelbst({ marktkapitalisierung: 0, quartalsGewinne: voll, jahresGewinn: null }).kgv).toBeNull();
     const leer = kgvSelbst({ marktkapitalisierung: 100, quartalsGewinne: [], jahresGewinn: null });
     expect(leer.kgv).toBeNull();
     expect(leer.hinweis).toContain("keine Gewinnbasis");

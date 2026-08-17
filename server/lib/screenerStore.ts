@@ -256,6 +256,12 @@ export async function offeneKandidaten(laufId: number, maxTitel: number): Promis
  * unangetastet; der Fundamentaldaten-Cache macht den zweiten Durchgang
  * deutlich schneller als den ersten.
  */
+/**
+ * Auch FEHLER-Zeilen zurücklegen, mit frischem Wiederanlauf-Konto: Die 12
+ * Timeout-Titel des Laufs #150001 blieben über drei «Alle neu rechnen»-Läufe
+ * unverändert liegen, weil der Reset nur status='berechnet' fasste — ihre
+ * 25-s-Fehlertexte stammten noch aus der Zeit vor dem 40-s-Wiederanlauf.
+ */
 export async function stelleBerechneteZurueck(laufId: number): Promise<number> {
   const db = await dbOderFehler();
   const { sql } = await import("drizzle-orm");
@@ -264,8 +270,8 @@ export async function stelleBerechneteZurueck(laufId: number): Promise<number> {
     SET status = 'wartend', qualitaet = NULL, bewertung = NULL,
         signalScore = NULL, signalLabel = NULL,
         qualitaetFaktoren = NULL, bewertungFaktoren = NULL,
-        fehler = NULL, berechnetAm = NULL
-    WHERE laufId = ${laufId} AND status = 'berechnet'`);
+        fehler = NULL, retryCount = 0, berechnetAm = NULL
+    WHERE laufId = ${laufId} AND status IN ('berechnet', 'fehler')`);
   const kopf = Array.isArray(res) ? res[0] : res;
   return Number(kopf?.affectedRows ?? 0);
 }

@@ -4,14 +4,14 @@
  *
  * Warum nicht das Vendor-Feld: `Highlights.PERatio`/`Valuation.ForwardPE`
  * zeigten im Lauf #150001 83 Gruppen verschiedener Firmen mit bit-identischem
- * Wert (31 % der Zeilen, «glatte Brüche» als Raster-Fingerabdruck), und bei
- * Schweizer Titeln sind die Blöcke leer, obwohl Quartalsdaten vorliegen
- * (Novartis: 79 Quartale, PE null).
+ * Wert, und bei Schweizer Titeln sind die Blöcke leer, obwohl Quartalsdaten
+ * vorliegen (Novartis: 79 Quartale, PE null).
  *
- * Warum Marktkapitalisierung ÷ TTM-Nettogewinn statt Kurs ÷ EPS: keine
- * Aktienzahl- und keine EPS-Definitionsfalle (bereinigt vs. berichtet).
- * Währungsrisiko (Notiz- vs. Berichtswährung) bleibt — deshalb Schattenphase
- * mit Abweichungs-Ausweis im Export, Umstellung erst nach dem Beleg-Lauf.
+ * TTM nach DATUM gefenstert, nicht nach Anzahl: EODHD legt für europäische
+ * Halbjahres-Berichterstatter die Semester in die «Quartals»-Slots. Eine
+ * Summe der letzten 4 Einträge addiert dort ZWEI Jahre Gewinn und halbiert
+ * das KGV — der Beleg-Lauf zeigte Median-Abweichung ~1.9 an PA/SIX/LSE,
+ * aber 1.01 an US/XETRA (echte Quartale).
  */
 
 export interface KgvSelbstErgebnis {
@@ -20,11 +20,16 @@ export interface KgvSelbstErgebnis {
   hinweis: string;
 }
 
+/** Fensterlänge der TTM-Summe ab dem jüngsten Berichtsdatum. */
+const TTM_FENSTER_TAGE = 360;
+/** Die gefensterten Perioden müssen zusammen ungefähr ein Jahr abdecken. */
+const MIN_ABDECKUNG_TAGE = 300;
+
 export function kgvSelbst(e: {
   marktkapitalisierung: number | null;
-  /** Quartals-Nettogewinne, chronologisch (ältester zuerst). */
-  quartalsGewinne: number[];
-  /** Nettogewinn des letzten Geschäftsjahres — Rückfall ohne 4 Quartale. */
+  /** Berichtsperioden-Nettogewinne, chronologisch (ältester zuerst). */
+  quartalsGewinne: Array<{ datum: string; gewinn: number }>;
+  /** Nettogewinn des letzten Geschäftsjahres — Rückfall ohne volles TTM-Fenster. */
   jahresGewinn: number | null;
 }): KgvSelbstErgebnis {
   const mk = e.marktkapitalisierung;
@@ -32,17 +37,34 @@ export function kgvSelbst(e: {
     return { kgv: null, hinweis: "keine Marktkapitalisierung" };
   }
 
-  const quartale = e.quartalsGewinne.filter((v) => Number.isFinite(v));
-  let gewinn: number;
-  let basis: string;
-  if (quartale.length >= 4) {
-    gewinn = quartale.slice(-4).reduce((s, v) => s + v, 0);
-    basis = "TTM aus 4 Quartalen";
-  } else if (e.jahresGewinn !== null && Number.isFinite(e.jahresGewinn)) {
-    gewinn = e.jahresGewinn;
-    basis = "letztes Geschäftsjahr (keine 4 Quartale)";
-  } else {
-    return { kgv: null, hinweis: "keine Gewinnbasis (weder 4 Quartale noch Geschäftsjahr)" };
+  const gueltige = e.quartalsGewinne.filter(
+    (q) => Number.isFinite(q.gewinn) && Number.isFinite(Date.parse(q.datum)));
+
+  let gewinn: number | null = null;
+  let basis: string | null = null;
+  if (gueltige.length >= 2) {
+    const letztes = Date.parse(gueltige[gueltige.length - 1].datum);
+    const fenster = gueltige.filter((q) => letztes - Date.parse(q.datum) < TTM_FENSTER_TAGE * 86_400_000);
+    const n = fenster.length;
+    if (n >= 2) {
+      // Abdeckung = Spanne der Startdaten hochgerechnet um eine Periodenlänge:
+      // 4 Quartale spannen ~270 Tage, decken aber 360 ab; 2 Semester spannen
+      // ~180 und decken 360. Erst ab einem vollen Jahr trägt die Summe.
+      const spanne = (letztes - Date.parse(fenster[0].datum)) / 86_400_000;
+      const abdeckung = spanne * (n / (n - 1));
+      if (abdeckung >= MIN_ABDECKUNG_TAGE) {
+        gewinn = fenster.reduce((s, q) => s + q.gewinn, 0);
+        basis = `TTM aus ${n} Berichtsperioden`;
+      }
+    }
+  }
+  if (gewinn === null) {
+    if (e.jahresGewinn !== null && Number.isFinite(e.jahresGewinn)) {
+      gewinn = e.jahresGewinn;
+      basis = "letztes Geschäftsjahr (kein volles TTM-Fenster)";
+    } else {
+      return { kgv: null, hinweis: "keine Gewinnbasis (weder volles TTM-Fenster noch Geschäftsjahr)" };
+    }
   }
 
   if (gewinn <= 0) {
