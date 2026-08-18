@@ -421,8 +421,10 @@ export async function refreshSignalCache(): Promise<void> {
                       const b = berechneBewertung({
                         adjustedPeg: qmCache.adjustedPeg,
                         pegHinweis: qmCache.adjustedPegHinweis,
-                        // E4a: Trailing zuerst — EODHDs ForwardPE ist dupliziert (Manus-R1).
-                        kgv: qmCache.trailingPE ?? qmCache.forwardPE,
+                        // E4b: Selbstrechnung mit Vendor-Gegenprobe (enthält den
+                        // E4a-Rückfall Trailing vor Forward, wenn sie fehlt).
+                        kgv: qmCache.kgvFuerBewertung,
+                        kgvHinweis: qmCache.kgvFuerBewertungHinweis,
                         fcfRendite: qmCache.fcfYield,
                         dividendenrendite: num(stockRow?.dividendYield),
                         kursBuchwert: qmCache.priceToBook,
@@ -443,7 +445,8 @@ export async function refreshSignalCache(): Promise<void> {
                         bewertungGemessen: b.scoreGemessen ?? null,
                         anteilGeschaetzt: b.anteilGeschaetzt ?? 0,
                         adjustedPeg: qmCache.adjustedPeg ?? null,
-                        kgv: qmCache.trailingPE ?? qmCache.forwardPE ?? null,
+                        // Aufgezeichnet wird das KGV, das die Bewertung tatsächlich sah (E4b).
+                        kgv: qmCache.kgvFuerBewertung ?? null,
                         kurs: typeof currentPrice === "number" && currentPrice > 0 ? currentPrice : null,
                       });
                       signalSchattenSaetze.push({

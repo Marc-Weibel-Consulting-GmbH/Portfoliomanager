@@ -200,6 +200,23 @@ dieses Dokument.
   Ein widerlegter Quellenwert trüge sonst bis zu 20 % (bzw. 35 % bei
   Finanzwerten) der Bewertung. Kein FASSUNG-Wechsel: Die Rekonstruktion
   rechnet die Dividende aus dem Zahlungsstrom, nicht aus dem Vendor-Feld.
+- **E4b — KGV: Selbstrechnung als Primärquelle, Vendor als Gegenprobe
+  (2026-08, ohne FASSUNG-Wechsel):** Das KGV für den Bewertungs-Score
+  (Faktor und Deckel) kommt jetzt aus der eigenen Rechnung
+  Marktkapitalisierung ÷ TTM-Nettogewinn (datumsgefenstert,
+  `kgvSelbst.ts`); das Vendor-Trailing bleibt Gegenprobe. Bei Widerspruch
+  über Faktor 1.5 zählt die vorsichtigere Zahl — das höhere KGV — mit
+  Hinweis am Faktor; fehlt die Selbstrechnung (Verlust, keine
+  Gewinnbasis), trägt weiter das Vendor-Feld (Trailing vor Forward, E4a).
+  Begründung nach Regel 1 (Beleg-Lauf #180001, 820 Titel): Die
+  Selbstrechnung erreicht 90 % Abdeckung, Median-Abweichung zum
+  Vendor-Trailing 1.02–1.06 auf allen sechs Börsen, füllt 12
+  Vendor-Lücken (v. a. Schweizer Titel mit leeren Vendor-Blöcken) und ist
+  im Gegensatz zur Vendor-Blackbox nachrechenbar (Manus-R1: Vendor-Felder
+  teils bit-identisch dupliziert). Die 1.5er-Schwelle trennt Stichtags-
+  und Rundungsdifferenzen (~90 % der Titel) von echten Datenfehlern
+  (~10 %). Kein FASSUNG-Wechsel: Die Rekonstruktion rechnet ihr KGV
+  selbst aus Kurs und EPS.
 
 ## 6. Fahrplan
 

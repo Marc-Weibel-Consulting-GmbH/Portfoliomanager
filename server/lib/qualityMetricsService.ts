@@ -14,7 +14,7 @@ import { retryWithBackoff } from "../_core/retryUtil";
 import { toEodhdSymbol } from "./eodhdSymbol";
 import { berechnePiotroski, type PiotroskiErgebnis } from "./piotroski";
 import { bereinigtesPeg, erwartetesWachstum } from "./bereinigtesPeg";
-import { kgvSelbst } from "./kgvSelbst";
+import { kgvSelbst, kgvMitGegenprobe } from "./kgvSelbst";
 import { stabilitaetAusJahresEps } from "./gewinnStabilitaet";
 
 // ─── Typen ────────────────────────────────────────────────────────────────────
@@ -42,6 +42,14 @@ export interface QualityMetrics {
    */
   kgvSelbst: number | null;
   kgvSelbstHinweis: string | null;
+  /**
+   * E4b: Das KGV für den Bewertungs-Score — Selbstrechnung als Primärquelle,
+   * Vendor-Feld als Gegenprobe (Beleg-Lauf #180001: Median-Abweichung
+   * 1.02–1.06, 90 % Abdeckung; Manus-R1: Vendor-Feld bit-identisch dupliziert).
+   */
+  kgvFuerBewertung: number | null;
+  /** Gesetzt bei Widerspruch (>1.5×) oder fehlender Gegenprobe — erscheint am KGV-Faktor. */
+  kgvFuerBewertungHinweis: string | null;
 
   // Qualität
   roic: number | null;              // % Return on Invested Capital
@@ -531,6 +539,8 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
     quartalsGewinne,
     jahresGewinn: isKeys.length > 0 ? parseFloatOrNull(isYearly[isKeys.at(-1)!]?.netIncome) : null,
   });
+  // E4b: Die validierte Selbstrechnung führt, das Vendor-Feld prüft gegen.
+  const kgvBewertung = kgvMitGegenprobe(selbstKgv.kgv, trailingPE, forwardPE);
 
   return {
     trailingPeg,
@@ -542,6 +552,8 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
     adjustedPegRoh: bereinigt.roh,
     kgvSelbst: selbstKgv.kgv,
     kgvSelbstHinweis: selbstKgv.hinweis,
+    kgvFuerBewertung: kgvBewertung.kgv,
+    kgvFuerBewertungHinweis: kgvBewertung.hinweis,
     pegQuadrant,
     pegQuadrantLabel: pegQuadrantLabel(pegQuadrant),
     roic,
@@ -583,6 +595,7 @@ function buildFallback(ticker: string, reason: string): QualityMetrics {
     trailingPeg: null, forwardPeg: null, adjustedPeg: null,
     adjustedPegGrund: null, adjustedPegHinweis: null, adjustedPegRechnung: null,
     adjustedPegRoh: null, kgvSelbst: null, kgvSelbstHinweis: null,
+    kgvFuerBewertung: null, kgvFuerBewertungHinweis: null,
     pegQuadrant: "unknown", pegQuadrantLabel: "Unbekannt",
     roic: null, returnOnEquity: null, grossMargin: null, operatingMargin: null,
     fcfYield: null, freeCashflow: null, evToEbitda: null, priceToBook: null,

@@ -72,3 +72,61 @@ export function kgvSelbst(e: {
   }
   return { kgv: mk / gewinn, hinweis: `Marktkapitalisierung ÷ Gewinn, ${basis}` };
 }
+
+/**
+ * Ab dieser Abweichung gelten Selbstrechnung und Vendor-Feld als Widerspruch.
+ * Der Beleg-Lauf #180001 zeigte Median-Abweichung 1.02–1.06 auf allen sechs
+ * Börsen und nur ~10 % der Titel über 1.5 — die Schwelle trennt also
+ * Rundungs- und Stichtagsdifferenzen von echten Datenfehlern.
+ */
+const KGV_WIDERSPRUCH_FAKTOR = 1.5;
+
+/**
+ * E4b: Das KGV für den Bewertungs-Score — Selbstrechnung als Primärquelle,
+ * Vendor-Feld als Gegenprobe.
+ *
+ * Warum die Selbstrechnung führt: Manus' R1-Rohdiagnose bewies, dass das
+ * Vendor-Feld `Valuation.ForwardPE` über verschiedene Firmen bit-identisch
+ * dupliziert ankommt, und der Beleg-Lauf #180001 validierte die eigene
+ * Rechnung (Marktkapitalisierung ÷ TTM-Gewinn, datumsgefenstert) mit 90 %
+ * Abdeckung und Median-Abweichung 1.02–1.06 zum Vendor-Trailing. Sie füllt
+ * zudem 12 Vendor-Lücken (v. a. Schweizer Titel mit leeren Vendor-Blöcken).
+ *
+ * Bei Widerspruch über Faktor 1.5 zählt die vorsichtigere Zahl — das HÖHERE
+ * KGV, denn ein zu tiefes KGV schenkt unverdiente Bewertungspunkte (dieselbe
+ * Regel wie die PEG-Gegenprobe in bereinigtesPeg.ts).
+ */
+export function kgvMitGegenprobe(
+  selbst: number | null,
+  vendorTrailing: number | null,
+  vendorForward: number | null,
+): { kgv: number | null; hinweis: string | null } {
+  const s = selbst !== null && Number.isFinite(selbst) && selbst > 0 ? selbst : null;
+  const vt = vendorTrailing !== null && Number.isFinite(vendorTrailing) && vendorTrailing > 0
+    ? vendorTrailing : null;
+  const vf = vendorForward !== null && Number.isFinite(vendorForward) && vendorForward > 0
+    ? vendorForward : null;
+
+  // Ohne Selbstrechnung (Verlust, keine Gewinnbasis, keine Marktkapitalisierung)
+  // trägt das Vendor-Feld wie bisher — Trailing vor Forward (E4a).
+  if (s === null) return { kgv: vt ?? vf, hinweis: null };
+
+  // Gegenprobe gegen das individuelle Trailing-Feld; Forward nur als Ersatz.
+  const vendor = vt ?? vf;
+  if (vendor === null) {
+    return { kgv: s, hinweis: "KGV selbst gerechnet (kein Vendor-KGV als Gegenprobe)" };
+  }
+
+  const faktor = Math.max(s, vendor) / Math.min(s, vendor);
+  if (faktor > KGV_WIDERSPRUCH_FAKTOR) {
+    const vorsichtiger = Math.max(s, vendor);
+    return {
+      kgv: vorsichtiger,
+      hinweis:
+        `Eigenes KGV (${s.toFixed(1)}) und Vendor-KGV (${vendor.toFixed(1)}) ` +
+        `widersprechen sich (über Faktor ${KGV_WIDERSPRUCH_FAKTOR}) — ` +
+        `vorsichtigere Zahl verwendet`,
+    };
+  }
+  return { kgv: s, hinweis: null };
+}

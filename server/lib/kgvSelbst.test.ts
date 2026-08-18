@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { kgvSelbst } from "./kgvSelbst";
+import { kgvSelbst, kgvMitGegenprobe } from "./kgvSelbst";
 
 const q = (datum: string, gewinn: number) => ({ datum, gewinn });
 
@@ -73,5 +73,42 @@ describe("kgvSelbst", () => {
     const leer = kgvSelbst({ marktkapitalisierung: 100, quartalsGewinne: [], jahresGewinn: null });
     expect(leer.kgv).toBeNull();
     expect(leer.hinweis).toContain("keine Gewinnbasis");
+  });
+});
+
+/**
+ * E4b: Die validierte Selbstrechnung wird Primärquelle (Beleg-Lauf #180001:
+ * Median-Abweichung 1.02–1.06 auf allen sechs Börsen, 90 % Abdeckung, füllt
+ * 12 Vendor-Lücken). Das Vendor-Feld bleibt Gegenprobe — bei Widerspruch
+ * über Faktor 1.5 zählt die vorsichtigere Zahl (das höhere KGV).
+ */
+describe("kgvMitGegenprobe", () => {
+  it("die Selbstrechnung führt, wenn die Gegenprobe sie bestätigt", () => {
+    const r = kgvMitGegenprobe(20.1, 20.5, 18.0);
+    expect(r.kgv).toBeCloseTo(20.1, 4);
+    expect(r.hinweis).toBeNull();
+  });
+
+  it("fehlt die Selbstrechnung, trägt das Vendor-Feld (trailing vor forward)", () => {
+    expect(kgvMitGegenprobe(null, 21.0, 18.0).kgv).toBeCloseTo(21.0, 4);
+    expect(kgvMitGegenprobe(null, null, 18.0).kgv).toBeCloseTo(18.0, 4);
+    expect(kgvMitGegenprobe(null, null, null).kgv).toBeNull();
+  });
+
+  it("bei Widerspruch über Faktor 1.5 zählt die vorsichtigere Zahl — mit Hinweis", () => {
+    // Selbstrechnung 10, Vendor 23 (Sanofi-Klasse: Vendor-EPS veraltet) →
+    // vorsichtiger ist das höhere KGV (weniger Punkte, Deckel greift eher).
+    const hoch = kgvMitGegenprobe(10, 23, null);
+    expect(hoch.kgv).toBeCloseTo(23, 4);
+    expect(hoch.hinweis).toContain("widersprechen sich");
+    const tief = kgvMitGegenprobe(30, 12, null);
+    expect(tief.kgv).toBeCloseTo(30, 4);
+    expect(tief.hinweis).toContain("widersprechen sich");
+  });
+
+  it("ohne Vendor-Feld läuft die Selbstrechnung ungeprüft — 12 Titel haben nur sie", () => {
+    const r = kgvMitGegenprobe(15.5, null, null);
+    expect(r.kgv).toBeCloseTo(15.5, 4);
+    expect(r.hinweis).toContain("selbst gerechnet");
   });
 });
