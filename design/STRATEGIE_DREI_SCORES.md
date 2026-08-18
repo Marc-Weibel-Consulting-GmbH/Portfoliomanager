@@ -217,6 +217,24 @@ dieses Dokument.
   und Rundungsdifferenzen (~90 % der Titel) von echten Datenfehlern
   (~10 %). Kein FASSUNG-Wechsel: Die Rekonstruktion rechnet ihr KGV
   selbst aus Kurs und EPS.
+- **PEG: Ausweichen auf die Schätzquelle + Herleitung bei Ausblendung
+  (2026-08, ohne FASSUNG-Wechsel):** Burkhalter-Befund: Die Rangfolge nahm
+  die ERSTE tragfähige historische Quelle, auch wenn sie kaputt war — ein
+  fusionszerdrückter 5j-CAGR knapp über 2 % ergab PEG 9.7 → ausgeblendet,
+  während MarketScreener aus der intakten Analystenschätzung ~1.9 zeigt.
+  Zwei Korrekturen: (1) Ergibt die historische Quelle ein bereinigtes PEG
+  jenseits der Obergrenze 8 und liegt ein erwartetes Wachstum
+  (Schätzung gegen Schätzung) im Korridor 2–35 %, weicht die Rechnung auf
+  die Schätzquelle aus (frame-konsistent mit dem Forward-KGV) — Grundsatz
+  «realistische Zahl zeigen, nicht ausblenden»; der Hinweis nennt beide
+  Rechnungen. Hilft auch die Schätzung nicht unter die Obergrenze, bleibt
+  der Faktor ausgeblendet. (2) Beim Ausblenden wegen Obergrenze bleiben
+  Rohwert und Herleitung erhalten (Hinweis «… (KGV 23.3 ÷ 2.4 %
+  5-Jahres-CAGR = 9.71 roh)») — die wiederkehrende «9.7» las sich sonst
+  wie hardcoded; tatsächlich ist sie ein Trichter (KGV 19–24 ÷ Rate knapp
+  über 2 %, Bereinigung hebt sich bei Qualität 75–85 fast auf, Rundung auf
+  eine Nachkommastelle). Kein FASSUNG-Wechsel (Rekonstruktion rechnet kein
+  PEG).
 
 ## 6. Fahrplan
 

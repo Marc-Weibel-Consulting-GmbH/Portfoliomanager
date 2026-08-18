@@ -3482,6 +3482,14 @@ export const adminRouter = router({
       const ergebnis = await uebernimmKandidat({
         ticker: k.ticker, name: k.name, sektor: k.sektor, waehrung: k.waehrung,
         marktKap: k.marktKap, dividendenrendite: k.dividendenrendite, laufId: input.laufId,
+        // Die im Lauf gerechneten Scores mitgeben — sie stehen sofort auf der
+        // Titelseite statt erst nach dem nächsten Stundenlauf (Burkhalter-Befund).
+        scores: {
+          qualitaet: k.qualitaet, qualitaetNiveau: k.qualitaetNiveau,
+          qualitaetRichtung: k.qualitaetRichtung, fScore: k.fScore,
+          bewertung: k.bewertung, signalScore: k.signalScore, signalLabel: k.signalLabel,
+          qualitaetFaktoren: k.qualitaetFaktoren, bewertungFaktoren: k.bewertungFaktoren,
+        },
       });
       if (!ergebnis.uebernommen) {
         return { ok: false, message: ergebnis.grund ?? "Übernahme nicht möglich." };

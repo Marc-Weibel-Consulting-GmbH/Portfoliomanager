@@ -254,6 +254,11 @@ export default function PortfolioBuilderWizard() {
       // A: deterministisches Zwischenergebnis anzeigen, KI verfeinert im Hintergrund.
       setAutoProposal(result);
       setIsEnhancing(true);
+      // Titelliste schon aus dem Zwischenergebnis füllen: Bricht die Verfeinerung
+      // ab (Deploy-Neustart löscht den In-Memory-Job → «not_found»), blieben sonst
+      // Kopfzahlen ohne einen einzigen Titel stehen. Der Editor ist während der
+      // Verfeinerung ohnehin ausgeblendet; «done» ersetzt die Liste durch die finale.
+      setReviewPositions(toEditablePositions(((result as any).positions) ?? []));
       // isProposalRunning bleibt true → Polling läuft bis 'done' weiter.
     } else if (status === 'done' && result) {
       setIsProposalRunning(false);
