@@ -374,7 +374,7 @@ export interface BewertungsEingang {
   pegHinweis?: string | null;
   /** Komplette PEG-Herleitung (Quelle, Nenner, Bereinigung) aus `bereinigtesPeg`. */
   pegRechnung?: string | null;
-  /** Forward-KGV, ersatzweise trailing. */
+  /** Trailing-KGV, ersatzweise forward (E4a: EODHDs ForwardPE ist dupliziert — Manus-R1). */
   kgv: number | null;
   /** % freier Cashflow ÷ Marktkapitalisierung. */
   fcfRendite: number | null;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { vergleichsTicker, istVerzichtbareZweitkotierung, ADR_NAMENSMUSTER, istLseDollarNotiz, titelFehlerBehandlung, titelZeitlimitMs } from "./screenerLauf";
+import { vergleichsTicker, istVerzichtbareZweitkotierung, ADR_NAMENSMUSTER, istLseDollarNotiz, titelFehlerBehandlung, titelZeitlimitMs, fehlerGrundAusDatenquelle } from "./screenerLauf";
 
 describe("vergleichsTicker", () => {
   it("behandelt US-Ticker ohne Suffix wie .US", () => {
@@ -93,6 +93,29 @@ describe("titelFehlerBehandlung", () => {
   it("markiert nicht-transiente Fehler sofort als endgültigen Fehler", () => {
     expect(titelFehlerBehandlung("keine Fundamentaldaten — keine Säule berechenbar", 0))
       .toEqual({ status: "fehler", retryCount: 0, fehler: "keine Fundamentaldaten — keine Säule berechenbar" });
+  });
+});
+
+describe("fehlerGrundAusDatenquelle", () => {
+  it("benennt Quota-Erschöpfung als solche — nie wieder als Datenlücke getarnt", () => {
+    // 429 Titel liefen am 17.08. in «keine Fundamentaldaten»; tatsächlich war
+    // das EODHD-Tageslimit erschöpft (HTTP 402/429).
+    expect(fehlerGrundAusDatenquelle("Fallback (EODHD HTTP 402)"))
+      .toBe("EODHD-Limit erschöpft (HTTP 402) — nach Mitternacht UTC «Alle neu rechnen»");
+    expect(fehlerGrundAusDatenquelle("Fallback (EODHD HTTP 429)"))
+      .toContain("Limit erschöpft");
+  });
+
+  it("nennt andere Fallback-Gründe beim Namen", () => {
+    expect(fehlerGrundAusDatenquelle("Fallback (EODHD HTTP 404)"))
+      .toBe("keine Fundamentaldaten — keine Säule berechenbar (EODHD HTTP 404)");
+    expect(fehlerGrundAusDatenquelle("Fallback (fetch failed)"))
+      .toContain("fetch failed");
+  });
+
+  it("ohne Fallback-Kennung bleibt der bisherige Text", () => {
+    expect(fehlerGrundAusDatenquelle("EODHD")).toBe("keine Fundamentaldaten — keine Säule berechenbar");
+    expect(fehlerGrundAusDatenquelle(null)).toBe("keine Fundamentaldaten — keine Säule berechenbar");
   });
 });
 

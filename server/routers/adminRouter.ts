@@ -3283,6 +3283,11 @@ export const adminRouter = router({
       minMarktKapMrd: z.number().min(0.1).max(100).default(1),
       /** Hoechstens so viele Titel je Boerse sichten (EODHD-Screener, absteigend nach Marktkap). */
       maxJeBoerse: z.number().int().min(100).max(1000).default(700),
+      // Abweichungen je Börse — mehr USA (Limit), mehr Schweiz (Schwelle).
+      jeBoerse: z.record(z.string(), z.object({
+        minMarktKapMrd: z.number().min(0.1).max(100).optional(),
+        maxJeBoerse: z.number().int().min(100).max(2500).optional(),
+      })).optional(),
     }))
     .mutation(async ({ input }) => {
       if (screener.aktiv && !screenerGiltAlsTot()) {
@@ -3301,6 +3306,7 @@ export const adminRouter = router({
             boersen: [...SCREENER_BOERSEN],
             minMarktKapMrd: input.minMarktKapMrd,
             maxJeBoerse: input.maxJeBoerse,
+            jeBoerse: input.jeBoerse,
           };
           laufId = await neuerLauf(parameter);
           const ergebnis = await sammleUniversum(laufId, parameter);

@@ -624,7 +624,13 @@ export default function AdminDashboard() {
               </p>
             </div>
             <Button
-              onClick={() => screenerStart.mutate({ minMarktKapMrd: 1, maxJeBoerse: 700 })}
+              onClick={() => screenerStart.mutate({
+                minMarktKapMrd: 1, maxJeBoerse: 700,
+                // Marcs Vorgabe: deutlich mehr USA (Limit hoch) und mehr
+                // Schweiz (Schwelle runter, Home Bias) — Europa ist ohnehin
+                // nicht limitiert (weniger als 700 Titel über 1 Mrd. je Börse).
+                jeBoerse: { us: { maxJeBoerse: 2000 }, sw: { minMarktKapMrd: 0.3 } },
+              })}
               disabled={screenerStart.isPending || (screenerStatusQ.data?.aktiv && !screenerStatusQ.data?.haengt)}
               variant="outline"
               className="gap-2"

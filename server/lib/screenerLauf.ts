@@ -72,7 +72,18 @@ interface RohKandidat {
  */
 export async function sammleUniversum(
   laufId: number,
-  parameter: { boersen: string[]; minMarktKapMrd: number; maxJeBoerse: number },
+  parameter: {
+    boersen: string[];
+    minMarktKapMrd: number;
+    maxJeBoerse: number;
+    /**
+     * Abweichungen je Börse (Marcs Vorgabe: mehr USA, mehr Schweiz).
+     * Das globale 700er-Limit schnitt die USA ab (dort liegen 1'800+ Titel
+     * über 1 Mrd.), während die SIX mit ~120 Titeln über 1 Mrd. mehr Tiefe
+     * nur über eine tiefere Schwelle bekommt — Home Bias ist gewollt.
+     */
+    jeBoerse?: Record<string, { minMarktKapMrd?: number; maxJeBoerse?: number }>;
+  },
 ): Promise<SammelErgebnis> {
   const apiKey = ENV.eodhdApiKey;
   if (!apiKey) throw new Error("EODHD-API-Schlüssel nicht konfiguriert");
@@ -82,14 +93,16 @@ export async function sammleUniversum(
 
   for (const boerse of parameter.boersen) {
     const erlaubt = ERLAUBTE_EXCHANGE_CODES[boerse] ?? [boerse.toUpperCase()];
+    const minKapMrd = parameter.jeBoerse?.[boerse]?.minMarktKapMrd ?? parameter.minMarktKapMrd;
+    const maxDieseBoerse = parameter.jeBoerse?.[boerse]?.maxJeBoerse ?? parameter.maxJeBoerse;
     let jeBoerse = 0;
     let fremde = 0;
-    for (let offset = 0; offset < parameter.maxJeBoerse; offset += SEITE) {
+    for (let offset = 0; offset < maxDieseBoerse; offset += SEITE) {
       // Die Börse gehört als Filter-Tripel IN `filters` — ein eigener
       // `exchange=`-Parameter wird vom Screener-Endpunkt ignoriert (so kam
       // beim ersten Lauf die globale Liste zurück, siehe oben).
       const filters = [
-        ["market_capitalization", ">=", Math.round(parameter.minMarktKapMrd * 1e9)],
+        ["market_capitalization", ">=", Math.round(minKapMrd * 1e9)],
         ["exchange", "=", boerse],
       ];
       const url =
@@ -330,6 +343,23 @@ export function titelZeitlimitMs(retryCount: number): number {
   return retryCount > 0 ? 40_000 : TITEL_TIMEOUT_MS;
 }
 
+/**
+ * Fehlertext für «keine Säule berechenbar» aus der Datenquellen-Kennung der
+ * Kennzahlen (E5): Am 17.08. liefen 429 Titel in «keine Fundamentaldaten»,
+ * tatsächlich war das EODHD-Tageslimit erschöpft — Quota-Erschöpfung muss im
+ * Protokoll als solche dastehen, sonst sieht sie aus wie eine Datenlücke und
+ * niemand weiss, dass ein simpler Neustart nach Mitternacht genügt.
+ */
+export function fehlerGrundAusDatenquelle(dataSource: string | null): string {
+  const basis = "keine Fundamentaldaten — keine Säule berechenbar";
+  const m = dataSource?.match(/^Fallback \((.+)\)$/);
+  if (!m) return basis;
+  const grund = m[1];
+  const http = grund.match(/HTTP (402|429)/);
+  if (http) return `EODHD-Limit erschöpft (HTTP ${http[1]}) — nach Mitternacht UTC «Alle neu rechnen»`;
+  return `${basis} (${grund})`;
+}
+
 export function titelFehlerBehandlung(
   fehler: string,
   retryCount: number,
@@ -471,9 +501,14 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
       // KIMI Befund 1): Status «fehler» mit Grund, damit Export und Zähler
       // ihn als das ausweisen, was er ist.
       if (scores.qualitaet.gesamt === null && scores.bewertung.score === null) {
+        // E5: Der wahre Grund steht in der Datenquellen-Kennung der Kennzahlen
+        // (Cache-Treffer, kein zusätzlicher Abruf) — Quota-Erschöpfung wird
+        // benannt statt als Datenlücke getarnt.
+        const { getQualityMetrics } = await import("./qualityMetricsService");
+        const qmFehler = await getQualityMetrics(k.ticker).catch(() => null);
         await schreibeErgebnis(laufId, k.ticker, {
           status: "fehler",
-          fehler: "keine Fundamentaldaten — keine Säule berechenbar",
+          fehler: fehlerGrundAusDatenquelle(qmFehler?.dataSource ?? null),
           ...metadaten,
         });
         fehlgeschlagen++;

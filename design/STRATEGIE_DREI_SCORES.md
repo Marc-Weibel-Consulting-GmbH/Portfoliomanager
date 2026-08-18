@@ -183,6 +183,15 @@ dieses Dokument.
   (3) Anzeige: Die PEG-Kennzahl fällt nie mehr auf das rohe Vendor-Feld
   zurück — ausgeblendet heisst «—» mit Grund. Kein FASSUNG-Wechsel
   (Rekonstruktion rechnet kein PEG).
+- **E4a — KGV-Quelle: Trailing vor Forward (2026-08, ohne FASSUNG-Wechsel):**
+  Der KGV-Faktor und der KGV-Deckel lasen `forwardPE ?? trailingPE`. Die
+  R1-Rohdiagnose (docs/audit/KGV_RAW_DIAGNOSIS_VENDOR_OR_APP_2026-08-17.md)
+  beweist: EODHDs `Valuation.ForwardPE` ist über verschiedene Firmen
+  bit-identisch dupliziert (GSK≡Fielmann, easyJet≡Stryker, Renault≡Covivio;
+  31 % der Zeilen im Lauf #150001), das Trailing-Feld ist individuell.
+  Neu an allen drei Rechenstellen (Service, Signal-Cron 2×):
+  `trailingPE ?? forwardPE`. Kein FASSUNG-Wechsel: Die Rekonstruktion
+  rechnet ihr KGV selbst aus Kurs und EPS.
 - **Dividenden-Gegenprobe als Wächter (2026-08, ohne FASSUNG-Wechsel):**
   Widerlegt die unabhängige Gegenprobe (Yahoo-Ausschüttungen, ab 8 %
   Rendite) den EODHD-Quellenwert materiell, wird der Dividenden-Faktor im

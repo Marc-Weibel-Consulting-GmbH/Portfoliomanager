@@ -421,7 +421,8 @@ export async function refreshSignalCache(): Promise<void> {
                       const b = berechneBewertung({
                         adjustedPeg: qmCache.adjustedPeg,
                         pegHinweis: qmCache.adjustedPegHinweis,
-                        kgv: qmCache.forwardPE ?? qmCache.trailingPE,
+                        // E4a: Trailing zuerst — EODHDs ForwardPE ist dupliziert (Manus-R1).
+                        kgv: qmCache.trailingPE ?? qmCache.forwardPE,
                         fcfRendite: qmCache.fcfYield,
                         dividendenrendite: num(stockRow?.dividendYield),
                         kursBuchwert: qmCache.priceToBook,
@@ -442,7 +443,7 @@ export async function refreshSignalCache(): Promise<void> {
                         bewertungGemessen: b.scoreGemessen ?? null,
                         anteilGeschaetzt: b.anteilGeschaetzt ?? 0,
                         adjustedPeg: qmCache.adjustedPeg ?? null,
-                        kgv: qmCache.forwardPE ?? qmCache.trailingPE ?? null,
+                        kgv: qmCache.trailingPE ?? qmCache.forwardPE ?? null,
                         kurs: typeof currentPrice === "number" && currentPrice > 0 ? currentPrice : null,
                       });
                       signalSchattenSaetze.push({
