@@ -35,12 +35,14 @@ function GradeBadge({ grade }: { grade: string }) {
 }
 
 function SignalBadge({ signal }: { signal: string }) {
+  // E2: neutrale Zustandsworte statt Kauforder — der gespeicherte Schlüssel
+  // bleibt englisch (shared/signalAnzeige.ts).
   const map: Record<string, { color: string; label: string }> = {
-    "STRONG BUY":  { color: "bg-emerald-500 text-white", label: "STRONG BUY" },
-    "BUY":         { color: "bg-[#00CFC1] text-black",   label: "BUY" },
-    "HOLD":        { color: "bg-yellow-500 text-black",   label: "HOLD" },
-    "SELL":        { color: "bg-orange-500 text-white",   label: "SELL" },
-    "STRONG SELL": { color: "bg-red-600 text-white",      label: "STRONG SELL" },
+    "STRONG BUY":  { color: "bg-emerald-500 text-white", label: "Sehr gut" },
+    "BUY":         { color: "bg-[#00CFC1] text-black",   label: "Gut" },
+    "HOLD":        { color: "bg-yellow-500 text-black",   label: "Neutral" },
+    "SELL":        { color: "bg-orange-500 text-white",   label: "Schwach" },
+    "STRONG SELL": { color: "bg-red-600 text-white",      label: "Sehr schwach" },
   };
   const { color, label } = map[signal] ?? map["HOLD"];
   return (

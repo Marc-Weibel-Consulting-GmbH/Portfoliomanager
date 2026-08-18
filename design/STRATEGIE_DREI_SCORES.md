@@ -37,7 +37,7 @@ Gesichert ist dagegen, unabhängig von jeder Verzerrung:
 |---|---|---|
 | **Kuratierte Watchlist** | Vermutete Haupt-Alphaquelle. Wird ausgebaut (Screener) und ab sofort protokolliert, damit sie messbar wird. | unbewiesen, plausibel |
 | **Qualität / Bewertung / Timing** | **Beschreibung** eines Titels: Wie gut ist das Unternehmen, wie teuer die Aktie, wo steht der Kurs. Belegbar aus Kennzahlen. | Formeln geprüft |
-| **Signal** | **Abgeleitete Grösse** aus den dreien, regimegewichtet (`dreiScoreSignal.ts`). Eine Orientierung, keine belegte Renditeprognose. | unvalidiert |
+| **Signal** | **Zustandsbeschreibung** aus Qualität und Timing, regimegewichtet (`dreiScoreSignal.ts`); die Bewertung wirkt als Wächter (Deckel bei extremer Überbewertung). Nirgends Sortier- oder Auswahlkriterium für Käufe (E2). | Reform umgesetzt |
 | **Rhythmus & Kosten** | Lange Haltedauern, Totband, Kosten nur auf den gewechselten Teil. | gesichert |
 
 Es gibt **eine** Signal-Formel: `rechneSignal` über die drei Scores. Die alte
@@ -51,9 +51,10 @@ nirgends mehr und wird aus allen kundensichtbaren Pfaden entfernt.
 - Kreise: **Qualität · Bewertung · Timing** — gleichrangig, denn sie sind die
   Messungen.
 - Signal: **Farbskala 0–100** (rot → gelb → grün) mit Marker auf dem aktuellen
-  Wert und drei Zonen **Verkaufen / Halten / Kaufen**. Die Zonengrenzen kommen
-  aus `SCORE_BAENDER` — dieselbe Tabelle, die die Empfehlung bestimmt. Anzeige
-  und Entscheidung können nicht auseinanderlaufen.
+  Wert und drei Zonen **Schwach / Neutral / Stark** (E2: Zustandsworte statt
+  Kauforder; die neutralen Anzeige-Texte liefert `shared/signalAnzeige.ts`,
+  die gespeicherten Schlüssel bleiben unverändert). Die Zonengrenzen kommen
+  aus `SCORE_BAENDER` — Anzeige und Rechnung können nicht auseinanderlaufen.
 - Das Signal wird nicht als vierter Kreis gezeigt: Es ist keine vierte Messung,
   sondern eine Rechnung aus den dreien.
 - Ein Score ohne ausreichende Datenbasis zeigt «—», nie eine Zahl aus zwei
@@ -235,6 +236,26 @@ dieses Dokument.
   über 2 %, Bereinigung hebt sich bei Qualität 75–85 fast auf, Rundung auf
   eine Nachkommastelle). Kein FASSUNG-Wechsel (Rekonstruktion rechnet kein
   PEG).
+- **E1/E2 — Bewertung als Wächter, Signal als Zustandsbeschreibung
+  (2026-08, ohne FASSUNG-Wechsel):** Die Bewertung trägt in `rechneSignal`
+  kein Gewicht mehr (alle Regimes 0); die Qualität↔Timing-Verschiebung je
+  Regime bleibt, von Hand renormiert (Krise 75/25 → Bulle 35/65, Standard
+  50/50). Neu der **Bewertungs-Wächter**: Bewertung ≤ 20 (extrem teuer)
+  deckelt das Signal auf 45 (oberes Ende «Neutral») — «günstig» gibt keine
+  Punkte, Extreme kosten. Begründung nach Regel 1 (IC-Diagnose + Rangtest
+  mit Kosten): Bewertung über 1/6/12 Monate invers (−0.021/−0.063/−0.093,
+  22 % der Stichtage richtig), die Signal-Rangliste unterlag dem
+  gleichgewichteten kuratierten Universum (−9.20 % vs. +10.94 % der
+  Gegenprobe). Ausdrücklich KEINE Skalen-Inversion. Folgen: Kandidaten
+  ohne Kursreihe (Screener) haben kein Signal mehr — die Kandidatenliste
+  führt die Qualität; Anzeige-Labels neutral («Sehr gut» … «Sehr
+  schwach», Note A–F bleibt), gespeicherte Schlüssel unverändert. Kein
+  FASSUNG-Wechsel: Die Punkt-in-Zeit-Reihen speichern die drei Scores,
+  nicht das Signal — die Signal-Ableitung wird beim Lesen gerechnet und
+  gilt damit rückwirkend einheitlich; die drei Score-Formeln selbst sind
+  unverändert. Noch offen (E3): Die Auswahl-Engine des Vorschlags-Wizards
+  läuft weiter auf dem alten `combinedScore`-Ranking — ihr Umbau auf
+  kuratiertes Universum + Lücken-Logik ist ein eigenes Paket.
 
 ## 6. Fahrplan
 

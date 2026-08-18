@@ -34,20 +34,37 @@ export interface SignalGewichte {
 /**
  * Gewichte je Marktregime.
  *
- * Abgeleitet aus der Logik des bisherigen Modells (`DEFAULT_REGIME_BLEND`):
- * Dort verschob sich das Verhältnis Qualität/Handel von 75:25 in der Krise auf
- * 35:65 im Aufschwung. Dieselbe Richtung, nur mit der Bewertung als eigenem,
- * bisher fehlendem Faktor.
+ * E1 (REFORM_BEWERTUNG_SIGNAL.md): **Die Bewertung trägt kein Gewicht mehr.**
+ * Die IC-Diagnose zeigte sie über 1/6/12 Monate INVERS (−0.021/−0.063/−0.093,
+ * nur 22 % der Stichtage richtig herum), und der Rangtest mit Kosten belohnte
+ * die schlechtesten Bewertungs-Titel (+10.94 % gegen −9.20 %). Sie bleibt als
+ * beschreibende Säule mit allen Wächtern — im Signal wirkt sie nur noch
+ * negativ-selektiv über den Bewertungs-Wächter unten. Ausdrücklich KEINE
+ * Skalen-Inversion («teuer kaufen» wäre Rückwärts-Überanpassung).
+ *
+ * Die Qualität↔Timing-Verschiebung je Regime bleibt (Richtung des bisherigen
+ * Modells: in der Krise zählt das Unternehmen, im Aufschwung der Zeitpunkt) —
+ * von Hand renormiert auf runde Werte, nicht gemessen, wie zuvor auch.
  */
 export const DEFAULT_SIGNAL_GEWICHTE: Record<string, SignalGewichte> = {
-  crisis:            { qualitaet: 0.55, bewertung: 0.25, timing: 0.20 },
-  bear:              { qualitaet: 0.45, bewertung: 0.30, timing: 0.25 },
-  recovery:          { qualitaet: 0.30, bewertung: 0.30, timing: 0.40 },
-  bull:              { qualitaet: 0.25, bewertung: 0.25, timing: 0.50 },
-  sideways_high_vol: { qualitaet: 0.40, bewertung: 0.30, timing: 0.30 },
-  sideways_low_vol:  { qualitaet: 0.35, bewertung: 0.30, timing: 0.35 },
-  default:           { qualitaet: 0.35, bewertung: 0.30, timing: 0.35 },
+  crisis:            { qualitaet: 0.75, bewertung: 0, timing: 0.25 },
+  bear:              { qualitaet: 0.65, bewertung: 0, timing: 0.35 },
+  recovery:          { qualitaet: 0.45, bewertung: 0, timing: 0.55 },
+  bull:              { qualitaet: 0.35, bewertung: 0, timing: 0.65 },
+  sideways_high_vol: { qualitaet: 0.55, bewertung: 0, timing: 0.45 },
+  sideways_low_vol:  { qualitaet: 0.50, bewertung: 0, timing: 0.50 },
+  default:           { qualitaet: 0.50, bewertung: 0, timing: 0.50 },
 };
+
+/**
+ * Der Bewertungs-Wächter (E1): Ab dieser Bewertung (0–100, hoch = günstig)
+ * gilt ein Titel als extrem überteuert — KGV-Deckel-Zone, PEG jenseits der
+ * Aussage. Er kann dann höchstens HOLD werden, egal wie gut Qualität und
+ * Timing stehen: Die Fallhöhe ist die Information, nicht die Chance.
+ */
+export const BEWERTUNG_WAECHTER_SCHWELLE = 20;
+/** Obergrenze des Signals bei extremer Überbewertung — das obere Ende von HOLD. */
+export const BEWERTUNG_WAECHTER_DECKEL = 45;
 
 /**
  * Mindestens so viel Gewicht muss mit Scores belegt sein, sonst kein Signal.
@@ -174,6 +191,8 @@ export interface SignalErgebnis {
   abdeckung: number;
   /** Beitrag je Score in Punkten des Endergebnisses — macht die Zahl prüfbar. */
   beitraege: { name: string; score: number | null; gewicht: number; beitrag: number | null }[];
+  /** Gesetzt, wenn der Bewertungs-Wächter das Signal gedeckelt hat (E1). */
+  waechterHinweis: string | null;
 }
 
 /**
@@ -221,12 +240,37 @@ export function rechneSignal(
     gewichte: w,
     abdeckung: Math.round(abdeckung * 1000) / 1000,
     beitraege: teile.map((t) => ({ name: t.name, score: t.score, gewicht: t.gewicht, beitrag: null })),
+    waechterHinweis: null,
   };
   if (abdeckung < MIN_ABDECKUNG_SIGNAL || belegtesGewicht === 0) return leer;
 
   const roh = teile.reduce((s, t) => (t.score === null ? s : s + t.score * t.gewicht), 0) / belegtesGewicht;
-  const score = Math.round(roh * 10) / 10;
+  let score = Math.round(roh * 10) / 10;
+
+  // Bewertungs-Wächter (E1): Extreme Überbewertung wirkt negativ-selektiv —
+  // sie deckelt, statt dass «günstig» Punkte gäbe. Greift nur nach oben.
+  let waechterHinweis: string | null = null;
+  if (e.bewertung !== null && e.bewertung <= BEWERTUNG_WAECHTER_SCHWELLE
+      && score > BEWERTUNG_WAECHTER_DECKEL) {
+    waechterHinweis = `Bewertung ${e.bewertung.toFixed(0)} (extrem teuer) begrenzt das Signal ` +
+      `auf ${BEWERTUNG_WAECHTER_DECKEL} — aus Qualität und Timing wären es ${score.toFixed(1)}`;
+    score = BEWERTUNG_WAECHTER_DECKEL;
+  }
+
   const band = bandFuerScore(score / 100);
+
+  const beitraege = teile.map((t) => ({
+    name: t.name,
+    score: t.score,
+    // Auf die belegten Faktoren normiert — so summieren die Beiträge zum Score.
+    gewicht: Math.round((t.gewicht / belegtesGewicht) * 1000) / 1000,
+    beitrag: t.score === null ? null : Math.round((t.score * t.gewicht / belegtesGewicht) * 10) / 10,
+  }));
+  if (waechterHinweis !== null) {
+    // Als eigene Zeile ausgewiesen — die Summe der Beiträge erklärt sonst
+    // nicht, warum der Score darunter liegt.
+    beitraege.push({ name: "Bewertungs-Wächter", score: e.bewertung, gewicht: 0, beitrag: null });
+  }
 
   return {
     score,
@@ -235,12 +279,7 @@ export function rechneSignal(
     klartext: band.klartext,
     gewichte: w,
     abdeckung: Math.round(abdeckung * 1000) / 1000,
-    beitraege: teile.map((t) => ({
-      name: t.name,
-      score: t.score,
-      // Auf die belegten Faktoren normiert — so summieren die Beiträge zum Score.
-      gewicht: Math.round((t.gewicht / belegtesGewicht) * 1000) / 1000,
-      beitrag: t.score === null ? null : Math.round((t.score * t.gewicht / belegtesGewicht) * 10) / 10,
-    })),
+    beitraege,
+    waechterHinweis,
   };
 }

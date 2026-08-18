@@ -128,11 +128,15 @@ export const SCORE_BAENDER: {
   signal: "STRONG BUY" | "BUY" | "HOLD" | "SELL" | "STRONG SELL";
   klartext: string;
 }[] = [
-  { abScore: 0.75, grade: "A", signal: "STRONG BUY",  klartext: "Sehr gut — deutlich kaufenswert" },
-  { abScore: 0.60, grade: "B", signal: "BUY",         klartext: "Gut — kaufenswert" },
-  { abScore: 0.45, grade: "C", signal: "HOLD",        klartext: "Durchschnittlich — halten" },
-  { abScore: 0.30, grade: "D", signal: "SELL",        klartext: "Schwach — Abbau prüfen" },
-  { abScore: 0,    grade: "F", signal: "STRONG SELL", klartext: "Sehr schwach — Verkauf prüfen" },
+  // E2: Klartexte als Zustandsbeschreibung, nicht als Kauforder — der Rangtest
+  // zeigte, dass die Signal-Rangfolge keine Kaufauswahl trägt. Die `signal`-
+  // Schlüssel bleiben unverändert (DB-Spalten, Vergleiche, Historie); die
+  // neutrale ANZEIGE liefert shared/signalAnzeige.ts.
+  { abScore: 0.75, grade: "A", signal: "STRONG BUY",  klartext: "Sehr guter Zustand nach Qualität und Timing" },
+  { abScore: 0.60, grade: "B", signal: "BUY",         klartext: "Guter Zustand nach Qualität und Timing" },
+  { abScore: 0.45, grade: "C", signal: "HOLD",        klartext: "Neutraler Zustand — weder stark noch schwach" },
+  { abScore: 0.30, grade: "D", signal: "SELL",        klartext: "Schwacher Zustand — Titel prüfen" },
+  { abScore: 0,    grade: "F", signal: "STRONG SELL", klartext: "Sehr schwacher Zustand — Titel prüfen" },
 ];
 
 /** Band zu einem Score (0..1). Fällt nie durch — das letzte Band beginnt bei 0. */
