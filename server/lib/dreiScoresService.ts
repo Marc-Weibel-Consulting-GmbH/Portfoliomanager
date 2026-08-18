@@ -128,10 +128,10 @@ export async function getDreiScores(
     adjustedPeg: qm.adjustedPeg,
     pegHinweis: qm.adjustedPegHinweis,
     pegRechnung: qm.adjustedPegRechnung,
-    // E4a (Manus-R1-Beweis, docs/audit/KGV_RAW_DIAGNOSIS_...2026-08-17): Das
-    // Vendor-Feld ForwardPE ist über verschiedene Firmen bit-identisch
-    // dupliziert (GSK≡Fielmann usw.) — das individuelle Trailing-Feld führt.
-    kgv: qm.trailingPE ?? qm.forwardPE,
+    // E4b: Selbstrechnung als Primärquelle, Vendor-Feld als Gegenprobe
+    // (Beleg-Lauf #180001; enthält den E4a-Rückfall Trailing vor Forward).
+    kgv: qm.kgvFuerBewertung,
+    kgvHinweis: qm.kgvFuerBewertungHinweis,
     fcfRendite: qm.fcfYield,
     dividendenrendite,
     dividendenWiderlegtHinweis: kontext?.dividendenWiderlegtHinweis ?? null,

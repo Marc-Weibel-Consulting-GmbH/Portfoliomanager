@@ -374,8 +374,14 @@ export interface BewertungsEingang {
   pegHinweis?: string | null;
   /** Komplette PEG-Herleitung (Quelle, Nenner, Bereinigung) aus `bereinigtesPeg`. */
   pegRechnung?: string | null;
-  /** Trailing-KGV, ersatzweise forward (E4a: EODHDs ForwardPE ist dupliziert — Manus-R1). */
+  /**
+   * KGV für den Score — seit E4b die Selbstrechnung (Marktkapitalisierung ÷
+   * TTM-Gewinn) mit dem Vendor-Trailing als Gegenprobe; ohne Selbstrechnung
+   * Vendor-Trailing, ersatzweise forward (E4a: ForwardPE ist dupliziert — Manus-R1).
+   */
   kgv: number | null;
+  /** Gegenprobe-Befund aus `kgvMitGegenprobe` (Widerspruch/fehlende Gegenprobe) — erscheint am KGV-Faktor. */
+  kgvHinweis?: string | null;
   /** % freier Cashflow ÷ Marktkapitalisierung. */
   fcfRendite: number | null;
   /** % Dividendenrendite. */
@@ -492,7 +498,8 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
         punkte: punkteAus(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 20, 7),
         gewicht: 0.30,
         rechnung: ankerRechnung(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 20, 7),
-        hinweis: e.kgv === null ? "nicht verfügbar" : `${e.kgv.toFixed(1)}-facher Jahresgewinn`,
+        hinweis: e.kgv === null ? "nicht verfügbar"
+          : `${e.kgv.toFixed(1)}-facher Jahresgewinn${e.kgvHinweis ? ` · ${e.kgvHinweis}` : ""}`,
       },
       { ...dividende, gewicht: 0.35 },
     ];
@@ -535,7 +542,8 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
       punkte: punkteAus(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 35, 10),
       gewicht: 0.15,
       rechnung: ankerRechnung(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 35, 10),
-      hinweis: e.kgv === null ? "nicht verfügbar" : `${e.kgv.toFixed(1)}-facher Jahresgewinn`,
+      hinweis: e.kgv === null ? "nicht verfügbar"
+        : `${e.kgv.toFixed(1)}-facher Jahresgewinn${e.kgvHinweis ? ` · ${e.kgvHinweis}` : ""}`,
     },
     {
       name: "Free-Cash-Flow-Rendite",

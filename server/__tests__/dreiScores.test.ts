@@ -303,6 +303,18 @@ describe("Bewertung — hoch heisst günstig", () => {
     expect(mit.score).toBeCloseTo(ohne.score!, 4);
   });
 
+  it("der Gegenprobe-Befund aus kgvMitGegenprobe erscheint am KGV-Faktor (E4b)", () => {
+    // Der Widerspruchs-Hinweis darf nicht im Service verhungern — der
+    // Erklaerdialog muss zeigen, WARUM hier die vorsichtigere Zahl steht.
+    const r = berechneBewertung({
+      adjustedPeg: 1.2, kgv: 23, fcfRendite: 4, dividendenrendite: 2, kursBuchwert: 3,
+      kgvHinweis: "Eigenes KGV (10.0) und Vendor-KGV (23.0) widersprechen sich (über Faktor 1.5) — vorsichtigere Zahl verwendet",
+    });
+    const kgvFaktor = r.faktoren.find((f) => f.name === "KGV")!;
+    expect(kgvFaktor.hinweis).toContain("widersprechen sich");
+    expect(kgvFaktor.hinweis).toContain("23.0-facher Jahresgewinn");
+  });
+
   it("ein negatives KGV wird nicht als günstig gelesen", () => {
     // Ein Verlusttitel darf ueber den KGV-Deckel keinen Vorteil erhalten.
     const verlust = berechneBewertung({
