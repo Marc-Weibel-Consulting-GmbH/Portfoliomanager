@@ -629,6 +629,23 @@ export async function uebernimmKandidat(k: {
   marktKap: number | null;
   dividendenrendite: number | null;
   laufId: number;
+  /**
+   * Die im Lauf bereits fertig gerechneten Scores samt Faktor-Herleitung —
+   * werden bei der Übernahme sofort als vorberechnete Zeile abgelegt
+   * (Burkhalter-Befund: Die Titelseite zeigte bis zum nächsten Stundenlauf
+   * «nicht beurteilbar», obwohl der Screener alles gerechnet hatte).
+   */
+  scores?: {
+    qualitaet: number | null;
+    qualitaetNiveau: number | null;
+    qualitaetRichtung: number | null;
+    fScore: number | null;
+    bewertung: number | null;
+    signalScore: number | null;
+    signalLabel: string | null;
+    qualitaetFaktoren: unknown[] | null;
+    bewertungFaktoren: unknown[] | null;
+  };
 }): Promise<{ uebernommen: boolean; grund?: string }> {
   const { getDb } = await import("../db");
   const db = await getDb();
@@ -676,6 +693,41 @@ export async function uebernimmKandidat(k: {
     currentPrice: kurs,
   });
 
+  // Die Screener-Scores sofort als vorberechnete Zeile ablegen: Die Titelseite
+  // liest zuerst `stock_scores` und zeigte für frisch übernommene Titel bis zum
+  // nächsten Stundenlauf «nicht beurteilbar» — obwohl Qualität, Bewertung und
+  // Signal samt Herleitung längst gerechnet waren. Timing (braucht die
+  // Kursreihe) trägt der Stundenlauf nach und überschreibt die Zeile komplett.
+  if (k.scores && (k.scores.qualitaet !== null || k.scores.bewertung !== null)) {
+    try {
+      const { haltefestScores } = await import("./dreiScoresStore");
+      const { qualitaetsBand, bewertungsBand } = await import("./dreiScores");
+      await haltefestScores([{
+        ticker: k.ticker,
+        qualitaet: k.scores.qualitaet,
+        qualitaetBand: qualitaetsBand(k.scores.qualitaet),
+        niveau: k.scores.qualitaetNiveau,
+        richtung: k.scores.qualitaetRichtung,
+        fScore: k.scores.fScore ?? 0,
+        fScoreBerechenbar: k.scores.fScore !== null ? 1 : 0,
+        bewertung: k.scores.bewertung,
+        bewertungBand: bewertungsBand(k.scores.bewertung),
+        abdeckungNiveau: abdeckungAusFaktoren(k.scores.qualitaetFaktoren),
+        abdeckungBewertung: abdeckungAusFaktoren(k.scores.bewertungFaktoren),
+        timing: null,
+        timingAbdeckung: null,
+        regime: null,
+        signalScore: k.scores.signalScore,
+        signalLabel: k.scores.signalLabel,
+        qualitaetFaktoren: k.scores.qualitaetFaktoren,
+        bewertungFaktoren: k.scores.bewertungFaktoren,
+        timingFaktoren: null,
+      }]);
+    } catch (err) {
+      console.warn(`[Screener] Score-Ablage für ${k.ticker} fehlgeschlagen (non-fatal):`, (err as Error).message);
+    }
+  }
+
   // Kurshistorie nachladen (non-fatal — der tägliche Cron holt sonst nach).
   try {
     const { autoBackfillNewSymbols } = await import("../autoBackfill");
@@ -685,4 +737,20 @@ export async function uebernimmKandidat(k: {
   }
 
   return { uebernommen: true };
+}
+
+/**
+ * Belegtes Gewicht 0–1 aus einer abgelegten Faktor-Herleitung — dieselbe
+ * Rechnung wie `baueTeilScore`, nur rückwärts aus dem JSON: Faktoren mit
+ * `punkte: null` sind ausgeblendet und zählen nicht als belegt.
+ */
+export function abdeckungAusFaktoren(faktoren: unknown[] | null): number {
+  let gesamt = 0;
+  let belegt = 0;
+  for (const f of (faktoren ?? []) as Array<{ gewicht?: unknown; punkte?: unknown }>) {
+    const gewicht = typeof f?.gewicht === "number" ? f.gewicht : 0;
+    gesamt += gewicht;
+    if (f?.punkte !== null && f?.punkte !== undefined) belegt += gewicht;
+  }
+  return gesamt > 0 ? Math.round((belegt / gesamt) * 1000) / 1000 : 0;
 }

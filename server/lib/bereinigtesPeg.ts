@@ -73,7 +73,11 @@ export function erwartetesWachstum(
 
 export interface BereinigtesPegErgebnis {
   peg: number | null;
-  /** Rohes PEG VOR der Bereinigung — mit externen Quellen vergleichbar; null bei ausgeblendetem Faktor. */
+  /**
+   * Rohes PEG VOR der Bereinigung — mit externen Quellen vergleichbar. Bei den
+   * frühen Ausblendungen (kein Wert zustande gekommen) null; bei `peg_extrem`
+   * bleibt er erhalten, damit Export und Hinweis die Zahl erklären können.
+   */
   roh: number | null;
   /** Warum kein Wert ausgegeben wird; null, wenn `peg` belegt ist. */
   grund: BereinigtPegGrund | null;
@@ -251,18 +255,54 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
             `PEG sagt hier nichts — Wachstum unter ${MIN_WACHSTUM_FUER_PEG} % p.a. ist eine Division durch fast null ` +
             `(geprüft: ${geprueft})`);
     }
-    rohesPeg = eigenesPeg!;
+    // Burkhalter-Befund: Die erste tragfähige Quelle kann selbst kaputt sein —
+    // ein fusions- oder basisjahrzerdrückter 5j-CAGR knapp über 2 % ergibt
+    // PEG 8–12 und blendete den Faktor aus, während die intakte
+    // Analystenschätzung (~11 %) ein realistisches PEG trüge (MarketScreener
+    // zeigt es). Ergibt die historische Quelle einen Wert jenseits der
+    // Obergrenze, weicht die Rechnung auf das erwartete Wachstum aus —
+    // frame-konsistent mit dem Forward-KGV. Hilft auch das nicht unter die
+    // Obergrenze, greift unten der bestehende Wächter.
+    let nennerFinal = nenner;
+    let zaehlerFinal = eigenerZaehler;
+    let zaehlerLabelFinal = zaehlerLabel;
+    let ausweichNote = "";
+    if (eigenesPeg !== null && bereinigung(eigenesPeg) > PEG_OBERGRENZE && !nennerIstSchaetzung) {
+      const schaetz = belegte.find((q) => q.label.startsWith("erwartetes Wachstum") &&
+        q.wert >= MIN_WACHSTUM_FUER_PEG && q.wert <= MAX_WACHSTUM_FUER_PEG) ?? null;
+      const schaetzZaehler = kgvForward ?? kgv;
+      if (schaetz !== null && schaetzZaehler !== null &&
+          bereinigung(schaetzZaehler / schaetz.wert) <= PEG_OBERGRENZE) {
+        ausweichNote = `; historische Rate ${nenner.wert.toFixed(1)} % ergäbe PEG ` +
+          `${eigenesPeg.toFixed(1)} über der Obergrenze ${PEG_OBERGRENZE} — auf die Schätzung ausgewichen`;
+        nennerFinal = schaetz;
+        zaehlerFinal = schaetzZaehler;
+        zaehlerLabelFinal = kgvForward !== null ? "KGV (forward)" : "KGV (trailing)";
+      }
+    }
+    rohesPeg = zaehlerFinal / nennerFinal.wert;
     quelle = "selbst";
-    quellenHinweis = `selbst gerechnet: ${zaehlerLabel} ${eigenerZaehler.toFixed(1)} ÷ ${nenner.wert.toFixed(1)} % ${nenner.label} (${vendorNote})`;
-    rechnungKopf = `${zaehlerLabel} ${eigenerZaehler.toFixed(1)} ÷ ${nenner.wert.toFixed(1)} % ${nenner.label} = ${rohesPeg.toFixed(2)} roh`;
+    quellenHinweis = `selbst gerechnet: ${zaehlerLabelFinal} ${zaehlerFinal.toFixed(1)} ÷ ${nennerFinal.wert.toFixed(1)} % ${nennerFinal.label} (${vendorNote}${ausweichNote})`;
+    rechnungKopf = `${zaehlerLabelFinal} ${zaehlerFinal.toFixed(1)} ÷ ${nennerFinal.wert.toFixed(1)} % ${nennerFinal.label} = ${rohesPeg.toFixed(2)} roh`;
   }
 
   const peg = bereinigung(rohesPeg);
   const rechnung = `${rechnungKopf} · ${bereinigungsText} = ${peg.toFixed(2)} bereinigt`;
 
   if (peg > PEG_OBERGRENZE) {
-    return leer("peg_extrem",
-      `bereinigtes PEG ${peg.toFixed(1)} über der Obergrenze ${PEG_OBERGRENZE} — keine Aussage, Faktor ausgeblendet`);
+    // ANDERS als bei den frühen Ausblendungen bleiben Rohwert und Herleitung
+    // erhalten: Ohne sie las sich die wiederkehrende «9.7» wie hardcoded —
+    // tatsächlich ist sie KGV ÷ (Rate knapp über 2 %), und genau das muss
+    // am Faktor und im Export stehen.
+    return {
+      peg: null,
+      roh: rohesPeg,
+      grund: "peg_extrem",
+      hinweis: `bereinigtes PEG ${peg.toFixed(1)} über der Obergrenze ${PEG_OBERGRENZE} ` +
+        `(${rechnungKopf}) — keine Aussage, Faktor ausgeblendet`,
+      quelle,
+      rechnung,
+    };
   }
 
   return { peg, roh: rohesPeg, grund: null, hinweis: quellenHinweis, quelle, rechnung };

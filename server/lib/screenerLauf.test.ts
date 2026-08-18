@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { vergleichsTicker, istVerzichtbareZweitkotierung, ADR_NAMENSMUSTER, istLseDollarNotiz, titelFehlerBehandlung, titelZeitlimitMs, fehlerGrundAusDatenquelle } from "./screenerLauf";
+import { vergleichsTicker, istVerzichtbareZweitkotierung, ADR_NAMENSMUSTER, istLseDollarNotiz, titelFehlerBehandlung, titelZeitlimitMs, fehlerGrundAusDatenquelle, abdeckungAusFaktoren } from "./screenerLauf";
 
 describe("vergleichsTicker", () => {
   it("behandelt US-Ticker ohne Suffix wie .US", () => {
@@ -116,6 +116,31 @@ describe("fehlerGrundAusDatenquelle", () => {
   it("ohne Fallback-Kennung bleibt der bisherige Text", () => {
     expect(fehlerGrundAusDatenquelle("EODHD")).toBe("keine Fundamentaldaten — keine Säule berechenbar");
     expect(fehlerGrundAusDatenquelle(null)).toBe("keine Fundamentaldaten — keine Säule berechenbar");
+  });
+});
+
+describe("abdeckungAusFaktoren", () => {
+  it("rechnet das belegte Gewicht aus der abgelegten Herleitung — ausgeblendete Faktoren zählen nicht", () => {
+    // Burkhalter: PEG (35 %) ausgeblendet (punkte null), KGV/FCF/Dividende belegt → 0.65.
+    expect(abdeckungAusFaktoren([
+      { name: "PEG (bereinigt)", punkte: null, gewicht: 0.35 },
+      { name: "KGV", punkte: 47, gewicht: 0.15 },
+      { name: "Free-Cash-Flow-Rendite", punkte: 88, gewicht: 0.30 },
+      { name: "Dividendenrendite", punkte: 77, gewicht: 0.20 },
+    ])).toBe(0.65);
+  });
+
+  it("leere oder fehlende Herleitung heisst Abdeckung 0", () => {
+    expect(abdeckungAusFaktoren(null)).toBe(0);
+    expect(abdeckungAusFaktoren([])).toBe(0);
+  });
+
+  it("Faktoren mit Gewicht 0 (KGV-Deckel-Zeile) verzerren die Abdeckung nicht", () => {
+    expect(abdeckungAusFaktoren([
+      { name: "KGV", punkte: 47, gewicht: 0.5 },
+      { name: "Dividendenrendite", punkte: null, gewicht: 0.5 },
+      { name: "KGV-Deckel", punkte: 60, gewicht: 0 },
+    ])).toBe(0.5);
   });
 });
 

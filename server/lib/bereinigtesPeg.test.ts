@@ -281,6 +281,50 @@ describe("bereinigtesPeg", () => {
     expect(r.hinweis).toContain("geprüft:");
   });
 
+  // Burkhalter-Befund: Die Rangfolge nahm die ERSTE tragfähige historische
+  // Quelle, auch wenn sie ein PEG jenseits der Obergrenze ergab (KGV 23.3 ÷
+  // 2.4 % fusionszerdrückter 5j-CAGR = 9.7 → ausgeblendet), während
+  // MarketScreener aus der intakten Schätzung ~1.9 zeigt. Ergibt die
+  // historische Quelle einen Wert über der Obergrenze, weicht die Rechnung
+  // auf das erwartete Wachstum aus (frame-konsistent mit dem Forward-KGV).
+  describe("Ausweichen auf die Schätzquelle (Burkhalter-Befund)", () => {
+    it("historische Rate über der Obergrenze → die Analystenschätzung übernimmt", () => {
+      const r = bereinigtesPeg({
+        vendorPeg: null, epsVolatility: null, qualityScore: 82,
+        epsWachstum5j: 2.4, epsWachstumTTM: null, wachstumRatenMittel: null,
+        wachstumErwartet: 10.9, kgv: 23.3, kgvForward: 20.9,
+      });
+      expect(r.quelle).toBe("selbst");
+      // roh = Forward-KGV 20.9 ÷ 10.9 % = 1.92; × 1.2 (Standard-Aufschlag) ÷ 1.192
+      expect(r.peg).toBeCloseTo(((20.9 / 10.9) * 1.2) / (0.7 + 0.82 * 0.6), 2);
+      expect(r.hinweis).toContain("ausgewichen");
+    });
+
+    it("ohne Schätzquelle bleibt es beim Ausblenden — jetzt mit Herleitung im Hinweis", () => {
+      const r = bereinigtesPeg({
+        vendorPeg: null, epsVolatility: null, qualityScore: 82,
+        epsWachstum5j: 2.4, epsWachstumTTM: null, kgv: 23.3,
+      });
+      expect(r.peg).toBeNull();
+      expect(r.grund).toBe("peg_extrem");
+      // Die «9.7» muss sich selbst erklären: Zähler, Nenner und Rohwert
+      // stehen im Hinweis, der Rohwert bleibt für den Export erhalten.
+      expect(r.hinweis).toContain("5-Jahres-CAGR");
+      expect(r.roh).toBeCloseTo(23.3 / 2.4, 2);
+      expect(r.rechnung).not.toBeNull();
+    });
+
+    it("hilft auch die Schätzquelle nicht unter die Obergrenze, bleibt es ausgeblendet", () => {
+      const r = bereinigtesPeg({
+        vendorPeg: null, epsVolatility: null, qualityScore: 82,
+        epsWachstum5j: 2.4, epsWachstumTTM: null, wachstumErwartet: 2.1,
+        kgv: 23.3, kgvForward: 20.9,
+      });
+      expect(r.peg).toBeNull();
+      expect(r.grund).toBe("peg_extrem");
+    });
+  });
+
   // FDJ-Befund (FDJU.PA): Einmaleffekte drückten den Gewinn auf ein
   // Mini-Niveau — trailing KGV 172, «erwartetes Wachstum» +1944 %, PEG 0.09,
   // 100/100 Punkte. Ein Basiseffekt ist keine tragfähige Wachstumsrate.
