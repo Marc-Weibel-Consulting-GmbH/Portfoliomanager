@@ -154,8 +154,29 @@ mit vollständigem Änderungslog.
 5. Vorwärts weiterlaufen lassen: Screener-Protokoll, PEG-Aufzeichnung,
    Übernahme-Entscheide — die Messungen, die der Rückblick nicht liefern kann.
 
-## 5. Nachtrag nach dem finalen Beleg-Lauf
+## 5. Nachtrag: der finale Beleg-Lauf (#180001, 18.08.2026)
 
-*(wird nach Marcs Export vom 18.08. ergänzt: Niveau-Nachrechenbarkeit,
-PEG-Belegquote, KGV-Abweichungs-Statistik Vendor vs. Selbstrechnung,
-Duplikat-Zählung, Timeout-Bilanz.)*
+Erster Lauf mit erweitertem Universum (US bis 2'000, SIX ab 0.3 Mrd.):
+**1'748 gesichtet, 844 berechnet** (+257 gegenüber #150001), davon US 287
+und Schweiz 126 (darunter 40 neue Mid Caps unter 1 Mrd. — Zehnder, R&S
+Group, BVZ, APG SGA, LEM …). Alle Nachher-Kriterien erfüllt:
+
+| Kriterium | Ergebnis |
+|---|---|
+| Niveau aus Faktorspalten nachrechenbar (±0.2) | **820 / 820** |
+| Fehlerzeilen (vorher 15, davon 12 Timeouts) | **3** (nur echte Datenlücken, 0 Timeouts) |
+| KGV-Duplikate über Titel (KIMI R6; vorher 83 Gruppen / 177 Zeilen) | **9 Gruppen / 19 Zeilen** nach E4a |
+| PEG belegt | 438 / 844; 37 aus unbrauchbarem Vendor-Wert gerettet, 150 ehrlich ausgeblendet |
+| `kgvSelbst` belegt | **757 / 844 (90 %)**, davon 12 Titel, die NUR so ein KGV haben |
+| Abweichung `kgvSelbst` vs. Vendor-Trailing | **Median 1.02–1.06 auf ALLEN sechs Börsen**; nur 10 % über Faktor 1.5 |
+
+**E4b-Empfehlung (entscheidungsreif):** Die Selbstrechnung ist validiert —
+sie trifft das Vendor-Trailing-Feld überall dort, wo es brauchbar ist, auf
+wenige Prozent, füllt dessen Lücken (12 Titel) und macht die
+Rest-Duplikate obsolet. Vorschlag: `kgvSelbst` wird Primärquelle des
+KGV-Faktors und des Deckels; das Vendor-Feld bleibt als Gegenprobe — bei
+Widerspruch über Faktor 1.5 zählt die vorsichtigere Zahl (das höhere KGV),
+mit Ausweis im Datenqualitäts-Review. Gleiches Muster wie beim PEG.
+
+**Offener Kleinpunkt:** Mailand lieferte 0 Titel (weder berechnet noch
+aussortiert) — der EODHD-Exchange-Code «mi» ist zu prüfen.
