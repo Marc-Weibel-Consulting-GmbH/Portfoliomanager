@@ -99,6 +99,14 @@ export default function AdminDashboard() {
   const [screenerAuto, setScreenerAuto] = useState(true);
   // Aufgeklappter Kandidat (Ticker) — zeigt die Faktorwerte hinter den Scores.
   const [screenerDetail, setScreenerDetail] = useState<string | null>(null);
+  // Kandidaten-Sortierung: null = Server-Reihenfolge (sektorweise Rotation nach
+  // Qualität); Klick auf Qualität/Bewertung/Signal sortiert flach, zweiter
+  // Klick dreht die Richtung, dritter kehrt zur Rotation zurück.
+  const [kandidatenSort, setKandidatenSort] = useState<{ key: "qualitaet" | "bewertung" | "signalScore"; dir: "desc" | "asc" } | null>(null);
+  const toggleKandidatenSort = (key: "qualitaet" | "bewertung" | "signalScore") => {
+    setKandidatenSort((s) => s?.key !== key ? { key, dir: "desc" }
+      : s.dir === "desc" ? { key, dir: "asc" } : null);
+  };
   // Aufgeklappte Faktor-Herleitung im Detail («per Klick nachvollziehbar»).
   const [screenerFaktorRechnung, setScreenerFaktorRechnung] = useState<string | null>(null);
   // Wie viele Kandidaten die Tabelle zeigt — «Mehr anzeigen» erweitert schrittweise.
@@ -805,7 +813,7 @@ export default function AdminDashboard() {
           {(screenerStatusQ.data?.beste?.length ?? 0) > 0 && (
             <div className="border-t pt-3 space-y-2">
               <p className="text-xs font-medium">
-                Beste Kandidaten (sektorweise abwechselnd, je Sektor nach Qualität) — nicht in der Watchlist
+                Beste Kandidaten ({kandidatenSort ? `sortiert nach ${kandidatenSort.key === "qualitaet" ? "Qualität" : kandidatenSort.key === "bewertung" ? "Bewertung" : "Signal"} ${kandidatenSort.dir === "desc" ? "↓" : "↑"}` : "sektorweise abwechselnd, je Sektor nach Qualität"}) — nicht in der Watchlist
                 <span className="text-muted-foreground font-normal">
                   {" "}· zeige {screenerStatusQ.data!.beste.length}
                   {screenerStatusQ.data?.lauf ? ` von ${screenerStatusQ.data.lauf.berechnet + screenerStatusQ.data.lauf.uebernommen + screenerStatusQ.data.lauf.abgelehnt} berechneten` : ""}
@@ -820,14 +828,30 @@ export default function AdminDashboard() {
                       <th className="py-1 pr-3">Börse</th>
                       <th className="py-1 pr-3">Land</th>
                       <th className="py-1 pr-3">Sektor</th>
-                      <th className="py-1 pr-3 text-right">Qualität</th>
-                      <th className="py-1 pr-3 text-right">Bewertung</th>
-                      <th className="py-1 pr-3 text-right">Signal</th>
+                      {([["qualitaet", "Qualität"], ["bewertung", "Bewertung"], ["signalScore", "Signal"]] as const).map(([key, label]) => (
+                        <th key={key}
+                          className={`py-1 pr-3 text-right cursor-pointer select-none hover:text-foreground ${kandidatenSort?.key === key ? "text-foreground" : ""}`}
+                          title="Klicken zum Sortieren (2. Klick: Richtung, 3. Klick: zurück zur Sektor-Rotation)"
+                          onClick={() => toggleKandidatenSort(key)}
+                        >
+                          {label} {kandidatenSort?.key === key ? (kandidatenSort.dir === "desc" ? "↓" : "↑") : ""}
+                        </th>
+                      ))}
                       <th className="py-1 pr-3"></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {screenerStatusQ.data!.beste.map((k) => (
+                    {(kandidatenSort
+                      ? [...screenerStatusQ.data!.beste].sort((a, b) => {
+                          const av = (a as any)[kandidatenSort.key] ?? null;
+                          const bv = (b as any)[kandidatenSort.key] ?? null;
+                          if (av === null && bv === null) return 0;
+                          if (av === null) return 1;
+                          if (bv === null) return -1;
+                          return kandidatenSort.dir === "desc" ? bv - av : av - bv;
+                        })
+                      : screenerStatusQ.data!.beste
+                    ).map((k) => (
                       <Fragment key={k.ticker}>
                       <tr
                         className="border-t border-white/5 cursor-pointer hover:bg-white/[0.03]"

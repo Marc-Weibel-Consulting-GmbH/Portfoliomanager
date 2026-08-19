@@ -195,6 +195,28 @@ describe("Qualität — Niveau", () => {
     expect(r.score).toBeNull();
   });
 
+  // Expedia-Befund (19.08.): ROIC 399 % durch rückkaufgeschrumpftes
+  // Eigenkapital — der Nenner (Eigenkapital + Nettoschulden) ist ein
+  // Restposten, die Zahl misst die Kapitalstruktur, nicht das Geschäft.
+  // Volle Punkte für eine Zahl ohne Aussage sind dieselbe Fehlerklasse wie
+  // das PEG jenseits der Obergrenze: ausblenden, nicht belohnen.
+  it("FASSUNG 7: ein ROIC jenseits der Obergrenze wird ausgeblendet, nicht mit Bestnote belohnt", () => {
+    const artefakt = berechneNiveau({ ...gut, roic: 399.36 });
+    const f = artefakt.faktoren.find((x) => x.name === "Kapitalrendite (ROIC)")!;
+    expect(f.punkte).toBeNull();
+    expect(f.hinweis).toContain("Nenner");
+    // Renormierung statt erfundener 0: gleiche Rechnung wie ohne ROIC.
+    const ohne = berechneNiveau({ ...gut, roic: null });
+    expect(artefakt.score).toBe(ohne.score);
+  });
+
+  it("FASSUNG 7: hohe, aber realistische ROIC-Werte bleiben — mit Netto-Cash-Hinweis", () => {
+    const hoch = berechneNiveau({ ...gut, roic: 80 });
+    const f = hoch.faktoren.find((x) => x.name === "Kapitalrendite (ROIC)")!;
+    expect(f.punkte).toBe(100);
+    expect(f.hinweis).toContain("Kapitalnenner");
+  });
+
   it("ein Nettoguthaben wird nicht schlechter bewertet als keine Schulden", () => {
     const mitGuthaben = berechneNiveau({ ...gut, netDebtToEbitda: -2 });
     const ohneSchulden = berechneNiveau({ ...gut, netDebtToEbitda: 0 });

@@ -190,6 +190,13 @@ export const ANTEIL_NIVEAU = 0.60;
 export const ANTEIL_RICHTUNG = 0.40;
 
 /**
+ * Oberhalb dieser Kapitalrendite (%, NOPAT ÷ investiertes Kapital) trägt die
+ * Zahl keine Aussage mehr — der Nenner ist dann ein Restposten aus Rückkäufen
+ * oder Netto-Cash (Expedia: 399 %), nicht das eingesetzte Kapital.
+ */
+export const ROIC_OBERGRENZE = 150;
+
+/**
  * Niveau: Ist das Geschäft gut?
  *
  * Die Anker orientieren sich an gängigen Schwellen: ROIC über den Kapitalkosten
@@ -199,21 +206,29 @@ export const ANTEIL_RICHTUNG = 0.40;
  * fremdfinanziertes Unternehmen besser erschiene.
  */
 export function berechneNiveau(e: QualitaetsEingang): TeilScore {
+  // FASSUNG 7 (Expedia-Befund): Jenseits der Obergrenze misst das ROIC den
+  // Nenner, nicht das Geschäft — Rückkäufe oder Netto-Cash schrumpfen
+  // (Eigenkapital + Nettoschulden) auf einen Restposten (Expedia: 399 %).
+  // Reale Spitzenwerte (Apple ~60–70 %) liegen deutlich darunter. Gleiche
+  // Linie wie die PEG-Obergrenze: Eine Zahl ohne Aussage wird ausgeblendet
+  // (Renormierung), nie mit Bestnote belohnt.
+  const roicArtefakt = e.roic !== null && e.roic > ROIC_OBERGRENZE;
   const faktoren: Teilfaktor[] = [
     {
       name: "Kapitalrendite (ROIC)",
       wert: e.roic,
-      punkte: punkteAus(e.roic, 4, 25),
+      punkte: roicArtefakt ? null : punkteAus(e.roic, 4, 25),
       gewicht: 0.25,
-      rechnung: ankerRechnung(e.roic, 4, 25),
+      rechnung: roicArtefakt ? undefined : ankerRechnung(e.roic, 4, 25),
       // Sekundärbefund der Scoring-Prüfung: Definition NOPAT ÷ (Eigenkapital +
       // Nettoschulden). Bei Netto-Cash-Gesellschaften schrumpft der Nenner —
-      // Werte weit über 50 % messen dann die Kasse, nicht das Geschäft. Auf
-      // die Punkte wirkt sich das nicht aus (ab 25 % gilt ohnehin die
-      // Bestnote), aber der Rohwert braucht die Einordnung.
+      // Werte weit über 50 % messen dann die Kasse, nicht das Geschäft; ab
+      // der Obergrenze trägt die Zahl gar keine Aussage mehr.
       hinweis: e.roic === null ? "nicht verfügbar"
-        : `${e.roic.toFixed(1)} % — ${e.roic >= 15 ? "deutlich über den Kapitalkosten" : e.roic >= 8 ? "über den Kapitalkosten" : "knapp oder darunter"}`
-          + (e.roic >= 50 ? " · Achtung: sehr hohe Werte entstehen meist durch einen kleinen Kapitalnenner (Netto-Cash), Definition NOPAT ÷ (Eigenkapital + Nettoschulden)" : ""),
+        : roicArtefakt
+          ? `${e.roic.toFixed(1)} % — Nenner-Artefakt: das investierte Kapital (Eigenkapital + Nettoschulden) ist ein Restposten, die Zahl misst die Kapitalstruktur, nicht das Geschäft — Faktor ausgeblendet`
+          : `${e.roic.toFixed(1)} % — ${e.roic >= 15 ? "deutlich über den Kapitalkosten" : e.roic >= 8 ? "über den Kapitalkosten" : "knapp oder darunter"}`
+            + (e.roic >= 50 ? " · Achtung: sehr hohe Werte entstehen meist durch einen kleinen Kapitalnenner (Netto-Cash), Definition NOPAT ÷ (Eigenkapital + Nettoschulden)" : ""),
     },
     {
       name: "Betriebsmarge",

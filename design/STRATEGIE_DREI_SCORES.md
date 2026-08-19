@@ -256,6 +256,17 @@ dieses Dokument.
   unverändert. Noch offen (E3): Die Auswahl-Engine des Vorschlags-Wizards
   läuft weiter auf dem alten `combinedScore`-Ranking — ihr Umbau auf
   kuratiertes Universum + Lücken-Logik ist ein eigenes Paket.
+- **FASSUNG 7 (2026-08): ROIC-Wächter.** Kapitalrendite über der Obergrenze
+  150 % wird ausgeblendet (Renormierung) statt mit Bestnote belohnt.
+  Begründung nach Regel 1 (Expedia-Befund: ROIC 399.36 % → 100/100):
+  Die Definition NOPAT ÷ (Eigenkapital + Nettoschulden) misst jenseits
+  dieser Schwelle den Nenner, nicht das Geschäft — Rückkäufe oder
+  Netto-Cash schrumpfen das investierte Kapital auf einen Restposten.
+  Reale Spitzenwerte (Apple ~60–70 %) liegen deutlich darunter; der
+  bestehende Netto-Cash-Hinweis ab 50 % bleibt. Gleiche Linie wie die
+  PEG-Obergrenze: Eine Zahl ohne Aussage wird ausgeblendet, nie belohnt.
+  FASSUNG-Wechsel, weil die Rekonstruktion das ROIC selbst rechnet — die
+  Punkt-in-Zeit-Historie zieht automatisch nach.
 
 ## 6. Fahrplan
 
