@@ -764,11 +764,21 @@ export default function StockDetail() {
             <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/20">
               <CardContent className="p-4 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
-                  <MetricCard 
-                    label="P/E Ratio" 
-                    value={stock.peRatio ? parseFloat(stock.peRatio).toFixed(1) : "-"} 
-                    rating={getRating("peRatio", stock.peRatio)}
-                  />
+                  {/* Dieselbe KGV-Zahl wie im Bewertungs-Score (E4b: Selbstrechnung mit
+                      Vendor-Gegenprobe) — vorher stand hier das rohe Vendor-Feld aus der
+                      stocks-Tabelle, und «29-facher Jahresgewinn» im Score-Dialog stand
+                      neben «P/E 37.3» in dieser Karte (Marc-Befund 19.08.). */}
+                  {(() => {
+                    const kgvFaktor: any = dreiScores?.bewertung.faktoren?.find((f: any) => f.name === "KGV");
+                    const kgvWert: number | null = kgvFaktor?.wert ?? (stock.peRatio ? parseFloat(stock.peRatio) : null);
+                    return (
+                      <MetricCard
+                        label="KGV (P/E)"
+                        value={kgvWert != null && Number.isFinite(kgvWert) ? kgvWert.toFixed(1) : "-"}
+                        rating={getRating("peRatio", kgvWert != null ? String(kgvWert) : null)}
+                      />
+                    );
+                  })()}
                   <div className="bg-[#1a1f2e] rounded-lg p-3 border border-white/10">
                     <div className="text-xs text-gray-400 mb-1">PEG Ratio</div>
                     <PegBadge ticker={stock.ticker} />

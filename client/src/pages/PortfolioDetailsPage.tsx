@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { KpiMiniSkala } from "@/components/ui/KpiTooltip";
 import { useParams, useLocation, Link } from "wouter";
 import {
   AreaChart,
@@ -968,7 +969,7 @@ export default function PortfolioDetailsPage() {
   // Expandable row state for Positionen table
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
   // Sort state for Positionen table
-  type SortKey = 'weight' | 'ytd' | 'today' | 'qualityScore' | 'signalScore';
+  type SortKey = 'weight' | 'ytd' | 'today' | 'qualitaet' | 'bewertung' | 'timing' | 'signalScore';
   const [sortKey, setSortKey] = useState<SortKey>('weight');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const handleSort = (key: SortKey) => {
@@ -1786,6 +1787,8 @@ export default function PortfolioDetailsPage() {
             <p className="text-2xl font-bold font-mono text-white">
               {riskMetrics?.sharpeRatio !== undefined ? riskMetrics.sharpeRatio.toFixed(2) : '—'}
             </p>
+            {/* Zonenleiste mit Positionspfeil — ordnet die Zahl ohne Hover ein. */}
+            <KpiMiniSkala kpi="sharpe" wert={riskMetrics?.sharpeRatio ?? null} className="max-w-[9rem]" />
             <p className="text-xs text-gray-400 mt-1">
               Bench {riskMetrics?.sharpeBenchmark !== undefined ? riskMetrics.sharpeBenchmark.toFixed(2) : '—'}
             </p>
@@ -1798,6 +1801,7 @@ export default function PortfolioDetailsPage() {
             <p className="text-2xl font-bold font-mono text-[#00CFC1]">
               {avgDividendYield > 0 ? `${avgDividendYield.toFixed(2)}%` : '—'}
             </p>
+            <KpiMiniSkala kpi="dividend" wert={avgDividendYield > 0 ? avgDividendYield : null} className="max-w-[9rem]" />
             <p className="text-xs text-gray-400 mt-1">
               Ø gewichtet
             </p>
@@ -2122,7 +2126,7 @@ export default function PortfolioDetailsPage() {
                 {posView === 'konstellation' ? <div /> : (
                   <div>
                     <h3 className="text-sm font-semibold text-white">{holdings.length} Positionen</h3>
-                    {posView === 'tabelle' && <p className="text-xs text-gray-400">sortiert nach {sortKey === 'weight' ? 'Gewicht' : sortKey === 'ytd' ? 'YTD' : sortKey === 'today' ? 'Heute' : sortKey === 'qualityScore' ? 'Qualität' : 'Signal'} {sortDir === 'desc' ? '↓' : '↑'}</p>}
+                    {posView === 'tabelle' && <p className="text-xs text-gray-400">sortiert nach {sortKey === 'weight' ? 'Gewicht' : sortKey === 'ytd' ? 'YTD' : sortKey === 'today' ? 'Heute' : sortKey === 'qualitaet' ? 'Qualität' : sortKey === 'bewertung' ? 'Bewertung' : sortKey === 'timing' ? 'Timing' : 'Signal'} {sortDir === 'desc' ? '↓' : '↑'}</p>}
                   </div>
                 )}
                 <div className="flex items-center gap-2">
@@ -2197,8 +2201,14 @@ export default function PortfolioDetailsPage() {
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="YTD = seit Jahresbeginn" onClick={() => handleSort('ytd')}>
                         <span className={sortKey === 'ytd' ? 'text-[#00CFC1]' : 'text-gray-400'}>YTD {sortKey === 'ytd' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Bewertungs-Score 0–100 aus dem Drei-Score-Konzept — wie günstig der Titel im Verhältnis zu Gewinn, Wachstum und Substanz bewertet ist; derselbe Wert wie auf der Titelseite. Für Obligationen, Gold, Rohstoffe und Krypto steht hier der technische Einzelscore. «—» heisst: zu wenige Kennzahlen für eine Beurteilung. Klicken zum Sortieren." onClick={() => handleSort('qualityScore')}>
-                        <span className={sortKey === 'qualityScore' ? 'text-[#00CFC1]' : 'text-gray-400'}>Bewertung {sortKey === 'qualityScore' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Qualitäts-Score 0–100 aus dem Drei-Score-Konzept — wie gut das Unternehmen ist (Niveau + Richtung); seit der Reform die Leitgrösse. Nur für Aktien. Klicken zum Sortieren." onClick={() => handleSort('qualitaet')}>
+                        <span className={sortKey === 'qualitaet' ? 'text-[#00CFC1]' : 'text-gray-400'}>Qualität {sortKey === 'qualitaet' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
+                      </th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Bewertungs-Score 0–100 aus dem Drei-Score-Konzept — wie günstig der Titel im Verhältnis zu Gewinn, Wachstum und Substanz bewertet ist; seit der Reform Wächter, kein Signalgewicht. Für Obligationen, Gold, Rohstoffe und Krypto steht hier der technische Einzelscore. «—» heisst: zu wenige Kennzahlen für eine Beurteilung. Klicken zum Sortieren." onClick={() => handleSort('bewertung')}>
+                        <span className={sortKey === 'bewertung' ? 'text-[#00CFC1]' : 'text-gray-400'}>Bewertung {sortKey === 'bewertung' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
+                      </th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Timing-Score 0–100 aus der Kursreihe (Momentum, RSI, 52-Wochen-Lage, Blasensignal) — misst den Zeitpunkt, nicht das Unternehmen. Klicken zum Sortieren." onClick={() => handleSort('timing')}>
+                        <span className={sortKey === 'timing' ? 'text-[#00CFC1]' : 'text-gray-400'}>Timing {sortKey === 'timing' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Signal-Score 0–100 aus Qualität, Bewertung und Timing, gewichtet nach Marktlage — klicken zum Sortieren" onClick={() => handleSort('signalScore')}>
                         <span className={sortKey === 'signalScore' ? 'text-[#00CFC1]' : 'text-gray-400'}>Signal {sortKey === 'signalScore' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
@@ -2236,8 +2246,14 @@ export default function PortfolioDetailsPage() {
                           bVal = parseFloat(b.dailyChangePercent ?? b.changePercent ?? 'NaN');
                           if (!Number.isFinite(aVal)) aVal = sortDir === 'desc' ? -Infinity : Infinity;
                           if (!Number.isFinite(bVal)) bVal = sortDir === 'desc' ? -Infinity : Infinity;
-                        } else if (sortKey === 'qualityScore') {
-                          // Neuer Bewertungs-Score; alter Einzelscore nur als
+                        } else if (sortKey === 'qualitaet') {
+                          aVal = signalMap.get(a.ticker)?.qualitaet ?? -1;
+                          bVal = signalMap.get(b.ticker)?.qualitaet ?? -1;
+                        } else if (sortKey === 'timing') {
+                          aVal = signalMap.get(a.ticker)?.timing ?? -1;
+                          bVal = signalMap.get(b.ticker)?.timing ?? -1;
+                        } else if (sortKey === 'bewertung') {
+                          // Bewertungs-Score; alter Einzelscore nur als
                           // Rückfall für Titel ohne drei Scores (Nicht-Aktien).
                           aVal = signalMap.get(a.ticker)?.bewertung ?? a.qualityScore ?? -1;
                           bVal = signalMap.get(b.ticker)?.bewertung ?? b.qualityScore ?? -1;
@@ -2294,7 +2310,11 @@ export default function PortfolioDetailsPage() {
                         // drei Scores.
                         const qualScore = isNonEquity ? (h.qualityScore ?? null) : (sig?.bewertung ?? null);
                         const signalScore = sig?.combinedScore ?? null;
-                        const qualColor = qualScore === null ? 'text-gray-500' : qualScore >= 70 ? 'text-emerald-400' : qualScore >= 50 ? 'text-[#00CFC1]' : qualScore >= 35 ? 'text-yellow-400' : 'text-red-400';
+                        // Qualität und Timing gibt es nur für Aktien (Drei-Score-Konzept).
+                        const qualitaetScore = isNonEquity ? null : (sig?.qualitaet ?? null);
+                        const timingScore = isNonEquity ? null : (sig?.timing ?? null);
+                        const scoreFarbe = (v: number | null) => v === null ? 'text-gray-500' : v >= 70 ? 'text-emerald-400' : v >= 50 ? 'text-[#00CFC1]' : v >= 35 ? 'text-yellow-400' : 'text-red-400';
+                        const qualColor = scoreFarbe(qualScore);
                         const sigColor = signalScore === null ? 'text-gray-500' : signalScore >= 70 ? 'text-emerald-400' : signalScore >= 55 ? 'text-[#00CFC1]' : signalScore >= 45 ? 'text-yellow-400' : 'text-red-400';
                         return (
                           <>
@@ -2429,8 +2449,18 @@ export default function PortfolioDetailsPage() {
                               </span>
                             </td>
                             <td className="px-3 py-3.5 text-right">
+                              <span className={`text-sm font-mono font-semibold ${scoreFarbe(qualitaetScore)}`}>
+                                {qualitaetScore !== null ? Math.round(qualitaetScore) : '—'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3.5 text-right">
                               <span className={`text-sm font-mono font-semibold ${qualColor}`}>
                                 {qualScore !== null ? qualScore : '—'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3.5 text-right">
+                              <span className={`text-sm font-mono font-semibold ${scoreFarbe(timingScore)}`}>
+                                {timingScore !== null ? Math.round(timingScore) : '—'}
                               </span>
                             </td>
                             <td className="px-3 py-3.5 text-right">
@@ -2467,7 +2497,7 @@ export default function PortfolioDetailsPage() {
                           </tr>
                           {isExpanded && (
                             <tr key={`${h.ticker}-detail`} className="bg-[#0a0f1a] border-b border-white/10">
-                              <td colSpan={10} className="px-5 py-4">
+                              <td colSpan={12} className="px-5 py-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {/* Scores Panel — transparent, erklärend */}
                                   <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">
