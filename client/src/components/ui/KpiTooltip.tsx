@@ -92,6 +92,12 @@ interface KpiDef {
   formula?: string;
   description: string;
   scaleZones?: Zone[];
+  /**
+   * Zahlengrenzen der Zonen (Länge = Zonen + 1), passend zu `benchRows` —
+   * damit kann die Mini-Skala in der Kachel einen Wert auf der Zonenleiste
+   * positionieren. Werte ausserhalb werden an den Rand gekappt.
+   */
+  zonenGrenzen?: number[];
   benchRows?: BenchRow[];
   tip?: string;
 }
@@ -108,6 +114,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Normal", color: "#f59e0b", width: 35 },
       { label: "Teuer", color: "#ef4444", width: 40 },
     ],
+    zonenGrenzen: [0, 15, 25, 50],
     benchRows: [
       { range: "< 15", label: "Günstig bewertet (Value-Bereich)", color: "#22c55e" },
       { range: "15 – 25", label: "Faire Bewertung (Marktdurchschnitt ~20)", color: "#f59e0b" },
@@ -127,6 +134,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Fair", color: "#f59e0b", width: 34 },
       { label: "Teuer", color: "#ef4444", width: 33 },
     ],
+    zonenGrenzen: [0, 1, 2, 4],
     benchRows: [
       { range: "< 1.0", label: "Günstig — Wachstum rechtfertigt Preis", color: "#22c55e" },
       { range: "1.0 – 2.0", label: "Fair bewertet", color: "#f59e0b" },
@@ -146,6 +154,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Markt", color: "#f59e0b", width: 30 },
       { label: "Aggressiv", color: "#ef4444", width: 40 },
     ],
+    zonenGrenzen: [0, 0.8, 1.2, 2.2],
     benchRows: [
       { range: "< 0.8", label: "Defensiv — weniger volatil als der Markt", color: "#22c55e" },
       { range: "0.8 – 1.2", label: "Marktähnlich — normale Schwankungen", color: "#f59e0b" },
@@ -166,6 +175,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Hoch", color: "#f59e0b", width: 25 },
       { label: "Risiko?", color: "#ef4444", width: 15 },
     ],
+    zonenGrenzen: [0, 1, 3, 6, 10],
     benchRows: [
       { range: "0 – 1%", label: "Wachstumsorientiert, kaum Ausschüttung", color: "#64748b" },
       { range: "1 – 3%", label: "Moderat — typischer Schweizer Markt", color: "#22c55e" },
@@ -186,6 +196,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Gut", color: "#22c55e", width: 25 },
       { label: "Exzellent", color: "#00CFC1", width: 15 },
     ],
+    zonenGrenzen: [0, 0.5, 1, 2, 3],
     benchRows: [
       { range: "< 0.5", label: "Schlechte Risikovergütung", color: "#ef4444" },
       { range: "0.5 – 1.0", label: "Akzeptabel", color: "#f59e0b" },
@@ -205,6 +216,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Normal", color: "#f59e0b", width: 35 },
       { label: "Aggressiv", color: "#ef4444", width: 35 },
     ],
+    zonenGrenzen: [0, 10, 20, 40],
     benchRows: [
       { range: "< 10%", label: "Sehr defensiv (Anleihen, Versorger)", color: "#22c55e" },
       { range: "10 – 20%", label: "Normaler Aktienmarkt (S&P 500 ~15%)", color: "#f59e0b" },
@@ -224,6 +236,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Moderat", color: "#f59e0b", width: 35 },
       { label: "Hoch", color: "#ef4444", width: 35 },
     ],
+    zonenGrenzen: [0, 10, 20, 45],
     benchRows: [
       { range: "0 – 10%", label: "Gering — defensives Portfolio", color: "#22c55e" },
       { range: "10 – 20%", label: "Moderat — normaler Bärenmarkt", color: "#f59e0b" },
@@ -257,6 +270,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Moderat", color: "#f59e0b", width: 35 },
       { label: "Klumpenrisiko", color: "#ef4444", width: 30 },
     ],
+    zonenGrenzen: [0, 0.3, 0.6, 1],
     benchRows: [
       { range: "< 0.3", label: "Sehr gut diversifiziert", color: "#22c55e" },
       { range: "0.3 – 0.6", label: "Moderate Diversifikation", color: "#f59e0b" },
@@ -303,6 +317,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Gut", color: "#22c55e", width: 25 },
       { label: "Top", color: "#00CFC1", width: 25 },
     ],
+    zonenGrenzen: [0, 40, 60, 75, 100],
     benchRows: [
       { range: "0 – 40", label: "Schwach — Verkaufskandidat", color: "#ef4444" },
       { range: "40 – 60", label: "Neutral — Halten", color: "#f59e0b" },
@@ -323,6 +338,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Stark", color: "#22c55e", width: 25 },
       { label: "Sehr stark", color: "#00CFC1", width: 25 },
     ],
+    zonenGrenzen: [-20, -10, 0, 15, 30],
     benchRows: [
       { range: "< −10%", label: "Schwaches Momentum — Vorsicht", color: "#ef4444" },
       { range: "−10 – 0%", label: "Leicht negativ", color: "#f97316" },
@@ -343,6 +359,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Wachsend", color: "#22c55e", width: 30 },
       { label: "Stark", color: "#00CFC1", width: 25 },
     ],
+    zonenGrenzen: [-10, 0, 5, 15, 30],
     benchRows: [
       { range: "< 0%", label: "Schrumpfender Gewinn — negatives Signal", color: "#ef4444" },
       { range: "0 – 5%", label: "Stagnierendes Wachstum", color: "#f59e0b" },
@@ -362,6 +379,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Normal", color: "#f59e0b", width: 35 },
       { label: "Hoch", color: "#ef4444", width: 35 },
     ],
+    zonenGrenzen: [0, 0.5, 1.5, 3.5],
     benchRows: [
       { range: "< 0.5", label: "Konservativ — starke Bilanz", color: "#22c55e" },
       { range: "0.5 – 1.5", label: "Normal für die meisten Sektoren", color: "#f59e0b" },
@@ -382,6 +400,7 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
       { label: "Gut", color: "#22c55e", width: 25 },
       { label: "Exzellent", color: "#00CFC1", width: 15 },
     ],
+    zonenGrenzen: [0, 5, 15, 25, 35],
     benchRows: [
       { range: "< 5%", label: "Schwach — ineffizienter Kapitaleinsatz", color: "#ef4444" },
       { range: "5 – 15%", label: "Normal — Marktdurchschnitt", color: "#f59e0b" },
@@ -391,6 +410,50 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
     tip: "Sehr hoher ROE kann durch hohe Verschuldung entstehen — immer mit D/E kombinieren.",
   },
 };
+
+// ─── Mini-Skala für Kacheln ──────────────────────────────────────────────────
+
+/**
+ * Die Zonenleiste aus dem Tooltip als Miniatur mit Positionspfeil — direkt
+ * unter der Kennzahl in der Kachel, damit sich die Zahl ohne Hover einordnen
+ * lässt (Marc-Wunsch 19.08.). Rendert nichts, wenn dem KPI die Skala oder dem
+ * Aufrufer der Wert fehlt.
+ */
+export function KpiMiniSkala({ kpi, wert, className }: { kpi: KpiKey; wert: number | null | undefined; className?: string }) {
+  const def = KPI_DEFS[kpi];
+  if (!def?.scaleZones || !def.zonenGrenzen || wert == null || !Number.isFinite(wert)) return null;
+  const zones = def.scaleZones;
+  const g = def.zonenGrenzen;
+  const total = zones.reduce((s, z) => s + z.width, 0);
+  // Wert → Position: stückweise linear — Zone i deckt den Wertebereich
+  // g[i]..g[i+1] ab und belegt zones[i].width der Leiste.
+  const v = Math.max(g[0], Math.min(g[g.length - 1], wert));
+  let acc = 0;
+  let pct = 100;
+  for (let i = 0; i < zones.length; i++) {
+    if (v <= g[i + 1] || i === zones.length - 1) {
+      const spanne = g[i + 1] - g[i];
+      const anteil = spanne > 0 ? (v - g[i]) / spanne : 0;
+      pct = ((acc + anteil * zones[i].width) / total) * 100;
+      break;
+    }
+    acc += zones[i].width;
+  }
+  return (
+    <div className={cn("pt-2", className)}>
+      <div className="relative">
+        <div className="absolute -top-[6px] -translate-x-1/2" style={{ left: `${Math.max(2, Math.min(98, pct))}%` }}>
+          <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[5px] border-l-transparent border-r-transparent border-t-white" />
+        </div>
+        <div className="flex h-1.5 rounded-full overflow-hidden w-full opacity-80">
+          {zones.map((z, i) => (
+            <div key={i} style={{ width: `${(z.width / total) * 100}%`, backgroundColor: z.color }} title={z.label} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
