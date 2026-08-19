@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { KpiMiniSkala } from "@/components/ui/KpiTooltip";
+import ScoreErklaerDialog from "@/components/stock/ScoreErklaerDialog";
 import { useParams, useLocation, Link } from "wouter";
 import {
   AreaChart,
@@ -968,6 +969,9 @@ export default function PortfolioDetailsPage() {
   const [showDetailCols, setShowDetailCols] = useState(false);
   // Expandable row state for Positionen table
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
+  // Erklär-Dialog der Scores (gleiche Komponente wie die Titelseite) — geöffnet
+  // per Klick auf einen Kreis oder die Signal-Skala in der aufgeklappten Zeile.
+  const [scoreDialog, setScoreDialog] = useState<{ ticker: string; art: "qualitaet" | "bewertung" | "signal" } | null>(null);
   // Sort state for Positionen table
   type SortKey = 'weight' | 'ytd' | 'today' | 'qualitaet' | 'bewertung' | 'timing' | 'signalScore';
   const [sortKey, setSortKey] = useState<SortKey>('weight');
@@ -2509,18 +2513,22 @@ export default function PortfolioDetailsPage() {
                                     {!isNonEquity ? (
                                       <div>
                                         <div className="flex items-start justify-around mb-4">
+                                          {/* Klick öffnet denselben Erklär-Dialog wie auf der
+                                              Titelseite (Timing wohnt im Signal-Dialog). */}
                                           {([
-                                            ['Qualität', sig?.qualitaet],
-                                            ['Bewertung', sig?.bewertung],
-                                            ['Timing', sig?.timing],
-                                          ] as [string, number | null | undefined][]).map(([name, wert]) => (
+                                            ['Qualität', sig?.qualitaet, 'qualitaet'],
+                                            ['Bewertung', sig?.bewertung, 'bewertung'],
+                                            ['Timing', sig?.timing, 'signal'],
+                                          ] as [string, number | null | undefined, "qualitaet" | "bewertung" | "signal"][]).map(([name, wert, art]) => (
                                             <div key={name} className="flex flex-col items-center gap-1">
-                                              <ScoreCircle score={wert ?? null} size="sm" />
+                                              <ScoreCircle score={wert ?? null} size="sm"
+                                                onClick={() => setScoreDialog({ ticker: h.ticker, art })} />
                                               <span className="text-[10px] text-gray-400">{name}</span>
                                             </div>
                                           ))}
                                         </div>
-                                        <SignalSkala score={sig?.combinedScore ?? null} label={sig?.combinedSignal ?? null} />
+                                        <SignalSkala score={sig?.combinedScore ?? null} label={sig?.combinedSignal ?? null}
+                                          onClick={() => setScoreDialog({ ticker: h.ticker, art: 'signal' })} />
                                         {sig && sig.qualitaet == null && sig.bewertung == null && (
                                           <p className="text-[10px] text-gray-500 mt-2">
                                             Scores noch nicht berechnet — der stündliche Lauf trägt sie nach.
@@ -3491,6 +3499,13 @@ export default function PortfolioDetailsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Erklär-Dialog der Scores — dieselbe Komponente wie die Titelseite. */}
+      <ScoreErklaerDialog
+        ticker={scoreDialog?.ticker ?? ""}
+        art={scoreDialog?.art ?? null}
+        onClose={() => setScoreDialog(null)}
+      />
     </DashboardLayout>
   );
 }
