@@ -169,17 +169,21 @@ const KPI_DEFS: Record<KpiKey, KpiDef> = {
     formula: "Dividendenrendite = Dividende je Aktie ÷ Aktienkurs × 100",
     description:
       "Zeigt, wie viel Prozent des investierten Kapitals jährlich als Dividende ausgeschüttet wird. Hohe Rendite kann attraktiv sein, aber auch auf Kursrückgang oder Risiko hinweisen.",
+    // Farben folgen der Bedeutung (Befund 19.08.): «Attraktiv» (3–6 %) war
+    // orange gefärbt und las sich als Warnung, «Moderat» dafür grün. Neu:
+    // Moderat türkis (positiv-neutral), Attraktiv grün — nur das obere Ende
+    // bleibt rot (sehr hohe Rendite ist ein Risikosignal, LISP-Lehre).
     scaleZones: [
       { label: "Niedrig", color: "#64748b", width: 25 },
-      { label: "Moderat", color: "#22c55e", width: 35 },
-      { label: "Hoch", color: "#f59e0b", width: 25 },
+      { label: "Moderat", color: "#00CFC1", width: 35 },
+      { label: "Attraktiv", color: "#22c55e", width: 25 },
       { label: "Risiko?", color: "#ef4444", width: 15 },
     ],
     zonenGrenzen: [0, 1, 3, 6, 10],
     benchRows: [
       { range: "0 – 1%", label: "Wachstumsorientiert, kaum Ausschüttung", color: "#64748b" },
-      { range: "1 – 3%", label: "Moderat — typischer Schweizer Markt", color: "#22c55e" },
-      { range: "3 – 6%", label: "Attraktiv — guter Einkommensstrom", color: "#f59e0b" },
+      { range: "1 – 3%", label: "Moderat — typischer Schweizer Markt", color: "#00CFC1" },
+      { range: "3 – 6%", label: "Attraktiv — guter Einkommensstrom", color: "#22c55e" },
       { range: "> 6%", label: "Sehr hoch — Nachhaltigkeit prüfen!", color: "#ef4444" },
     ],
     tip: "Dividenden-Aristokraten: Unternehmen mit 25+ Jahren steigender Dividende.",
