@@ -141,9 +141,10 @@ export async function getDreiScores(
     sektor,
   });
 
-  // Timing braucht die Kursreihe; die liegt hier nicht vor. Der Cron traegt
-  // sie stuendlich nach — bis dahin rechnet das Signal aus Qualitaet und
-  // Bewertung (65 % Gewicht, ueber der Mindestabdeckung) statt gar nicht.
+  // Timing braucht die Kursreihe; die liegt hier nicht vor. Ohne Timing gibt
+  // es seit E1/E2 KEIN Signal mehr (die Bewertung traegt kein Signalgewicht;
+  // ein Signal nur aus Qualitaet duplizierte die Qualitaet). Der stuendliche
+  // Lauf traegt Timing und Signal nach.
   const { rechneSignal } = await import("./dreiScoreSignal");
   const sig = rechneSignal({
     qualitaet: qualitaet.gesamt, bewertung: bewertung.score, timing: null, regime: null,
@@ -168,7 +169,13 @@ export async function getDreiScores(
       faktoren: [],
       hinweis: "Noch nicht berechnet — der stündliche Lauf trägt das Timing nach",
     },
-    signal: { score: sig.score, label: sig.label, klartext: sig.klartext },
+    signal: {
+      score: sig.score,
+      label: sig.label,
+      klartext: sig.score === null
+        ? "Noch kein Signal — es braucht das Timing aus dem stündlichen Lauf"
+        : (sig.waechterHinweis ? `${sig.klartext} · ${sig.waechterHinweis}` : sig.klartext),
+    },
     bisher,
   };
 }
@@ -244,7 +251,7 @@ async function leseVorberechnet(ticker: string): Promise<DreiScores | null> {
         label: treffer.signalLabel,
         klartext: treffer.signalLabel === null
           ? "Zu wenige Scores für ein Signal"
-          : `Aus den drei Scores, gewichtet nach Marktlage (${treffer.regime ?? "neutral"})`,
+          : `Aus Qualität und Timing, gewichtet nach Marktlage (${treffer.regime ?? "neutral"}) — die Bewertung wirkt als Wächter`,
       },
       bisher,
     };

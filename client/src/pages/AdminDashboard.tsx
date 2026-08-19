@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { signalAnzeige } from "@shared/signalAnzeige";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Grid3x3, PieChart, Key, BarChart3, Eye, BrainCircuit, Activity, Wallet, Brain, RefreshCw, CheckCircle2, XCircle, TrendingUp, FlaskConical, AlertTriangle, Clock, Database, Upload, Zap, ScrollText, Settings, Calculator, SlidersHorizontal, Camera, Bell, Search, MessageSquare, Gauge, Globe, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
@@ -804,7 +805,7 @@ export default function AdminDashboard() {
           {(screenerStatusQ.data?.beste?.length ?? 0) > 0 && (
             <div className="border-t pt-3 space-y-2">
               <p className="text-xs font-medium">
-                Beste Kandidaten (sektorweise abwechselnd, je Sektor nach Signal-Score) — nicht in der Watchlist
+                Beste Kandidaten (sektorweise abwechselnd, je Sektor nach Qualität) — nicht in der Watchlist
                 <span className="text-muted-foreground font-normal">
                   {" "}· zeige {screenerStatusQ.data!.beste.length}
                   {screenerStatusQ.data?.lauf ? ` von ${screenerStatusQ.data.lauf.berechnet + screenerStatusQ.data.lauf.uebernommen + screenerStatusQ.data.lauf.abgelehnt} berechneten` : ""}
@@ -846,7 +847,7 @@ export default function AdminDashboard() {
                         </td>
                         <td className="py-1.5 pr-3 text-right font-mono font-bold">
                           {k.signalScore != null ? Math.round(k.signalScore) : "—"}
-                          {k.signalLabel ? ` (${k.signalLabel})` : ""}
+                          {k.signalLabel ? ` (${signalAnzeige(k.signalLabel)})` : ""}
                         </td>
                         <td className="py-1.5 pr-0 text-right whitespace-nowrap">
                           {k.status === "uebernommen" ? (

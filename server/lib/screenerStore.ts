@@ -535,16 +535,19 @@ export async function besteKandidaten(laufId: number, limit: number): Promise<Sc
   // laufId-Parameter (leere Screener-Karte, Befund 16.08.), und der zuerst als
   // SQL-Kommentar formulierte Warnhinweis enthielt selbst eines und
   // reproduzierte den Fehler gleich nochmal.
+  // E2 (REFORM_BEWERTUNG_SIGNAL.md): Die Rangfolge fuehrt die QUALITAET, nicht
+  // der Signal-Score — das Signal beschreibt den Zustand, es ordnet keine
+  // Kaufliste (und Kandidaten ohne Kursreihe haben seit E1 gar keines mehr).
   const res: any = await db.execute(sql`
     SELECT * FROM (
       SELECT k.*, ROW_NUMBER() OVER (
         PARTITION BY COALESCE(sektor, '')
-        ORDER BY (signalScore IS NULL), signalScore DESC, bewertung DESC
+        ORDER BY (qualitaet IS NULL), qualitaet DESC, bewertung DESC
       ) AS rangJeSektor
       FROM screener_kandidat k
       WHERE laufId = ${laufId} AND status IN ('berechnet', 'uebernommen', 'abgelehnt')
     ) t
-    ORDER BY rangJeSektor, (signalScore IS NULL), signalScore DESC, bewertung DESC
+    ORDER BY rangJeSektor, (qualitaet IS NULL), qualitaet DESC, bewertung DESC
     LIMIT ${limit}`);
   const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
   return (liste as any[]).map(mappeKandidat);
@@ -561,7 +564,7 @@ export async function alleKandidaten(laufId: number): Promise<ScreenerKandidat[]
   const res: any = await db.execute(sql`
     SELECT * FROM screener_kandidat
     WHERE laufId = ${laufId}
-    ORDER BY (signalScore IS NULL), signalScore DESC, marktKap DESC`);
+    ORDER BY (qualitaet IS NULL), qualitaet DESC, marktKap DESC`);
   const liste = Array.isArray(res) ? (res[0] ?? res) : (res?.rows ?? []);
   return (liste as any[]).map(mappeKandidat);
 }

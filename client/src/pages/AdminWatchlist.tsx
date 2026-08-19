@@ -476,13 +476,13 @@ export default function AdminWatchlist() {
             <Card>
               <CardContent className="pt-4 pb-4">
                 <div className="text-2xl font-bold text-green-600">{stats.buySignals}</div>
-                <div className="text-xs text-muted-foreground">Kaufsignale</div>
+                <div className="text-xs text-muted-foreground">Signal «Gut» oder besser</div>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 pb-4">
                 <div className="text-2xl font-bold text-red-600">{stats.sellSignals}</div>
-                <div className="text-xs text-muted-foreground">Verkaufssignale</div>
+                <div className="text-xs text-muted-foreground">Signal «Schwach» oder schlechter</div>
               </CardContent>
             </Card>
           </div>

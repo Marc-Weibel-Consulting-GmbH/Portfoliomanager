@@ -23,6 +23,15 @@ describe("Regime-Gewichte", () => {
     }
   });
 
+  it("E1: die Bewertung trägt in keinem Regime positives Gewicht — sie ist Wächter, kein Renditefaktor", () => {
+    // IC-Diagnose: Bewertung −0.021/−0.063/−0.093 über 1/6/12 Monate, nur 22 %
+    // der Stichtage richtig herum; der Rangtest belohnte die SCHLECHTESTEN
+    // Bewertungs-Titel. «Günstig» gibt keine Punkte mehr — Extreme deckeln unten.
+    for (const [name, w] of Object.entries(DEFAULT_SIGNAL_GEWICHTE)) {
+      expect(w.bewertung, `Regime ${name}`).toBe(0);
+    }
+  });
+
   it("gewichten in der Krise das Unternehmen höher als den Zeitpunkt", () => {
     const krise = DEFAULT_SIGNAL_GEWICHTE.crisis;
     expect(krise.qualitaet).toBeGreaterThan(krise.timing);
@@ -41,14 +50,35 @@ describe("Regime-Gewichte", () => {
 
 describe("rechneSignal", () => {
   it("rechnet die gewichtete Kombination nachvollziehbar", () => {
-    // default: 0.35 / 0.30 / 0.35
+    // default: Qualität 0.50 / Timing 0.50 — die Bewertung trägt kein Gewicht (E1).
     const r = rechneSignal({ qualitaet: 80, bewertung: 40, timing: 60, regime: "default" });
-    expect(r.score).toBeCloseTo(0.35 * 80 + 0.30 * 40 + 0.35 * 60, 1);
+    expect(r.score).toBeCloseTo(0.50 * 80 + 0.50 * 60, 1);
     expect(r.abdeckung).toBe(1);
   });
 
-  it("die Beiträge summieren zum Score — die Zahl ist prüfbar", () => {
-    const r = rechneSignal({ qualitaet: 70, bewertung: 18, timing: 73, regime: "bull" });
+  it("E1: eine bessere Bewertung hebt das Signal nicht mehr", () => {
+    const guenstig = rechneSignal({ qualitaet: 70, bewertung: 95, timing: 50, regime: "default" });
+    const teuer = rechneSignal({ qualitaet: 70, bewertung: 40, timing: 50, regime: "default" });
+    expect(guenstig.score).toBe(teuer.score);
+  });
+
+  it("E1: extreme Überbewertung deckelt das Signal — nie BUY für extrem teure Titel", () => {
+    // Bewertung ≤ 20 heisst: KGV-Deckel-Zone, PEG jenseits der Aussage. Ein
+    // solcher Titel kann höchstens HOLD sein, egal wie gut Qualität und
+    // Timing stehen — die Fallhöhe ist eingepreist, nicht die Chance.
+    const r = rechneSignal({ qualitaet: 90, bewertung: 15, timing: 90, regime: "default" });
+    expect(r.score).toBe(45);
+    expect(r.label).toBe("HOLD");
+    expect(r.waechterHinweis).toContain("begrenzt");
+    expect(r.beitraege.some((b) => b.name === "Bewertungs-Wächter")).toBe(true);
+    // Knapp über der Schwelle greift nichts.
+    const frei = rechneSignal({ qualitaet: 90, bewertung: 21, timing: 90, regime: "default" });
+    expect(frei.score).toBeCloseTo(90, 1);
+    expect(frei.waechterHinweis).toBeNull();
+  });
+
+  it("die Beiträge summieren zum Score — die Zahl ist prüfbar (ohne Wächter-Fall)", () => {
+    const r = rechneSignal({ qualitaet: 70, bewertung: 48, timing: 73, regime: "bull" });
     const summe = r.beitraege.reduce((s, b) => s + (b.beitrag ?? 0), 0);
     expect(summe).toBeCloseTo(r.score!, 0);
   });
@@ -60,16 +90,14 @@ describe("rechneSignal", () => {
     const vorher = rechneSignal({ qualitaet: 40, bewertung: 50, timing: 50, regime: "default" });
     const nachher = rechneSignal({ qualitaet: 80, bewertung: 50, timing: 50, regime: "default" });
     const differenz = nachher.score! - vorher.score!;
-    expect(differenz).toBeCloseTo(0.35 * 40, 1);
+    expect(differenz).toBeCloseTo(0.50 * 40, 1);
   });
 
-  it("verteilt das Gewicht eines fehlenden Scores auf die übrigen", () => {
+  it("eine fehlende Bewertung kostet keine Abdeckung mehr — sie trägt ohnehin kein Gewicht", () => {
     // Obligation: kein Bewertungs-Score, aber Qualität (Emittent) und Timing.
     const r = rechneSignal({ qualitaet: 70, bewertung: null, timing: 50, regime: "default" });
-    expect(r.score).not.toBeNull();
-    // 0.35 und 0.35 bleiben übrig, also je die Hälfte.
     expect(r.score).toBeCloseTo(60, 1);
-    expect(r.abdeckung).toBeCloseTo(0.70, 2);
+    expect(r.abdeckung).toBe(1);
   });
 
   it("gibt kein Signal, wenn nur ein Score vorliegt", () => {
@@ -77,6 +105,15 @@ describe("rechneSignal", () => {
     expect(r.score).toBeNull();
     expect(r.label).toBeNull();
     expect(r.abdeckung).toBeLessThan(MIN_ABDECKUNG_SIGNAL);
+  });
+
+  it("E2: ohne Timing gibt es kein Signal — der Screener führt die Qualität, keine Kaufliste", () => {
+    // Vorher trugen Qualität + Bewertung zusammen 65 % und ergaben ein
+    // «Signal ohne Timing». Mit der Bewertung als Wächter bliebe nur die
+    // Qualität — ein Signal, das die Qualität dupliziert, sagt nichts Neues.
+    const r = rechneSignal({ qualitaet: 85, bewertung: 90, timing: null, regime: "default" });
+    expect(r.score).toBeNull();
+    expect(r.abdeckung).toBeCloseTo(0.50, 2);
   });
 
   it("gibt kein Signal, wenn gar nichts vorliegt", () => {

@@ -1,9 +1,11 @@
 /**
- * Kaufsignale — Aktien-Sektion (F-14), geroutet unter /aktien/signale.
- * Alle Titel aus der Empfehlungsliste — Signal aus Qualität, Bewertung und Timing
- * mit aktueller Kaufempfehlung (STRONG BUY / BUY), plus Empfehlungs-Historie
- * (signals.getHistory aus signal_history inkl. Benchmark/Alpha).
- * Die portfolio-basierten Positions-Signale leben neu als Subtab im Portfolio.
+ * Signale — Aktien-Sektion (F-14), geroutet unter /aktien/signale.
+ *
+ * E2 (REFORM_BEWERTUNG_SIGNAL.md): Das Signal beschreibt den ZUSTAND eines
+ * Titels (Qualität und Timing, Bewertung als Wächter) — es ordnet keine
+ * Kaufliste. Die Seite zeigt die Titel im besten Zustand plus die
+ * Signal-Historie; die Kaufentscheidung bleibt beim kuratierten Universum
+ * mit Gleichgewichtung und Disziplin.
  */
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -13,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { TrendingUp, History } from "lucide-react";
+import { signalAnzeige } from "@shared/signalAnzeige";
 
 const ACTION_LABELS: Record<string, { label: string; className: string }> = {
   buy: { label: "Kaufen", className: "bg-green-500 hover:bg-green-600 text-white" },
@@ -39,14 +42,8 @@ function SignalBadge({ signal }: { signal: string }) {
     "STRONG BUY": "bg-emerald-500 text-white",
     "BUY": "bg-[#00CFC1] text-black",
   };
-  // UX2-8: deutsche Labels für die 50+-Zielgruppe (Datenwert bleibt englisch)
-  const label: Record<string, string> = {
-    "STRONG BUY": "Klar kaufen",
-    "BUY": "Kaufen",
-    "HOLD": "Halten",
-    "SELL": "Verkaufen",
-  };
-  return <Badge className={map[signal] ?? "bg-secondary"}>{label[signal] ?? signal}</Badge>;
+  // E2: neutrale Zustandsworte statt Kauforder (Datenwert bleibt englisch).
+  return <Badge className={map[signal] ?? "bg-secondary"}>{signalAnzeige(signal) ?? signal}</Badge>;
 }
 
 export default function Signals() {
@@ -69,23 +66,24 @@ export default function Signals() {
         {/* F-14: Aktien-Sektion mit Tabs «Titel | Kaufsignale» */}
         <AktienTabsNav active="signale" />
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Kaufsignale</h1>
+          <h1 className="text-3xl font-bold text-foreground">Signale</h1>
           <p className="text-muted-foreground mt-1">
-            Titel aus der Empfehlungsliste mit aktueller Kaufempfehlung — das Signal entsteht aus
-            Qualität, Bewertung und Timing, gewichtet nach Marktlage.
+            Titel aus der Empfehlungsliste im besten Zustand — das Signal entsteht aus Qualität
+            und Timing, gewichtet nach Marktlage; extreme Überbewertung deckelt es. Es beschreibt
+            den Titel, es ordnet keine Kaufliste.
           </p>
         </div>
 
         <Card>
           <CardHeader>
-            <CardTitle>Kaufkandidaten ({buys.length})</CardTitle>
+            <CardTitle>Titel im besten Zustand ({buys.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Kaufsignale werden berechnet…</div>
+              <div className="text-center py-8 text-muted-foreground">Signale werden berechnet…</div>
             ) : buys.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
-                Aktuell keine Kaufsignale in der Empfehlungsliste.
+                Aktuell kein Titel der Empfehlungsliste im Band «Gut» oder besser.
               </div>
             ) : (
               <div className="space-y-3">

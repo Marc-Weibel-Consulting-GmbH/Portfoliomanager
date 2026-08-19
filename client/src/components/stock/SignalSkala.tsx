@@ -19,15 +19,21 @@ export const HALTEN_AB = 45;
 /** Grenze Halten→Kaufen. Spiegel von SCORE_BAENDER: BUY beginnt bei 60. */
 export const KAUFEN_AB = 60;
 
-/** Server-Label → deutsche Zone. Unbekanntes fällt auf die Score-Zone zurück. */
+/**
+ * Server-Label → deutsche Zone. Unbekanntes fällt auf die Score-Zone zurück.
+ *
+ * E2: Zustandsworte statt Kauforder — das Signal beschreibt den Titel, es
+ * ordnet keine Kaufliste (REFORM_BEWERTUNG_SIGNAL.md; der Rangtest zeigte,
+ * dass die Signal-Rangfolge keine Kaufauswahl trägt).
+ */
 function zone(label: string | null, score: number | null): string | null {
   if (label) {
-    if (label.includes("BUY")) return "Kaufen";
-    if (label.includes("SELL")) return "Verkaufen";
-    if (label === "HOLD") return "Halten";
+    if (label.includes("BUY")) return "Stark";
+    if (label.includes("SELL")) return "Schwach";
+    if (label === "HOLD") return "Neutral";
   }
   if (score === null) return null;
-  return score >= KAUFEN_AB ? "Kaufen" : score >= HALTEN_AB ? "Halten" : "Verkaufen";
+  return score >= KAUFEN_AB ? "Stark" : score >= HALTEN_AB ? "Neutral" : "Schwach";
 }
 
 export default function SignalSkala({
@@ -42,7 +48,7 @@ export default function SignalSkala({
   onClick?: () => void;
 }) {
   const z = zone(label, score);
-  const zonenFarbe = z === "Kaufen" ? "text-[#4ade80]" : z === "Verkaufen" ? "text-red-400" : "text-yellow-400";
+  const zonenFarbe = z === "Stark" ? "text-[#4ade80]" : z === "Schwach" ? "text-red-400" : "text-yellow-400";
 
   return (
     <div
@@ -52,7 +58,7 @@ export default function SignalSkala({
     >
       <div className="flex items-baseline justify-between mb-1">
         <span className="text-xs text-gray-400">
-          Signal <span className="text-gray-600">— aus den drei Scores abgeleitet</span>
+          Signal <span className="text-gray-600">— beschreibt den Zustand, ordnet keine Kaufliste</span>
         </span>
         {score !== null ? (
           <span className={`text-sm font-semibold ${zonenFarbe}`}>
@@ -84,14 +90,14 @@ export default function SignalSkala({
 
       {/* Zonen — Grenzen gespiegelt aus SCORE_BAENDER (Kaufen ab 60, Verkaufen unter 45). */}
       <div className="relative h-4 mt-1 text-[10px]">
-        <span className="absolute text-red-400/80" style={{ left: 0 }}>Verkaufen</span>
+        <span className="absolute text-red-400/80" style={{ left: 0 }}>Schwach</span>
         <span
           className="absolute -translate-x-1/2 text-yellow-400/80"
           style={{ left: `${(HALTEN_AB + KAUFEN_AB) / 2}%` }}
         >
-          Halten
+          Neutral
         </span>
-        <span className="absolute text-[#4ade80]/80" style={{ right: 0 }}>Kaufen</span>
+        <span className="absolute text-[#4ade80]/80" style={{ right: 0 }}>Stark</span>
       </div>
 
       {klartext && <p className="text-[11px] text-gray-500 mt-0.5">{klartext}</p>}

@@ -566,8 +566,8 @@ export default function Invest() {
             <Card className="hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => { setShowFilters(true); setSignalFilter("buy"); }}>
               <CardContent className="py-6 text-center">
                 <TrendingUp className="w-8 h-8 mx-auto mb-2 text-emerald-600" />
-                <div className="font-semibold">Kaufsignale</div>
-                <div className="text-xs text-muted-foreground mt-1">Aktuelle Empfehlungen</div>
+                <div className="font-semibold">Starke Signale</div>
+                <div className="text-xs text-muted-foreground mt-1">Titel im besten Zustand</div>
               </CardContent>
             </Card>
           </div>

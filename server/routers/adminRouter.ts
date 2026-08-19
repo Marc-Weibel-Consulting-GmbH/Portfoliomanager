@@ -3810,14 +3810,16 @@ export const adminRouter = router({
         }
       }
 
-      // KIMI Doku-Punkt 10: Das Signal im Screener rechnet OHNE Timing-Säule
-      // (keine Kurshistorie) — die externe Prüfung muss das sehen, sonst
-      // vergleicht sie gegen die Drei-Säulen-Formel und findet Abweichungen.
+      // E1/E2: Ohne Timing-Säule gibt es kein Signal mehr (die Bewertung trägt
+      // kein Signalgewicht; ein Signal nur aus Qualität duplizierte die
+      // Qualität) — die externe Prüfung muss das sehen, sonst wertet sie
+      // leere Signal-Spalten als Fehler.
       blatt3.addRow({});
       blatt3.addRow({
         ebene: "Hinweis",
-        segment: "Signal ohne Timing-Säule gerechnet — Qualität/Bewertung renormiert (rund 54/46). " +
-          "Timing folgt nach Übernahme in die Watchlist.",
+        segment: "Kandidaten ohne Kursreihe haben kein Signal (E1/E2: Bewertung ist Wächter, " +
+          "kein Signalgewicht) — die Rangfolge führt die Qualität. Signal folgt nach Übernahme " +
+          "in die Watchlist mit dem Timing des Stundenlaufs.",
       });
       // KIMI R6: Erst wenn diese Zeile 0 zeigt, ist der KGV-Punkt geschlossen.
       blatt3.addRow({
