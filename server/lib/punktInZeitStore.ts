@@ -37,11 +37,15 @@
  *     Anker 0 % → 0 P., 20 % → 100 P., Gewicht 15; EQ 20→15, Stabilität
  *     15→10, Brutto 10→5). Die Wachstums-HÖHE kam vorher nur als
  *     PEG-Nenner vor; ein stabiler Null-Wächser holte Bestnoten.
+ * 7 — ROIC-Wächter (Expedia-Befund): Kapitalrendite über der Obergrenze
+ *     150 % gilt als Nenner-Artefakt (Rückkäufe/Netto-Cash schrumpfen das
+ *     investierte Kapital auf einen Restposten) und wird ausgeblendet
+ *     (Renormierung) statt mit Bestnote belohnt.
  *
  * Ersetzt die frühere Behelfsprüfung «hat die Zeile ein Regime». Bei der
  * nächsten Formeländerung genügt eine neue Nummer.
  */
-export const FASSUNG = 6;
+export const FASSUNG = 7;
 
 let tabelleGeprueft = false;
 
