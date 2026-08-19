@@ -40,4 +40,18 @@ describe("applyHttpSecurityHeaders", () => {
     expect(headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
     expect(headers.get("Content-Security-Policy")).toContain("img-src 'self' data: blob: https:");
   });
+
+  it("lässt die TradingView-Widgets durch — Loader-Script und Widget-iframe", () => {
+    // Die CSP des Phase-2-Audits (nur 'self') liess seit dem 15.08. jede
+    // TradingView-Einbettung leer: Das Loader-Script kommt von
+    // s3.tradingview.com, das Widget selbst läuft als iframe von
+    // tradingview-widget.com (Live-Befund 19.08., Tab «Chart & TA»).
+    const { headers, response } = createResponse();
+
+    applyHttpSecurityHeaders(response, true);
+
+    const csp = headers.get("Content-Security-Policy")!;
+    expect(csp).toContain("script-src 'self' https://s3.tradingview.com");
+    expect(csp).toContain("frame-src 'self' https://*.tradingview.com https://*.tradingview-widget.com");
+  });
 });

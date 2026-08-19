@@ -6,11 +6,18 @@ const PRODUCTION_CSP = [
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "script-src 'self'",
+  // TradingView-Widgets (Chart & TA der Titelseite, Markt-Hub, Ticker-Tape):
+  // Das Loader-Script kommt von s3.tradingview.com, das Widget selbst läuft
+  // danach als iframe von tradingview-widget.com bzw. tradingview.com. Die
+  // CSP des Phase-2-Audits (nur 'self') liess seit dem 15.08. jede
+  // Einbettung leer (Live-Befund 19.08.) — die Freigabe bleibt bewusst auf
+  // genau diese Hosts begrenzt.
+  "script-src 'self' https://s3.tradingview.com",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self' data:",
   "img-src 'self' data: blob: https:",
   "connect-src 'self'",
+  "frame-src 'self' https://*.tradingview.com https://*.tradingview-widget.com",
 ].join("; ");
 
 /** Minimal transport-level hardening that remains compatible with local Vite. */
