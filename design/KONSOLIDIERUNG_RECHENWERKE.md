@@ -225,7 +225,10 @@ Benchmark bei idealerweise tieferem Risiko.
   Wächter-/Lücken-Logik statt 65er-Rangliste; `qualityScore`-Fallback und
   toten `driftThresholdPp` entfernen; F2/`signalWeights` aus dem Kundenpfad
   (Titel ohne F1-Basis zeigen ehrlich «—»).
-- **K4 — Wizard-Umbau (= E3)**: Auswahl = Wächter + Mindeststandards +
+- **K4 — Wizard-Umbau (= E3)** *(Vorab-Schnitt umgesetzt 20.08.: toter
+  buildProposal-Zweitpfad gelöscht, Feedback-Format-Bug gefixt,
+  +10-Kurations-Bonus entfernt. Offen: Auswahl über Wächter+Lücken statt
+  Score+Tilts, Pauschal-60, autoApply, Anlageklassen-Wahl im Profil)*: Auswahl = Wächter + Mindeststandards +
   Lücken-Logik statt Score+Tilts; Signaltyp aus F1; Pauschal-Scores und
   +10-Bonus raus (oder als deklarierte Kurationsregel); LLM-Rollen bleiben
   (Text/Kritik), `autoApply`-Zwang überdenken; Feedback-Format-Bug fixen
