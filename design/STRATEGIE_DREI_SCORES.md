@@ -381,6 +381,20 @@ dieses Dokument.
   Feedback-Loops). Dazu eine wöchentliche Cockpit-Meldung (Mo 05:30 UTC)
   an den Projektleiter — reiner Bericht; jede Übernahme läuft weiterhin
   ausschliesslich über die Freigabe-Klicks (L3).
+- **K4 (Vorab-Schnitt) — Wizard bereinigt (2026-08, ohne
+  FASSUNG-Wechsel).** Drei sichere Schnitte vor dem eigentlichen
+  E3-Umbau: (1) Der tote `buildProposal`-Zweitpfad (eigener kompletter
+  Vorschlags-Rechenweg mit eigener Sleeve-Zumischung und eigenem
+  stocksOnly-Default — die Wurzel des Multi-Asset-trotz-nur-Aktien-
+  Befunds) ist gelöscht; es gibt nur noch EINEN Vorschlagsweg
+  (startProposal). (2) Die Admin-Feedback-Schleife liest jetzt das echte
+  Schreibformat (`changes[]` statt der nie existierenden
+  reduced/increased/replaced-Felder) — der Kontext war vorher IMMER leer.
+  (3) Der versteckte Kurations-Bonus (+10) ist aus Ranking und
+  Fallback-Gewichtung entfernt; Kuratierung wirkt über die Filter.
+  OFFEN für den E3-Sprint: Auswahl über Wächter+Lücken-Logik statt
+  Score+Tilts, Pauschal-60 für Expansions-Kandidaten, autoApply-Zwang,
+  Anlageklassen-Wahl als Profil-Merkmal (braucht Schema-Migration).
 
 ## 6. Fahrplan
 

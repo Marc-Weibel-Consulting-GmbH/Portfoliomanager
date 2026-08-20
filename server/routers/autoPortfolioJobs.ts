@@ -293,8 +293,13 @@ export const startProposalProcedure = protectedProcedure
           } catch (expansionErr: any) { console.warn('[startProposal] Universe expansion non-fatal:', expansionErr?.message); }
           const allCandidates = [...scored, ...universalCandidates];
 
-          // Ranking + selection
-          const rankKey = (x: any) => { let score = x.combinedScore; if (goal === 'dividends') score += Math.min(x.dividendYield * 100, 5) * 2; if (watchlistRecTickers.has(x.stock.ticker.toUpperCase())) score += 10; return score; };
+          // Ranking + selection.
+          // K4 (Vorab-Schnitt, Befund 4): Der pauschale Kurations-Bonus (+10 für
+          // Empfehlungs-Titel) ist entfernt — Kuratierung wirkt bereits über die
+          // strengeren Filter für NICHT kuratierte Titel, ein zweiter versteckter
+          // Zuschlag verbog den Score. Der Dividenden-Tilt bleibt als
+          // deklarierte Profil-Regel (Ziel «dividends»).
+          const rankKey = (x: any) => { let score = x.combinedScore; if (goal === 'dividends') score += Math.min(x.dividendYield * 100, 5) * 2; return score; };
           const isBuyable = (x: any) => x.signal !== 'SELL' && x.scoreGrade !== 'F';
           let qualityTier: 'kaufkandidaten' | 'erweitert' | 'basis' = 'kaufkandidaten';
           const stableSort = (arr: any[]) => arr.sort((a, b) => { const diff = rankKey(b) - rankKey(a); if (diff !== 0) return diff; return (a.stock.ticker as string).localeCompare(b.stock.ticker as string); });
@@ -431,7 +436,8 @@ export const startProposalProcedure = protectedProcedure
             weightingSource = 'score_fallback';
             weightingNote = `Optimierung nicht möglich (${e?.message ?? 'unbekannter Fehler'}) — Gewichtung score-proportional.`;
             const maxCap = Math.max(params.maxPositionWeight, 1.2 / selected.length);
-            const scoringWithBonus = selected.map((c) => ({ ticker: c.stock.ticker, adjustedScore: c.combinedScore + (watchlistRecTickers.has(c.stock.ticker.toUpperCase()) ? 10 : 0) }));
+            // K4: score-proportional OHNE versteckten Kurations-Bonus.
+            const scoringWithBonus = selected.map((c) => ({ ticker: c.stock.ticker, adjustedScore: c.combinedScore }));
             const total = scoringWithBonus.reduce((s, c) => s + c.adjustedScore, 0) || 1;
             scoringWithBonus.forEach((c) => { weights[c.ticker] = c.adjustedScore / total; });
             let changed = true;
@@ -647,9 +653,25 @@ export const startProposalProcedure = protectedProcedure
               const { isNotNull, desc } = await import('drizzle-orm');
               const recentFeedback = await db!.select({ adminFeedback: portfolioProposalLog.adminFeedback }).from(portfolioProposalLog).where(isNotNull(portfolioProposalLog.adminFeedback)).orderBy(desc(portfolioProposalLog.createdAt)).limit(8);
               if (recentFeedback.length >= 2) {
-                const tickerActions: Record<string, { reduce: number; increase: number; replace: number; total: number }> = {};
-                for (const row of recentFeedback) { const fb = row.adminFeedback as any; if (!fb) continue; const changes: Array<{ ticker: string; action: string }> = [...(fb.reduced ?? []).map((t: string) => ({ ticker: t, action: 'reduce' })), ...(fb.increased ?? []).map((t: string) => ({ ticker: t, action: 'increase' })), ...(fb.replaced ?? []).map((t: string) => ({ ticker: t, action: 'replace' }))]; for (const c of changes) { if (!tickerActions[c.ticker]) tickerActions[c.ticker] = { reduce: 0, increase: 0, replace: 0, total: 0 }; tickerActions[c.ticker][c.action as 'reduce' | 'increase' | 'replace']++; tickerActions[c.ticker].total++; } }
-                const patterns = Object.entries(tickerActions).filter(([, v]) => v.total >= 2).map(([ticker, v]) => { const dominant = [...(['reduce', 'increase', 'replace'] as const)].sort((a, b) => v[b] - v[a])[0]; return `${ticker}: Admin hat ${v.total}x ${dominant === 'reduce' ? 'reduziert' : dominant === 'increase' ? 'erhöht' : 'ersetzt'}`; });
+                // K4 (Befund 8): Der Leser erwartete fb.reduced/increased/replaced,
+                // geschrieben wird aber fb.changes[{ticker, action:
+                // 'reduced'|'increased'|'removed'|'added'}] (approveProposalAndCreate).
+                // Der Kontext blieb dadurch IMMER leer — das «Lernen» fand nie statt.
+                // Jetzt wird das echte Schreibformat gelesen.
+                const tickerActions: Record<string, { reduce: number; increase: number; remove: number; add: number; total: number }> = {};
+                const AKTION_MAP: Record<string, 'reduce' | 'increase' | 'remove' | 'add'> = { reduced: 'reduce', increased: 'increase', removed: 'remove', added: 'add' };
+                for (const row of recentFeedback) {
+                  const fb = row.adminFeedback as any;
+                  const changes: Array<{ ticker?: string; action?: string }> = Array.isArray(fb?.changes) ? fb.changes : [];
+                  for (const c of changes) {
+                    const aktion = c.action ? AKTION_MAP[c.action] : undefined;
+                    if (!c.ticker || !aktion) continue;
+                    if (!tickerActions[c.ticker]) tickerActions[c.ticker] = { reduce: 0, increase: 0, remove: 0, add: 0, total: 0 };
+                    tickerActions[c.ticker][aktion]++;
+                    tickerActions[c.ticker].total++;
+                  }
+                }
+                const patterns = Object.entries(tickerActions).filter(([, v]) => v.total >= 2).map(([ticker, v]) => { const dominant = [...(['reduce', 'increase', 'remove', 'add'] as const)].sort((a, b) => v[b] - v[a])[0]; return `${ticker}: Admin hat ${v.total}x ${dominant === 'reduce' ? 'reduziert' : dominant === 'increase' ? 'erhöht' : dominant === 'remove' ? 'entfernt' : 'ergänzt'}`; });
                 if (patterns.length > 0) adminFeedbackContext = `\n\nHistorisches Admin-Feedback (letzte ${recentFeedback.length} genehmigte Vorschläge):\n${patterns.join('\n')}\nBerücksichtige diese Muster bei deinen Empfehlungen.`;
               }
             } catch (fbErr) { console.warn('[startProposal] Could not load admin feedback:', fbErr); }
