@@ -395,6 +395,20 @@ dieses Dokument.
   OFFEN für den E3-Sprint: Auswahl über Wächter+Lücken-Logik statt
   Score+Tilts, Pauschal-60 für Expansions-Kandidaten, autoApply-Zwang,
   Anlageklassen-Wahl als Profil-Merkmal (braucht Schema-Migration).
+- **FASSUNG 8 (2026-08): KGV-0-Punkte-Anker 20/35 → 40.** Marc-Befund
+  20.08.: Im Finanzwerte-Zweig gab schon ein KGV von 26.4 null Punkte
+  (Anker 20 = 0) — viel zu streng; der Faktor unterschied oberhalb von 20
+  nichts mehr, obwohl zwischen KGV 22 und KGV 45 fachlich Welten liegen.
+  Neuer 0-Punkte-Anker in BEIDEN Zweigen: 40 (vorher 20 Finanz, 35
+  übrige) — ein Anker, eine Aussage, kein Zweig strenger als der andere.
+  Die 100er-Anker bleiben (7 Finanz, 10 übrige): volle Punkte gibt es
+  weiterhin nur für wirklich billige Titel, und Finanzwerte müssen dafür
+  billiger sein, weil sie strukturell tiefere Multiplikatoren tragen.
+  Die Fallhöhe wirklich teurer Titel begrenzt unverändert der KGV-Deckel
+  (greift ab 30, PEG-Zweig). FASSUNG-Wechsel, weil die Rekonstruktion
+  ihr KGV selbst aus Kurs und EPS rechnet — die historischen Zeilen
+  müssen mit den neuen Ankern neu aufgebaut werden («Rekonstruieren» im
+  Admin), sonst mischen sich zwei Ankerwelten in einer Reihe.
 
 ## 6. Fahrplan
 

@@ -337,6 +337,34 @@ describe("Bewertung — hoch heisst günstig", () => {
     expect(kgvFaktor.hinweis).toContain("23.0-facher Jahresgewinn");
   });
 
+  it("FASSUNG 8: ein KGV um 26 gibt noch Punkte — 0 Punkte erst ab 40", () => {
+    // Marc-Befund 20.08.: Im Finanzwerte-Zweig gab KGV 26.4 null Punkte
+    // (Anker 20 = 0) — viel zu streng. Neuer 0-Punkte-Anker in beiden
+    // Zweigen: 40.
+    const immobilie = berechneBewertung({
+      adjustedPeg: null, kgv: 26.4, fcfRendite: null, dividendenrendite: 2.5,
+      kursBuchwert: 1.4, sektor: "Real Estate",
+    });
+    const kgvFinanz = immobilie.faktoren.find((f) => f.name === "KGV")!;
+    expect(kgvFinanz.punkte).toBeGreaterThan(30);
+    expect(kgvFinanz.rechnung).toContain("Anker: 40 = 0 Punkte");
+
+    const tech = berechneBewertung({
+      adjustedPeg: 1.5, kgv: 26.4, fcfRendite: 4, dividendenrendite: 1,
+      kursBuchwert: 8, sektor: "Technology",
+    });
+    const kgvTech = tech.faktoren.find((f) => f.name === "KGV")!;
+    expect(kgvTech.punkte).toBeGreaterThan(30);
+
+    // Ab 40 bleibt es bei 0 Punkten — die Fallhöhe sehr hoher KGV deckt
+    // zusätzlich der KGV-Deckel ab (greift ab 30).
+    const teuer = berechneBewertung({
+      adjustedPeg: 1.5, kgv: 41, fcfRendite: 4, dividendenrendite: 1,
+      kursBuchwert: 8, sektor: "Technology",
+    });
+    expect(teuer.faktoren.find((f) => f.name === "KGV")!.punkte).toBe(0);
+  });
+
   it("ein negatives KGV wird nicht als günstig gelesen", () => {
     // Ein Verlusttitel darf ueber den KGV-Deckel keinen Vorteil erhalten.
     const verlust = berechneBewertung({
@@ -450,9 +478,10 @@ describe("Kurs-Buchwert nur dort, wo er etwas aussagt", () => {
     });
     expect(r.faktoren.some((f) => f.name === "Kurs-Buchwert")).toBe(false);
     // FASSUNG 3: Das KGV traegt jetzt eigenes Gewicht — 35-facher Gewinn gibt
-    // dort 0 Punkte, der Gesamtscore landet bei «ambitioniert» statt «fair».
-    // Entscheidend bleibt: Der Buchwert (42x) hat die Zahl nicht auf null
-    // gezogen, der Score sagt weiterhin etwas aus.
+    // dort wenig Punkte (seit FASSUNG 8: knapp unter dem 0-Anker 40), der
+    // Gesamtscore landet bei «ambitioniert» statt «fair». Entscheidend bleibt:
+    // Der Buchwert (42x) hat die Zahl nicht auf null gezogen, der Score sagt
+    // weiterhin etwas aus.
     expect(r.score).toBeGreaterThan(40);
     expect(bewertungsBand(r.score)).toBe("ambitioniert");
   });

@@ -507,12 +507,16 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
         rechnung: ankerRechnung(e.kursBuchwert === null || e.kursBuchwert <= 0 ? null : e.kursBuchwert, 3, 0.7),
         hinweis: e.kursBuchwert === null ? "nicht verfügbar" : `${e.kursBuchwert.toFixed(2)}-facher Buchwert`,
       },
+      // 0-Punkte-Anker 40 (FASSUNG 8, Marc-Entscheid 20.08.): Der alte Anker 20
+      // gab schon einem KGV von 26 null Punkte — der Faktor unterschied oberhalb
+      // von 20 nichts mehr. Der 100er-Anker bleibt bei 7: volle Punkte gibt es
+      // im Finanzzweig weiterhin nur für wirklich billige Titel.
       {
         name: "KGV",
         wert: e.kgv,
-        punkte: punkteAus(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 20, 7),
+        punkte: punkteAus(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 40, 7),
         gewicht: 0.30,
-        rechnung: ankerRechnung(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 20, 7),
+        rechnung: ankerRechnung(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 40, 7),
         hinweis: e.kgv === null ? "nicht verfügbar"
           : `${e.kgv.toFixed(1)}-facher Jahresgewinn${e.kgvHinweis ? ` · ${e.kgvHinweis}` : ""}`,
       },
@@ -548,15 +552,16 @@ export function berechneBewertung(e: BewertungsEingang): TeilScore {
     // bestraft billige Wenig-Wächser — ein KGV von 12 bei 4 % Wachstum ergibt
     // PEG 3 und damit 0 Punkte, und die Billigkeit selbst bekam nirgends
     // etwas gutgeschrieben. Der Deckel wirkte nur nach oben (teuer begrenzt),
-    // nie nach unten (billig belohnt). Anker grosszügiger als im
-    // Finanzwerte-Zweig, weil Nicht-Finanzwerte strukturell höhere
-    // Multiplikatoren tragen.
+    // nie nach unten (billig belohnt). 0-Punkte-Anker 40 in beiden Zweigen
+    // (FASSUNG 8); der 100er-Anker bleibt hier bei 10, weil Nicht-Finanzwerte
+    // strukturell höhere Multiplikatoren tragen. Die Fallhöhe sehr hoher KGV
+    // deckt weiterhin der Deckel ab (greift ab 30).
     {
       name: "KGV",
       wert: e.kgv,
-      punkte: punkteAus(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 35, 10),
+      punkte: punkteAus(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 40, 10),
       gewicht: 0.15,
-      rechnung: ankerRechnung(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 35, 10),
+      rechnung: ankerRechnung(e.kgv === null || e.kgv <= 0 ? null : e.kgv, 40, 10),
       hinweis: e.kgv === null ? "nicht verfügbar"
         : `${e.kgv.toFixed(1)}-facher Jahresgewinn${e.kgvHinweis ? ` · ${e.kgvHinweis}` : ""}`,
     },

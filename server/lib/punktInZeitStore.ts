@@ -41,11 +41,16 @@
  *     150 % gilt als Nenner-Artefakt (Rückkäufe/Netto-Cash schrumpfen das
  *     investierte Kapital auf einen Restposten) und wird ausgeblendet
  *     (Renormierung) statt mit Bestnote belohnt.
+ * 8 — KGV-0-Punkte-Anker 20/35 → 40 (Marc-Entscheid 20.08.): Der alte
+ *     Finanzwerte-Anker 20 gab schon einem KGV von 26 null Punkte — der
+ *     Faktor unterschied oberhalb von 20 nichts mehr. 100er-Anker
+ *     unverändert (7 Finanz, 10 übrige); sehr hohe KGV begrenzt weiterhin
+ *     der KGV-Deckel.
  *
  * Ersetzt die frühere Behelfsprüfung «hat die Zeile ein Regime». Bei der
  * nächsten Formeländerung genügt eine neue Nummer.
  */
-export const FASSUNG = 7;
+export const FASSUNG = 8;
 
 let tabelleGeprueft = false;
 
