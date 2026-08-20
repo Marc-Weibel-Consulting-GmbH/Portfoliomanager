@@ -39,7 +39,6 @@ const Dashboard = lazy(() => import("./pages/Dashboard"));
 const PortfolioDetailsPage = lazy(() => import("./pages/PortfolioDetailsPage"));
 const StockDetail = lazy(() => import("./pages/StockDetail"));
 const Invest = lazy(() => import("./pages/Invest"));
-const Signals = lazy(() => import("./pages/Signals"));
 const MarktHub = lazy(() => import("./pages/MarktHub"));
 const ResearchObservatory = lazy(() => import("./pages/ResearchObservatory"));
 const CopilotHub = lazy(() => import("./pages/CopilotHub"));
@@ -126,7 +125,6 @@ function Router() {
 
         {/* ═══ 3. AKTIEN ═══ */}
         <Route path="/aktien" component={Invest} />
-        <Route path="/aktien/signale" component={Signals} />
         <Route path="/aktien/:ticker" component={StockDetail} />
         <Route path="/stock/:ticker">
           {(params: { ticker?: string }) => <Redirect to={`/aktien/${params.ticker}`} />}

@@ -308,6 +308,13 @@ dieses Dokument.
   Schwelle); der nie benutzte driftThresholdPp-Parameter ist entfernt.
   Veraltete Erklärtexte («Kombinierter Score aus Momentum, Qualität und
   LPPL») ersetzt durch die Drei-Score-Beschreibung.
+- **K12 — Frontend entschlackt (2026-08, ohne FASSUNG-Wechsel).** Der
+  «Signale»-Tab im Portfolio-Detail und die Seite /aktien/signale sind
+  entfernt: Beide zeigten Labor-Signale (ML-`rfSignal`, Engine-Signale und
+  die `signal_history`-Historie) im Kundenpfad — L2/L4-Verstoss — und
+  doppelten die Positionsliste (Score-Spalten mit Klick-Dialogen) bzw. den
+  Optimierungs-Tab. Alte Links (?tab=signale) landen auf den Positionen.
+  Damit ist der letzte kundensichtbare Verbraucher der Labor-Signale weg.
 
 ## 6. Fahrplan
 

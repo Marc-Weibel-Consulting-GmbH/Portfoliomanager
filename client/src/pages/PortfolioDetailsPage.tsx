@@ -68,7 +68,6 @@ import { PortfolioEditModal } from "@/components/PortfolioEditModal";
 import { PortfolioSettingsModal } from "@/components/PortfolioSettingsModal";
 import { EditPositionModal } from "@/components/EditPositionModal";
 import { EditPositionFieldsModal } from "@/components/EditPositionFieldsModal";
-import { PortfolioSignalsTab } from "@/components/portfolio/PortfolioSignalsTab";
 import { TransactionModal } from "@/components/TransactionModal";
 import { SwissquotePDFImport } from "@/components/SwissquotePDFImport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -957,6 +956,9 @@ export default function PortfolioDetailsPage() {
     overview: 'uebersicht', positions: 'positionen', transactions: 'transaktionen',
     risk: 'risiko', optimize: 'optimierung', ai: 'optimierung',
     optimieren: 'optimierung', empfehlungen: 'optimierung',
+    // K12: Der Signale-Tab ist entfernt (zeigte Labor-Signale und doppelte
+    // die Positionsliste) — alte Links landen auf den Positionen mit Scores.
+    signale: 'positionen', signals: 'positionen',
   };
   const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
   const rawTab = searchParams.get('tab') || 'uebersicht';
@@ -964,7 +966,7 @@ export default function PortfolioDetailsPage() {
   const { detailed } = useViewDensity();
   const [activeTab, setActiveTab] = useState(urlTab);
   // Fortgeschrittene Tabs (nur «detailliert»): KI-Analysen + reine Kennzahlen.
-  const ADVANCED_TABS = ['deepdive', 'signale', 'risiko', 'optimierung'];
+  const ADVANCED_TABS = ['deepdive', 'risiko', 'optimierung'];
   const [posView, setPosView] = useState<'tabelle' | 'heatmap' | 'konstellation'>('tabelle');
   const [showDetailCols, setShowDetailCols] = useState(false);
   // Expandable row state for Positionen table
@@ -1842,7 +1844,6 @@ export default function PortfolioDetailsPage() {
               { value: 'uebersicht', label: 'Übersicht' },
               { value: 'deepdive', label: 'Deep-Dive', aiBadge: true },
               { value: 'positionen', label: `Positionen`, badge: holdings.length },
-              { value: 'signale', label: 'Signale', aiBadge: true },
               { value: 'transaktionen', label: 'Transaktionen', badge: transactions.length },
               { value: 'dividenden', label: 'Dividenden' },
               { value: 'performance', label: 'Performance' },
@@ -2843,10 +2844,6 @@ export default function PortfolioDetailsPage() {
           </TabsContent>
 
           {/* SIGNALE TAB — Handelssignale für die aktuellen Positionen dieses Portfolios */}
-          <TabsContent value="signale" className="mt-6">
-            <PortfolioSignalsTab portfolioId={portfolioId} portfolioValueCHF={totalValueCHF} />
-          </TabsContent>
-
           {/* TRANSACTIONS TAB — matches design: 4 KPIs + filter chips + table */}
           <TabsContent value="transaktionen" className="mt-6">
             {/* Demo-Info-Banner: Transaktionen sichtbar, aber keine Erfassung möglich */}
