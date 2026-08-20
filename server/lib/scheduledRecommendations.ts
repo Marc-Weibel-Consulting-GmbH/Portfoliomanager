@@ -4,21 +4,21 @@
  * Für jedes Portfolio mit gesetzter Kadenz (wöchentlich/monatlich/quartalsweise), dessen
  * nächste Aktualisierung fällig ist, wird eine Transaktions-Empfehlungsliste über die
  * bestehende Copilot-Analyse generiert und im Copilot-Verlauf gespeichert (abrufbar über
- * copilot.getHistory). Ist für das Portfolio `autoExecute` gesetzt (bewusst opt-in), werden
- * die vorgeschlagenen Umschichtungen zusätzlich als echte Transaktionen mit Audit-Notiz
- * angelegt.
+ * copilot.getHistory). K5 (design/KONSOLIDIERUNG_RECHENWERKE.md): Der frühere
+ * autoExecute-Pfad — echte Transaktionen aus dem portfoliorelativen
+ * Copilot-Score — ist entfernt. Empfehlungen werden nur noch gespeichert und
+ * gemeldet; umsetzen tut sie der Nutzer im Empfehlungen-Tab.
  *
  * Datenquelle ist ausschliesslich EODHD (siehe copilotHoldings) — kein Yahoo, keine
  * Platzhalter. Titel ohne Kursreihe werden übersprungen statt erfunden.
  */
 import { eq } from "drizzle-orm";
-import { getDb, createPortfolioTransaction } from "../db";
+import { getDb } from "../db";
 import { portfolioRecommendationConfig, savedPortfolios } from "../../drizzle/schema";
 import { isDue, cadenceLabel, type Cadence } from "./recommendationCadence";
 import { buildHoldingsEodhd } from "./copilotHoldings";
 import { runCopilotAnalysis, type PortfolioHolding, type RebalancingSuggestion } from "../analytics/portfolioCopilot";
 import { saveCopilotRecommendations } from "../analytics/copilotHistory";
-import { tryConvertToCHF } from "../fxHelper";
 import { notifyOwner } from "../_core/notification";
 
 /** Mindestlänge der Kursreihe, damit die Analyse ein belastbares Signal liefert. */
@@ -45,69 +45,7 @@ function actionToSignal(action: RebalancingSuggestion["action"]): "buy" | "sell"
   }
 }
 
-/**
- * Legt für die vorgeschlagenen Umschichtungen echte Transaktionen an (nur bei autoExecute).
- * Stückzahlen werden serverseitig aus den EODHD-Kursen abgeleitet (R-36-Logik):
- * shares = floor(|Zielwert − Istwert| / KursCHF). Titel ohne CHF-Kurs werden übersprungen.
- */
-async function applyAutoTrades(
-  portfolioId: number,
-  holdings: PortfolioHolding[],
-  suggestions: RebalancingSuggestion[],
-  todayStr: string
-): Promise<number> {
-  const byTicker = new Map(holdings.map((h) => [h.ticker, h]));
-
-  // Portfolio-Gesamtwert in CHF aus den EODHD-Holdings.
-  let totalValueCHF = 0;
-  const priceChfByTicker = new Map<string, number>();
-  for (const h of holdings) {
-    const priceChf = h.currency === "CHF" ? h.currentPrice : await tryConvertToCHF(h.currentPrice, h.currency, todayStr);
-    if (priceChf == null || priceChf <= 0) continue;
-    priceChfByTicker.set(h.ticker, priceChf);
-    totalValueCHF += h.shares * priceChf;
-  }
-  if (totalValueCHF <= 0) return 0;
-
-  let applied = 0;
-  for (const s of suggestions) {
-    if (s.action === "hold") continue;
-    const h = byTicker.get(s.ticker);
-    const priceChf = priceChfByTicker.get(s.ticker);
-    if (!h || priceChf == null || h.currentPrice <= 0) continue;
-
-    const currentValueCHF = h.shares * priceChf;
-    const deltaCHF = s.targetWeight * totalValueCHF - currentValueCHF;
-    const qty = Math.floor(Math.abs(deltaCHF) / priceChf);
-    if (qty <= 0) continue;
-
-    const action = deltaCHF > 0 ? "buy" : "sell";
-    const fxRate = priceChf / h.currentPrice;
-    const totalAmount = qty * h.currentPrice;
-    try {
-      await createPortfolioTransaction({
-        portfolioId,
-        transactionType: action,
-        ticker: s.ticker,
-        shares: qty.toString(),
-        pricePerShare: h.currentPrice.toString(),
-        currency: h.currency,
-        totalAmount: totalAmount.toFixed(2),
-        fxRate: fxRate.toString(),
-        totalAmountCHF: (totalAmount * fxRate).toFixed(2),
-        fees: "0",
-        notes: `Automatische Empfehlung (Kadenz): ${action} ${qty} ${s.ticker}`,
-        transactionDate: new Date(),
-      });
-      applied++;
-    } catch (e) {
-      console.warn(`[recommendationCron] Auto-Trade ${s.ticker} fehlgeschlagen:`, (e as Error).message);
-    }
-  }
-  return applied;
-}
-
-/** Generiert (und ggf. führt aus) die Empfehlung für ein einzelnes fälliges Portfolio. */
+/** Generiert die Empfehlung für ein einzelnes fälliges Portfolio (nur speichern + melden). */
 async function processPortfolio(
   db: NonNullable<Awaited<ReturnType<typeof getDb>>>,
   cfg: { portfolioId: number; cadence: Cadence; autoExecute: number },
@@ -154,11 +92,9 @@ async function processPortfolio(
   await saveCopilotRecommendations(recs);
 
   const actionable = suggestions.filter((s) => s.action !== "hold");
-  let autoApplied = 0;
-  if (cfg.autoExecute === 1 && actionable.length > 0) {
-    const todayStr = new Date(nowMs).toISOString().split("T")[0];
-    autoApplied = await applyAutoTrades(cfg.portfolioId, holdings, actionable, todayStr);
-  }
+  // K5: keine automatische Ausführung mehr — ein gespeichertes autoExecute-Flag
+  // wird bewusst ignoriert (der Copilot-Score ist portfoliorelativ und
+  // beschreibend; echte Trades brauchen den Nutzer-Entscheid im Tab).
 
   await db
     .update(portfolioRecommendationConfig)
@@ -170,13 +106,11 @@ async function processPortfolio(
     content:
       `Für Ihr Portfolio «${portfolio.name}» liegt eine neue Transaktions-Empfehlungsliste vor.\n\n` +
       `**Handlungsvorschläge:** ${actionable.length} von ${suggestions.length} Positionen\n` +
-      (cfg.autoExecute === 1
-        ? `**Automatisch umgesetzt:** ${autoApplied} Transaktion(en)\n`
-        : `Öffnen Sie den Empfehlungen-Tab, um die Vorschläge einzeln oder gesamt zu übernehmen.\n`),
+      `Öffnen Sie den Empfehlungen-Tab, um die Vorschläge einzeln oder gesamt zu übernehmen.\n`,
   }).catch((e) => console.warn(`[recommendationCron] Benachrichtigung fehlgeschlagen:`, (e as Error).message));
 
   console.log(
-    `[recommendationCron] Portfolio ${cfg.portfolioId}: ${suggestions.length} Empfehlungen, ${autoApplied} auto-ausgeführt`
+    `[recommendationCron] Portfolio ${cfg.portfolioId}: ${suggestions.length} Empfehlungen gespeichert (keine Auto-Ausführung, K5)`
   );
 }
 

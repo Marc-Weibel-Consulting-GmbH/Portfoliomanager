@@ -11,8 +11,6 @@
  * Ranking > absolute price targets. Portfolio context > single stock view.
  */
 
-import { randomForestSignal } from './mlEngine';
-import { signalForSeries, getActiveSignalModel } from './signalService';
 import * as ss from 'simple-statistics';
 import { DEFAULT_RISK_FREE_RATE } from "./riskStats";
 
@@ -154,66 +152,27 @@ export async function calculateRankings(holdings: PortfolioHolding[]): Promise<R
     holding: PortfolioHolding;
     momentum: number;
     sharpe: number;
-    rfScore: number;
-    rfConfidence: number;
     volatility: number;
     maxDD: number;
-    fundamentalScore: number;
   }> = [];
 
   for (const h of holdings) {
     const prices = h.prices || [];
-    const volumes = h.volumes || [];
     
     const momentum = calculateMomentum(prices);
     const sharpe = calculateSharpeForStock(prices);
     const volatility = calculateVolatility(prices);
     const maxDD = calculateMaxDrawdown(prices);
     
-    // Random Forest signal
-    let rfScore = 50;
-    let rfConfidence = 0;
-    if (prices.length >= 100) {
-      const rf = await signalForSeries(getActiveSignalModel, () => randomForestSignal(prices, volumes, h.fundamentals || {}), 'gb_signal', prices);
-      rfScore = rf.score;
-      rfConfidence = rf.confidence;
-    }
-    
-    // Fundamental score (value + quality)
-    let fundamentalScore = 50;
-    if (h.fundamentals) {
-      const f = h.fundamentals;
-      let fScore = 0;
-      let fCount = 0;
-      
-      if (f.peRatio && f.peRatio > 0) {
-        // Lower PE = higher score (inverted, capped)
-        fScore += Math.max(0, Math.min(100, 100 - f.peRatio * 2));
-        fCount++;
-      }
-      if (f.pegRatio && f.pegRatio > 0) {
-        // PEG < 1 is attractive
-        fScore += Math.max(0, Math.min(100, 100 - f.pegRatio * 40));
-        fCount++;
-      }
-      if (f.dividendYield) {
-        // Higher dividend = higher score (capped at 8%)
-        fScore += Math.min(100, f.dividendYield * 15);
-        fCount++;
-      }
-      
-      if (fCount > 0) fundamentalScore = fScore / fCount;
-    }
-    
+    // K5: RF-ML-Signal und PE/PEG-Fundamental-Score sind aus der Rechnung
+    // entfernt (Labor bzw. E1-Widerspruch) — der Copilot beschreibt nur noch
+    // Preisverhalten relativ zum eigenen Bestand.
     rawScores.push({
       holding: h,
       momentum,
       sharpe,
-      rfScore,
-      rfConfidence,
       volatility,
       maxDD,
-      fundamentalScore,
     });
   }
 
@@ -232,49 +191,44 @@ export async function calculateRankings(holdings: PortfolioHolding[]): Promise<R
 
   const normMomentum = normalize(rawScores.map(s => s.momentum));
   const normSharpe = normalize(rawScores.map(s => s.sharpe));
-  const normRF = normalize(rawScores.map(s => s.rfScore));
   const normVol = normalize(rawScores.map(s => s.volatility), false); // lower is better
   const normDD = normalize(rawScores.map(s => s.maxDD), false); // lower is better
-  const normFundamental = normalize(rawScores.map(s => s.fundamentalScore));
 
   // Detect market regime from portfolio average momentum
   const avgMomentum = ss.mean(rawScores.map(s => s.momentum));
   const isBullRegime = avgMomentum > 0.02; // >2% avg momentum = bull
   const isBearRegime = avgMomentum < -0.05; // <-5% avg momentum = bear
 
-  // Composite score: weighted combination with regime-adaptive weights
-  // Bull: favor momentum & RF signals (aggressive)
-  // Bear: favor low volatility, low drawdown, fundamentals (defensive)
+  // Composite score (K5, design/KONSOLIDIERUNG_RECHENWERKE.md): NUR
+  // Preisgrössen — Momentum, Sharpe, Volatilität, Drawdown. Der ML-Anteil
+  // (RF 15–25 %) und der PE/PEG-Anteil («billig = gut», E1-Widerspruch)
+  // sind entfernt; die Gewichte je Regime sind auf die vier verbleibenden
+  // Faktoren renormiert. Der Wert bleibt PORTFOLIORELATIV (min-max im
+  // eigenen Bestand) und ist eine Beschreibung, keine Kaufliste.
   const compositeScores = rawScores.map((_, i) => {
     if (isBearRegime) {
-      // Defensive: prioritize safety
+      // Defensiv: Sicherheit zuerst
       return (
-        normMomentum[i] * 0.15 +
-        normSharpe[i] * 0.15 +
-        normRF[i] * 0.15 +
-        normVol[i] * 0.20 +
-        normDD[i] * 0.15 +
-        normFundamental[i] * 0.20
+        normMomentum[i] * 0.20 +
+        normSharpe[i] * 0.20 +
+        normVol[i] * 0.35 +
+        normDD[i] * 0.25
       );
     } else if (isBullRegime) {
-      // Aggressive: prioritize momentum & ML
+      // Offensiv: Momentum zuerst
       return (
-        normMomentum[i] * 0.35 +
-        normSharpe[i] * 0.20 +
-        normRF[i] * 0.25 +
-        normVol[i] * 0.05 +
-        normDD[i] * 0.05 +
-        normFundamental[i] * 0.10
+        normMomentum[i] * 0.50 +
+        normSharpe[i] * 0.30 +
+        normVol[i] * 0.10 +
+        normDD[i] * 0.10
       );
     } else {
-      // Neutral: balanced with momentum tilt
+      // Neutral: ausgewogen mit Momentum-Neigung
       return (
-        normMomentum[i] * 0.30 +
-        normSharpe[i] * 0.20 +
-        normRF[i] * 0.20 +
-        normVol[i] * 0.10 +
-        normDD[i] * 0.05 +
-        normFundamental[i] * 0.15
+        normMomentum[i] * 0.45 +
+        normSharpe[i] * 0.30 +
+        normVol[i] * 0.15 +
+        normDD[i] * 0.10
       );
     }
   });
@@ -290,9 +244,9 @@ export async function calculateRankings(holdings: PortfolioHolding[]): Promise<R
     const zScore = stdScore > 0 ? (compositeScores[i] - meanScore) / stdScore : 0;
     const outperformProbability = Math.round(normalCDF(zScore) * 100) / 100;
     
-    // Uncertainty: based on RF confidence and data availability
+    // Uncertainty: rein aus der Datenverfügbarkeit (K5: kein ML-Anteil mehr)
     const dataQuality = Math.min(1, (s.holding.prices?.length || 0) / 252);
-    const uncertainty = Math.round((1 - (s.rfConfidence * 0.5 + dataQuality * 0.5)) * 100) / 100;
+    const uncertainty = Math.round((1 - dataQuality) * 100) / 100;
     
     // Signal based on composite score
     let signal: RankingResult['signal'] = 'hold';
@@ -309,14 +263,8 @@ export async function calculateRankings(holdings: PortfolioHolding[]): Promise<R
     if (normSharpe[i] > 70) drivers.push(`Gutes Chance/Risiko (Sharpe ${s.sharpe.toFixed(2)})`);
     else if (normSharpe[i] < 30) drivers.push(`Schwaches Chance/Risiko (Sharpe ${s.sharpe.toFixed(2)})`);
     
-    if (normRF[i] > 70) drivers.push(`ML-Signal positiv (Score ${s.rfScore})`);
-    else if (normRF[i] < 30) drivers.push(`ML-Signal negativ (Score ${s.rfScore})`);
-    
     if (normVol[i] > 70) drivers.push(`Niedrige Volatilität (${(s.volatility * 100).toFixed(1)}%)`);
     else if (normVol[i] < 30) drivers.push(`Hohe Volatilität (${(s.volatility * 100).toFixed(1)}%)`);
-    
-    if (normFundamental[i] > 70) drivers.push('Attraktive Bewertung');
-    else if (normFundamental[i] < 30) drivers.push('Hohe Bewertung');
     
     if (s.maxDD > 0.2) drivers.push(`Hoher Drawdown (-${(s.maxDD * 100).toFixed(1)}%)`);
     

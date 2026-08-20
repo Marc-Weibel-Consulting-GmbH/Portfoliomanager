@@ -74,7 +74,10 @@ export default function PortfolioCopilot() {
             <div>
               <h1 className="text-2xl font-bold">Portfolio Copilot</h1>
               <p className="text-sm text-muted-foreground">
-                ML-basierte Entscheidungshilfe mit Ranking, Rebalancing und Risikowarnungen
+                Beschreibt Ihre Positionen relativ zueinander (Momentum, Chance/Risiko,
+                Schwankung, Verlusttiefe) — der beste Titel Ihres Bestands bekommt die
+                höchste Zahl, auch wenn er absolut nur mittelmässig ist. Die absolute
+                Beurteilung eines Titels liefert das Drei-Score-Signal auf der Titelseite.
               </p>
             </div>
           </div>
