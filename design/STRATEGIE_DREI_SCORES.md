@@ -352,6 +352,16 @@ dieses Dokument.
   Optimieren-Tab und Backtests gemeinsam gelesen und im Admin gepflegt;
   die tägliche Portfolio-Historie läuft ab Erstellung
   (portfolioMetricsSnapshot).
+- **K5 — Copilot entschärft (2026-08, ohne FASSUNG-Wechsel).** Der
+  Copilot-Composite rechnet nur noch mit Preisgrössen (Momentum, Sharpe,
+  Volatilität, Drawdown) — der ML-Anteil (RF 15–25 %) und der
+  PE/PEG-Anteil («billig = gut», E1-Widerspruch) sind entfernt, die
+  Regime-Gewichte renormiert. Der Wert bleibt portfoliorelativ und wird im
+  UI ausdrücklich so erklärt. Die automatische Ausführung
+  (autoExecute-Trades aus dem Relativ-Score) ist stillgelegt: Empfehlungen
+  werden gespeichert und gemeldet, umgesetzt nur durch den Nutzer; der
+  Schalter ist aus dem UI entfernt, ein gespeichertes Flag wird ignoriert.
+  Der Portfolio-Deep-Dive beschreibt statt zu empfehlen.
 
 ## 6. Fahrplan
 

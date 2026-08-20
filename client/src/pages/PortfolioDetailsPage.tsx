@@ -515,14 +515,14 @@ function EmpfehlungenTab({ portfolioId }: { portfolioId: number }) {
             <option value="quarterly">Quartalsweise</option>
           </select>
         </div>
-        <label className="flex items-center gap-2 mt-3 text-xs text-gray-400">
-          <input
-            type="checkbox"
-            checked={config?.autoExecute ?? false}
-            onChange={(e) => setConfig.mutate({ portfolioId, cadence: cadence as any, autoExecute: e.target.checked })}
-          />
-          Vorschläge automatisch ausführen (sonst manuelle Bestätigung) — <span className="text-yellow-500/80">mit Vorsicht aktivieren</span>
-        </label>
+        {/* K5: Die automatische Ausführung ist stillgelegt — der Copilot-Wert ist
+            portfoliorelativ und beschreibend; echte Trades brauchen den
+            Nutzer-Entscheid. Der Schalter ist entfernt, ein evtl. gespeichertes
+            Flag wird serverseitig ignoriert. */}
+        <p className="mt-3 text-xs text-gray-500">
+          Vorschläge werden nie automatisch ausgeführt — Sie übernehmen sie einzeln
+          oder gesamt im Empfehlungen-Tab.
+        </p>
       </div>
 
       {/* Aktuelle Empfehlungsliste */}
