@@ -171,6 +171,23 @@ dem Cockpit zuordenbar sein — was keiner dient, wird nicht gebaut):**
 | **S5 Ausweisen** | Jedes Portfolio (auch automatisch erstellte) hat ab Tag 1 eine lückenlose Historie und Kennzahlen in drei kundenklaren Kategorien: **Rendite** (Wertentwicklung, vs. Benchmark), **Risiko** (Schwankung, Sharpe), **Verlustrisiko** (max. Drawdown, Verlust-Ratio). Eine Definition je Kennzahl, überall gleich (L1) | Kennzahlen vorhanden, aber uneinheitlich definiert und nicht kategorisiert; Portfolio-Quality-Score als zweites Universum (Befund 9) | K6 + K10 |
 | **S6 Überwachen** | Alerts (Kauf, Verkauf, Aufstocken, Reduzieren) kommen aus der Kernrechnung + Wächter-/Lücken-Logik — dieselbe Zahl, die der Kunde sieht | Alerts feuern auf F3/F4 (Befund 12) | K2/K3 |
 
+**Befund zur Stations-Konsistenz (Marc, 20.08.): «Nur Aktien» geht auf dem
+Weg zum KI-Protokoll verloren.** Die Wahl «Nur Aktien vs. Multi-Asset gemäss
+Profil» ist heute KEIN Merkmal des gespeicherten Anlegerprofils, sondern ein
+flüchtiger Parameter des einzelnen Wizard-Aufrufs
+(PortfolioBuilderWizard.tsx:179/556 → `input?.stocksOnly ?? false`,
+autoPortfolioJobs.ts:85). Jeder Vorschlagsweg, der diesen Parameter nicht
+mitbringt, fällt still auf Multi-Asset zurück — u. a. der Alt-Pfad
+`buildProposal` (autoPortfolioRouter.ts:737) mit eigenem Default und eigener,
+leicht abweichender Sleeve-Zumischung (autoPortfolioRouter.ts:741 ohne
+`assetClassTolerancePct` vs. autoPortfolioJobs.ts:477 — ein Formel-Duplikat
+im Sinne von L1). So erklärt sich, dass das KI-Analyse-Protokoll ein
+Multi-Asset-Portfolio zeigen kann, obwohl im Wizard bewusst «nur Aktien»
+gewählt wurde. **Konsequenz (K4/K10):** Die Anlageklassen-Wahl wird Teil des
+gespeicherten Anlegerprofils (eine Wahrheit), ALLE Vorschlagswege lesen sie
+von dort; der Alt-Pfad fällt (war in K4 ohnehin vorgesehen); das
+KI-Protokoll weist die Wahl sichtbar aus.
+
 **Projektleiter-Cockpit (Steuerung muss so einfach sein wie die Kunden-App):**
 EINE Admin-Übersichtsseite, nach Schichten gruppiert: Datenqualitäts-Ampeln
 (S2), Konsistenz-Status der Rechenwerke, Lauf-Status der Crons, offene
@@ -265,6 +282,29 @@ K12 ist der schnelle Aufräum-Gewinn im Frontend, K9 sichert die Datenbasis,
 K10 liefert die Rahmenregeln, auf denen der Wizard-Umbau K4 aufsetzt;
 K11 kommt zuletzt, weil das Cockpit den konsolidierten Zustand überwachen
 soll, nicht den heutigen Wildwuchs.
+
+### Admin-Bereich: von 24 Kacheln zu fünf Gruppen (Marc, 20.08.)
+
+Der Admin-Bereich zählt heute **24 eigenständige Seiten** (App.tsx:171-197)
+— historisch gewachsen, ohne Ordnung nach dem Zielbild. Ziel: **fünf
+Gruppen**, jede Seite gehört genau in eine; was in keine passt oder nach
+den Paketen funktionslos wird, fliegt raus. Zuordnungsvorschlag (finale
+Sichtung je Seite im jeweiligen Paket):
+
+| Gruppe (Zielbild-Schicht) | Seiten | Verdikt |
+|---|---|---|
+| **1 · Cockpit** (Einstieg) | `/admin` (Dashboard) | wird zur K11-Übersichtsseite: Datenampeln, Konsistenz, Läufe, offene Vorschläge |
+| **2 · Universum & Daten** (S1/S2, Schicht B) | `watchlist`, `wikifolio`, `data-import`, `categories`, `sectors` | bleiben; `watchlist-candidates` in die Screener-Karte des Dashboards integrieren (Doppelung); `categories`+`sectors` zu einer Stammdaten-Seite zusammenlegen; `gap-filling` ist durch den Screener ersetzt → stilllegen |
+| **3 · Rechnung & Transparenz** (Schicht A) | `berechnungen`, `kpis`, `screenshots` | `berechnungen` bleibt (Rechenbuch); `kpis`/`screenshots` sichten: zusammenlegen oder in Doku überführen |
+| **4 · Messung** (Schicht C, read-only) | `improvement-timeline`, `proposal-analysis`, `feedback-dashboard` | Timeline bleibt; `proposal-analysis` bleibt (K4 fixt die Ersatz-Score-Quelle); `feedback-dashboard` zeigt die defekte Schleife → nach K4-Entscheid stilllegen oder in proposal-analysis aufgehen lassen |
+| **5 · Labor** (Schicht D, Banner) | `signal-performance`, `ml-trainer`, `optimizer`, `algo-backtest` | bleiben markiert als Labor (K1/K7) |
+| **Betrieb** (keine Rechenwerke) | `settings`, `secrets`, `logs`, `research` | bleiben als Werkzeuge; `research` sichten |
+| **Nach Konsolidierung funktionslos** | `signal-config` (F2-Gewichte), `alert-config` (F3-Schwellen), `score-config` (Portfolio-Quality-Gewichte) | nach K1/K2/K6 stilllegen — Konfigurationsseiten für Formeln, die es dann nicht mehr gibt |
+
+Damit schrumpft der Admin-Bereich von 24 Kacheln auf **rund 14 Seiten in
+fünf klar beschrifteten Gruppen** plus Betrieb — die Navigation folgt dem
+Zielbild statt der Entstehungsgeschichte. Umsetzung verteilt auf K8
+(Navigation/Gruppierung), K11 (Cockpit) und K12 (Stilllegungen).
 
 ## 9. Was ausdrücklich NICHT geändert wird
 
