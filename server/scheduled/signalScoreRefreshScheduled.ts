@@ -1,10 +1,14 @@
 /**
- * Daily Signal Score Refresh Scheduled Handler
+ * Daily Metrics Refresh Scheduled Handler
  *
  * Triggered daily at 07:00 UTC via Heartbeat cron.
- * Recalculates signalScore, signalType, and key metrics for ALL stocks in the DB
- * using EODHD fundamentals (P/E, Dividend Yield, PEG ratio) and
- * 52W range derived from historicalPrices table.
+ * Refreshes key metrics (P/E, PEG, Dividend Yield, 52W range) for ALL stocks
+ * using EODHD fundamentals and the historicalPrices table.
+ *
+ * K2 (EIN Signal für Badges & Alerts): Die frühere vierte Signalformel
+ * `calcSignalScore` ist entfernt — `stocks.signalScore`/`signalType` werden
+ * ausschliesslich aus dem Drei-Score-Signal übernommen (watchlistAlertsCron →
+ * stock_signal_cache). Dieser Handler fasst die Signalspalten nicht mehr an.
  *
  * NOTE: Backfill and YTD recalculation run in separate Heartbeat jobs
  * (ytdRecalc at 06:30 UTC) to stay within the 2-minute handler timeout.
@@ -13,74 +17,6 @@
  */
 import type { Request, Response } from "express";
 import { alsProzent } from "../lib/dividendenrendite";
-
-/**
- * Calculate signal score from fundamental and technical metrics.
- *
- * `divYield` steht in PROZENT (1.51 = 1.51 %) — dieselbe Konvention wie
- * `stocks.dividendYield` und `fetchEODHDFundamentals`. Vorher erwartete die
- * Funktion einen Bruch, bekam aber Prozent: Jeder Titel mit irgendeiner
- * Ausschüttung überschritt damit die oberste Schwelle und erhielt +15 Punkte.
- * Apple (0.31 % Rendite) wurde so als «Sehr hohe Dividende» geführt.
- */
-export function calcSignalScore(params: {
-  pe: number | null;
-  peg: number | null;
-  divYield: number | null; // Prozent (4 = 4 %)
-  priceVs52wLow: number | null; // 0-1 position between 52w low and high
-  ytdPerf: number | null; // percentage e.g. -20.9 or +12.0
-}): { score: number; signalType: "buy" | "sell" | "hold"; reasons: string[] } {
-  let score = 50;
-  const reasons: string[] = [];
-  const { pe, peg, divYield, priceVs52wLow, ytdPerf } = params;
-
-  // 1) P/E scoring
-  if (pe !== null) {
-    if (pe < 10) { score += 15; reasons.push(`Sehr niedriges P/E (${pe.toFixed(1)})`); }
-    else if (pe < 15) { score += 12; reasons.push(`Niedriges P/E (${pe.toFixed(1)})`); }
-    else if (pe < 20) { score += 6; reasons.push(`Moderates P/E (${pe.toFixed(1)})`); }
-    else if (pe > 60) { score -= 15; reasons.push(`Sehr hohes P/E (${pe.toFixed(1)})`); }
-    else if (pe > 40) { score -= 8; reasons.push(`Hohes P/E (${pe.toFixed(1)})`); }
-  }
-
-  // 2) Dividend yield scoring — Schwellen in Prozent (6 %, 4 %, 2.5 %)
-  if (divYield !== null) {
-    if (divYield > 6) { score += 15; reasons.push(`Sehr hohe Dividende (${divYield.toFixed(1)}%)`); }
-    else if (divYield > 4) { score += 12; reasons.push(`Hohe Dividende (${divYield.toFixed(1)}%)`); }
-    else if (divYield > 2.5) { score += 6; reasons.push(`Gute Dividende (${divYield.toFixed(1)}%)`); }
-    else if (divYield === 0) { score -= 2; }
-  }
-
-  // 3) 52W position scoring (contrarian: near lows = potential value)
-  if (priceVs52wLow !== null) {
-    if (priceVs52wLow < 0.15) { score += 15; reasons.push(`Nahe 52W-Tief (${(priceVs52wLow * 100).toFixed(0)}%)`); }
-    else if (priceVs52wLow < 0.30) { score += 8; reasons.push(`Unter 52W-Mitte (${(priceVs52wLow * 100).toFixed(0)}%)`); }
-    else if (priceVs52wLow > 0.95) { score -= 10; reasons.push(`Am 52W-Hoch (${(priceVs52wLow * 100).toFixed(0)}%)`); }
-    else if (priceVs52wLow > 0.85) { score -= 5; reasons.push(`Nahe 52W-Hoch (${(priceVs52wLow * 100).toFixed(0)}%)`); }
-  }
-
-  // 4) PEG scoring
-  if (peg !== null) {
-    if (peg < 0.8) { score += 12; reasons.push(`PEG sehr niedrig (${peg.toFixed(2)})`); }
-    else if (peg < 1.2) { score += 5; reasons.push(`PEG moderat (${peg.toFixed(2)})`); }
-    else if (peg > 3) { score -= 8; reasons.push(`PEG hoch (${peg.toFixed(2)})`); }
-  }
-
-  // 5) YTD momentum scoring
-  if (ytdPerf !== null) {
-    if (ytdPerf > 25) { score += 10; reasons.push(`Starkes YTD-Momentum (+${ytdPerf.toFixed(1)}%)`); }
-    else if (ytdPerf > 10) { score += 6; reasons.push(`Gutes YTD-Momentum (+${ytdPerf.toFixed(1)}%)`); }
-    else if (ytdPerf > 0) { score += 2; reasons.push(`Positives YTD (${ytdPerf.toFixed(1)}%)`); }
-    else if (ytdPerf < -25) { score -= 15; reasons.push(`Starker YTD-Rückgang (${ytdPerf.toFixed(1)}%)`); }
-    else if (ytdPerf < -15) { score -= 10; reasons.push(`YTD-Rückgang (${ytdPerf.toFixed(1)}%)`); }
-    else if (ytdPerf < -8) { score -= 5; reasons.push(`Leichter YTD-Rückgang (${ytdPerf.toFixed(1)}%)`); }
-  }
-
-  score = Math.max(0, Math.min(100, score));
-  const signalType: "buy" | "sell" | "hold" =
-    score >= 70 ? "buy" : score <= 30 ? "sell" : "hold";
-  return { score, signalType, reasons };
-}
 
 export interface SignalScoreRefreshResult {
   ok: boolean;
@@ -167,14 +103,11 @@ export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult>
 
         // 52W range from pre-computed map
         const range = rangeMap.get(stock.ticker);
-        let priceVs52wLow: number | null = null;
         let high52w: number | null = null;
         let low52w: number | null = null;
         if (range && range.high52 !== range.low52) {
           high52w = range.high52;
           low52w = range.low52;
-          priceVs52wLow = (currentPrice - low52w) / (high52w - low52w);
-          priceVs52wLow = Math.max(0, Math.min(1, priceVs52wLow));
         }
 
         // `fetchEODHDFundamentals` liefert bereits Prozent (eodhdApi.ts rechnet
@@ -182,26 +115,14 @@ export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult>
         // genau das erzeugte die 151 für ABBs 1.51 %.
         const divYield = alsProzent(fundamentals.dividendYield, "signalScoreRefresh/EODHD");
 
-        const ytdPerf = parseFloat(stock.ytdPerformance ?? "0") || null;
-
-        const { score, signalType, reasons } = calcSignalScore({
-          pe: fundamentals.peRatio,
-          peg: fundamentals.pegRatio,
-          divYield,
-          priceVs52wLow,
-          ytdPerf,
-        });
-
-        // Update stock in DB
+        // K2: reine Kennzahlen-Auffrischung — signalScore/signalType/aiReason
+        // gehören dem Drei-Score-Signal und werden hier nicht mehr geschrieben.
         await db.update(stocksTable).set({
           peRatio: fundamentals.peRatio?.toString() ?? stock.peRatio,
           pegRatio: fundamentals.pegRatio?.toString() ?? stock.pegRatio,
           dividendYield: divYield != null ? divYield.toFixed(4) : stock.dividendYield,
           week52High: high52w?.toString() ?? stock.week52High,
           week52Low: low52w?.toString() ?? stock.week52Low,
-          signalScore: score,
-          signalType,
-          aiReason: reasons.slice(0, 3).join(" · ") || null,
           lastMetricsUpdate: new Date(),
         }).where(eq(stocksTable.id, stock.id));
 

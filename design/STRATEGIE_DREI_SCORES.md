@@ -278,6 +278,21 @@ dieses Dokument.
   ML-Trainer-Seite. Kein FASSUNG-Wechsel: Die drei Score-Formeln und
   `rechneSignal` sind unberührt; gestoppt wurden nur ungegatete
   Schreibpfade in Labor-/Fallback-Konfigurationen.
+- **K2 — EIN Signal für Badges & Alerts (2026-08, ohne FASSUNG-Wechsel).**
+  `stocks.signalScore`/`signalType` wurden von zwei eigenen Formeln
+  gefüllt (Alert-Heuristik `computeWatchlistSignalScore` und
+  `calcSignalScore`) — auf /aktien stand damit ein Badge aus einem anderen
+  Modell als die Zahl daneben. Beide Formeln sind entfernt; die Spalten
+  werden ausschliesslich aus dem Drei-Score-Signal übernommen
+  (`kernsignalUebernahme.ts` liest `stock_signal_cache`). Push-/WhatsApp-
+  Hinweise feuern nur noch am starken Rand des Kernsignals, beim
+  Zustands-Übergang, mit 7-Tage-Cooldown; Texte neutral («sehr guter /
+  schwacher Zustand»). Titel ohne Kernsignal zeigen ehrlich «—» statt
+  «Halten». Der «KI-Empfohlen»-Generator heisst ehrlich «Titel-Vorschläge
+  aus kuratierten Listen» und vergibt keine Scores mehr; die
+  alertConfig-Seite trägt ein Ohne-Wirkung-Banner (Rückbau in K12).
+  Kein FASSUNG-Wechsel: Kernrechnung unberührt — es wurden nur
+  Zweitformeln durch die eine Rechnung ersetzt.
 
 ## 6. Fahrplan
 
