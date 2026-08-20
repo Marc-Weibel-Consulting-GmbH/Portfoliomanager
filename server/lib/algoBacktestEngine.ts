@@ -393,9 +393,10 @@ export async function evaluateBacktestRun(runId: number): Promise<{ success: boo
     evaluatedAt: new Date(),
   }).where(eq(algoBacktestRuns.id, runId));
 
-  // Feedback-Loop Stufe 2: Sektor-Tilt-Alpha in signalWeights zurückschreiben
+  // Feedback-Loop Stufe 2 (K1): Sektor-Tilt-Alpha nur noch als Vorschlag ins
+  // algoTuningLog berichten — signalWeights werden NICHT mehr angefasst.
   // (läuft asynchron, blockiert nicht den Response)
-  applyFeedbackLoopToSignalWeights(runId).catch((e: any) =>
+  berichteFeedbackLoopVorschlag(runId).catch((e: any) =>
     console.error("[algoFeedback] Fehler:", e?.message)
   );
 
@@ -652,30 +653,33 @@ async function applyTuningRecommendations(runId: number, llmAnalysis: any, run: 
 }
 
 // ============================================================
-// 4b. FEEDBACK-LOOP (Stufe 2): Sektor-Tilt-Alpha → signalWeights
+// 4b. FEEDBACK-LOOP (Stufe 2): Sektor-Tilt-Alpha → nur BERICHT
 // ============================================================
 /**
- * Schreibt konsistente Sektor-Tilt-Alpha-Erkenntnisse als Gewichts-Anpassung
- * in die signalWeights-Tabelle zurück.
+ * Berechnet aus konsistenten Sektor-Tilt-Alpha-Erkenntnissen einen
+ * Gewichts-VORSCHLAG und dokumentiert ihn im algoTuningLog.
  *
- * Logik:
+ * K1 (Selbstlern-Stopp, L3): Diese Funktion schrieb früher die neuen
+ * Gewichte direkt aktiv in die signalWeights-Tabelle — ohne Gate. Seit K1
+ * wird NICHTS mehr angewendet: Der Vorschlag landet ausschliesslich als
+ * Log-Eintrag zur Sichtung; übernehmen kann ihn nur ein Admin über den
+ * Optimizer-Weg (mit Out-of-Sample-Gate).
+ *
+ * Logik unverändert:
  * - Analysiert die letzten 2+ abgeschlossenen Runs
- * - Wenn ein Sektor-Tilt in BEIDEN Runs positives Alpha (>1.5%) geliefert hat:
- *   → ytd-Gewicht leicht erhöhen (+0.01), momentum-Gewicht leicht erhöhen (+0.01)
- * - Wenn ein Sektor-Tilt in BEIDEN Runs negatives Alpha (<-1.5%) geliefert hat:
- *   → ytd-Gewicht leicht senken (-0.01)
- * - Overfitting-Schutz: Max. 1 Gewichtsanpassung alle 2 Monate
- * - Alle Änderungen werden im algoTuningLog dokumentiert
+ * - Sektor-Tilt in BEIDEN Runs Alpha > +1.5% → ytd/momentum +0.01 vorschlagen
+ * - Sektor-Tilt in BEIDEN Runs Alpha < −1.5% → ytd −0.01 vorschlagen
+ * - Max. 1 Vorschlag alle 2 Monate (Log-Spam-Schutz)
  */
-export async function applyFeedbackLoopToSignalWeights(currentRunId: number): Promise<void> {
+export async function berichteFeedbackLoopVorschlag(currentRunId: number): Promise<void> {
   const db = await getDb();
   if (!db) return;
 
-  const { algoBacktestRuns, algoBacktestPortfolios, algoTuningLog, signalWeights } = await import("../../drizzle/schema");
+  const { algoBacktestRuns, algoBacktestPortfolios, algoTuningLog } = await import("../../drizzle/schema");
   const { eq, desc, gte, and } = await import("drizzle-orm");
 
   try {
-    // Overfitting-Schutz: Keine Änderung wenn in den letzten 2 Monaten bereits eine Gewichtsanpassung
+    // Log-Spam-Schutz: Kein neuer Vorschlag, wenn in den letzten 2 Monaten bereits einer dokumentiert wurde
     const twoMonthsAgo = new Date();
     twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
     const recentWeightChanges = await db.select({ id: algoTuningLog.id })
@@ -685,7 +689,7 @@ export async function applyFeedbackLoopToSignalWeights(currentRunId: number): Pr
         eq(algoTuningLog.parameterChanged as any, "signalWeights.ytd+momentum")
       ));
     if (recentWeightChanges.length > 0) {
-      console.log("[algoFeedback] Gewichtsanpassung übersprungen: bereits eine Anpassung in den letzten 2 Monaten");
+      console.log("[algoFeedback] Vorschlag übersprungen: bereits einer in den letzten 2 Monaten dokumentiert");
       return;
     }
 
@@ -756,7 +760,7 @@ export async function applyFeedbackLoopToSignalWeights(currentRunId: number): Pr
     }
 
     if (consistentlyPositive === 0 && consistentlyNegative === 0) {
-      console.log("[algoFeedback] Keine konsistenten Sektor-Tilt-Signale über 2 Runs — keine Gewichtsanpassung");
+      console.log("[algoFeedback] Keine konsistenten Sektor-Tilt-Signale über 2 Runs — kein Vorschlag");
       return;
     }
 
@@ -785,47 +789,32 @@ export async function applyFeedbackLoopToSignalWeights(currentRunId: number): Pr
     newWeights.ytd = Math.max(0.03, Math.min(0.15, currentWeights.ytd + ytdDelta));
     newWeights.momentum = Math.max(0.05, Math.min(0.20, currentWeights.momentum + momentumDelta));
 
-    // Neue signalWeights in DB schreiben (als neue Zeile, alte deaktivieren)
-    await db.update(signalWeights).set({ isActive: 0 });
-    const newVersion = `algo-feedback-${new Date().toISOString().slice(0, 7)}`;
-    await db.insert(signalWeights).values({
-      name: newVersion,
-      weights: JSON.stringify(newWeights),
-      isActive: 1,
-      optimizerLog: JSON.stringify({
-        source: "algo_feedback_loop",
-        runId: currentRunId,
-        positiveEvidence,
-        negativeEvidence,
-        ytdDelta,
-        momentumDelta,
-        timestamp: new Date().toISOString(),
-      }),
-      lastRunAt: new Date(),
-    });
-
-    // Tuning-Log dokumentieren
+    // K1: KEIN Schreiben in signalWeights mehr — der Vorschlag wird nur
+    // dokumentiert (parameterChanged bleibt der bisherige Schlüssel, damit
+    // der 2-Monats-Schutz oben weiter greift).
+    const vorschlagsVersion = `vorschlag-algo-feedback-${new Date().toISOString().slice(0, 7)}`;
     const rationale = [
+      `VORSCHLAG (nicht angewendet — K1/L3, Übernahme nur per Admin-Entscheid).`,
       `Feedback-Loop Stufe 2: Sektor-Tilt-Alpha aus ${completedRuns.length} Runs analysiert.`,
       positiveEvidence.length > 0 ? `Konsistent positiv: ${positiveEvidence.join(", ")}` : "",
       negativeEvidence.length > 0 ? `Konsistent negativ: ${negativeEvidence.join(", ")}` : "",
-      `ytd: ${currentWeights.ytd.toFixed(3)} → ${newWeights.ytd.toFixed(3)}, momentum: ${currentWeights.momentum.toFixed(3)} → ${newWeights.momentum.toFixed(3)}`,
+      `Vorschlag ytd: ${currentWeights.ytd.toFixed(3)} → ${newWeights.ytd.toFixed(3)}, momentum: ${currentWeights.momentum.toFixed(3)} → ${newWeights.momentum.toFixed(3)}`,
     ].filter(Boolean).join(" | ");
 
     await db.insert(algoTuningLog).values({
       triggeredByRunId: currentRunId,
-      fromVersion: "default",
-      toVersion: newVersion,
+      fromVersion: "aktiv",
+      toVersion: vorschlagsVersion,
       parameterChanged: "signalWeights.ytd+momentum",
       oldValue: `ytd=${currentWeights.ytd.toFixed(3)},momentum=${currentWeights.momentum.toFixed(3)}`,
       newValue: `ytd=${newWeights.ytd.toFixed(3)},momentum=${newWeights.momentum.toFixed(3)}`,
       rationale,
       overfittingRisk: "low",
-      expectedImpact: `Sektor-Tilt-Alpha-Erkenntnisse in Signal-Scoring integriert (${consistentlyPositive} positive, ${consistentlyNegative} negative Sektoren)`,
+      expectedImpact: `Nur Bericht: Sektor-Tilt-Alpha-Beobachtung (${consistentlyPositive} positive, ${consistentlyNegative} negative Sektoren) — keine Gewichte geändert`,
       source: "llm_auto",
     });
 
-    console.log(`[algoFeedback] Gewichtsanpassung durchgeführt: ytd ${currentWeights.ytd.toFixed(3)}→${newWeights.ytd.toFixed(3)}, momentum ${currentWeights.momentum.toFixed(3)}→${newWeights.momentum.toFixed(3)}`);
+    console.log(`[algoFeedback] Vorschlag dokumentiert (nicht angewendet): ytd ${currentWeights.ytd.toFixed(3)}→${newWeights.ytd.toFixed(3)}, momentum ${currentWeights.momentum.toFixed(3)}→${newWeights.momentum.toFixed(3)}`);
   } catch (e: any) {
     console.error("[algoFeedback] Fehler im Feedback-Loop:", e?.message);
   }

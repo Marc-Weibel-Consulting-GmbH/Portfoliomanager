@@ -868,6 +868,26 @@ export const adminRouter = router({
         return { runs: rows };
       }),
 
+    /**
+     * K1 (Selbstlern-Stopp): ML-Modelle werden vom Cron nur noch als
+     * Kandidaten gespeichert — aktiv wird ein Modell ausschliesslich über
+     * diese manuelle Beförderung durch den Admin.
+     */
+    mlPromoteModel: adminProcedure
+      .input(z.object({ id: z.number().int().positive(), kind: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+        const { getDb } = await import('../db');
+        const db = await getDb();
+        if (!db) throw new Error('Datenbank nicht verfügbar');
+        const { promoteModelArtifact, createDbArtifactRepo } = await import('../analytics/modelStore');
+        const { getModelCache } = await import('../_core/modelCache');
+        const repo = createDbArtifactRepo(db);
+        const cache = await getModelCache();
+        const res = await promoteModelArtifact({ repo, cache }, { kind: input.kind, id: input.id });
+        return { promotedVersion: res.version };
+      }),
+
     // ─────────────────────────────────────────────────────────────────────
     // Signal Performance Analytics (Admin only)
     // ─────────────────────────────────────────────────────────────────────

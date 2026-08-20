@@ -1,88 +1,23 @@
 /**
- * Learning-Cron (K6, Learning-Koordination): schliesst die beiden Lernschleifen,
- * deren DATEN automatisch anfallen, deren LERNEN aber bisher nur per Admin-Klick
- * lief — ohne Klick blieben dauerhaft Default-Gewichte aktiv:
+ * Learning-Cron — seit K1 (Selbstlern-Stopp, design/KONSOLIDIERUNG_RECHENWERKE.md)
+ * bewusst OHNE selbständige Lernschleifen. Leitsatz L3: Messen ja,
+ * automatisches Übernehmen nein.
  *
- *  1. Regime-Engine-Priors (regimeSignalMemory.recomputeRegimeEngineWeights):
- *     lernt aus dem täglich gemessenen Out-of-Sample-Alpha (signalEvaluationCron),
- *     welche Signal-Engine in welchem Marktregime funktioniert.
- *     → wöchentlich So 03:15 UTC (nach einer Woche frischer Auswertungen).
+ * Entfernt wurden (Historie: PR #315-Ära, K1):
+ *  - Regime-Engine-Priors (So 03:15): schrieb wöchentlich engineWeights aus
+ *    dem signal_history-Alpha in regime_signal_config — ohne Gate, und auf
+ *    Basis einer Messung mit bekanntem Fenster-Fehler. Das Werkzeug bleibt
+ *    als Admin-Knopf erhalten (adminRouter → recomputeRegimeEngineWeights).
+ *  - Signal-Weight-Optimizer (monatlich 1. 04:10): tunte die F2-Fallback-
+ *    Gewichte unbeaufsichtigt. Der Lauf bleibt als Admin-Knopf erhalten
+ *    (optimizerRouter), dort weiterhin mit Out-of-Sample-Gate.
  *
- *  2. Signal-Weight-Optimizer (optimizerWorker.runOptimizerNonBlocking):
- *     Grid-Backtest der 7 Scoring-Gewichte über die Watchlist; Persistenz nur
- *     bei Erfolg (saveOptimizerResult aktiviert die neue Konfiguration).
- *     → monatlich am 1. um 04:10 UTC — bewusst VOR dem Algo-Backtest-Feedback-
- *       Loop (Heartbeat am 3.), der ytd/momentum in signalWeights leicht
- *       nachjustiert (algoBacktestEngine.applyFeedbackLoopToSignalWeights):
- *       so tunt das Grid zuerst, der Feedback-Loop justiert danach auf der
- *       frischen Basis. Die 5 NICHT grid-getunten Gewichte (rf/sentiment/
- *       bubble/quality/momentum) werden aus der aktiven Konfiguration
- *       übernommen statt auf Defaults zurückgesetzt — sonst würde jeder
- *       Optimizer-Lauf die Feedback-Loop-Anpassungen löschen.
- *       Gemeinsames Lock mit dem Admin-Button. (ML-Training separat Mo 02:37.)
- *
- * Beide Läufe sind non-fatal: Fehler werden geloggt, die App läuft mit den
- * zuletzt aktiven Gewichten weiter.
+ * Was bleibt, ist reine Messung (Schicht C) — sie ändert nie Parameter.
  */
 import cron from "node-cron";
 
 export function initLearningCron() {
-  // 1) Regime-Engine-Priors — So 03:15 UTC
-  cron.schedule("15 3 * * 0", async () => {
-    try {
-      const { recomputeRegimeEngineWeights } = await import("../analytics/regimeSignalMemory");
-      const res = await recomputeRegimeEngineWeights();
-      console.log(
-        `[learningCron] Regime-Priors aktualisiert: ${res.updatedRegimes} Regime aus ${res.evaluatedRows} ausgewerteten Signalen` +
-        (res.reason ? ` (${res.reason})` : "")
-      );
-    } catch (e: any) {
-      console.error("[learningCron] Priors-Recompute fehlgeschlagen (non-fatal):", e?.message);
-    }
-  });
-
-  // 2) Signal-Weight-Optimizer — monatlich am 1. um 04:10 UTC
-  cron.schedule("10 4 1 * *", async () => {
-    const { tryAcquireOptimizerLock, releaseOptimizerLock } = await import("../analytics/optimizerWorker");
-    if (!tryAcquireOptimizerLock()) {
-      console.log("[learningCron] Optimizer übersprungen — läuft bereits (Admin-Trigger).");
-      return;
-    }
-    try {
-      const { runOptimizerNonBlocking, saveOptimizerResult, getActiveWeights } = await import("../analytics/optimizerWorker");
-      const activeBefore = await getActiveWeights();
-      const result = await runOptimizerNonBlocking((msg) => console.log(`[learningCron][optimizer] ${msg}`), activeBefore);
-      // Nicht grid-getunte Gewichte aus der aktiven Konfiguration übernehmen —
-      // sie stammen ggf. aus dem Algo-Backtest-Feedback-Loop (manus, Stufe 2)
-      // und dürfen vom Grid-Lauf nicht auf Defaults zurückgesetzt werden.
-      result.bestWeights = {
-        ...result.bestWeights,
-        rf: activeBefore.rf,
-        sentiment: activeBefore.sentiment,
-        bubble: activeBefore.bubble,
-        quality: activeBefore.quality,
-        momentum: activeBefore.momentum,
-      };
-      const outcome = await saveOptimizerResult(result, { triggeredBy: "cron" });
-      // Einheit hängt am Massstab: Sharpe ist eine Verhältniszahl, die
-      // Trefferquote ein Prozentsatz. Ein festes «%» wäre bei Sharpe falsch.
-      const einheit = outcome.massstab === "sharpe" ? "" : "%";
-      const stellen = outcome.massstab === "sharpe" ? 2 : 1;
-      const zahl = (v: number | null) => (v == null ? "—" : `${v.toFixed(stellen)}${einheit}`);
-      const vergleich = `OOS (${outcome.massstab}) Kandidat ${zahl(outcome.candidateOos)} vs Incumbent ${zahl(outcome.incumbentOos)}`;
-      if (outcome.activated) {
-        console.log(`[learningCron] Signal-Gewichte aktiviert (Gate bestanden). ${vergleich}`);
-      } else {
-        console.log(`[learningCron] Kandidat verworfen (Gate: ${outcome.reason}). Incumbent bleibt aktiv. ${vergleich}`);
-      }
-    } catch (e: any) {
-      console.error("[learningCron] Optimizer fehlgeschlagen (non-fatal):", e?.message);
-    } finally {
-      releaseOptimizerLock();
-    }
-  });
-
-  // 3) Vorschlags-Erfolgsmessung (K9) — wöchentlich So 05:00 UTC.
+  // Vorschlags-Erfolgsmessung (K9) — wöchentlich So 05:00 UTC.
   // Reine Messung (realisierter 30-Tage-Return vs. SMI je Vorschlag),
   // keine automatische Parameter-Anpassung.
   cron.schedule("0 5 * * 0", async () => {
@@ -95,5 +30,5 @@ export function initLearningCron() {
     }
   });
 
-  console.log("[learningCron] Lernschleifen registriert (Priors So 03:15, Optimizer monatlich 1. 04:10, Vorschlags-Messung So 05:00 UTC)");
+  console.log("[learningCron] Nur Messung registriert (Vorschlags-Messung So 05:00 UTC) — Lernschleifen per K1 gestoppt, Werkzeuge nur noch per Admin-Knopf");
 }

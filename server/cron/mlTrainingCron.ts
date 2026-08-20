@@ -2,8 +2,9 @@
  * Weekly ML pre-training cron.
  *
  * Builds the universe + price series from the DB, calls the Python
- * analytics_service /analytics/train (GB + walk-forward + ONNX), then persists &
- * promotes the artifact. Training is disabled (logged + skipped) when
+ * analytics_service /analytics/train (GB + walk-forward + ONNX), then persists
+ * the artifact as CANDIDATE (K1: no auto-promotion — an admin activates it on
+ * the ML-Trainer page). Training is disabled (logged + skipped) when
  * ANALYTICS_SERVICE_URL is not configured, so the app runs fine without it.
  */
 import cron from "node-cron";
@@ -92,7 +93,11 @@ async function buildDeps(): Promise<TrainingJobDeps | null> {
     async persist(out, gate) {
       const repo = createDbArtifactRepo(db);
       const cache = await getModelCache();
-      return persistAndMaybePromote({ repo, cache }, out, gate);
+      // K1 (Selbstlern-Stopp): Der Cron aktiviert nie selbst — das Gate wird
+      // nur berichtet, die Beförderung entscheidet der Admin (ML-Trainer-Seite).
+      const res = await persistAndMaybePromote({ repo, cache }, out, gate, { autoPromote: false });
+      console.log(`[mlTraining] Kandidat v${res.version} gespeichert — Gate ${res.gateBestanden ? "bestanden" : "nicht bestanden"}, Aktivierung nur per Admin-Entscheid`);
+      return res;
     },
     log: (m: string) => console.log(m),
   };
