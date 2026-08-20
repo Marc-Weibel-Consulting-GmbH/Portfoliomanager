@@ -142,7 +142,58 @@ D LABOR (markiert «entscheidet nichts», kein Draht in A)
 Jede Admin-Seite und jedes Frontend-Element bekommt genau eine Schicht.
 Alles, was heute quer dazu liegt, wird per Paket verschoben oder stillgelegt.
 
-## 7. Konsolidierungspakete (je Paket separates OK)
+## 7. Soll-Ablauf: vom kuratierten Universum zum überwachten Portfolio
+
+*(Ergänzt am 20.08. auf Marcs Auftrag: sauberer Ablauf Watchlist → Wizard →
+Kundenportfolio, internes Meldewesen an den Projektleiter, laufendes Lernen
+auf Rendite UND Risiko, einfache Steuerung, nichts überladen.)*
+
+```
+S1 KURATIEREN      S2 DATENQUALITÄT     S3 RECHNEN         S4 BAUEN            S5 AUSWEISEN         S6 ÜBERWACHEN
+eigene Auswahl     Mindest-Historie     drei Scores        Wizard: Türsteher   Portfolio-Historie   Alerts aus F1:
+Wikifolio       →  Daten aktuell     →  + EIN Signal    →  + Rahmenregeln   →  ab Tag 1 + Kenn-  →  Kauf / Verkauf /
+Screener           Titel-Ampel          (FASSUNG)          (Grössen, Sektor)   zahlen in 3 Kat.     Aufstocken / Reduzieren
+      │                  │                                                            │
+      └──────────────────┴───────────── PROJEKTLEITER-COCKPIT ◄──────────────────────┘
+                          Meldungen: Datenlücken · Inkonsistenzen · Ausreisser ·
+                          Lern-Vorschläge (Lernwerkstatt) — Übernahme NUR mit Freigabe
+```
+
+**Die sechs Stationen (jede Funktion der App muss genau einer Station oder
+dem Cockpit zuordenbar sein — was keiner dient, wird nicht gebaut):**
+
+| Station | Verbindliche Regel | Stand heute | Paket |
+|---|---|---|---|
+| **S1 Kuratieren** | Aufnahme ins Universum aus drei Quellen (eigene Auswahl, Wikifolio, Screener), jede mit Herkunfts-Badge und Aufnahme-Check | Quellen-Badges und Screener-Protokoll vorhanden (#321); Aufnahme-Check uneinheitlich | K9 |
+| **S2 Datenqualität** | Jeder Titel trägt einen Gesamtstatus (vollständig / lückenhaft / veraltet) aus Historienlänge, Datenaktualität und Score-Basis. Ohne «vollständig» kein Signal-Ausweis, nur ehrliches «—» | Wächter je Kennzahl vorhanden, aber kein Titel-Gesamtstatus — z. B. laufen 3 Watchlist-Titel ohne Datenreihe unbemerkt mit | K9 |
+| **S3 Rechnen** | Kundensichtbar rechnet nur die FASSUNG (drei Scores + EIN Signal) — L1/L2 | fünf Parallelformeln (Teil A) | K2/K3 |
+| **S4 Bauen** | Wizard wählt über Türsteher + Mindeststandards + Lücken-Logik; Rahmenbedingungen (Positionsgrössen min/max, Sektor-/Regionen-Deckel, Cash) stehen in EINER deklarierten Regeltabelle, die Wizard UND Optimieren-Tab benutzen | Score-Rangliste + Tilts (Befund 4); Regeln verstreut und teils nur im Wizard | K4 + K10 |
+| **S5 Ausweisen** | Jedes Portfolio (auch automatisch erstellte) hat ab Tag 1 eine lückenlose Historie und Kennzahlen in drei kundenklaren Kategorien: **Rendite** (Wertentwicklung, vs. Benchmark), **Risiko** (Schwankung, Sharpe), **Verlustrisiko** (max. Drawdown, Verlust-Ratio). Eine Definition je Kennzahl, überall gleich (L1) | Kennzahlen vorhanden, aber uneinheitlich definiert und nicht kategorisiert; Portfolio-Quality-Score als zweites Universum (Befund 9) | K6 + K10 |
+| **S6 Überwachen** | Alerts (Kauf, Verkauf, Aufstocken, Reduzieren) kommen aus der Kernrechnung + Wächter-/Lücken-Logik — dieselbe Zahl, die der Kunde sieht | Alerts feuern auf F3/F4 (Befund 12) | K2/K3 |
+
+**Projektleiter-Cockpit (Steuerung muss so einfach sein wie die Kunden-App):**
+EINE Admin-Übersichtsseite, nach Schichten gruppiert: Datenqualitäts-Ampeln
+(S2), Konsistenz-Status der Rechenwerke, Lauf-Status der Crons, offene
+Lern-Vorschläge. Dazu ein aktives Meldewesen — der KI-Helfer meldet intern
+(nicht kundensichtbar), wenn: Datenlücken oder veraltete Titel auftreten,
+Kennzahlen-Ausreisser vorkommen (z. B. ROIC-Artefakte), Anzeigen sich
+widersprechen, oder die Lernwerkstatt eine Verbesserung gefunden hat.
+
+**Lernwerkstatt (ersetzt «Selbstlernen» — Leitsatz-Abgleich):** Marcs
+Anforderung «das System muss laufend lernen» wird bewusst NICHT als
+Selbst-Übernahme gebaut (das wäre ein L3-Verstoss und exakt der Fehler der
+heutigen Schleifen, Befund 5/6). Stattdessen: Die Messung (Schicht C) misst
+**laufend und korrekt** — fixes Horizont-Fenster, Mehrertrag gegen einen je
+Portfolio definierten **Benchmark**, immer Rendite UND Risiko zusammen
+(Alpha bei gleichzeitigem Blick auf Vola/Drawdown). Findet sie eine
+Verbesserung (Universum, Titelmix, Gewichtung, Alert-Schwellen), formuliert
+sie einen konkreten Vorschlag mit Out-of-Sample-Beleg («Gewicht X→Y:
+Alpha +0.4 %, Drawdown −1.1 pp») und meldet ihn ans Cockpit. Übernommen
+wird ausschliesslich nach Marcs Freigabe — dann regulär mit Änderungslog
+und FASSUNG-Disziplin. Ziel bleibt Marcs Formel: höhere Rendite als der
+Benchmark bei idealerweise tieferem Risiko.
+
+## 8. Konsolidierungspakete (je Paket separates OK)
 
 - **K1 — Selbstlern-Stopp** *(klein, risikoarm, zuerst)*: Regime-Priors-Cron
   und Algo-Feedback-Loop deaktivieren; ML-Promotion und Optimizer-Aktivierung
@@ -178,11 +229,44 @@ Alles, was heute quer dazu liegt, wird per Paket verschoben oder stillgelegt.
   Zahlen (healthScore) unterbinden, Admin-Navigation nach Schichten
   gruppieren, alle unter Befund 10 gelisteten Falschtexte korrigieren.
 
-**Empfohlene Reihenfolge:** K1 → K2 → K3 → K6/K8 → K5 → K7 → K4 (E3).
-K1–K3 zusammen beseitigen die kundenwirksamen Widersprüche; K4 ist das
-grösste Stück und war ohnehin als E3 vorgemerkt.
+- **K9 — Titel-Datenqualität & Kuratierungs-Ablauf** *(Soll-Ablauf S1/S2)*:
+  Pro Titel ein Gesamtstatus (vollständig / lückenhaft / veraltet) aus
+  Historienlänge, Datenaktualität und Score-Basis; sichtbar in Watchlist und
+  Universum; ohne «vollständig» kein Signal-Ausweis. Einheitlicher
+  Aufnahme-Check für alle drei Quellen; Status-Verschlechterungen erscheinen
+  als Cockpit-Meldung.
+- **K10 — Rahmenregeln & Portfolio-Ausweis** *(Soll-Ablauf S4/S5)*: EINE
+  deklarierte Regeltabelle (Positionsgrössen min/max, Sektor-/Regionen-
+  Deckel, Cash-Quote) für Wizard und Optimieren-Tab; einheitlich definierte
+  Portfolio-Kennzahlen in drei Kategorien (Rendite / Risiko / Verlustrisiko)
+  inkl. Benchmark-Vergleich; lückenlose Historie ab Portfolio-Erstellung.
+- **K11 — Projektleiter-Cockpit & Lernwerkstatt** *(Soll-Ablauf, letzter
+  Baustein)*: eine Admin-Übersichtsseite nach Schichten + internes
+  Meldewesen (Datenlücken, Inkonsistenzen, Ausreisser, Lern-Vorschläge);
+  Lernwerkstatt misst laufend Alpha UND Risiko gegen den Benchmark
+  (setzt das K7-Messfenster voraus) und stellt Out-of-Sample-geprüfte
+  Vorschläge zur Freigabe — nie zur Selbst-Übernahme.
+- **K12 — Frontend entschlacken** *(«nicht überladen»)*: redundante oder
+  konzeptwidrige Kundenansichten entfernen bzw. zusammenlegen. Erster
+  benannter Kandidat (Marc, 20.08.): der Tab **«Signale» im
+  Portfolio-Detail** fliegt raus — er zeigt pro Position Labor-Signale
+  (`rfSignal` = ML, `regimeSignal` = Engine, PortfolioSignalsTab.tsx:137/394)
+  im Kundenpfad (L2/L4-Verstoss) und ist redundant: die Positionsliste trägt
+  seit #316/#320 die Score-Spalten samt Klick-Dialogen, Handlungsvorschläge
+  wohnen im Optimierungs-Tab. Gleiche Komponente prüfen unter
+  `/aktien/signale`. Weitere Kandidaten je Sichtung: doppelte Routen-Altpfade
+  (`/stock/:ticker`, `/stocks/:ticker`, `/portfolio-builder/old|new`),
+  Dashboard-Insights vs. Copilot-Hub-Doppelung. Jede Entfernung einzeln
+  aufgelistet, nichts still gelöscht.
 
-## 8. Was ausdrücklich NICHT geändert wird
+**Empfohlene Reihenfolge:** K1 → K2 → K3 → K12 → K9 → K6/K8 → K10 → K5 →
+K7 → K11 → K4 (E3). K1–K3 beseitigen die kundenwirksamen Widersprüche,
+K12 ist der schnelle Aufräum-Gewinn im Frontend, K9 sichert die Datenbasis,
+K10 liefert die Rahmenregeln, auf denen der Wizard-Umbau K4 aufsetzt;
+K11 kommt zuletzt, weil das Cockpit den konsolidierten Zustand überwachen
+soll, nicht den heutigen Wildwuchs.
+
+## 9. Was ausdrücklich NICHT geändert wird
 
 - Keine Löschung von Mess-Historien (`signal_history`, Outcome-Tabellen,
   Schatten-Tabellen) — Messreihen sind wertvoll, auch wenn ihre Erzeuger
@@ -194,6 +278,6 @@ grösste Stück und war ohnehin als E3 vorgemerkt.
 
 ---
 
-*Merge dieser Vorlage = Zielbild und Paketschnitt sind angenommen. Die
-Umsetzung jedes Pakets K1–K8 braucht ein separates OK und läuft als eigener
-PR mit Tests und Änderungslog.*
+*Merge dieser Vorlage = Zielbild, Soll-Ablauf und Paketschnitt sind
+angenommen. Die Umsetzung jedes Pakets K1–K12 braucht ein separates OK und
+läuft als eigener PR mit Tests und Änderungslog.*
