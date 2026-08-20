@@ -90,3 +90,24 @@ Drizzle ORM (`drizzle/`), plus auxiliary services (`analytics_service/`, `tradin
 
 **Data integrity:** Prefer real server data over mock/placeholder values in UI. When a
 feature needs data the backend doesn't expose yet, say so rather than hardcoding.
+
+## 6. Konsistenz-Wächter (Architektur-Leitplanken)
+
+Massgeblich ist `design/KONSOLIDIERUNG_RECHENWERKE.md` (Leitsätze L1–L5) zusammen mit
+`design/STRATEGIE_DREI_SCORES.md`. Vor JEDER neuen Funktion oder Änderung an Rechenwerken:
+
+- **Leitsatz-Abgleich zuerst.** Prüfe die Idee gegen L1–L5 (eine Wahrheit pro Zahl;
+  kundensichtbar rechnet nur die FASSUNG; messen ja / automatisch übernehmen nein;
+  Labor markiert und folgenlos; keine Kaufranglisten). Verstösst die Idee gegen einen
+  Leitsatz, sage das VOR dem Bauen ausdrücklich und schlage die leitsatzkonforme
+  Variante vor. Kritisches Hinterfragen ist ausdrücklich erwünscht — auch bei Ideen
+  des Auftraggebers. Nicht stillschweigend umsetzen, was das Konzept verwässert.
+- **Keine neue Zahl ohne Heimat.** Jede neue kundensichtbare Kennzahl muss entweder aus
+  der bestehenden Kernrechnung (drei Scores + Signal) abgeleitet sein oder einen
+  begründeten Eintrag in der Strategie-Doku bekommen. Kein zweites Bewertungsuniversum,
+  keine fünfte Signalformel.
+- **Keine ungegatete Lernschleife.** Selbstlern-Mechanismen dürfen kundenwirksame
+  Parameter nie ohne Out-of-Sample-Gate und ausdrückliche Freigabe verändern.
+- **Konsistenz-Audit.** Eine wöchentliche Routine prüft main gegen diese Leitplanken
+  (neue Rechenwerke, Formel-Duplikate, Lernschleifen, Namensordnung) und meldet
+  Befunde als Draft-PR-Bericht. Änderungen an diesem Abschnitt nur mit Marcs OK.
