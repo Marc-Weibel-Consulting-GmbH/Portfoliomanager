@@ -7,6 +7,7 @@
  */
 
 import DashboardLayout from "@/components/DashboardLayout";
+import LaborBanner from "@/components/LaborBanner";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -93,6 +94,7 @@ export default function AdminOptimizer() {
           { label: "Signal Auto-Optimizer", icon: <Zap className="h-4 w-4" /> },
         ]}
       />
+      <LaborBanner zusatz={"Die getunten Gewichte betreffen nur die F2-Fallback-Formel — der Kundenpfad rechnet mit dem Drei-Score-Signal."} />
       <div className="p-6 space-y-6 max-w-6xl">
         <div className="flex items-center justify-between">
           <div>
@@ -101,7 +103,7 @@ export default function AdminOptimizer() {
               Signal Auto-Optimizer
             </h1>
             <p className="text-muted-foreground mt-1">
-              Backtestet alle Watchlist-Titel und optimiert die Indikator-Gewichtungen für maximale Trefferquote.
+              Backtestet alle Watchlist-Titel und optimiert die Indikator-Gewichtungen der F2-Fallback-Formel auf Netto-Sharpe (Out-of-Sample-Gate; die Trefferquote wird nur berichtet).
             </p>
           </div>
           <div className="flex gap-2">

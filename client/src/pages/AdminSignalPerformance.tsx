@@ -10,6 +10,7 @@
  * - Manuelle Trigger für Snapshot und Lookback-Evaluation
  */
 import { useState } from "react";
+import LaborBanner from "@/components/LaborBanner";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
@@ -286,8 +287,9 @@ export default function AdminSignalPerformance() {
           { label: "Signal-Performance", icon: <TrendingUp className="h-4 w-4" /> },
         ]}
       />
+      <LaborBanner zusatz={"Das Messfenster ist seit K7 auf den Signal-Horizont fixiert; führende Grösse ist das Alpha gegen den Benchmark, nicht die Trefferquote."} />
                   {data.engineStats
-                    .sort((a, b) => b.hitRate - a.hitRate)
+                    .sort((a, b) => (b.avgAlpha ?? -Infinity) - (a.avgAlpha ?? -Infinity))
                     .map(stat => (
                     <div key={stat.engine} className="border border-zinc-800 rounded-lg overflow-hidden">
                       {/* Engine-Zeile */}

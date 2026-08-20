@@ -1,4 +1,5 @@
 import { BrainCircuit } from "lucide-react";
+import LaborBanner from "@/components/LaborBanner";
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -109,6 +110,7 @@ export default function AdminMlTrainer() {
           { label: "ML Trainer", icon: <BrainCircuit className="h-4 w-4" /> },
         ]}
       />
+      <LaborBanner />
 
         {/* Header */}
         <div className="flex items-start justify-between">
@@ -308,8 +310,8 @@ export default function AdminMlTrainer() {
               <InfoItem label="Export" value="ONNX (für Produktion)" />
               <InfoItem label="Cron" value="Montag 02:37 UTC — speichert nur Kandidaten, Aktivierung manuell" />
               <InfoItem label="Features" value="ret_1d, ret_5d, ret_20d, mom_60d, vol_20d, rsi_14, px_vs_sma50" />
-              <InfoItem label="Label" value="20-Tage Forward-Return Richtung (1=steigt, 0=fällt)" />
-              <InfoItem label="Universum" value="Watchlist-Aktien (max. 80)" />
+              <InfoItem label="Label" value="30-Tage Forward-Return Richtung (1=steigt, 0=fällt)" />
+              <InfoItem label="Universum" value="Watchlist-Aktien (max. 300, Cron)" />
               <InfoItem label="Min. Datenpunkte" value="150 Handelstage pro Aktie" />
             </div>
           </CardContent>
