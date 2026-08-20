@@ -171,6 +171,23 @@ dem Cockpit zuordenbar sein — was keiner dient, wird nicht gebaut):**
 | **S5 Ausweisen** | Jedes Portfolio (auch automatisch erstellte) hat ab Tag 1 eine lückenlose Historie und Kennzahlen in drei kundenklaren Kategorien: **Rendite** (Wertentwicklung, vs. Benchmark), **Risiko** (Schwankung, Sharpe), **Verlustrisiko** (max. Drawdown, Verlust-Ratio). Eine Definition je Kennzahl, überall gleich (L1) | Kennzahlen vorhanden, aber uneinheitlich definiert und nicht kategorisiert; Portfolio-Quality-Score als zweites Universum (Befund 9) | K6 + K10 |
 | **S6 Überwachen** | Alerts (Kauf, Verkauf, Aufstocken, Reduzieren) kommen aus der Kernrechnung + Wächter-/Lücken-Logik — dieselbe Zahl, die der Kunde sieht | Alerts feuern auf F3/F4 (Befund 12) | K2/K3 |
 
+**Befund zur Stations-Konsistenz (Marc, 20.08.): «Nur Aktien» geht auf dem
+Weg zum KI-Protokoll verloren.** Die Wahl «Nur Aktien vs. Multi-Asset gemäss
+Profil» ist heute KEIN Merkmal des gespeicherten Anlegerprofils, sondern ein
+flüchtiger Parameter des einzelnen Wizard-Aufrufs
+(PortfolioBuilderWizard.tsx:179/556 → `input?.stocksOnly ?? false`,
+autoPortfolioJobs.ts:85). Jeder Vorschlagsweg, der diesen Parameter nicht
+mitbringt, fällt still auf Multi-Asset zurück — u. a. der Alt-Pfad
+`buildProposal` (autoPortfolioRouter.ts:737) mit eigenem Default und eigener,
+leicht abweichender Sleeve-Zumischung (autoPortfolioRouter.ts:741 ohne
+`assetClassTolerancePct` vs. autoPortfolioJobs.ts:477 — ein Formel-Duplikat
+im Sinne von L1). So erklärt sich, dass das KI-Analyse-Protokoll ein
+Multi-Asset-Portfolio zeigen kann, obwohl im Wizard bewusst «nur Aktien»
+gewählt wurde. **Konsequenz (K4/K10):** Die Anlageklassen-Wahl wird Teil des
+gespeicherten Anlegerprofils (eine Wahrheit), ALLE Vorschlagswege lesen sie
+von dort; der Alt-Pfad fällt (war in K4 ohnehin vorgesehen); das
+KI-Protokoll weist die Wahl sichtbar aus.
+
 **Projektleiter-Cockpit (Steuerung muss so einfach sein wie die Kunden-App):**
 EINE Admin-Übersichtsseite, nach Schichten gruppiert: Datenqualitäts-Ampeln
 (S2), Konsistenz-Status der Rechenwerke, Lauf-Status der Crons, offene
