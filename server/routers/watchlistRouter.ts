@@ -10,7 +10,8 @@ import { getWikifolioPortfolio, getWikifolioDetails, clearWikifolioSession, sear
 import { resolveIsinToTicker, isLikelyIsin } from '../lib/isinResolver';
 import { getUniverseListTypeFilter } from '../lib/watchlistUniverse';
 import { curated } from '../lib/stockUniverse';
-import { eq, like, or, and, desc, asc, sql, count, isNull } from "drizzle-orm";
+import { eq, like, or, and, desc, asc, sql, count, isNull, not } from "drizzle-orm";
+import { titelKategorie } from "../lib/titelKategorie";
 import YahooFinanceClass from "yahoo-finance2";
 import { loadAlertScoreConfig, computeWatchlistSignalScore, calcWilderRSI } from "../lib/watchlistSignalScore";
 import { fetchEODHDFundamentals } from '../_core/eodhdApi';
@@ -28,7 +29,10 @@ export const watchlistRouter = router({
   // Get all watchlist stocks with optional filters
   list: protectedProcedure
     .input(z.object({
-      source: z.enum(["manual", "ai_recommended", "wikifolio", "all"]).optional().default("all"),
+      // "screener" ist KEIN eigener Enum-Wert in der DB: Die Übernahme schreibt
+      // source=ai_recommended plus die Notes-Kennung "screener|lauf:<id>" —
+      // die Kennung trennt Screener-Übernahmen von echten KI-Empfehlungen.
+      source: z.enum(["manual", "ai_recommended", "wikifolio", "screener", "all"]).optional().default("all"),
       // "nicht_kuratiert" = Portfolio-Titel ohne Kuratierung (listType = NULL).
       listType: z.enum(["empfehlung", "watchlist", "alle", "nicht_kuratiert"]).optional().default("alle"),
       category: z.string().optional(),
@@ -59,8 +63,19 @@ export const watchlistRouter = router({
         }
       }
 
-      if (input.source && input.source !== "all") {
-        conditions.push(eq(watchlistStocks.source, input.source as "manual" | "ai_recommended" | "wikifolio"));
+      if (input.source === "screener") {
+        conditions.push(and(
+          eq(watchlistStocks.source, "ai_recommended"),
+          like(watchlistStocks.notes, "screener|%"),
+        ));
+      } else if (input.source === "ai_recommended") {
+        // Echte KI-Empfehlungen — ohne die Screener-Übernahmen.
+        conditions.push(and(
+          eq(watchlistStocks.source, "ai_recommended"),
+          or(isNull(watchlistStocks.notes), not(like(watchlistStocks.notes, "screener|%"))),
+        ));
+      } else if (input.source && input.source !== "all") {
+        conditions.push(eq(watchlistStocks.source, input.source as "manual" | "wikifolio"));
       }
       if (input.category) {
         conditions.push(eq(watchlistStocks.category, input.category));
@@ -112,7 +127,12 @@ export const watchlistRouter = router({
 
     const total = await db.select({ count: count() }).from(watchlistStocks).where(curated());
     const manual = await db.select({ count: count() }).from(watchlistStocks).where(and(curated(), eq(watchlistStocks.source, "manual")));
-    const aiRecommended = await db.select({ count: count() }).from(watchlistStocks).where(and(curated(), eq(watchlistStocks.source, "ai_recommended")));
+    // Screener-Übernahmen (Notes-Kennung) getrennt von echten KI-Empfehlungen.
+    const screener = await db.select({ count: count() }).from(watchlistStocks)
+      .where(and(curated(), eq(watchlistStocks.source, "ai_recommended"), like(watchlistStocks.notes, "screener|%")));
+    const aiRecommended = await db.select({ count: count() }).from(watchlistStocks)
+      .where(and(curated(), eq(watchlistStocks.source, "ai_recommended"),
+        or(isNull(watchlistStocks.notes), not(like(watchlistStocks.notes, "screener|%")))));
     const buySignals = await db.select({ count: count() }).from(watchlistStocks).where(and(curated(), eq(watchlistStocks.signalType, "buy")));
     const sellSignals = await db.select({ count: count() }).from(watchlistStocks).where(and(curated(), eq(watchlistStocks.signalType, "sell")));
     // F-13: counts per listType for the merged Empfehlungen/Watchlist view
@@ -125,6 +145,7 @@ export const watchlistRouter = router({
       total: total[0]?.count || 0,
       manual: manual[0]?.count || 0,
       aiRecommended: aiRecommended[0]?.count || 0,
+      screener: screener[0]?.count || 0,
       buySignals: buySignals[0]?.count || 0,
       sellSignals: sellSignals[0]?.count || 0,
       empfehlung: empfehlung[0]?.count || 0,
@@ -612,6 +633,31 @@ export const watchlistRouter = router({
     }),
 
   // Get unique categories and sectors for filter dropdowns
+  /**
+   * Stammdaten-Vorschau für den «Titel hinzufügen»-Dialog: Sektor, Name,
+   * Dividendenrendite und daraus die Kategorie — automatisch vorgeschlagen,
+   * statt dass der Admin sie abtippen muss (Marc-Wunsch 19.08.). Ein einzelner
+   * EODHD-Abruf; scheitert er, kommen nulls zurück und die Felder bleiben leer.
+   */
+  titelVorschau: adminProcedure
+    .input(z.object({ ticker: z.string().min(1).max(24) }))
+    .query(async ({ input }) => {
+      try {
+        const fundamentals = await fetchEODHDFundamentals(input.ticker.toUpperCase());
+        const sektor = fundamentals?.sector ?? null;
+        const dividendenrendite = fundamentals?.dividendYield != null && Number.isFinite(fundamentals.dividendYield)
+          ? fundamentals.dividendYield : null;
+        return {
+          name: fundamentals?.companyName ?? null,
+          sektor,
+          dividendenrendite,
+          kategorie: titelKategorie(sektor, dividendenrendite),
+        };
+      } catch {
+        return { name: null, sektor: null, dividendenrendite: null, kategorie: null };
+      }
+    }),
+
   getFilters: protectedProcedure.query(async ({ ctx }) => {
     if (ctx.user.role !== "admin") {
       throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
@@ -863,17 +909,9 @@ export const watchlistRouter = router({
       let imported = 0;
       const skipped: Array<{ isin: string; name: string; reason: string }> = [];
 
-      // Helper: derive category from EODHD fundamentals
-      const inferCategory = (sector: string | null, dividendYield: number | null): string | null => {
-        if (dividendYield !== null && dividendYield > 2.5) return 'Dividendenaktien';
-        if (sector) {
-          const s = sector.toLowerCase();
-          if (s.includes('technology') || s.includes('communication')) return 'Wachstumsaktien';
-          if (s.includes('financial') || s.includes('real estate')) return 'Value';
-          if (s.includes('consumer') || s.includes('health') || s.includes('utilities')) return 'Dividendenaktien';
-        }
-        return 'Wachstumsaktien'; // default
-      };
+      // Kategorie-Heuristik zentral in server/lib/titelKategorie.ts — dieselbe
+      // Zuordnung wie «Sektoren anreichern» und die Screener-Übernahme.
+      const inferCategory = titelKategorie;
 
       for (const item of equityItems) {
         try {
@@ -989,17 +1027,7 @@ export const watchlistRouter = router({
         ? allStocks.filter((s: any) => !s.sector || !s.category)
         : allStocks;
 
-      const inferCategory = (sector: string | null, dividendYield: number | null): string | null => {
-        if (dividendYield !== null && dividendYield > 2.5) return 'Dividendenaktien';
-        if (sector) {
-          const s = sector.toLowerCase();
-          if (s.includes('technology') || s.includes('communication') || s.includes('semiconductor')) return 'Wachstumsaktien';
-          if (s.includes('financial') || s.includes('real estate') || s.includes('bank')) return 'Value';
-          if (s.includes('consumer') || s.includes('health') || s.includes('utilities') || s.includes('pharma')) return 'Dividendenaktien';
-          if (s.includes('industrial') || s.includes('material') || s.includes('energy')) return 'Value';
-        }
-        return 'Wachstumsaktien';
-      };
+      const inferCategory = titelKategorie;
 
       let enriched = 0;
       let failed = 0;

@@ -103,6 +103,9 @@ export default function AdminDashboard() {
   // Qualität); Klick auf Qualität/Bewertung/Signal sortiert flach, zweiter
   // Klick dreht die Richtung, dritter kehrt zur Rotation zurück.
   const [kandidatenSort, setKandidatenSort] = useState<{ key: "qualitaet" | "bewertung" | "signalScore"; dir: "desc" | "asc" } | null>(null);
+  // Die Kandidatenliste ist lang — zuklappbar, damit der Rest der Screener-Karte
+  // (Status, Läufe, Aktionen) ohne Scrollen erreichbar bleibt (Marc-Wunsch 19.08.).
+  const [kandidatenOffen, setKandidatenOffen] = useState(true);
   const toggleKandidatenSort = (key: "qualitaet" | "bewertung" | "signalScore") => {
     setKandidatenSort((s) => s?.key !== key ? { key, dir: "desc" }
       : s.dir === "desc" ? { key, dir: "asc" } : null);
@@ -812,13 +815,19 @@ export default function AdminDashboard() {
 
           {(screenerStatusQ.data?.beste?.length ?? 0) > 0 && (
             <div className="border-t pt-3 space-y-2">
-              <p className="text-xs font-medium">
+              <p
+                className="text-xs font-medium cursor-pointer select-none flex items-center gap-1"
+                onClick={() => setKandidatenOffen((o) => !o)}
+                title={kandidatenOffen ? "Liste zuklappen" : "Liste aufklappen"}
+              >
+                {kandidatenOffen ? <ChevronDown className="w-3.5 h-3.5 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 shrink-0" />}
                 Beste Kandidaten ({kandidatenSort ? `sortiert nach ${kandidatenSort.key === "qualitaet" ? "Qualität" : kandidatenSort.key === "bewertung" ? "Bewertung" : "Signal"} ${kandidatenSort.dir === "desc" ? "↓" : "↑"}` : "sektorweise abwechselnd, je Sektor nach Qualität"}) — nicht in der Watchlist
                 <span className="text-muted-foreground font-normal">
                   {" "}· zeige {screenerStatusQ.data!.beste.length}
                   {screenerStatusQ.data?.lauf ? ` von ${screenerStatusQ.data.lauf.berechnet + screenerStatusQ.data.lauf.uebernommen + screenerStatusQ.data.lauf.abgelehnt} berechneten` : ""}
                 </span>
               </p>
+              {kandidatenOffen && (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
@@ -975,6 +984,7 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
+              )}
               {/* Alle Berechneten sind erreichbar — die Tabelle wächst schrittweise,
                   statt bei 30 abzuschneiden. */}
               {screenerStatusQ.data!.beste.length >= screenerTopN && screenerTopN < 500 && (
