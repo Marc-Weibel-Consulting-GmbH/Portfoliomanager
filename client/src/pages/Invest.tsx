@@ -1,5 +1,4 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import AktienTabsNav from "@/components/AktienTabsNav";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,8 +209,6 @@ export default function Invest() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* F-14: Aktien-Sektion mit Tabs «Titel | Signale» */}
-        <AktienTabsNav active="titel" />
         {/* Hero Section with Search */}
         <div className={`flex flex-col items-center justify-center transition-all duration-500 ${hasSearched || showFilters ? "pt-4 pb-4" : "pt-16 pb-12"}`}>
           {!hasSearched && !showFilters && (
