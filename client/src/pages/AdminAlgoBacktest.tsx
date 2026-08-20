@@ -1,4 +1,5 @@
 import { useState } from "react";
+import LaborBanner from "@/components/LaborBanner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -253,6 +254,7 @@ export default function AdminAlgoBacktest() {
           { label: "Algo Self-Learning Backtest", icon: <FlaskConical className="h-4 w-4" /> },
         ]}
       />
+      <LaborBanner zusatz={"Der Feedback-Loop dokumentiert seit K1 nur noch Vorschläge — er schreibt keine Gewichte mehr."} />
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

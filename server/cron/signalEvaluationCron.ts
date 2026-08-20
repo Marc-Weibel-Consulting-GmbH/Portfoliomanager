@@ -110,7 +110,15 @@ export async function evaluatePendingSignals(): Promise<void> {
       if (!signal.priceAtSignal) continue;
 
       const signalDateStr = signal.computedAt.toISOString().split("T")[0];
-      const gemessen = renditeAusReihe(signalReihen.get(signal.ticker), signalDateStr, todayStr);
+      // K7 (Messfenster-Fix, Befund 6): Gemessen wird bis zum SIGNAL-HORIZONT
+      // (computedAt + holdingPeriodHint), nicht bis «heute». Vorher wuchs das
+      // Fenster mit jedem Tag Cron-Verzug — in steigenden Märkten wurde fast
+      // jedes alte Kaufen-Signal irgendwann «richtig» (Mean Reversion «59 %»
+      // bei Ø-Alpha −0.17 %). Läuft der Cron später, bleibt das Fenster gleich.
+      const horizontTage = signal.holdingPeriodHint ?? 30;
+      const horizontEnde = new Date(signal.computedAt.getTime() + horizontTage * 24 * 60 * 60 * 1000);
+      const endeStr = (horizontEnde < now ? horizontEnde : now).toISOString().split("T")[0];
+      const gemessen = renditeAusReihe(signalReihen.get(signal.ticker), signalDateStr, endeStr);
       // Ohne bereinigte Reihe wird NICHT bewertet — auf rohe Kurse auszuweichen
       // hiesse, zwei Rechenbasen zu vermischen.
       if (!gemessen) { ohneReihe++; continue; }
@@ -118,7 +126,7 @@ export async function evaluatePendingSignals(): Promise<void> {
       const direction = signal.direction ?? 0;
 
       const benchmarkReturn = benchmarkRows.length
-        ? computeWindowReturn(benchmarkRows, signalDateStr, todayStr)
+        ? computeWindowReturn(benchmarkRows, signalDateStr, endeStr)
         : null;
       const alpha = computeAlpha(actualReturn, benchmarkReturn);
 

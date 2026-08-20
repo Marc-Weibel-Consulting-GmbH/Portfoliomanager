@@ -362,6 +362,17 @@ dieses Dokument.
   werden gespeichert und gemeldet, umgesetzt nur durch den Nutzer; der
   Schalter ist aus dem UI entfernt, ein gespeichertes Flag wird ignoriert.
   Der Portfolio-Deep-Dive beschreibt statt zu empfehlen.
+- **K7 — Labor gekennzeichnet, Messfenster fixiert (2026-08, ohne
+  FASSUNG-Wechsel).** Die Engine-Auswertung misst jetzt bis zum
+  SIGNAL-HORIZONT (computedAt + holdingPeriodHint) statt bis «heute» —
+  vorher wuchs das Fenster mit jedem Tag Cron-Verzug, und in steigenden
+  Märkten wurde fast jedes alte Kaufen-Signal irgendwann «richtig» (Mean
+  Reversion «59 %» bei Ø-Alpha −0.17 %). Die Signal-Performance-Seite
+  sortiert führend nach Ø-Alpha statt Trefferquote. Vier Admin-Seiten
+  (Signal-Performance, ML-Trainer, Signal-Optimizer, Algo-Backtest) tragen
+  ein «Labor — entscheidet nichts»-Banner; falsche UI-Texte korrigiert
+  («maximale Trefferquote» → Netto-Sharpe; ML-Label 30 Tage statt 20;
+  Universum 300 statt 80).
 
 ## 6. Fahrplan
 
