@@ -335,6 +335,12 @@ dieses Dokument.
   «Diversifikation» gruppiert; der falsche Audit-Text («beeinflusst
   Kaufhinweise») korrigiert; Banner auf der Score-Konfigurations-Seite,
   dass die Bewertungs-Felder nicht mehr gelesen werden.
+- **K8 — Namens- und Schichtenordnung (2026-08, ohne FASSUNG-Wechsel).**
+  Admin-Navigation nach dem Vier-Schichten-Zielbild geordnet (Universum &
+  Daten · Rechnung & Transparenz · Messung · Labor · Betrieb · «Rückbau
+  geplant» für die seit K2/K6 wirkungslosen Konfigurations-Seiten), mit
+  ehrlichen Kachel-Beschreibungen. Der aiInsights-Router (LLM-erfundene
+  healthScore-Zahl, null Frontend-Verbraucher) ist entfernt.
 
 ## 6. Fahrplan
 
