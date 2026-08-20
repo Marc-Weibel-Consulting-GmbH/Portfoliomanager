@@ -373,6 +373,14 @@ dieses Dokument.
   ein «Labor — entscheidet nichts»-Banner; falsche UI-Texte korrigiert
   («maximale Trefferquote» → Netto-Sharpe; ML-Label 30 Tage statt 20;
   Universum 300 statt 80).
+- **K11 — Projektleiter-Cockpit & Lernwerkstatt (2026-08, ohne
+  FASSUNG-Wechsel).** Neues Lagebild auf dem Admin-Dashboard
+  (`ermittleCockpitLage`): aggregierte K9-Datenampel des Universums
+  (vollständig/lückenhaft/veraltet mit Problem-Titeln und Gründen) und
+  offene Lern-Vorschläge (ML-Kandidaten, Gewichts-Vorschläge des
+  Feedback-Loops). Dazu eine wöchentliche Cockpit-Meldung (Mo 05:30 UTC)
+  an den Projektleiter — reiner Bericht; jede Übernahme läuft weiterhin
+  ausschliesslich über die Freigabe-Klicks (L3).
 
 ## 6. Fahrplan
 

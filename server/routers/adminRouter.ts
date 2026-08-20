@@ -888,6 +888,17 @@ export const adminRouter = router({
         return { promotedVersion: res.version };
       }),
 
+    /**
+     * K11 — Projektleiter-Cockpit: EIN Lagebild (Datenqualität des Universums,
+     * offene Lern-Vorschläge). Reine Auskunft; dieselbe Funktion speist die
+     * wöchentliche Cockpit-Meldung.
+     */
+    cockpitLage: adminProcedure.query(async ({ ctx }) => {
+      if (ctx.user?.role !== 'admin') throw new Error('Unauthorized: Admin access required');
+      const { ermittleCockpitLage } = await import('../lib/cockpitStatus');
+      return ermittleCockpitLage();
+    }),
+
     // ─────────────────────────────────────────────────────────────────────
     // Signal Performance Analytics (Admin only)
     // ─────────────────────────────────────────────────────────────────────

@@ -1507,6 +1507,9 @@ export default function AdminDashboard() {
           )}
         </div>
 
+        {/* K11 — Projektleiter-Cockpit: EIN Lagebild (Datenqualität, Lernwerkstatt) */}
+        <CockpitLageBlock />
+
         {/* Kategorisierte Admin-Funktionen — alle Bereiche per Karte erreichbar */}
         <div className="space-y-8">
           {adminGroups.map((group) => {
@@ -1565,5 +1568,47 @@ export default function AdminDashboard() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+/**
+ * K11 — Projektleiter-Cockpit: Datenqualitäts-Ampel des Universums (K9,
+ * aggregiert) + offene Lern-Vorschläge der Lernwerkstatt. Reine Auskunft —
+ * Übernahmen geschehen nur über die verlinkten Seiten per Klick.
+ */
+function CockpitLageBlock() {
+  const [, geheZu] = useLocation();
+  const { data: lage } = trpc.admin.cockpitLage.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
+  if (!lage) return null;
+  const probleme = lage.titel.lueckenhaft + lage.titel.veraltet;
+  const problemTip = lage.titel.problemTitel
+    .map((p: any) => `${p.ticker} (${p.status === "lueckenhaft" ? "lückenhaft" : p.status}): ${p.gruende.join(" · ")}`)
+    .join("\n");
+  return (
+    <div className="border border-[#00CFC1]/30 bg-[#00CFC1]/5 rounded-lg p-4">
+      <div className="flex items-baseline justify-between mb-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-[#00CFC1]">Cockpit — Lagebild</h2>
+        <span className="text-xs text-muted-foreground">Meldung jeden Montag · Übernahme nur per Klick</span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+        <button onClick={() => geheZu("/admin/watchlist")} className="text-left rounded-md bg-background/40 border border-border/50 px-3 py-2 hover:border-[#00CFC1]/50 transition-colors">
+          <div className="text-xs text-muted-foreground mb-0.5">Universum vollständig</div>
+          <div className="text-lg font-bold text-green-500">{lage.titel.vollstaendig}<span className="text-xs font-normal text-muted-foreground"> / {lage.titel.gesamt}</span></div>
+        </button>
+        <button onClick={() => geheZu("/admin/watchlist")} title={problemTip || undefined} className="text-left rounded-md bg-background/40 border border-border/50 px-3 py-2 hover:border-[#00CFC1]/50 transition-colors">
+          <div className="text-xs text-muted-foreground mb-0.5">Titel mit Befund</div>
+          <div className={`text-lg font-bold ${probleme > 0 ? "text-yellow-500" : "text-green-500"}`}>{probleme}</div>
+          <div className="text-[10px] text-muted-foreground">{lage.titel.lueckenhaft} lückenhaft · {lage.titel.veraltet} veraltet</div>
+        </button>
+        <button onClick={() => geheZu("/admin/ml-trainer")} className="text-left rounded-md bg-background/40 border border-border/50 px-3 py-2 hover:border-[#00CFC1]/50 transition-colors">
+          <div className="text-xs text-muted-foreground mb-0.5">ML-Kandidaten (warten auf Freigabe)</div>
+          <div className={`text-lg font-bold ${lage.lernwerkstatt.mlKandidaten > 0 ? "text-blue-400" : "text-muted-foreground"}`}>{lage.lernwerkstatt.mlKandidaten}</div>
+        </button>
+        <button onClick={() => geheZu("/admin/algo-backtest")} className="text-left rounded-md bg-background/40 border border-border/50 px-3 py-2 hover:border-[#00CFC1]/50 transition-colors">
+          <div className="text-xs text-muted-foreground mb-0.5">Gewichts-Vorschläge (nur Bericht)</div>
+          <div className={`text-lg font-bold ${lage.lernwerkstatt.tuningVorschlaege.length > 0 ? "text-blue-400" : "text-muted-foreground"}`}>{lage.lernwerkstatt.tuningVorschlaege.length}</div>
+        </button>
+      </div>
+    </div>
   );
 }
