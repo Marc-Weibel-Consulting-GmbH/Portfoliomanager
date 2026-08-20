@@ -109,10 +109,59 @@ export const watchlistRouter = router({
       const results = await query;
       const totalCount = await db.select({ count: count() }).from(watchlistStocks).where(curated());
 
+      // K9 (Soll-Ablauf S2): Datenqualitäts-Ampel je Titel — Kursreihe (Länge
+      // und Frische), Kennzahlen-Frische und Score-Basis in drei Batch-Queries,
+      // bewertet von der reinen Funktion titelDatenstatus.
+      let datenstatus: Record<string, { status: string; gruende: string[] }> = {};
+      try {
+        const tickers = results.map((r) => r.ticker).filter(Boolean) as string[];
+        if (tickers.length > 0) {
+          const { historicalPrices } = await import("../../drizzle/schema");
+          const { sql: sqlFn, inArray } = await import("drizzle-orm");
+          const { titelDatenstatus } = await import("../lib/titelDatenstatus");
+          const { leseScores } = await import("../lib/dreiScoresStore");
+
+          const kursZeilen = await db
+            .select({
+              ticker: historicalPrices.ticker,
+              tage: sqlFn<number>`COUNT(*)`,
+              letzter: sqlFn<string>`MAX(${historicalPrices.date})`,
+            })
+            .from(historicalPrices)
+            .where(inArray(historicalPrices.ticker, tickers))
+            .groupBy(historicalPrices.ticker);
+          const kursMap = new Map(kursZeilen.map((k) => [k.ticker, k]));
+
+          const scoreMap = await leseScores(tickers);
+
+          const heute = new Date();
+          datenstatus = Object.fromEntries(
+            results.map((r) => {
+              const kurs = kursMap.get(r.ticker);
+              const score = scoreMap.get(r.ticker);
+              return [
+                r.ticker,
+                titelDatenstatus({
+                  kursTage: Number(kurs?.tage ?? 0),
+                  letzterKursTag: kurs?.letzter ?? null,
+                  letzteKennzahlen: r.lastMetricsUpdate ?? null,
+                  hatQualitaet: score?.qualitaet != null,
+                  hatTiming: score?.timing != null,
+                  heute,
+                }),
+              ];
+            }),
+          );
+        }
+      } catch (e) {
+        console.warn("[watchlist.list] Datenstatus-Anreicherung übersprungen:", (e as Error).message);
+      }
+
       return {
         stocks: results,
         total: totalCount[0]?.count || 0,
         maxAllowed: null,
+        datenstatus,
       };
     }),
 
