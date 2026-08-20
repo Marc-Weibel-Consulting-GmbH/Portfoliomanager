@@ -973,7 +973,7 @@ export default function PortfolioDetailsPage() {
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
   // Erklär-Dialog der Scores (gleiche Komponente wie die Titelseite) — geöffnet
   // per Klick auf einen Kreis oder die Signal-Skala in der aufgeklappten Zeile.
-  const [scoreDialog, setScoreDialog] = useState<{ ticker: string; art: "qualitaet" | "bewertung" | "signal" } | null>(null);
+  const [scoreDialog, setScoreDialog] = useState<{ ticker: string; art: "qualitaet" | "bewertung" | "timing" | "signal" } | null>(null);
   // Sort state for Positionen table
   type SortKey = 'weight' | 'ytd' | 'today' | 'qualitaet' | 'bewertung' | 'timing' | 'signalScore';
   const [sortKey, setSortKey] = useState<SortKey>('weight');
@@ -2528,12 +2528,12 @@ export default function PortfolioDetailsPage() {
                                       <div>
                                         <div className="flex items-start justify-around mb-4">
                                           {/* Klick öffnet denselben Erklär-Dialog wie auf der
-                                              Titelseite (Timing wohnt im Signal-Dialog). */}
+                                              Titelseite — jeder Kreis seinen eigenen. */}
                                           {([
                                             ['Qualität', sig?.qualitaet, 'qualitaet'],
                                             ['Bewertung', sig?.bewertung, 'bewertung'],
-                                            ['Timing', sig?.timing, 'signal'],
-                                          ] as [string, number | null | undefined, "qualitaet" | "bewertung" | "signal"][]).map(([name, wert, art]) => (
+                                            ['Timing', sig?.timing, 'timing'],
+                                          ] as [string, number | null | undefined, "qualitaet" | "bewertung" | "timing"][]).map(([name, wert, art]) => (
                                             <div key={name} className="flex flex-col items-center gap-1">
                                               <ScoreCircle score={wert ?? null} size="sm"
                                                 onClick={() => setScoreDialog({ ticker: h.ticker, art })} />

@@ -13,7 +13,43 @@ import { X, Info } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import StockScoringWidget from "@/components/stock/StockScoringWidget";
 
-export type ScoreDialogArt = "qualitaet" | "bewertung" | "signal";
+export type ScoreDialogArt = "qualitaet" | "bewertung" | "timing" | "signal";
+
+/** Timing-Faktoren als Tabelle — genutzt vom Timing- UND vom Signal-Dialog. */
+function TimingFaktorenTabelle({ dreiScores }: { dreiScores: any }) {
+  if (!dreiScores?.timing?.faktoren?.length) return null;
+  return (
+    <div className="rounded-md border border-white/10 overflow-hidden mb-4">
+      <p className="font-semibold text-white text-xs px-3 py-2 bg-white/5">
+        Timing für diesen Titel — {dreiScores.timing.score !== null
+          ? `${Math.round(dreiScores.timing.score)}/100` : "—"}
+      </p>
+      <table className="w-full text-xs">
+        <tbody>
+          {dreiScores.timing.faktoren.map((f: any) => (
+            <tr key={f.name} className="border-t border-white/5" title={f.hinweis ?? ""}>
+              <td className="px-3 py-1.5 text-gray-300">{f.name}
+                <span className="text-gray-600"> · {Math.round(f.gewicht * 100)}%</span>
+                {f.punkte === null && f.hinweis && (
+                  <span className="block text-[10px] text-gray-500">{f.hinweis}</span>
+                )}
+              </td>
+              <td className="px-2 py-1.5 text-right text-gray-400 font-mono">
+                {f.wert !== null && f.wert !== undefined ? Number(f.wert).toFixed(2) : "—"}
+              </td>
+              <td className={`px-3 py-1.5 text-right font-mono font-semibold ${
+                f.punkte === null ? "text-gray-600"
+                  : f.punkte >= 65 ? "text-emerald-400"
+                  : f.punkte >= 45 ? "text-yellow-400" : "text-red-400"}`}>
+                {f.punkte !== null ? `${Math.round(f.punkte)}/100` : "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function ScoreErklaerDialog({
   ticker,
@@ -34,6 +70,44 @@ export default function ScoreErklaerDialog({
   const [faktorRechnung, setFaktorRechnung] = useState<string | null>(null);
 
   if (!art) return null;
+
+  // Eigener Timing-Dialog (Live-Befund 20.08.): Der Timing-Kreis öffnete den
+  // Signal-Dialog — verwirrend, weil das Signal als eigene Skala daneben steht.
+  if (art === "timing") {
+    return (
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+        <div className="bg-[#0f1420] border border-[#00CFC1]/30 rounded-lg max-w-lg w-full p-6 relative max-h-[85vh] overflow-y-auto">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors z-10"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-[#00CFC1]/20 flex items-center justify-center">
+              <Info className="w-5 h-5 text-[#00CFC1]" />
+            </div>
+            <h3 className="text-xl font-bold text-white">Timing</h3>
+          </div>
+
+          <p className="text-sm text-gray-300 mb-4">
+            Das <strong className="text-[#00CFC1]">Timing</strong> beschreibt den
+            <strong> Zeitpunkt</strong>, nicht das Unternehmen: Wie läuft der Kurs
+            (Momentum, Trend), gab es einen Rücksetzer (RSI), wo steht der Kurs im
+            52-Wochen-Band, und meldet das Blasensignal Überhitzung. Alles kommt aus
+            der Kursreihe — Fundamentaldaten stecken in Qualität und Bewertung.
+          </p>
+          <p className="text-xs text-gray-400 mb-4">
+            Ins Signal fliesst das Timing zusammen mit der Qualität ein, gewichtet
+            nach Marktregime — die Herleitung zeigt der Klick auf die Signal-Skala.
+          </p>
+
+          <TimingFaktorenTabelle dreiScores={dreiScores} />
+        </div>
+      </div>
+    );
+  }
 
   if (art === "signal") {
     return (
@@ -68,37 +142,7 @@ export default function ScoreErklaerDialog({
             Signal.
           </p>
 
-          {dreiScores?.timing.faktoren?.length ? (
-            <div className="rounded-md border border-white/10 overflow-hidden mb-4">
-              <p className="font-semibold text-white text-xs px-3 py-2 bg-white/5">
-                Timing für diesen Titel — {dreiScores.timing.score !== null
-                  ? `${Math.round(dreiScores.timing.score)}/100` : "—"}
-              </p>
-              <table className="w-full text-xs">
-                <tbody>
-                  {dreiScores.timing.faktoren.map((f) => (
-                    <tr key={f.name} className="border-t border-white/5" title={(f as any).hinweis ?? ""}>
-                      <td className="px-3 py-1.5 text-gray-300">{f.name}
-                        <span className="text-gray-600"> · {Math.round(f.gewicht * 100)}%</span>
-                        {f.punkte === null && (f as any).hinweis && (
-                          <span className="block text-[10px] text-gray-500">{(f as any).hinweis}</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-1.5 text-right text-gray-400 font-mono">
-                        {f.wert !== null && f.wert !== undefined ? Number(f.wert).toFixed(2) : "—"}
-                      </td>
-                      <td className={`px-3 py-1.5 text-right font-mono font-semibold ${
-                        f.punkte === null ? "text-gray-600"
-                          : f.punkte >= 65 ? "text-emerald-400"
-                          : f.punkte >= 45 ? "text-yellow-400" : "text-red-400"}`}>
-                        {f.punkte !== null ? `${Math.round(f.punkte)}/100` : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
+          <TimingFaktorenTabelle dreiScores={dreiScores} />
 
           {/* Die alte Zusammensetzung nur noch zugeklappt: Sie entscheidet
               nicht mehr, und offen dargestellt las sie sich wie eine
