@@ -266,6 +266,29 @@ K10 liefert die Rahmenregeln, auf denen der Wizard-Umbau K4 aufsetzt;
 K11 kommt zuletzt, weil das Cockpit den konsolidierten Zustand überwachen
 soll, nicht den heutigen Wildwuchs.
 
+### Admin-Bereich: von 24 Kacheln zu fünf Gruppen (Marc, 20.08.)
+
+Der Admin-Bereich zählt heute **24 eigenständige Seiten** (App.tsx:171-197)
+— historisch gewachsen, ohne Ordnung nach dem Zielbild. Ziel: **fünf
+Gruppen**, jede Seite gehört genau in eine; was in keine passt oder nach
+den Paketen funktionslos wird, fliegt raus. Zuordnungsvorschlag (finale
+Sichtung je Seite im jeweiligen Paket):
+
+| Gruppe (Zielbild-Schicht) | Seiten | Verdikt |
+|---|---|---|
+| **1 · Cockpit** (Einstieg) | `/admin` (Dashboard) | wird zur K11-Übersichtsseite: Datenampeln, Konsistenz, Läufe, offene Vorschläge |
+| **2 · Universum & Daten** (S1/S2, Schicht B) | `watchlist`, `wikifolio`, `data-import`, `categories`, `sectors` | bleiben; `watchlist-candidates` in die Screener-Karte des Dashboards integrieren (Doppelung); `categories`+`sectors` zu einer Stammdaten-Seite zusammenlegen; `gap-filling` ist durch den Screener ersetzt → stilllegen |
+| **3 · Rechnung & Transparenz** (Schicht A) | `berechnungen`, `kpis`, `screenshots` | `berechnungen` bleibt (Rechenbuch); `kpis`/`screenshots` sichten: zusammenlegen oder in Doku überführen |
+| **4 · Messung** (Schicht C, read-only) | `improvement-timeline`, `proposal-analysis`, `feedback-dashboard` | Timeline bleibt; `proposal-analysis` bleibt (K4 fixt die Ersatz-Score-Quelle); `feedback-dashboard` zeigt die defekte Schleife → nach K4-Entscheid stilllegen oder in proposal-analysis aufgehen lassen |
+| **5 · Labor** (Schicht D, Banner) | `signal-performance`, `ml-trainer`, `optimizer`, `algo-backtest` | bleiben markiert als Labor (K1/K7) |
+| **Betrieb** (keine Rechenwerke) | `settings`, `secrets`, `logs`, `research` | bleiben als Werkzeuge; `research` sichten |
+| **Nach Konsolidierung funktionslos** | `signal-config` (F2-Gewichte), `alert-config` (F3-Schwellen), `score-config` (Portfolio-Quality-Gewichte) | nach K1/K2/K6 stilllegen — Konfigurationsseiten für Formeln, die es dann nicht mehr gibt |
+
+Damit schrumpft der Admin-Bereich von 24 Kacheln auf **rund 14 Seiten in
+fünf klar beschrifteten Gruppen** plus Betrieb — die Navigation folgt dem
+Zielbild statt der Entstehungsgeschichte. Umsetzung verteilt auf K8
+(Navigation/Gruppierung), K11 (Cockpit) und K12 (Stilllegungen).
+
 ## 9. Was ausdrücklich NICHT geändert wird
 
 - Keine Löschung von Mess-Historien (`signal_history`, Outcome-Tabellen,
