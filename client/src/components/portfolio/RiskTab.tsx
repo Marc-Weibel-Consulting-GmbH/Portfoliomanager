@@ -43,15 +43,20 @@ function BubbleDetailModal({ open, onClose, bubble }: { open: boolean; onClose: 
               {bubble.longTermBubble !== undefined && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400">Langfrist-Bubble (6J)</span>
-                  <span className={`font-mono font-semibold ${bubble.longTermBubble > 50 ? 'text-red-400' : 'text-[#00CFC1]'}`}>
-                    {bubble.longTermBubble?.toFixed(0) ?? '—'}
+                  {/* longTermBubble ist ein BOOLEAN (sornetteApi.ts) — die frühere
+                      Zahlen-Formatierung (`.toFixed`) warf bei `true` und riss den
+                      ganzen Risiko-Tab in den ErrorBoundary (Live-Befund 20.08.). */}
+                  <span className={`font-mono font-semibold ${bubble.longTermBubble ? 'text-red-400' : 'text-[#00CFC1]'}`}>
+                    {bubble.longTermBubble ? 'Ja' : 'Nein'}
                   </span>
                 </div>
               )}
               {bubble.bestPositiveT1_2_6y !== undefined && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-400">Beste Fit-Qualität (T1 2–6J)</span>
-                  <span className="font-mono text-gray-300">{bubble.bestPositiveT1_2_6y?.toFixed(2) ?? '—'}</span>
+                  <span className="font-mono text-gray-300">
+                    {Number.isFinite(Number(bubble.bestPositiveT1_2_6y)) ? Number(bubble.bestPositiveT1_2_6y).toFixed(2) : '—'}
+                  </span>
                 </div>
               )}
               {bubble.positiveByScale && (
