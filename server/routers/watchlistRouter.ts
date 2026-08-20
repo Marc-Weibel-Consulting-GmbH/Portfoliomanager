@@ -13,7 +13,7 @@ import { curated } from '../lib/stockUniverse';
 import { eq, like, or, and, desc, asc, sql, count, isNull, not } from "drizzle-orm";
 import { titelKategorie } from "../lib/titelKategorie";
 import YahooFinanceClass from "yahoo-finance2";
-import { loadAlertScoreConfig, computeWatchlistSignalScore, calcWilderRSI } from "../lib/watchlistSignalScore";
+import { calcWilderRSI } from "../lib/watchlistSignalScore";
 import { fetchEODHDFundamentals } from '../_core/eodhdApi';
 import { fetchDividendYieldWithFallback } from '../_core/dividendYieldHelper';
 
@@ -406,8 +406,24 @@ export const watchlistRouter = router({
       let updated = 0;
       let failed = 0;
 
-      // SIG-3: DIE eine Score-Formel + Config (gemeinsam mit watchlistAlertsCron).
-      const scoreConfig = await loadAlertScoreConfig();
+      // K2: Signalspalten kommen aus dem Drei-Score-Signal (stock_signal_cache) —
+      // ein Batch-Query statt einer eigenen Zweitformel je Titel.
+      const { stockSignalCache } = await import("../../drizzle/schema");
+      const { inArray } = await import("drizzle-orm");
+      const { signalFelderAusCache } = await import("../lib/kernsignalUebernahme");
+      const refreshTickers = stocksToRefresh.map((s) => s.ticker).filter(Boolean) as string[];
+      const kernsignalRows = refreshTickers.length
+        ? await db
+            .select({
+              ticker: stockSignalCache.ticker,
+              combinedScore: stockSignalCache.combinedScore,
+              signalType: stockSignalCache.signalType,
+              signalStrength: stockSignalCache.signalStrength,
+            })
+            .from(stockSignalCache)
+            .where(inArray(stockSignalCache.ticker, refreshTickers))
+        : [];
+      const kernsignalMap = new Map(kernsignalRows.map((c) => [c.ticker, c]));
 
       for (const stock of stocksToRefresh) {
         try {
@@ -420,8 +436,6 @@ export const watchlistRouter = router({
           const currentPrice = price?.regularMarketPrice || 0;
           const high52 = summary?.fiftyTwoWeekHigh || 0;
           const low52 = summary?.fiftyTwoWeekLow || 0;
-          const range52 = high52 - low52;
-          const priceVs52w = range52 > 0 ? (currentPrice - low52) / range52 : null;
           const peRatio = summary?.trailingPE ?? null;
           const pegRatio = keyStats?.pegRatio ?? null;
           const dividendYield = summary?.dividendYield ? summary.dividendYield * 100 : 0;
@@ -441,10 +455,9 @@ export const watchlistRouter = router({
             rsi14 = calcWilderRSI(closes);
           } catch { /* RSI calculation failed, use null */ }
 
-          const { score: signalScore, signalType } = computeWatchlistSignalScore(
-            { pe: peRatio, dividendYieldFraction: summary?.dividendYield ?? null, week52Position: priceVs52w, peg: pegRatio },
-            scoreConfig
-          );
+          // K2: Signal aus der Kernrechnung übernehmen — ohne Cache-Eintrag
+          // ehrlich «—» (null) statt einer Zweitformel.
+          const { signalScore, signalType } = signalFelderAusCache(kernsignalMap.get(stock.ticker));
 
           await db.update(watchlistStocks).set({
             currentPrice: currentPrice?.toString() || stock.currentPrice,
@@ -559,10 +572,6 @@ export const watchlistRouter = router({
       const added: string[] = [];
       const failed: string[] = [];
 
-      // Get active optimizer weights for consistent scoring
-      // SIG-3: dieselbe Score-Formel/Config wie refreshMetrics + Alerts-Cron.
-      const scoreConfig = await loadAlertScoreConfig();
-
       for (const ticker of newCandidates.slice(0, maxNew)) {
         try {
           const quote: any = await yahooFinance.quoteSummary(ticker, { modules: ["price", "summaryDetail", "defaultKeyStatistics", "assetProfile"] });
@@ -580,12 +589,13 @@ export const watchlistRouter = router({
           const range52 = (high && low) ? high - low : 0;
           const priceVs52w = range52 > 0 && current ? (current - low) / range52 : null;
 
-          // SIG-3: DIE eine Score-Formel (gemeinsam mit refreshMetrics + Alerts-Cron).
-          const { score: signalScore, signalType } = computeWatchlistSignalScore(
-            { pe, dividendYieldFraction: summary?.dividendYield ?? null, week52Position: priceVs52w, peg },
-            scoreConfig
-          );
+          // K2: Neue Kandidaten bekommen KEIN Signal aus einer Zweitformel —
+          // Score/Signal entstehen erst, wenn die Kernrechnung den Titel
+          // durchgerechnet hat (Screener/Übernahme-Weg). Bis dahin ehrlich «—».
+          const signalScore: number | null = null;
+          const signalType: "buy" | "sell" | "hold" | null = null;
 
+          // Beschreibende Merkmale der kuratierten Liste (keine Empfehlung).
           const reasons: string[] = [];
           if (pe && pe < 15) reasons.push(`Niedriges P/E (${pe.toFixed(1)})`);
           if (peg && peg < 1) reasons.push(`PEG < 1 (${peg.toFixed(2)})`);

@@ -208,6 +208,16 @@ function AlertConfigForm({ data }: { data: AlertConfigData | null }) {
           { label: "Watchlist-Alert Kriterien", icon: <Bell className="h-4 w-4" /> },
         ]}
       />
+        {/* K2: Die Alert-Formel, die diese Seite konfigurierte, ist stillgelegt —
+            Badges und Hinweise folgen dem Drei-Score-Signal. Banner statt
+            stiller Irreführung; Rückbau der Seite ist Paket K12. */}
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          <span className="font-semibold">Ohne Wirkung seit Konsolidierung K2:</span>{" "}
+          Watchlist-Hinweise und das Signal-Badge folgen jetzt dem Drei-Score-Signal
+          (dieselbe Rechnung wie die Zahl auf der Titelseite). Die Schwellen auf dieser
+          Seite werden von keinem Rechenweg mehr gelesen; die Seite wird mit Paket K12
+          entfernt.
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

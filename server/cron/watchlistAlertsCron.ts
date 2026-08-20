@@ -1,9 +1,12 @@
 /**
  * Watchlist Alerts Cron Job
- * 
- * Checks all active watchlist stocks for strong buy/sell signals
- * and sends notifications to the admin when triggered.
- * 
+ *
+ * K2 (EIN Signal für Badges & Alerts): Aktualisiert alle 4 h die Markt-
+ * Kennzahlen (Yahoo) und übernimmt `stocks.signalScore`/`signalType` aus dem
+ * Drei-Score-Signal (stock_signal_cache) — dieselbe Rechnung, die der Kunde
+ * auf der Titelseite sieht. Hinweise (Push/WhatsApp) feuern nur am starken
+ * Rand des Kernsignals, beim Zustands-Übergang, mit Cooldown.
+ *
  * Schedule: Every 4 hours during market hours
  */
 
@@ -26,10 +29,10 @@ export async function checkWatchlistAlerts() {
 
   try {
     const { getDb } = await import("../db");
-    const { stocks: stocksTable } = await import("../../drizzle/schema");
+    const { stocks: stocksTable, stockSignalCache } = await import("../../drizzle/schema");
     const { activeCurated } = await import("../lib/stockUniverse");
-    const { loadAlertScoreConfig, computeWatchlistSignalScore } = await import("../lib/watchlistSignalScore");
-    const { eq, and } = await import("drizzle-orm");
+    const { signalFelderAusCache, alertEntscheid } = await import("../lib/kernsignalUebernahme");
+    const { eq, inArray } = await import("drizzle-orm");
     const YahooFinanceClass = (await import("yahoo-finance2")).default;
     const yahooFinance: any = new (YahooFinanceClass as any)();
     // Normalize ticker for Yahoo Finance (remove .US suffix, keep .SW etc.)
@@ -68,32 +71,44 @@ export async function checkWatchlistAlerts() {
       );
     }
 
-    // Admin-Konfiguration (alertConfig) über das gemeinsame Score-Modul laden —
-    // dieselbe Quelle wie watchlistRouter (SIG-3: eine Formel, eine Config).
-    const C = await loadAlertScoreConfig();
-    console.log(`[watchlistAlertsCron] Using config: buyTrigger=${C.buyTriggerScore}, sellTrigger=${C.sellTriggerScore}`);
-
     console.log(`[watchlistAlertsCron] Checking ${checkableStocks.length} watchlist stocks...`);
 
-    const strongBuySignals: Array<{
+    // K2: Kernsignal-Zeilen (Drei-Score-Signal) für alle Titel in EINEM Query —
+    // die einzige Quelle für signalScore/signalType und die Alert-Entscheide.
+    const ALERT_COOLDOWN_TAGE = 7;
+    const tickers = checkableStocks.map((s: any) => s.ticker).filter(Boolean);
+    const cacheRows = tickers.length
+      ? await db
+          .select({
+            ticker: stockSignalCache.ticker,
+            combinedScore: stockSignalCache.combinedScore,
+            signalType: stockSignalCache.signalType,
+            signalStrength: stockSignalCache.signalStrength,
+          })
+          .from(stockSignalCache)
+          .where(inArray(stockSignalCache.ticker, tickers))
+      : [];
+    const cacheMap = new Map(cacheRows.map((c: any) => [c.ticker, c]));
+
+    const starkeZustaende: Array<{
       ticker: string;
       companyName: string;
       score: number;
-      reasons: string[];
       currentPrice: string;
-      previousScore: number;
+      previousScore: number | null;
     }> = [];
 
-    const strongSellSignals: Array<{
+    const schwacheZustaende: Array<{
       ticker: string;
       companyName: string;
       score: number;
-      reasons: string[];
       currentPrice: string;
-      previousScore: number;
+      previousScore: number | null;
     }> = [];
 
     for (const stock of checkableStocks) {
+      // 1) Markt-Kennzahlen von Yahoo auffrischen (unabhängig vom Signal).
+      let currentPriceStr: string | null = stock.currentPrice ?? null;
       try {
         const yahooTicker = normalizeTicker(stock.ticker);
         const quote: any = await yahooFinance.quoteSummary(yahooTicker, {
@@ -104,112 +119,90 @@ export async function checkWatchlistAlerts() {
         const summary = quote?.summaryDetail;
         const keyStats = quote?.defaultKeyStatistics;
 
-        if (!price) continue;
-
-        // SIG-3: DIE eine Score-Formel (gemeinsam mit watchlistRouter).
-        const pe = summary?.trailingPE ?? null;
-        const divYield = summary?.dividendYield ?? null;
-        const high = summary?.fiftyTwoWeekHigh;
-        const low = summary?.fiftyTwoWeekLow;
-        const current = price?.regularMarketPrice;
-        const week52Position = (high && low && current && high !== low) ? (current - low) / (high - low) : null;
-        const peg = keyStats?.pegRatio ?? null;
-        const { score: signalScore, signalType, reasons } = computeWatchlistSignalScore(
-          { pe, dividendYieldFraction: divYield, week52Position, peg },
-          C
-        );
-        const previousScore = stock.signalScore || 50;
-
-        // Update the stock in DB with new metrics
-        await db.update(stocksTable).set({
-          currentPrice: current?.toString() || stock.currentPrice,
-          peRatio: pe?.toString() || stock.peRatio,
-          pegRatio: peg?.toString() || stock.pegRatio,
-          dividendYield: divYield ? (divYield * 100).toString() : stock.dividendYield,
-          week52High: high?.toString() || stock.week52High,
-          week52Low: low?.toString() || stock.week52Low,
-          signalScore,
-          signalType: signalType as "buy" | "sell" | "hold",
-          lastMetricsUpdate: new Date(),
-        }).where(eq(stocksTable.id, stock.id));
-
-        // Check for strong signals (using DB config thresholds)
-        // Cooldown: suppress repeated alerts for the same stock within alertCooldownDays
-        const cooldownDays = C.alertCooldownDays ?? 7;
-        const lastAlert = stock.lastAlertSentAt ? new Date(stock.lastAlertSentAt) : null;
-        const daysSinceLastAlert = lastAlert
-          ? (Date.now() - lastAlert.getTime()) / (1000 * 60 * 60 * 24)
-          : Infinity;
-        const inCooldown = cooldownDays > 0 && daysSinceLastAlert < cooldownDays;
-        if (inCooldown) {
-          console.log(`[watchlistAlertsCron] ${stock.ticker}: in cooldown (last alert ${Math.floor(daysSinceLastAlert)}d ago, cooldown=${cooldownDays}d) — skipping alert`);
-        } else if (signalScore >= C.buyTriggerScore && (previousScore < C.buyPreviousScoreThreshold || signalScore - previousScore >= C.scoreChangeTrigger)) {
-          strongBuySignals.push({
-            ticker: stock.ticker,
-            companyName: stock.companyName || stock.ticker,
-            score: signalScore,
-            reasons,
-            currentPrice: current?.toString() || "—",
-            previousScore,
-          });
-        } else if (signalScore <= C.sellTriggerScore && (previousScore > C.sellPreviousScoreThreshold || previousScore - signalScore >= C.scoreChangeTrigger)) {
-          strongSellSignals.push({
-            ticker: stock.ticker,
-            companyName: stock.companyName || stock.ticker,
-            score: signalScore,
-            reasons,
-            currentPrice: current?.toString() || "—",
-            previousScore,
-          });
+        if (price) {
+          const pe = summary?.trailingPE ?? null;
+          const divYield = summary?.dividendYield ?? null;
+          const high = summary?.fiftyTwoWeekHigh;
+          const low = summary?.fiftyTwoWeekLow;
+          const current = price?.regularMarketPrice;
+          currentPriceStr = current?.toString() || stock.currentPrice;
+          await db.update(stocksTable).set({
+            currentPrice: currentPriceStr,
+            peRatio: pe?.toString() || stock.peRatio,
+            pegRatio: keyStats?.pegRatio?.toString() || stock.pegRatio,
+            dividendYield: divYield ? (divYield * 100).toString() : stock.dividendYield,
+            week52High: high?.toString() || stock.week52High,
+            week52Low: low?.toString() || stock.week52Low,
+            lastMetricsUpdate: new Date(),
+          }).where(eq(stocksTable.id, stock.id));
         }
       } catch (err: any) {
         const errMsg = err?.message || String(err);
-        // Only log once for known delisted/not-found symbols
-        if (errMsg.includes('not found') || errMsg.includes('No fundamentals') || errMsg.includes('404')) {
-          console.warn(`[watchlistAlertsCron] Error checking ${stock.ticker}: ${errMsg}`);
-          // Mark as inactive if consistently failing
-          try {
-            await db.update(stocksTable).set({
-              signalType: 'hold' as const,
-              lastMetricsUpdate: new Date(),
-            }).where(eq(stocksTable.id, stock.id));
-          } catch {
-            // Best-effort status update; ignore failures
-          }
-        } else {
-          console.warn(`[watchlistAlertsCron] Error checking ${stock.ticker}:`, err);
+        console.warn(`[watchlistAlertsCron] Metrics refresh failed for ${stock.ticker}: ${errMsg}`);
+      }
+
+      // 2) Signalspalten IMMER aus dem Kernsignal übernehmen (auch wenn der
+      //    Yahoo-Abruf scheiterte — das Signal hängt nicht an Yahoo).
+      try {
+        const cache = cacheMap.get(stock.ticker);
+        const felder = signalFelderAusCache(cache);
+        const previousScore = stock.signalScore ?? null;
+        const previousType = stock.signalType ?? null;
+        await db.update(stocksTable).set({
+          signalScore: felder.signalScore,
+          signalType: felder.signalType,
+        }).where(eq(stocksTable.id, stock.id));
+
+        // 3) Hinweis-Entscheid: nur starker Rand, nur beim Übergang, mit Cooldown.
+        const lastAlert = stock.lastAlertSentAt ? new Date(stock.lastAlertSentAt) : null;
+        const tageSeitLetztemAlert = lastAlert
+          ? (Date.now() - lastAlert.getTime()) / (1000 * 60 * 60 * 24)
+          : Infinity;
+        const entscheid = alertEntscheid({
+          typ: cache?.signalType ?? null,
+          staerke: cache?.signalStrength ?? null,
+          score: felder.signalScore,
+          vorherTyp: previousType,
+          vorherScore: previousScore,
+          tageSeitLetztemAlert,
+          cooldownTage: ALERT_COOLDOWN_TAGE,
+        });
+        if (entscheid) {
+          const eintrag = {
+            ticker: stock.ticker,
+            companyName: stock.companyName || stock.ticker,
+            score: felder.signalScore as number,
+            currentPrice: currentPriceStr || "—",
+            previousScore,
+          };
+          if (entscheid === "stark") starkeZustaende.push(eintrag);
+          else schwacheZustaende.push(eintrag);
         }
+      } catch (err: any) {
+        console.warn(`[watchlistAlertsCron] Signal-Übernahme fehlgeschlagen für ${stock.ticker}:`, err?.message || err);
       }
 
       // Rate limiting
       await new Promise(r => setTimeout(r, 400));
     }
 
-    // Send notification if there are strong signals
-    if (strongBuySignals.length > 0 || strongSellSignals.length > 0) {
+    // Hinweis senden, wenn Titel neu am starken Rand des Kernsignals stehen.
+    if (starkeZustaende.length > 0 || schwacheZustaende.length > 0) {
       let content = "";
+      const zeile = (s: { ticker: string; companyName: string; score: number; currentPrice: string; previousScore: number | null }) =>
+        `• ${s.ticker} (${s.companyName})\n  Signal: ${s.score}/100 (vorher: ${s.previousScore ?? "—"})\n  Kurs: ${s.currentPrice}\n\n`;
 
-      if (strongBuySignals.length > 0) {
-        content += "🟢 STARKE KAUFSIGNALE:\n\n";
-        for (const signal of strongBuySignals) {
-          content += `• ${signal.ticker} (${signal.companyName})\n`;
-          content += `  Score: ${signal.score}/100 (vorher: ${signal.previousScore})\n`;
-          content += `  Kurs: ${signal.currentPrice}\n`;
-          content += `  Gründe: ${signal.reasons.join(", ")}\n\n`;
-        }
+      if (starkeZustaende.length > 0) {
+        content += "🟢 SEHR GUTER ZUSTAND (Qualität + Timing):\n\n";
+        for (const s of starkeZustaende) content += zeile(s);
       }
 
-      if (strongSellSignals.length > 0) {
-        content += "🔴 STARKE VERKAUFSSIGNALE:\n\n";
-        for (const signal of strongSellSignals) {
-          content += `• ${signal.ticker} (${signal.companyName})\n`;
-          content += `  Score: ${signal.score}/100 (vorher: ${signal.previousScore})\n`;
-          content += `  Kurs: ${signal.currentPrice}\n`;
-          content += `  Gründe: ${signal.reasons.join(", ")}\n\n`;
-        }
+      if (schwacheZustaende.length > 0) {
+        content += "🔴 SCHWACHER ZUSTAND:\n\n";
+        for (const s of schwacheZustaende) content += zeile(s);
       }
 
-      const title = `Watchlist-Alert: ${strongBuySignals.length} Kaufsignal${strongBuySignals.length !== 1 ? "e" : ""}, ${strongSellSignals.length} Verkaufssignal${strongSellSignals.length !== 1 ? "e" : ""}`;
+      const title = `Watchlist-Hinweis: ${starkeZustaende.length} Titel im sehr guten, ${schwacheZustaende.length} im schwachen Zustand`;
 
       try {
         await notifyOwner({ title, content });
@@ -217,11 +210,10 @@ export async function checkWatchlistAlerts() {
 
         // Update lastAlertSentAt for all alerted stocks (for cooldown tracking)
         const alertedTickers = [
-          ...strongBuySignals.map(s => s.ticker),
-          ...strongSellSignals.map(s => s.ticker),
+          ...starkeZustaende.map(s => s.ticker),
+          ...schwacheZustaende.map(s => s.ticker),
         ];
         if (alertedTickers.length > 0) {
-          const { inArray } = await import("drizzle-orm");
           await db.update(stocksTable)
             .set({ lastAlertSentAt: new Date() })
             .where(inArray(stocksTable.ticker, alertedTickers));
@@ -234,8 +226,8 @@ export async function checkWatchlistAlerts() {
       // Also try WhatsApp notification
       try {
         const { sendWhatsAppMessage } = await import("../_core/whatsapp");
-        const whatsappMsg = `📊 Watchlist-Alert:\n${strongBuySignals.map(s => `🟢 ${s.ticker} (Score: ${s.score})`).join("\n")}${strongSellSignals.length > 0 ? "\n" + strongSellSignals.map(s => `🔴 ${s.ticker} (Score: ${s.score})`).join("\n") : ""}`;
-        
+        const whatsappMsg = `📊 Watchlist-Hinweis:\n${starkeZustaende.map(s => `🟢 ${s.ticker} (Signal: ${s.score})`).join("\n")}${schwacheZustaende.length > 0 ? "\n" + schwacheZustaende.map(s => `🔴 ${s.ticker} (Signal: ${s.score})`).join("\n") : ""}`;
+
         // Send to configured admin number
         const adminNumber = process.env.VITE_WHATSAPP_NUMBER;
         if (adminNumber) {
@@ -246,10 +238,10 @@ export async function checkWatchlistAlerts() {
         console.warn("[watchlistAlertsCron] WhatsApp notification failed:", whatsappErr);
       }
     } else {
-      console.log("[watchlistAlertsCron] No strong signals detected");
+      console.log("[watchlistAlertsCron] No strong-state transitions detected");
     }
 
-    console.log(`[watchlistAlertsCron] Check completed. Buy signals: ${strongBuySignals.length}, Sell signals: ${strongSellSignals.length}`);
+    console.log(`[watchlistAlertsCron] Check completed. Stark: ${starkeZustaende.length}, Schwach: ${schwacheZustaende.length}`);
   } catch (error) {
     console.error("[watchlistAlertsCron] Fatal error:", error);
   } finally {

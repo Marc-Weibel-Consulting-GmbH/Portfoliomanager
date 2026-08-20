@@ -187,10 +187,13 @@ export default function Invest() {
     return filtered;
   }, [universe, activeDimension, activeValue, sortBy, sortDir]);
 
+  // K2: Badge folgt dem Drei-Score-Signal (Zustand, keine Handelsaufforderung);
+  // ohne Signal ehrlich «—» statt eines scheinbaren «Halten».
   const getSignalBadge = (type: string | null) => {
-    if (type === "buy") return <Badge className="bg-green-500/10 text-green-600 border-green-500/20"><TrendingUp className="w-3 h-3 mr-1" />Kaufen</Badge>;
-    if (type === "sell") return <Badge className="bg-red-500/10 text-red-600 border-red-500/20"><TrendingDown className="w-3 h-3 mr-1" />Verkaufen</Badge>;
-    return <Badge variant="outline"><Minus className="w-3 h-3 mr-1" />Halten</Badge>;
+    if (type === "buy") return <Badge className="bg-green-500/10 text-green-600 border-green-500/20"><TrendingUp className="w-3 h-3 mr-1" />Gut</Badge>;
+    if (type === "sell") return <Badge className="bg-red-500/10 text-red-600 border-red-500/20"><TrendingDown className="w-3 h-3 mr-1" />Schwach</Badge>;
+    if (type === "hold") return <Badge variant="outline"><Minus className="w-3 h-3 mr-1" />Neutral</Badge>;
+    return <span className="text-xs text-muted-foreground">—</span>;
   };
 
   const clearFilters = () => {
@@ -345,9 +348,9 @@ export default function Invest() {
                     <SelectTrigger className="h-9"><SelectValue placeholder="Alle" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Alle</SelectItem>
-                      <SelectItem value="buy">Kaufen</SelectItem>
-                      <SelectItem value="hold">Halten</SelectItem>
-                      <SelectItem value="sell">Verkaufen</SelectItem>
+                      <SelectItem value="buy">Gut</SelectItem>
+                      <SelectItem value="hold">Neutral</SelectItem>
+                      <SelectItem value="sell">Schwach</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
