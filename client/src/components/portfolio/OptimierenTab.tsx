@@ -1118,7 +1118,7 @@ export default function OptimierenTab({
                               title={`Warum ${rep.weakTicker} ersetzen?`}
                               summary={`${rep.weakTicker} hat einen Score von ${rep.weakScore}/100 und liegt damit unter der Qualitätsschwelle von ${upgradeData.upgradeScoreThreshold}. ${chosenSuggestion ? `${chosenSuggestion.ticker} wäre ein stärkerer Ersatz mit Score ${chosenSuggestion.signalScore}/100 (+${chosenSuggestion.scoreDelta} Punkte).` : ''}`}
                               factors={[
-                                { label: 'Aktueller Score', value: `${rep.weakScore}/100`, sentiment: rep.weakScore >= 55 ? 'positive' : rep.weakScore >= 40 ? 'neutral' : 'negative', description: 'Kombinierter Score aus Momentum, Qualität und LPPL-Risikomodell' },
+                                { label: 'Aktueller Score', value: `${rep.weakScore}/100`, sentiment: rep.weakScore >= 55 ? 'positive' : rep.weakScore >= 40 ? 'neutral' : 'negative', description: 'Drei-Score-Signal: Qualität und Timing je nach Marktlage gewichtet, die Bewertung wirkt als Wächter' },
                                 { label: 'Score-Schwelle', value: `${upgradeData.upgradeScoreThreshold}/100`, sentiment: 'neutral', description: 'Mindest-Score für eine Halteempfehlung im Portfolio' },
                                 ...(chosenSuggestion ? [{ label: `Ersatz ${chosenSuggestion.ticker}`, value: `${chosenSuggestion.signalScore}/100`, sentiment: 'positive' as const, description: `Signal: ${chosenSuggestion.signalType?.toUpperCase() ?? '—'} · Score-Gewinn: +${chosenSuggestion.scoreDelta} Punkte` }] : []),
                                 { label: 'Gewicht im Portfolio', value: `${(rep.weakWeight * 100).toFixed(1)}%`, sentiment: 'neutral', description: 'Aktueller Anteil dieser Position am Gesamtportfolio' },
@@ -1260,7 +1260,7 @@ export default function OptimierenTab({
                   <div className="px-4 py-3">
                     <h4 className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
                       <Plus className="w-3.5 h-3.5" />
-                      Neue Kandidaten — Ergänzungs-Vorschläge (Score ≥ 65)
+                      Diversifikations-Lücken — Vorschläge für fehlende Sektoren
                       <span className="ml-auto flex items-center gap-2">
                         <span className="text-[10px] font-normal text-gray-500 normal-case">
                           {upgradeData.additionSuggestions.filter((c: any) => !deselectedAdditions.has(c.ticker)).length} / {upgradeData.additionSuggestions.length} ausgewählt
@@ -1310,19 +1310,18 @@ export default function OptimierenTab({
                               </span>
                               {c.dividendYield && <span className="text-gray-500 w-12 text-right">{c.dividendYield}%</span>}
                             </div>
-                            {/* KI-Begründung für Ergänzungs-Vorschlag */}
+                            {/* Begründung: die Lücke, nicht der Rang (K3, L5) */}
                             <InsightExpandable
                               title={`Warum ${c.ticker} hinzufügen?`}
-                              summary={`${c.ticker} (${c.companyName}) hat einen Score von ${c.signalScore}/100 und ein ${c.signalType?.toUpperCase() ?? 'HOLD'}-Signal. ${c.listType === 'empfehlung' ? 'Dieser Titel ist eine aktive KI-Empfehlung.' : 'Dieser Titel steht auf Ihrer Watchlist.'} ${c.dividendYield ? `Dividendenrendite: ${c.dividendYield}%.` : ''}`}
+                              summary={`Der Sektor «${c.luecke ?? c.sector ?? '—'}» fehlt in diesem Portfolio ganz — ${c.ticker} (${c.companyName}) würde diese Lücke füllen und besteht den Türsteher (Signal ${c.signalScore}/100, kein schwacher Zustand). ${c.dividendYield ? `Dividendenrendite: ${c.dividendYield}%.` : ''}`}
                               factors={[
-                                { label: 'Score', value: `${c.signalScore}/100`, sentiment: c.signalScore >= 65 ? 'positive' : c.signalScore >= 50 ? 'neutral' : 'negative', description: 'Kombinierter Score aus Momentum, Qualität und LPPL-Risikomodell' },
-                                { label: 'Signal', value: c.signalType?.toUpperCase() ?? '—', sentiment: c.signalType === 'buy' ? 'positive' : c.signalType === 'sell' ? 'negative' : 'neutral', description: 'Aktuelles Handelssignal basierend auf technischer und fundamentaler Analyse' },
-                                { label: 'Sektor', value: c.sector ?? '—', sentiment: 'neutral', description: 'Sektorzugehörigkeit des Titels' },
-                                { label: 'Quelle', value: c.listType === 'empfehlung' ? 'KI-Empfehlung' : 'Watchlist', sentiment: c.listType === 'empfehlung' ? 'positive' : 'neutral', description: c.listType === 'empfehlung' ? 'Aktiv von der KI als Kaufkandidat eingestuft' : 'Von Ihnen manuell auf die Watchlist gesetzt' },
+                                { label: 'Diversifikations-Lücke', value: c.luecke ?? c.sector ?? '—', sentiment: 'positive', description: 'Dieser Sektor ist im Portfolio bisher nicht vertreten — das ist der Grund für den Vorschlag' },
+                                { label: 'Signal', value: `${c.signalScore}/100`, sentiment: c.signalScore >= 65 ? 'positive' : c.signalScore >= 50 ? 'neutral' : 'negative', description: 'Drei-Score-Signal: Qualität und Timing je nach Marktlage gewichtet, die Bewertung wirkt als Wächter — dieselbe Zahl wie auf der Titelseite' },
+                                { label: 'Quelle', value: c.listType === 'empfehlung' ? 'Empfehlungs-Universum' : 'Watchlist', sentiment: 'neutral', description: c.listType === 'empfehlung' ? 'Kuratierter Titel aus dem Empfehlungs-Universum' : 'Von Ihnen manuell auf die Watchlist gesetzt' },
                                 ...(c.dividendYield ? [{ label: 'Dividendenrendite', value: `${c.dividendYield}%`, sentiment: parseFloat(c.dividendYield) >= 3 ? 'positive' as const : 'neutral' as const, description: 'Jährliche Dividendenrendite basierend auf aktuellem Kurs' }] : []),
                               ]}
                               variant="info"
-                              triggerLabel="KI-Begründung"
+                              triggerLabel="Begründung"
                               className="mt-1.5"
                             />
                           </div>

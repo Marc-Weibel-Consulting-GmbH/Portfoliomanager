@@ -293,6 +293,21 @@ dieses Dokument.
   alertConfig-Seite trägt ein Ohne-Wirkung-Banner (Rückbau in K12).
   Kein FASSUNG-Wechsel: Kernrechnung unberührt — es wurden nur
   Zweitformeln durch die eine Rechnung ersetzt.
+- **K3 — Optimieren-Tab & Alerts konsistent (2026-08, ohne
+  FASSUNG-Wechsel).** Nach K2 stammen Bestand und Kandidaten im
+  Optimieren-Tab aus derselben Rechnung (Kernsignal); das Score-Delta ist
+  damit wieder eine Aussage. Zusätzlich: Die «Ergänzungs-Vorschläge ab
+  Score 65» (Kaufrangliste, L5-Verstoss) sind durch eine
+  Diversifikations-Lücken-Logik ersetzt — vorgeschlagen wird nur, was
+  einen im Portfolio fehlenden Sektor füllt UND den Türsteher besteht
+  (kein Verkaufs-Zustand, konfigurierte Mindest-Schwelle; keine zweite
+  Schwellenzahl mehr). Positionen ohne Kernsignal gelten nicht als
+  «schwach» — ohne Signal kein Urteil. Der wöchentliche
+  Optimierungs-Alert beurteilt nur noch das Kernsignal (der frühere
+  qualityScore-Rückfall verglich zwei verschiedene Grössen an derselben
+  Schwelle); der nie benutzte driftThresholdPp-Parameter ist entfernt.
+  Veraltete Erklärtexte («Kombinierter Score aus Momentum, Qualität und
+  LPPL») ersetzt durch die Drei-Score-Beschreibung.
 
 ## 6. Fahrplan
 
