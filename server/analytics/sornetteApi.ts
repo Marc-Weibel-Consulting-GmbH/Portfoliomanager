@@ -317,9 +317,13 @@ export function formatBubbleIndicatorResponse(score: SornetteBubbleScore) {
     interpretation = 'Starke Bubble-Signale erkannt (FCO/LPPLS). Defensive Positionierung empfohlen.';
   }
 
-  // Add long-term bubble note
+  // Langfrist-Hinweis: bestPositiveT1 ist das t1 des besten qualifizierten
+  // Fits — der BEGINN des Fit-Fensters (Start des Bubble-Aufbaus), NICHT der
+  // kritische Zeitpunkt tc (den liefert die FCO-Confidence-API nicht).
+  // Die frühere Beschriftung «kritischer Zeitpunkt um 2022-11-09» las sich
+  // als längst verpasstes Crash-Datum (Live-Befund 20.08.).
   if (score.longTermBubble && score.bestPositiveT1_2_6y) {
-    interpretation += ` Langfristiger LPPL-Fit zeigt kritischen Zeitpunkt um ${score.bestPositiveT1_2_6y}.`;
+    interpretation += ` Der beste langfristige LPPL-Fit (2–6 J) stuft den Anstieg seit ${score.bestPositiveT1_2_6y} als Bubble-Aufbau ein.`;
   }
 
   // Add data source note
