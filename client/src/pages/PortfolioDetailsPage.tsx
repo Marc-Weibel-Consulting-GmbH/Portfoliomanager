@@ -1693,7 +1693,7 @@ export default function PortfolioDetailsPage() {
         )}
         
         {/* KPI Row — WERT | YTD | SEIT KAUF | (SHARPE nur detailliert) | DIV. RENDITE */}
-        <div className={`grid grid-cols-2 gap-0 border border-white/10 rounded-lg overflow-hidden ${detailed ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+        <div className={`grid grid-cols-2 gap-0 border border-white/10 rounded-lg overflow-hidden ${detailed ? "lg:grid-cols-6" : "lg:grid-cols-4"}`}>
           {/* WERT */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">WERT</p>
@@ -1725,7 +1725,7 @@ export default function PortfolioDetailsPage() {
 
           {/* YTD — kanonische Quelle: getMultiPeriodPerformanceV2 (identisch zur Portfolios-Liste) */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="YTD = seit Jahresbeginn">YTD</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="YTD = seit Jahresbeginn">RENDITE · YTD</p>
             {(() => {
               const entry = (multiPeriod as any[] | undefined)?.find(p => p.portfolioId === portfolioId);
               // Primary: multiPeriod entry; Fallback: weighted average of holdings ytdPerformance
@@ -1765,7 +1765,7 @@ export default function PortfolioDetailsPage() {
 
           {/* SEIT KAUF — Gesamtrendite seit Erstinvestition */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">SEIT KAUF</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">RENDITE · SEIT KAUF</p>
             {(() => {
               // `totalValueCHF` enthält die Liquidität bereits (siehe
               // portfoliosRouter) — nicht nochmals addieren, sonst zählt die
@@ -1789,7 +1789,7 @@ export default function PortfolioDetailsPage() {
           {/* SHARPE — fortgeschrittene Kennzahl, nur in «detailliert» */}
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Sharpe Ratio = risikoadjustierte Rendite">SHARPE</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Sharpe Ratio = risikoadjustierte Rendite">RISIKO · SHARPE</p>
             <p className="text-2xl font-bold font-mono text-white">
               {riskMetrics?.sharpeRatio !== undefined ? riskMetrics.sharpeRatio.toFixed(2) : '—'}
             </p>
@@ -1801,9 +1801,22 @@ export default function PortfolioDetailsPage() {
           </div>
           )}
 
+          {/* K10 (Soll-Ablauf S5): max. Verlustrisiko mit Benchmark-Vergleich */}
+          {detailed && (
+          <div className="bg-[#0f1420] p-5 border-r border-white/10">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Maximaler zwischenzeitlicher Wertverlust (Drawdown) im Betrachtungszeitraum">VERLUSTRISIKO · MAX.</p>
+            <p className="text-2xl font-bold font-mono text-white">
+              {riskMetrics?.dataAvailable ? `${riskMetrics.maxDrawdown.toFixed(1)}%` : '—'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Bench {riskMetrics?.dataAvailable ? `${riskMetrics.drawdownBenchmark.toFixed(1)}%` : '—'}
+            </p>
+          </div>
+          )}
+
           {/* DIV. RENDITE */}
           <div className="bg-[#0f1420] p-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Durchschnittliche Dividendenrendite der Portfoliopositionen">DIV. RENDITE</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Durchschnittliche Dividendenrendite der Portfoliopositionen">ERTRAG · DIV. RENDITE</p>
             <p className="text-2xl font-bold font-mono text-[#00CFC1]">
               {avgDividendYield > 0 ? `${avgDividendYield.toFixed(2)}%` : '—'}
             </p>

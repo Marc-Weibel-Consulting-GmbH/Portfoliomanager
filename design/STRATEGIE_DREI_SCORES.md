@@ -341,6 +341,17 @@ dieses Dokument.
   geplant» für die seit K2/K6 wirkungslosen Konfigurations-Seiten), mit
   ehrlichen Kachel-Beschreibungen. Der aiInsights-Router (LLM-erfundene
   healthScore-Zahl, null Frontend-Verbraucher) ist entfernt.
+- **K10 — Portfolio-Ausweis in drei Kundenkategorien (2026-08, ohne
+  FASSUNG-Wechsel).** Die KPI-Zeile des Portfolio-Details ordnet ihre
+  Kacheln nach den drei Kategorien des Soll-Ablaufs: **Rendite** (YTD vs.
+  SPI, seit Kauf), **Risiko** (Sharpe vs. Benchmark), **Verlustrisiko**
+  (neu: max. Drawdown vs. Benchmark) plus **Ertrag** (Dividendenrendite).
+  Geprüft und festgehalten: Die zentrale Regeltabelle
+  (shared/diversificationRules.ts — Positionsgrössen, Sektor-/Währungs-/
+  Themen-Deckel, Anlageklassen-Toleranz) wird bereits von Wizard,
+  Optimieren-Tab und Backtests gemeinsam gelesen und im Admin gepflegt;
+  die tägliche Portfolio-Historie läuft ab Erstellung
+  (portfolioMetricsSnapshot).
 
 ## 6. Fahrplan
 
