@@ -2,8 +2,9 @@
  * Optimization Alert Scheduled Handler
  *
  * Triggered weekly via Heartbeat cron (per user subscription).
- * Checks if portfolio weights have drifted more than the configured threshold
- * from the last-known optimal weights, and sends a notification.
+ * Meldet Positionen, deren Kernsignal (Drei-Score-Signal) unter 50 liegt.
+ * K3: beurteilt NUR das Kernsignal — kein qualityScore-Rückfall, kein
+ * (nie benutzter) Drift-Schwellenwert mehr.
  *
  * Route: POST /api/scheduled/optimizationAlert
  */
@@ -70,14 +71,14 @@ export async function handleOptimizationAlert(req: Request, res: Response) {
 
     const signalMap = new Map(signals.map((s) => [s.ticker, s]));
 
-    // Find positions with weak scores (below 50)
+    // K3: NUR das Kernsignal (combinedScore) zählt — der frühere Rückfall auf
+    // qualityScore verglich zwei verschiedene Grössen an derselben Schwelle.
+    // Titel ohne Kernsignal werden nicht beurteilt. Der nie benutzte
+    // driftThresholdPp-Parameter ist entfernt (toter Konfigurationswert).
     const weakPositions = stocks.filter((s: any) => {
-      const sig = signalMap.get(s.ticker);
-      const score = sig?.combinedScore ?? sig?.qualityScore ?? null;
-      return score !== null && Number(score) < 50;
+      const score = signalMap.get(s.ticker)?.combinedScore;
+      return score != null && Number(score) < 50;
     });
-
-    const driftThreshold = sub.driftThresholdPp;
 
     if (weakPositions.length === 0) {
       // Update lastRunAt
@@ -91,9 +92,8 @@ export async function handleOptimizationAlert(req: Request, res: Response) {
     // Send notification
     const weakList = weakPositions
       .map((s: any) => {
-        const sig = signalMap.get(s.ticker);
-        const score = sig?.combinedScore ?? sig?.qualityScore ?? "–";
-        return `${s.ticker} (Score: ${score}, Gewicht: ${parseFloat(s.weight || "0").toFixed(1)}%)`;
+        const score = signalMap.get(s.ticker)?.combinedScore ?? "–";
+        return `${s.ticker} (Signal: ${score}, Gewicht: ${parseFloat(s.weight || "0").toFixed(1)}%)`;
       })
       .join("\n• ");
 

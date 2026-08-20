@@ -612,10 +612,12 @@ Gib eine strukturierte Analyse zurück.`;
         // Schwache Positionen (Score < Schwelle)
         // P-ALIGN: Für frisch erstellte KI-Portfolios (< 7 Tage) keine Ersatz-Vorschläge,
         // da der Builder die Positionen bewusst ausgewählt hat.
+        // K3: Positionen OHNE Kernsignal (signalScore null) sind nicht «schwach» —
+        // ohne Signal gibt es kein Urteil, sie erscheinen nicht als Ersatzkandidat.
         const weakPositions = isFreshAiPortfolio
           ? [] // Keine Ersatz-Vorschläge für frisch erstellte KI-Portfolios
           : input.holdings
-              .filter((h) => (h.signalScore ?? 0) < rules.upgradeScoreThreshold)
+              .filter((h) => h.signalScore != null && h.signalScore < rules.upgradeScoreThreshold)
               .sort((a, b) => (a.signalScore ?? 0) - (b.signalScore ?? 0));
 
         // Ersatz-Vorschläge: für jede schwache Position genau 1 besten Kandidaten (kein Duplikat)
@@ -690,15 +692,32 @@ Gib eine strukturierte Analyse zurück.`;
           });
         }
 
-        // Ergänzungs-Vorschläge: Kandidaten mit hohem Score, die noch nicht im Portfolio sind
-        const additionThreshold = 65;
+        // K3 (Leitsatz L5, keine Kaufranglisten): Ergänzungs-Vorschläge sind
+        // keine «Top-Titel ab Score 65»-Liste mehr. Ein Titel wird nur noch
+        // vorgeschlagen, wenn er eine DIVERSIFIKATIONS-LÜCKE füllt — sein
+        // Sektor fehlt im Portfolio ganz. Der Score wirkt als Türsteher
+        // (dieselbe konfigurierte Schwelle wie beim Ersatz, kein zweiter
+        // Schwellenwert), sortiert wird nur zur Auswahl INNERHALB einer Lücke.
+        const portfolioSektoren = new Set(
+          input.holdings.map((h) => (h.sector ?? "").toLowerCase()).filter(Boolean),
+        );
+        const MAX_JE_LUECKE = 2;
+        const jeLuecke = new Map<string, number>();
         const additionSuggestions = candidates
+          .slice()
+          .sort((a, b) => getCandidateScore(b as CandidateRow) - getCandidateScore(a as CandidateRow))
           .filter((c) => {
             if (portfolioTickers.has(c.ticker.toUpperCase())) return false;
-            if ((c.signalScore ?? 0) < additionThreshold) return false;
+            const sektor = (c.sector ?? "").toLowerCase();
+            if (!sektor || portfolioSektoren.has(sektor)) return false; // keine Lücke
+            if (c.signalScore == null) return false;                     // ohne Kernsignal kein Vorschlag
+            if (c.signalType === "sell") return false;                   // Türsteher: kein schwacher Zustand
+            if (c.signalScore < rules.upgradeScoreThreshold) return false; // Mindeststandard
+            const n = jeLuecke.get(sektor) ?? 0;
+            if (n >= MAX_JE_LUECKE) return false;
+            jeLuecke.set(sektor, n + 1);
             return true;
           })
-          .sort((a, b) => getCandidateScore(b as CandidateRow) - getCandidateScore(a as CandidateRow))
           .map((c) => ({
             ticker: c.ticker,
             companyName: c.companyName,
@@ -708,6 +727,8 @@ Gib eine strukturierte Analyse zurück.`;
             dividendYield: c.dividendYield ?? null,
             category: c.category ?? null,
             listType: c.listType,
+            // Warum dieser Titel erscheint — die Lücke, nicht der Rang.
+            luecke: c.sector ?? null,
             estimatedWeight: parseFloat((1 / (input.holdings.length + 1)).toFixed(4)),
             currentPriceCHF: c.currentPrice ? parseFloat(c.currentPrice) : null,
           }));
