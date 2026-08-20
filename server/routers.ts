@@ -37,7 +37,6 @@ import { dashboardRouter } from "./routers/dashboardRouter";
 import { dashboardPerformanceRouter } from "./routers/dashboardPerformanceRouter";
 import { newsRouter } from "./routers/newsRouter";
 import { analyticsRouter } from "./routers/analyticsRouter";
-import { aiInsightsRouter } from "./routers/aiInsightsRouter";
 import { watchlistRouter } from "./routers/watchlistRouter";
 import { investRouter } from "./routers/investRouter";
 import { backtestRouter } from "./routers/backtestRouter";
@@ -238,7 +237,6 @@ export const appRouter = router({
 
   // Fincept Analytics (Python microservice proxy)
   analytics: analyticsRouter,
-  aiInsights: aiInsightsRouter,
 
   // Watchlist & Invest
   watchlist: watchlistRouter,
