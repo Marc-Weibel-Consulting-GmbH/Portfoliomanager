@@ -34,6 +34,9 @@ describe("portfolioQualityScore", () => {
       expect(result.totalScore).toBeGreaterThan(70);
       expect(result.dataCoveragePct).toBe(100);
       expect(result.components.every((c) => c.available)).toBe(true);
+      // K6: Bewertung ist KEIN Bestandteil des Portfolio-Zustands mehr —
+      // sie lebt in den Titel-Bewertungsscores (bereinigte Kette, E1).
+      expect(result.components.find((c) => c.name === "Bewertung")).toBeUndefined();
     });
 
     it("calculates a low score for a poor portfolio", () => {
@@ -69,7 +72,9 @@ describe("portfolioQualityScore", () => {
         hhi: 0.08,
       };
       const result = calculatePortfolioQualityScore(input);
-      expect(result.dataCoveragePct).toBe(60); // 30% + 15% Risk + 15% Div = 60%
+      // K6: Abdeckung relativ zu den verbleibenden vier Komponenten
+      // (30+15+15 von 75 Gewichtspunkten) = 80 %.
+      expect(result.dataCoveragePct).toBe(80);
       expect(result.totalScore).toBeGreaterThan(0);
       // 3 of 5 components available (RAR, Risiko, Diversifikation)
       expect(result.components.filter((c) => c.available).length).toBe(3);
@@ -78,15 +83,6 @@ describe("portfolioQualityScore", () => {
       expect(risiko?.inputs.hhi).toBeUndefined();
       const div = result.components.find((c) => c.name === "Diversifikation");
       expect(div?.inputs.hhi).toBe(0.08);
-    });
-
-    it("penalizes non-positive PEG and negative PE instead of ignoring them", () => {
-      // PEG ≤ 0 (Nullwachstum) und PE < 0 (Verlust) → explizit niedrig, available.
-      const input: QualityScoreInput = { avgPEG: 0, avgPE: -12 };
-      const result = calculatePortfolioQualityScore(input);
-      const bewertung = result.components.find((c) => c.name === "Bewertung");
-      expect(bewertung?.available).toBe(true);
-      expect(bewertung!.score).toBeLessThan(25); // PEG→20, PE→5, gewichtet
     });
 
     it("goal 'growth' does not structurally punish a dividend-free portfolio", () => {
@@ -121,19 +117,16 @@ describe("portfolioQualityScore", () => {
     it("handles edge case: only dividend yield available", () => {
       const input: QualityScoreInput = { avgDividendYield: 0.04 };
       const result = calculatePortfolioQualityScore(input);
-      expect(result.dataCoveragePct).toBe(15);
+      expect(result.dataCoveragePct).toBe(20); // 15 von 75 Gewichtspunkten
       expect(result.totalScore).toBeGreaterThan(70); // 4% yield → high income score
       expect(result.components.filter((c) => c.available).length).toBe(1);
     });
 
-    it("PEG warning zone: very low PEG gets capped score (too good to be true)", () => {
-      const input: QualityScoreInput = { avgPEG: 0.3, avgPE: 8 };
-      const result = calculatePortfolioQualityScore(input);
-      // PEG < 0.5 → score around 50 (not 100), because it may indicate unreliable estimates
-      const bewertung = result.components.find((c) => c.name === "Bewertung");
-      expect(bewertung?.available).toBe(true);
-      // The combined score should be moderate, not maximum
-      expect(bewertung!.score).toBeLessThan(90);
+    it("Bewertungs-Eingaben (PEG/PE) allein ergeben keinen Zustand", () => {
+      // K6: rohe Vendor-Bewertungszahlen fliessen nicht mehr ein.
+      const result = calculatePortfolioQualityScore({ avgPEG: 0.3, avgPE: 8 });
+      expect(result.dataCoveragePct).toBe(0);
+      expect(result.totalScore).toBe(0);
     });
   });
 

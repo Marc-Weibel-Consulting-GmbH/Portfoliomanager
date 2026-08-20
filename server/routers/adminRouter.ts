@@ -1224,9 +1224,9 @@ export const adminRouter = router({
           throw new Error(`Component weights must sum to 1.0 (got ${wSum.toFixed(3)})`);
         }
 
-        // Audit-Trail (Compliance): der Score beeinflusst Kaufhinweise, deshalb
-        // wer/wann/alte→neue Gewichte festhalten. Ablage als JSON in appSettings
-        // (keine eigene Tabelle/Migration nötig), letzte 30 Einträge.
+        // Audit-Trail: Der Portfolio-Zustand ist reine Anzeige und beeinflusst
+        // KEINE Kaufhinweise (K6) — der Trail hält trotzdem wer/wann/alte→neue
+        // Gewichte fest. Ablage als JSON in appSettings, letzte 30 Einträge.
         try {
           const rows = await db.select().from(appSettings).where(eq(appSettings.key, "score_thresholds"));
           const prevWeights = (rows[0]?.value as any)?.componentWeights ?? null;

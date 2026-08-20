@@ -323,6 +323,18 @@ dieses Dokument.
   berechnet) — die Gründe stehen im Tooltip. Kein Eingriff in die
   Rechnung: Die Ampel erklärt, warum ein Titel kein Signal hat, sie
   erzeugt keines. Score-Spalte im Admin zeigt ohne Kernsignal «—» statt 0.
+- **K6 — Portfolio-Zustand statt «Quality Score» (2026-08, ohne
+  FASSUNG-Wechsel).** Die Bewertungs-Komponente (Ø PEG/PE aus rohen
+  Vendor-Zahlen, 25 %) ist aus dem Portfolio-Score entfernt — sie war ein
+  zweites Bewertungsuniversum an der bereinigten Kette vorbei und
+  widersprach E1 (Bewertung ist Wächter der Titel-Rechnung, keine
+  Portfolio-Note). Der Score heisst jetzt «Portfolio-Zustand», rechnet aus
+  vier Komponenten (Risikoadjustierte Rendite, Risiko, Ertrag,
+  Diversifikation; Abdeckung relativ zu deren Gewichten) und bleibt reine
+  Anzeige. Titel-HHI in der Konfigurations-Seite korrekt unter
+  «Diversifikation» gruppiert; der falsche Audit-Text («beeinflusst
+  Kaufhinweise») korrigiert; Banner auf der Score-Konfigurations-Seite,
+  dass die Bewertungs-Felder nicht mehr gelesen werden.
 
 ## 6. Fahrplan
 
