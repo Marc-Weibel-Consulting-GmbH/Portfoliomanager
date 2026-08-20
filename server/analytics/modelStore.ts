@@ -59,17 +59,24 @@ export const activeCacheKey = (kind: string) => `model:${kind}:active`;
 /**
  * Persist a freshly trained candidate and promote it if it clears the gate.
  * Returns the assigned version and whether it was promoted to active.
+ *
+ * K1 (Selbstlern-Stopp, L3): Mit `autoPromote: false` wird das Gate zwar
+ * ausgewertet und berichtet (`gateBestanden`), der Artefakt bleibt aber
+ * IMMER Kandidat — aktivieren kann nur ein Admin (promoteModelArtifact).
  */
 export async function persistAndMaybePromote(
   deps: { repo: ArtifactRepo; cache: BytesCache },
   out: TrainingOutput,
   gate: PromotionGate,
-): Promise<{ version: number; promoted: boolean }> {
+  opts: { autoPromote?: boolean } = {},
+): Promise<{ version: number; promoted: boolean; gateBestanden: boolean }> {
+  const autoPromote = opts.autoPromote ?? true;
   const existing = await deps.repo.list(out.kind);
   const version = nextVersion(existing, out.kind);
   const base64 = Buffer.from(out.onnxBytes).toString("base64");
 
-  const promoted = passesPromotionGate(out.metrics, gate);
+  const gateBestanden = passesPromotionGate(out.metrics, gate);
+  const promoted = autoPromote && gateBestanden;
 
   const id = await deps.repo.insert({
     kind: out.kind,
@@ -94,7 +101,29 @@ export async function persistAndMaybePromote(
     await deps.cache.set(activeCacheKey(out.kind), Buffer.from(out.onnxBytes), ACTIVE_TTL);
   }
 
-  return { version, promoted };
+  return { version, promoted, gateBestanden };
+}
+
+/**
+ * Manuelle Beförderung eines Kandidaten durch den Admin (K1): archiviert den
+ * bisher aktiven Artefakt derselben Art, aktiviert den Kandidaten und wärmt
+ * den Cache mit dessen Bytes. Wirft bei unbekannter id oder fehlendem Blob.
+ */
+export async function promoteModelArtifact(
+  deps: { repo: ArtifactRepo; cache: BytesCache },
+  ref: { kind: string; id: number },
+): Promise<{ version: number }> {
+  const rows = await deps.repo.list(ref.kind);
+  const kandidat = rows.find((r) => r.id === ref.id);
+  if (!kandidat) throw new Error(`Modell-Artefakt ${ref.id} (${ref.kind}) nicht gefunden`);
+  if (!kandidat.modelBlob) throw new Error(`Modell-Artefakt ${ref.id} hat keinen Modell-Blob`);
+
+  for (const a of rows) {
+    if (a.status === "active" && a.id !== ref.id) await deps.repo.setStatus(a.id, "archived");
+  }
+  await deps.repo.setStatus(ref.id, "active", true);
+  await deps.cache.set(activeCacheKey(ref.kind), Buffer.from(kandidat.modelBlob, "base64"), ACTIVE_TTL);
+  return { version: kandidat.version };
 }
 
 /**

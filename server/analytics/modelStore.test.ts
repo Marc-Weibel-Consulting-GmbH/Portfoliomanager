@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   persistAndMaybePromote,
+  promoteModelArtifact,
   loadActiveModelBytes,
   activeCacheKey,
   type ArtifactRepo,
@@ -37,7 +38,7 @@ describe('modelStore', () => {
       { kind: 'gb_signal', onnxBytes: onnx, featureSpec: spec, metrics: { hitRate: 0.6, overfitRatio: 1.2, alpha: 0.05 } },
       gate,
     );
-    expect(res).toEqual({ version: 1, promoted: true });
+    expect(res).toEqual({ version: 1, promoted: true, gateBestanden: true });
     expect(repo.rows[0].status).toBe('active');
     expect(Array.from((await cache.get(activeCacheKey('gb_signal')))!)).toEqual([1, 2, 3, 4]);
   });
@@ -65,6 +66,44 @@ describe('modelStore', () => {
     expect(r2.version).toBe(2);
     expect(repo.rows.find((r) => r.version === 1)!.status).toBe('archived');
     expect(repo.rows.find((r) => r.version === 2)!.status).toBe('active');
+  });
+
+  // K1 (Selbstlern-Stopp): Der Trainings-Cron darf nie selbst aktivieren —
+  // auch ein Gate-Sieger bleibt Kandidat, bis ein Admin ihn befördert.
+  it('autoPromote=false: Gate-Sieger bleibt Kandidat, Gate-Urteil wird berichtet', async () => {
+    const repo = fakeRepo();
+    const cache = new InMemoryBytesCache();
+    const res = await persistAndMaybePromote(
+      { repo, cache },
+      { kind: 'gb_signal', onnxBytes: onnx, featureSpec: spec, metrics: { hitRate: 0.6, overfitRatio: 1.2, alpha: 0.05 } },
+      gate,
+      { autoPromote: false },
+    );
+    expect(res).toEqual({ version: 1, promoted: false, gateBestanden: true });
+    expect(repo.rows[0].status).toBe('candidate');
+    expect(await cache.get(activeCacheKey('gb_signal'))).toBeNull();
+  });
+
+  it('promoteModelArtifact: aktiviert Kandidaten manuell, archiviert den Aktiven, wärmt den Cache', async () => {
+    const repo = fakeRepo();
+    const cache = new InMemoryBytesCache();
+    const good = { hitRate: 0.6, overfitRatio: 1.2, alpha: 0.05 };
+    await persistAndMaybePromote({ repo, cache }, { kind: 'gb_signal', onnxBytes: onnx, featureSpec: spec, metrics: good }, gate);
+    const cand = await persistAndMaybePromote({ repo, cache }, { kind: 'gb_signal', onnxBytes: new Uint8Array([9]), featureSpec: spec, metrics: good }, gate, { autoPromote: false });
+    expect(cand.promoted).toBe(false);
+
+    const candidateRow = repo.rows.find((r) => r.version === cand.version)!;
+    const res = await promoteModelArtifact({ repo, cache }, { kind: 'gb_signal', id: candidateRow.id });
+    expect(res.version).toBe(cand.version);
+    expect(repo.rows.find((r) => r.version === 1)!.status).toBe('archived');
+    expect(candidateRow.status).toBe('active');
+    expect(Array.from((await cache.get(activeCacheKey('gb_signal')))!)).toEqual([9]);
+  });
+
+  it('promoteModelArtifact: unbekannte id wird abgelehnt', async () => {
+    const repo = fakeRepo();
+    const cache = new InMemoryBytesCache();
+    await expect(promoteModelArtifact({ repo, cache }, { kind: 'gb_signal', id: 99 })).rejects.toThrow();
   });
 
   it('loadActiveModelBytes reads cache, else DB (and warms cache)', async () => {

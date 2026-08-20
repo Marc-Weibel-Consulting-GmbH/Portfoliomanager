@@ -85,6 +85,15 @@ export default function AdminMlTrainer() {
     },
     onError: (e) => toast.error("Training fehlgeschlagen", { description: e.message }),
   });
+  // K1: Der Cron speichert nur Kandidaten — aktiv wird ein Modell erst per Klick hier.
+  const promoteMut = trpc.admin.mlPromoteModel.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Modell v${data.promotedVersion} aktiviert`, { description: "Das bisher aktive Modell wurde archiviert." });
+      statusQ.refetch();
+      historyQ.refetch();
+    },
+    onError: (e) => toast.error("Aktivierung fehlgeschlagen", { description: e.message }),
+  });
 
   const status = statusQ.data as any;
   const history = historyQ.data?.runs ?? [];
@@ -234,7 +243,8 @@ export default function AdminMlTrainer() {
                       <th className="text-left py-2 pr-4">Overfit</th>
                       <th className="text-left py-2 pr-4">Universum</th>
                       <th className="text-left py-2 pr-4">Gate</th>
-                      <th className="text-left py-2">Erstellt</th>
+                      <th className="text-left py-2 pr-4">Erstellt</th>
+                      <th className="text-left py-2">Aktion</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -261,7 +271,21 @@ export default function AdminMlTrainer() {
                           </td>
                           <td className="py-2 pr-4 text-zinc-400">{run.universeSize ?? "–"}</td>
                           <td className="py-2 pr-4"><GateBadge passed={passed} /></td>
-                          <td className="py-2 text-zinc-500 text-xs">{fmtDate(run.createdAt)}</td>
+                          <td className="py-2 pr-4 text-zinc-500 text-xs">{fmtDate(run.createdAt)}</td>
+                          <td className="py-2">
+                            {run.status === "candidate" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={promoteMut.isPending}
+                                onClick={() => promoteMut.mutate({ id: run.id, kind: run.kind })}
+                                className="h-6 px-2 text-xs border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                                title="Kandidat manuell aktivieren — der Cron befördert seit K1 nicht mehr selbst"
+                              >
+                                Aktivieren
+                              </Button>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
@@ -282,7 +306,7 @@ export default function AdminMlTrainer() {
               <InfoItem label="Algorithmus" value="Gradient Boosting (sklearn)" />
               <InfoItem label="Validierung" value="Walk-Forward, 5 Folds" />
               <InfoItem label="Export" value="ONNX (für Produktion)" />
-              <InfoItem label="Cron" value="Montag 02:37 UTC (wöchentlich)" />
+              <InfoItem label="Cron" value="Montag 02:37 UTC — speichert nur Kandidaten, Aktivierung manuell" />
               <InfoItem label="Features" value="ret_1d, ret_5d, ret_20d, mom_60d, vol_20d, rsi_14, px_vs_sma50" />
               <InfoItem label="Label" value="20-Tage Forward-Return Richtung (1=steigt, 0=fällt)" />
               <InfoItem label="Universum" value="Watchlist-Aktien (max. 80)" />

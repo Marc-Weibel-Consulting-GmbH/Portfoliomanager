@@ -267,6 +267,17 @@ dieses Dokument.
   PEG-Obergrenze: Eine Zahl ohne Aussage wird ausgeblendet, nie belohnt.
   FASSUNG-Wechsel, weil die Rekonstruktion das ROIC selbst rechnet — die
   Punkt-in-Zeit-Historie zieht automatisch nach.
+- **K1 — Selbstlern-Stopp (2026-08, ohne FASSUNG-Wechsel).** Setzt Leitsatz
+  L3 aus KONSOLIDIERUNG_RECHENWERKE.md durch (messen ja, automatisch
+  übernehmen nein): Der wöchentliche Regime-Priors-Cron und der monatliche
+  Optimizer-Cron sind entfernt (beide Werkzeuge bleiben als Admin-Knopf);
+  der Algo-Backtest-Feedback-Loop schreibt keine `signalWeights` mehr,
+  sondern dokumentiert seinen Gewichts-Vorschlag nur noch im Tuning-Log;
+  das wöchentliche ML-Training speichert Modelle ausschliesslich als
+  Kandidaten — aktiviert wird ein Modell nur noch manuell auf der
+  ML-Trainer-Seite. Kein FASSUNG-Wechsel: Die drei Score-Formeln und
+  `rechneSignal` sind unberührt; gestoppt wurden nur ungegatete
+  Schreibpfade in Labor-/Fallback-Konfigurationen.
 
 ## 6. Fahrplan
 
