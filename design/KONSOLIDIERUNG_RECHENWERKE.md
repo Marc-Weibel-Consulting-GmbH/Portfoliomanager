@@ -212,15 +212,15 @@ Benchmark bei idealerweise tieferem Risiko.
 
 ## 8. Konsolidierungspakete (je Paket separates OK)
 
-- **K1 — Selbstlern-Stopp** *(klein, risikoarm, zuerst)*: Regime-Priors-Cron
+- **K1 — Selbstlern-Stopp** ✅ *(umgesetzt 20.08., PR #324)*: Regime-Priors-Cron
   und Algo-Feedback-Loop deaktivieren; ML-Promotion und Optimizer-Aktivierung
   auf manuellen Admin-Entscheid umstellen (Werkzeuge bleiben, schreiben
   Berichte). Setzt L3 durch.
-- **K2 — EIN Signal für Badges & Alerts** *(kundenwirksam)*:
+- **K2 — EIN Signal für Badges & Alerts** ✅ *(umgesetzt 20.08., PR #325)*:
   `stocks.signalScore/signalType` aus F1 speisen (watchlistAlertsCron liest
   `stock_scores`), F4-Scheduled stilllegen, F3/alertConfig ausser Betrieb,
   «KI-Empfohlen»-Generator auf F1 + ehrlichen Namen. Danach: Badge = Zahl.
-- **K3 — Optimieren-Tab & Alerts konsistent**: Kandidaten und Bestand aus F1;
+- **K3 — Optimieren-Tab & Alerts konsistent** ✅ *(umgesetzt 20.08., PR #326)*: Kandidaten und Bestand aus F1;
   `scoreDelta` nur noch innerhalb einer Formel; Schwellen als
   Wächter-/Lücken-Logik statt 65er-Rangliste; `qualityScore`-Fallback und
   toten `driftThresholdPp` entfernen; F2/`signalWeights` aus dem Kundenpfad
@@ -233,40 +233,40 @@ Benchmark bei idealerweise tieferem Risiko.
   +10-Bonus raus (oder als deklarierte Kurationsregel); LLM-Rollen bleiben
   (Text/Kritik), `autoApply`-Zwang überdenken; Feedback-Format-Bug fixen
   oder Schleife entfernen; toten `buildProposal`-Altpfad löschen.
-- **K5 — Copilot entschärfen**: Composite auf F1-Basis umstellen oder als
+- **K5 — Copilot entschärfen** ✅ *(umgesetzt 20.08., PR #332)*: Composite auf F1-Basis umstellen oder als
   «relativ, beschreibend» deklarieren; RF- und PE/PEG-Anteile raus;
   `autoExecute`-Trades auf F5-Basis stoppen; Deep-Dive-Prompt von
   «Handlungsempfehlungen» auf Beschreibung.
-- **K6 — Portfolio-Score ehrlich machen**: Umbenennen («Portfolio-Zustand»),
+- **K6 — Portfolio-Score ehrlich machen** ✅ *(umgesetzt 20.08., PR #329)*: Umbenennen («Portfolio-Zustand»),
   Bewertungs-Komponente auf die bereinigte Kette bzw. als Wächter-Ausweis,
   Audit-/UI-Texte und hhi-Gruppierung fixen; bleibt reine Anzeige.
-- **K7 — Labor kennzeichnen**: Engines/Signal-Performance: Messfenster auf
+- **K7 — Labor kennzeichnen** ✅ *(umgesetzt 20.08., PR #333 — Messfenster fixiert, Banner)*: Engines/Signal-Performance: Messfenster auf
   Horizont fixen + Alpha statt Richtung, Banner «Labor — entscheidet
   nichts»; oder einfrieren. Engine-Widgets und Prognose-Tab markieren oder
   entfernen. Optimizer-/ML-Trainer-UI-Texte korrigieren.
-- **K8 — Sprach- und Namensordnung**: `qualityScore`-Vierdeutigkeit
+- **K8 — Sprach- und Namensordnung** ◐ *(20.08., PR #330: Admin-Nav nach Schichten, healthScore-Router entfernt. Offen: qualityScore-Spalten-Renames, stocks.score-Stilllegung)*: `qualityScore`-Vierdeutigkeit
   auflösen, `stocks.score` nach Übergangsfrist stilllegen, LLM-erfundene
   Zahlen (healthScore) unterbinden, Admin-Navigation nach Schichten
   gruppieren, alle unter Befund 10 gelisteten Falschtexte korrigieren.
 
-- **K9 — Titel-Datenqualität & Kuratierungs-Ablauf** *(Soll-Ablauf S1/S2)*:
+- **K9 — Titel-Datenqualität & Kuratierungs-Ablauf** ✅ *(umgesetzt 20.08., PR #328)* *(Soll-Ablauf S1/S2)*:
   Pro Titel ein Gesamtstatus (vollständig / lückenhaft / veraltet) aus
   Historienlänge, Datenaktualität und Score-Basis; sichtbar in Watchlist und
   Universum; ohne «vollständig» kein Signal-Ausweis. Einheitlicher
   Aufnahme-Check für alle drei Quellen; Status-Verschlechterungen erscheinen
   als Cockpit-Meldung.
-- **K10 — Rahmenregeln & Portfolio-Ausweis** *(Soll-Ablauf S4/S5)*: EINE
+- **K10 — Rahmenregeln & Portfolio-Ausweis** ✅ *(umgesetzt 20.08., PR #331 — Regeltabelle war bereits zentral)* *(Soll-Ablauf S4/S5)*: EINE
   deklarierte Regeltabelle (Positionsgrössen min/max, Sektor-/Regionen-
   Deckel, Cash-Quote) für Wizard und Optimieren-Tab; einheitlich definierte
   Portfolio-Kennzahlen in drei Kategorien (Rendite / Risiko / Verlustrisiko)
   inkl. Benchmark-Vergleich; lückenlose Historie ab Portfolio-Erstellung.
-- **K11 — Projektleiter-Cockpit & Lernwerkstatt** *(Soll-Ablauf, letzter
+- **K11 — Projektleiter-Cockpit & Lernwerkstatt** ✅ *(umgesetzt 20.08., PR #334)* *(Soll-Ablauf, letzter
   Baustein)*: eine Admin-Übersichtsseite nach Schichten + internes
   Meldewesen (Datenlücken, Inkonsistenzen, Ausreisser, Lern-Vorschläge);
   Lernwerkstatt misst laufend Alpha UND Risiko gegen den Benchmark
   (setzt das K7-Messfenster voraus) und stellt Out-of-Sample-geprüfte
   Vorschläge zur Freigabe — nie zur Selbst-Übernahme.
-- **K12 — Frontend entschlacken** *(«nicht überladen»)*: redundante oder
+- **K12 — Frontend entschlacken** ◐ *(20.08., PR #327: Signale-Tab + /aktien/signale entfernt. Offen: Rückbau der vier wirkungslosen Konfigseiten)*: redundante oder
   konzeptwidrige Kundenansichten entfernen bzw. zusammenlegen. Erster
   benannter Kandidat (Marc, 20.08.): der Tab **«Signale» im
   Portfolio-Detail** fliegt raus — er zeigt pro Position Labor-Signale
