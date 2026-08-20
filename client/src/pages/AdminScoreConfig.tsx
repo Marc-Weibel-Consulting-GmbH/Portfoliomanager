@@ -195,7 +195,7 @@ const THRESHOLD_LABELS: Record<string, { label: string; unit: string; component:
   pe: { label: "PE Ratio", unit: "x", component: "valuation" },
   volatility: { label: "Volatilität", unit: "%", component: "risk" },
   beta: { label: "Beta", unit: "", component: "risk" },
-  hhi: { label: "Konzentration (HHI)", unit: "", component: "risk" },
+  hhi: { label: "Konzentration (HHI)", unit: "", component: "diversification" },
   dividendYield: { label: "Dividendenrendite", unit: "%", component: "income" },
   sectorHHI: { label: "Sektor-HHI", unit: "", component: "diversification" },
   foreignCurrency: { label: "Fremdwährungsanteil", unit: "%", component: "diversification" },
@@ -365,6 +365,17 @@ function ScoreConfigForm({ data }: { data: ScoreConfigData }) {
           { label: "Score-Konfiguration", icon: <SlidersHorizontal className="h-4 w-4" /> },
         ]}
       />
+        {/* K6: Die Bewertungs-Komponente ist aus dem Portfolio-Zustand entfernt
+            (zweites Bewertungsuniversum, E1-Widerspruch) — ihre Felder hier
+            werden nicht mehr gelesen. Rückbau der Seite ist Paket K12. */}
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-300">
+          <span className="font-semibold">Hinweis (Konsolidierung K6):</span>{" "}
+          Der Portfolio-Zustand (vormals «Quality Score») rechnet ohne
+          Bewertungs-Komponente — die Bewertung eines Titels lebt in den drei
+          Scores (bereinigte Kette). Die Bewertungs-Gewichte und -Schwellen auf
+          dieser Seite werden von keinem Rechenweg mehr gelesen. Der Zustand ist
+          reine Anzeige und beeinflusst keine Empfehlungen.
+        </div>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -372,7 +383,7 @@ function ScoreConfigForm({ data }: { data: ScoreConfigData }) {
             <div>
               <h1 className="text-2xl font-bold">Score-Konfiguration</h1>
               <p className="text-sm text-muted-foreground">
-                Portfolio Quality Score Schwellenwerte und Gewichtungen
+                Portfolio-Zustand: Schwellenwerte und Gewichtungen (reine Anzeige)
               </p>
             </div>
           </div>

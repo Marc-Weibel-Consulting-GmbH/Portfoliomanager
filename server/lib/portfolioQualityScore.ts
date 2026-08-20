@@ -1,26 +1,29 @@
 /**
- * Portfolio Quality Score (0–100) — E1
+ * Portfolio-Zustand (0–100) — vormals «Portfolio Quality Score».
  *
- * Deterministic, documented scoring of portfolio quality.
- * Pure function: same inputs → same score. No LLM, no randomness.
+ * Deterministic, documented scoring. Pure function: same inputs → same score.
+ * No LLM, no randomness. Reine Anzeige — entscheidet nichts.
  *
- * 5 Components (v2):
- *   1. Risikoadjustierte Rendite (30%): Sharpe, Sortino, Max Drawdown
- *   2. Bewertung (25%): Ø PEG, Ø PE, PEG-Verteilung (Anteil PEG<1.5 minus PEG>3)
- *   3. Risiko (15%): Volatilität p.a., Ø Beta
- *   4. Ertrag (15%, profilabhängig): Ø Dividendenrendite brutto (gewichtet)
- *   5. Diversifikation (15%): Titel-HHI, Sektor-HHI, Fremdwährungsanteil, Positionsanzahl
+ * 4 Components (v3, K6):
+ *   1. Risikoadjustierte Rendite (30): Sharpe, Sortino, Max Drawdown
+ *   2. Risiko (15): Volatilität p.a., Ø Beta
+ *   3. Ertrag (15, profilabhängig): Ø Dividendenrendite brutto (gewichtet)
+ *   4. Diversifikation (15): Titel-HHI, Sektor-HHI, Fremdwährungsanteil, Positionsanzahl
  *
- * v2-Kalibrierung (KIMI-Feedback):
- *   - Konzentration gebündelt: Titel-HHI von «Risiko» nach «Diversifikation»
- *     verschoben (Doppelzählung aufgelöst); DIV 10→15%, RISK 20→15%.
- *   - Ertrag profilabhängig (applyGoalWeights): «growth» gewichtet Dividende
- *     schwach (Growth-Portfolios werden nicht mehr strukturell bestraft),
- *     «dividends» stärker; «balanced»/null = Basisgewichte.
- *   - Bewertung: negatives/nullwertiges PEG bzw. negatives PE werden explizit
- *     niedrig bewertet statt wegrenormalisiert (Verlust-/Nullwachstum-Titel).
+ * K6 (design/KONSOLIDIERUNG_RECHENWERKE.md): Die frühere Bewertungs-Komponente
+ * (Ø PEG/PE aus rohen Vendor-Zahlen, 25 %) ist ENTFERNT — sie war ein zweites
+ * Bewertungsuniversum an der bereinigten Kette vorbei und widersprach der
+ * E1-Reform (Bewertung ist Wächter der Titel-Rechnung, keine Portfolio-Note).
+ * Die Bewertung eines Titels lebt in den drei Scores; das Portfolio zeigt sie
+ * nicht als eigene Komponente. Gespeicherte Konfigurationen behalten ihre
+ * valuation-Felder — sie werden schlicht nicht mehr gelesen.
  *
- * Missing data → renormalize remaining components + report dataCoveragePct.
+ * v2-Kalibrierung (KIMI-Feedback, weiterhin gültig):
+ *   - Konzentration gebündelt: Titel-HHI unter «Diversifikation».
+ *   - Ertrag profilabhängig (applyGoalWeights).
+ *
+ * Missing data → renormalize remaining components + report dataCoveragePct
+ * (relativ zu den vier verbleibenden Komponenten-Gewichten).
  *
  * Thresholds are admin-configurable via appSettings (key: 'score_thresholds').
  * Use getScoreThresholds() to load from DB, or pass config directly.
@@ -265,47 +268,6 @@ function scoreRiskAdjustedReturn(input: QualityScoreInput, config: ScoreThreshol
   return { name: "Risikoadjustierte Rendite", weight: config.componentWeights.riskAdjustedReturn, score: Math.round(score), available: true, inputs };
 }
 
-function scoreValuation(input: QualityScoreInput, config: ScoreThresholdsConfig): ComponentResult {
-  const inputs: Record<string, number | string | null> = {};
-  const scores: number[] = [];
-  const weights: number[] = [];
-
-  if (input.avgPEG != null && isFinite(input.avgPEG)) {
-    // PEG ≤ 0 bedeutet nicht-positives Gewinnwachstum (oder negatives PE) —
-    // methodisch schlecht. Explizit niedrig bewerten statt wegrenormalisieren.
-    const s = input.avgPEG > 0 ? interpolate(input.avgPEG, config.thresholds.peg) : 20;
-    scores.push(s);
-    weights.push(config.subWeights.peg);
-    inputs.avgPEG = input.avgPEG;
-  }
-  if (input.avgPE != null && isFinite(input.avgPE)) {
-    // Negatives PE = Verlustsituation. Explizit sehr niedrig statt ignorieren.
-    const s = input.avgPE > 0 ? interpolate(input.avgPE, config.thresholds.pe) : 5;
-    scores.push(s);
-    weights.push(config.subWeights.pe);
-    inputs.avgPE = input.avgPE;
-  }
-  if (input.pegDistribution && input.pegDistribution.total > 0) {
-    const cheapPct = input.pegDistribution.below15 / input.pegDistribution.total;
-    const expensivePct = input.pegDistribution.above3 / input.pegDistribution.total;
-    const distScore = Math.min(100, Math.max(0, cheapPct * 100 - expensivePct * 60 + 50));
-    scores.push(distScore);
-    weights.push(config.subWeights.pegDistribution);
-    inputs.pegBelow15 = input.pegDistribution.below15;
-    inputs.pegAbove3 = input.pegDistribution.above3;
-    inputs.pegTotal = input.pegDistribution.total;
-  }
-
-  if (scores.length === 0) {
-    return { name: "Bewertung", weight: config.componentWeights.valuation, score: 0, available: false, inputs };
-  }
-
-  const totalW = weights.reduce((a, b) => a + b, 0);
-  const score = scores.reduce((sum, s, i) => sum + s * weights[i], 0) / totalW;
-
-  return { name: "Bewertung", weight: config.componentWeights.valuation, score: Math.round(score), available: true, inputs };
-}
-
 function scoreRisk(input: QualityScoreInput, config: ScoreThresholdsConfig): ComponentResult {
   const inputs: Record<string, number | string | null> = {};
   const scores: number[] = [];
@@ -444,9 +406,9 @@ export function calculatePortfolioQualityScore(
       ? { ...config, componentWeights: applyGoalWeights(config.componentWeights, goal) }
       : config;
 
+  // K6: ohne Bewertungs-Komponente (siehe Kopfkommentar).
   const components = [
     scoreRiskAdjustedReturn(input, effectiveConfig),
-    scoreValuation(input, effectiveConfig),
     scoreRisk(input, effectiveConfig),
     scoreIncome(input, effectiveConfig),
     scoreDiversification(input, effectiveConfig),
@@ -456,8 +418,12 @@ export function calculatePortfolioQualityScore(
   const availableComponents = components.filter((c) => c.available);
   const totalAvailableWeight = availableComponents.reduce((sum, c) => sum + c.weight, 0);
 
-  // Data coverage = sum of available component weights / total weights (always 1.0)
-  const dataCoveragePct = Math.round(totalAvailableWeight * 100);
+  // Abdeckung relativ zu den vier verbleibenden Komponenten-Gewichten —
+  // sonst wäre nach dem Wegfall der Bewertung nie mehr als 75 % erreichbar.
+  const totalPossibleWeight = components.reduce((sum, c) => sum + c.weight, 0);
+  const dataCoveragePct = totalPossibleWeight > 0
+    ? Math.round((totalAvailableWeight / totalPossibleWeight) * 100)
+    : 0;
 
   if (availableComponents.length === 0) {
     return { totalScore: 0, components, dataCoveragePct: 0 };

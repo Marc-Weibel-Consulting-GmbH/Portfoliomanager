@@ -122,7 +122,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-white flex items-center gap-2">
           <Shield className="w-5 h-5 text-cyan-400" />
-          Portfolio-Qualität
+          Portfolio-Zustand
         </h3>
         <div className="flex gap-1 bg-white/5 rounded-lg p-1">
           {PERIODS.map((p) => (
@@ -144,7 +144,7 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
       {/* KPI Cards (§4.1) */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <KPICard
-          label="Quality Score"
+          label="Portfolio-Zustand"
           value={qualityScore != null ? `${qualityScore}` : "—"}
           unit="/100"
           suffix={qualityScore != null ? getScoreBand(qualityScore).label : undefined}
@@ -251,14 +251,14 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
       {latest?.qualityComponents && Array.isArray(latest.qualityComponents) && latest.qualityComponents.length > 0 && (
         <div className="mt-4">
           <InsightExpandable
-            title="Quality Score — Detailbegründung pro Faktor"
+            title="Portfolio-Zustand — Detailbegründung pro Faktor"
             summary={(() => {
               const comps = latest.qualityComponents as any[];
               const sorted = [...comps].filter(c => c.available).sort((a, b) => b.score - a.score);
               const best = sorted[0];
               const worst = sorted[sorted.length - 1];
               const qs = qualityScore ?? 0;
-              const intro = `Ihr Portfolio erzielt einen Quality Score von ${qs}/100 — Einordnung: ${getScoreBand(qs).label}.`;
+              const intro = `Ihr Portfolio erzielt einen Zustandswert von ${qs}/100 — Einordnung: ${getScoreBand(qs).label}.`;
               const detail = best && worst && best.name !== worst.name
                 ? ` Stärkster Faktor: ${best.name} (${best.score}/100, Gewicht ${Math.round(best.weight * 100)}%). Schwächster Faktor: ${worst.name} (${worst.score}/100, Gewicht ${Math.round(worst.weight * 100)}%).`
                 : '';
@@ -270,8 +270,8 @@ export default function PortfolioQualityHistory({ portfolioId }: Props) {
               sentiment: c.score >= 70 ? 'positive' as const : c.score >= 40 ? 'neutral' as const : 'negative' as const,
             }))}
             variant={qualityScore != null && qualityScore >= 70 ? 'success' : qualityScore != null && qualityScore < 40 ? 'warning' : 'default'}
-            triggerLabel="Detailbegründung Quality Score anzeigen"
-            riskNote="Der Quality Score basiert auf historischen Kennzahlen. Vergangenheitswerte sind kein Indikator für zukünftige Ergebnisse."
+            triggerLabel="Detailbegründung Portfolio-Zustand anzeigen"
+            riskNote="Der Portfolio-Zustand basiert auf historischen Kennzahlen. Vergangenheitswerte sind kein Indikator für zukünftige Ergebnisse."
           />
         </div>
       )}
@@ -538,7 +538,7 @@ function Interpretation({
   // Build interpretation text (§4.5 — regelbasiert, deterministisch)
   const parts: string[] = [];
 
-  parts.push(`Das Portfolio erreicht einen Quality Score von ${qualityScore}/100 — Einordnung: ${getScoreBand(qualityScore).label}.`);
+  parts.push(`Das Portfolio erreicht einen Zustandswert von ${qualityScore}/100 — Einordnung: ${getScoreBand(qualityScore).label}.`);
 
   const sorted = [...components].filter((c: any) => c.available).sort((a: any, b: any) => b.score - a.score);
   if (sorted.length >= 2) {
