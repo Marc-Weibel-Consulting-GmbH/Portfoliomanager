@@ -51,12 +51,13 @@ function BubbleDetailModal({ open, onClose, bubble }: { open: boolean; onClose: 
                   </span>
                 </div>
               )}
-              {bubble.bestPositiveT1_2_6y !== undefined && (
+              {bubble.bestPositiveT1_2_6y != null && (
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-400">Beste Fit-Qualität (T1 2–6J)</span>
-                  <span className="font-mono text-gray-300">
-                    {Number.isFinite(Number(bubble.bestPositiveT1_2_6y)) ? Number(bubble.bestPositiveT1_2_6y).toFixed(2) : '—'}
-                  </span>
+                  {/* bestPositiveT1 ist ein DATUM: t1 (Fensterbeginn) des besten
+                      2–6J-Fits — seit wann der Fit den Anstieg als Bubble-Aufbau
+                      einstuft. Kein Qualitätsmass und kein kritischer Zeitpunkt. */}
+                  <span className="text-gray-400">Bubble-Aufbau seit (bester 2–6J-Fit)</span>
+                  <span className="font-mono text-gray-300">{String(bubble.bestPositiveT1_2_6y)}</span>
                 </div>
               )}
               {bubble.positiveByScale && (
