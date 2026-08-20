@@ -101,6 +101,7 @@ export default function StockDetail() {
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("6M");
   const [showScoreExplanation, setShowScoreExplanation] = useState(false);
   const [showSignalExplanation, setShowSignalExplanation] = useState(false);
+  const [showTimingExplanation, setShowTimingExplanation] = useState(false);
   const [showBewertungExplanation, setShowBewertungExplanation] = useState(false);
   const [showAddToPortfolio, setShowAddToPortfolio] = useState(false);
   const [showPriceAlert, setShowPriceAlert] = useState(false);
@@ -512,7 +513,7 @@ export default function StockDetail() {
               <div className="flex flex-col items-center gap-1">
                 <ScoreCircle
                   score={dreiScores.timing.score}
-                  onClick={() => setShowSignalExplanation(true)}
+                  onClick={() => setShowTimingExplanation(true)}
                 />
                 <span className="text-xs text-gray-400">Timing</span>
               </div>
@@ -1048,8 +1049,8 @@ export default function StockDetail() {
             Fenster zeigen. */}
         <ScoreErklaerDialog
           ticker={ticker}
-          art={showSignalExplanation ? "signal" : showScoreExplanation ? "qualitaet" : showBewertungExplanation ? "bewertung" : null}
-          onClose={() => { setShowSignalExplanation(false); setShowScoreExplanation(false); setShowBewertungExplanation(false); }}
+          art={showTimingExplanation ? "timing" : showSignalExplanation ? "signal" : showScoreExplanation ? "qualitaet" : showBewertungExplanation ? "bewertung" : null}
+          onClose={() => { setShowTimingExplanation(false); setShowSignalExplanation(false); setShowScoreExplanation(false); setShowBewertungExplanation(false); }}
         />
       </div>
     </DashboardLayout>
