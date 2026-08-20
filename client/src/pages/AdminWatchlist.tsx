@@ -89,6 +89,24 @@ export default function AdminWatchlist() {
   const { data: filterOptions } = trpc.watchlist.getFilters.useQuery();
 
   // Ticker search autofill
+  // Stammdaten-Vorschau für den Hinzufügen-Dialog: Sobald ein Ticker gewählt
+  // ist (Vorschlagsliste zu), schlägt EODHD Sektor, Kategorie und Namen vor —
+  // die Felder bleiben editierbar, ein Fehlschlag lässt sie einfach leer.
+  const { data: titelVorschau } = trpc.watchlist.titelVorschau.useQuery(
+    { ticker: newTicker },
+    { enabled: addDialogOpen && !!newTicker && newTicker.length >= 2 && !showTickerSuggestions },
+  );
+  // Beim Rendern statt im Effect übernehmen (React: «adjusting state while
+  // rendering», gleiches Muster wie der Vorschlags-Wizard) — läuft exakt
+  // einmal je neuer Vorschau-Antwort.
+  const [handledVorschau, setHandledVorschau] = useState<unknown>(null);
+  if (titelVorschau && titelVorschau !== handledVorschau) {
+    setHandledVorschau(titelVorschau);
+    if (titelVorschau.sektor && !newSector) setNewSector(titelVorschau.sektor);
+    if (titelVorschau.kategorie && !newCategory) setNewCategory(titelVorschau.kategorie);
+    if (titelVorschau.name && !newCompanyName) setNewCompanyName(titelVorschau.name);
+  }
+
   const { data: tickerSuggestions = [] } = trpc.stocks.searchTicker.useQuery(
     tickerSearchQuery,
     { enabled: tickerSearchQuery.length >= 2 }
@@ -212,6 +230,13 @@ export default function AdminWatchlist() {
   const getSourceBadge = (source: string, notes?: string | null) => {
     if (!source) return <span className="text-xs text-muted-foreground">—</span>;
     if (source === "manual") return <Badge variant="outline" className="text-xs"><Users className="w-3 h-3 mr-1" />Manuell</Badge>;
+    // Screener-Übernahmen tragen source=ai_recommended plus die Notes-Kennung
+    // "screener|lauf:<id>" — sie sind Marcs eigene Entscheide auf
+    // Screener-Vorschlag, keine KI-Empfehlungen (Befund 19.08.).
+    if (source === "ai_recommended" && notes?.startsWith("screener|")) {
+      const match = notes.match(/screener\|lauf:(\d+)/);
+      return <Badge variant="outline" className="text-xs bg-teal-500/10 text-teal-600 border-teal-500/20"><Search className="w-3 h-3 mr-1" />Screener{match ? ` (Lauf ${match[1]})` : ""}</Badge>;
+    }
     if (source === "wikifolio") {
       // Extract portfolio code from notes (e.g. "Importiert aus Wikifolio wfglobalnt | ...")
       const match = notes?.match(/Wikifolio ([a-zA-Z0-9]+)/);
@@ -454,7 +479,7 @@ export default function AdminWatchlist() {
 
         {/* Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
             <Card>
               <CardContent className="pt-4 pb-4">
                 <div className="text-2xl font-bold">{stats.total}</div>
@@ -465,6 +490,12 @@ export default function AdminWatchlist() {
               <CardContent className="pt-4 pb-4">
                 <div className="text-2xl font-bold text-blue-600">{stats.manual}</div>
                 <div className="text-xs text-muted-foreground">Manuell</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-4 pb-4">
+                <div className="text-2xl font-bold text-teal-600">{(stats as any).screener ?? 0}</div>
+                <div className="text-xs text-muted-foreground">Screener-Übernahmen</div>
               </CardContent>
             </Card>
             <Card>
@@ -505,6 +536,7 @@ export default function AdminWatchlist() {
               <SelectItem value="all">Alle Quellen</SelectItem>
               <SelectItem value="manual">Manuell</SelectItem>
               <SelectItem value="ai_recommended">KI-Empfohlen</SelectItem>
+              <SelectItem value="screener">Screener</SelectItem>
             </SelectContent>
           </Select>
           <Select value={signalFilter} onValueChange={setSignalFilter}>

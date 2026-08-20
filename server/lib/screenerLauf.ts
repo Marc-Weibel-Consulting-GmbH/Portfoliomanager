@@ -22,6 +22,7 @@ import { retryFetch } from "../_core/retryUtil";
 import { tickerAusScreenerCode } from "./universeExpansion";
 import { eodhdBruchZuProzent } from "./dividendenrendite";
 import { toEodhdSymbol } from "./eodhdSymbol";
+import { titelKategorie } from "./titelKategorie";
 import { validateDividendYield } from "./dividendValidation";
 
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -686,7 +687,13 @@ export async function uebernimmKandidat(k: {
     currency: k.waehrung,
     marketCap: k.marktKap?.toString() ?? null,
     dividendYield: k.dividendenrendite?.toString() ?? null,
+    // Kategorie automatisch aus Sektor + Dividendenrendite (Marc-Befund
+    // 19.08.: übernommene Titel standen ohne Kategorie im Universum).
+    category: titelKategorie(k.sektor, k.dividendenrendite),
     listType: "watchlist",
+    // Kein eigener Enum-Wert im Schema — die Notes-Kennung "screener|lauf:N"
+    // unterscheidet Screener-Übernahmen von KI-Empfehlungen (Quelle-Badge,
+    // Filter und Statistik lesen sie im watchlistRouter/AdminWatchlist).
     source: "ai_recommended",
     notes: `screener|lauf:${k.laufId}`,
     isActive: 1,
