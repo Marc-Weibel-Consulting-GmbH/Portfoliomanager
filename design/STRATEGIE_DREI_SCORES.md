@@ -315,6 +315,14 @@ dieses Dokument.
   doppelten die Positionsliste (Score-Spalten mit Klick-Dialogen) bzw. den
   Optimierungs-Tab. Alte Links (?tab=signale) landen auf den Positionen.
   Damit ist der letzte kundensichtbare Verbraucher der Labor-Signale weg.
+- **K9 — Titel-Datenqualitäts-Ampel (2026-08, ohne FASSUNG-Wechsel).**
+  Jeder Titel des Universums trägt im Admin eine Ampel «vollständig /
+  lückenhaft / veraltet» (`titelDatenstatus.ts`, rein und getestet) aus
+  Kursreihen-Länge (~250 Tage für 52-Wochen-Band und Timing), Kurs- und
+  Kennzahlen-Frische (14/30 Tage) und Score-Basis (Qualität/Timing
+  berechnet) — die Gründe stehen im Tooltip. Kein Eingriff in die
+  Rechnung: Die Ampel erklärt, warum ein Titel kein Signal hat, sie
+  erzeugt keines. Score-Spalte im Admin zeigt ohne Kernsignal «—» statt 0.
 
 ## 6. Fahrplan
 

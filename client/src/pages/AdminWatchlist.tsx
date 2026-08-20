@@ -221,6 +221,23 @@ export default function AdminWatchlist() {
     );
   }
 
+  // K9 (Soll-Ablauf S2): Datenqualitäts-Ampel je Titel — grün = vollständig,
+  // gelb = lückenhaft, orange = veraltet; die Gründe stehen im Tooltip.
+  const getDatenAmpel = (ticker: string) => {
+    const st = (watchlistData as any)?.datenstatus?.[ticker] as { status: string; gruende: string[] } | undefined;
+    if (!st) return <span className="text-xs text-muted-foreground">—</span>;
+    const farbe = st.status === "vollstaendig" ? "bg-green-500" : st.status === "veraltet" ? "bg-orange-500" : "bg-yellow-500";
+    const label = st.status === "vollstaendig" ? "vollständig" : st.status === "veraltet" ? "veraltet" : "lückenhaft";
+    return (
+      <span
+        className="inline-flex items-center gap-1.5"
+        title={st.gruende.length ? `${label}: ${st.gruende.join(" · ")}` : `Datenbasis ${label}`}
+      >
+        <span className={`inline-block w-2.5 h-2.5 rounded-full ${farbe}`} />
+      </span>
+    );
+  };
+
   // K2: Badge folgt dem Drei-Score-Signal (Zustand, keine Handelsaufforderung);
   // ohne Signal ehrlich «—» statt eines scheinbaren «Halten».
   const getSignalBadge = (type: string | null) => {
@@ -582,6 +599,8 @@ export default function AdminWatchlist() {
                       <th className="text-left p-3 font-medium cursor-pointer hover:text-primary select-none" onClick={() => handleSort("ticker")}>
                         Ticker {sortColumn === "ticker" && (sortDirection === "asc" ? "↑" : "↓")}
                       </th>
+                      {/* K9 (S2): Datenqualitäts-Ampel — Gründe im Tooltip */}
+                      <th className="text-center p-3 font-medium" title="Datenqualität: Kursreihe, Aktualität, Score-Basis">Daten</th>
                       <th className="text-left p-3 font-medium cursor-pointer hover:text-primary select-none" onClick={() => handleSort("company")}>
                         Unternehmen {sortColumn === "company" && (sortDirection === "asc" ? "↑" : "↓")}
                       </th>
@@ -613,6 +632,7 @@ export default function AdminWatchlist() {
                     {sortedStocks.map((stock) => (
                       <tr key={stock.id} className="border-b hover:bg-muted/30 transition-colors">
                         <td className="p-3 font-mono font-semibold">{stock.ticker}</td>
+                        <td className="p-3 text-center">{getDatenAmpel(stock.ticker)}</td>
                         <td className="p-3">
                           <div className="max-w-[200px] truncate">{stock.companyName}</div>
                           {stock.aiReason && (
@@ -636,9 +656,14 @@ export default function AdminWatchlist() {
                         <td className="p-3 text-right font-mono">{Number.isFinite(Number(stock.dividendYield)) ? `${Number(stock.dividendYield).toFixed(1)}%` : "—"}</td>
                         <td className="p-3 text-center">{getSignalBadge(stock.signalType)}</td>
                         <td className="p-3 text-center">
-                          <span className={`font-mono font-semibold ${(stock.signalScore || 0) >= 65 ? "text-green-600" : (stock.signalScore || 0) <= 35 ? "text-red-600" : ""}`}>
-                            {stock.signalScore || 0}
-                          </span>
+                          {/* K2/K9: ohne Kernsignal ehrlich «—» statt irreführender 0 */}
+                          {stock.signalScore != null ? (
+                            <span className={`font-mono font-semibold ${stock.signalScore >= 65 ? "text-green-600" : stock.signalScore <= 35 ? "text-red-600" : ""}`}>
+                              {stock.signalScore}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="p-3 text-center">{getSourceBadge(stock.source, (stock as any).notes)}</td>
                         <td className="p-3 text-center">
