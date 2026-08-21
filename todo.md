@@ -688,6 +688,12 @@
 - [x] P1: Maker-Checker-Adminansicht für Evidenz, Mehrquellenbestätigung und verworfene/unvollständige Datensätze erstellen
 - [x] P1: Sechs-Wochen-Shadow-Run gestartet; Datenvollständigkeits- und Punkt-in-Zeit-Outcome-Gates dokumentiert sowie automatische Regeländerungen ausdrücklich gesperrt. Das OOS-Freigabegate bleibt bis zum vollständigen Beobachtungszeitraum geschlossen.
 
+## Empfehlungen nach KI-Portfolioerstellung (2026-08-21)
+- [x] P0: Signalrichtung und vorgeschlagene Handelsrichtung fachlich konsistent machen; ein positives Kauf-/Haltesignal darf eine Reduzierung nur mit klarer, übergeordneter Portfolio- oder Risikobegründung erzeugen
+- [x] P0: Für neu über den KI-Wizard erstellte Portfolios eine nachvollziehbare Schutzfrist und Materialitätsschwelle gegen voreilige Umschichtungen einführen; echte Risiko-/Datenintegritätsausnahmen separat kennzeichnen
+- [x] P1: Empfehlungen als klare Kauf-, Verkauf-, Aufstocken-, Reduzieren- oder Austauschhandlung mit Zielgewicht, Delta, Kategorie und vollständiger Begründung darstellen. Der laufende Modus ist bewusst auf bestehende Positionen begrenzt; neue Käufe und gekoppelte Austausche gehören in die vollständige Neu-Optimierung.
+- [x] P1: Die korrigierte Empfehlungslogik am gezeigten Testportfolio sowie per Regression und Live-UI prüfen
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern

@@ -480,7 +480,16 @@ function EmpfehlungenTab({ portfolioId }: { portfolioId: number }) {
 
   const cadence = config?.cadence ?? 'off';
   const suggestions = (analysis.data?.analysis?.rebalancingSuggestions ?? []).filter((s: any) => s.action !== 'hold');
-  const actionLabel: Record<string, string> = { increase: 'Aufstocken', decrease: 'Reduzieren', exit: 'Verkaufen' };
+  const protection = (analysis.data as any)?.recommendationProtection as
+    | { isProtected: boolean; remainingDays: number; suppressedCount: number }
+    | undefined;
+  const actionLabel: Record<string, string> = { increase: 'Aufstocken', decrease: 'Reduzieren', exit: 'Verkaufen', buy: 'Kaufen', sell: 'Verkaufen' };
+  const decisionLabel: Record<string, string> = {
+    signal_rebalance: 'Portfolioentscheidung: Rebalancing innerhalb der Signallage',
+    risk_rebalance: 'Portfolioentscheidung: Risikolimit / Klumpenrisiko',
+    exit_signal: 'Portfolioentscheidung: Verkaufssignal',
+    hold: 'Portfolioentscheidung: Halten',
+  };
 
   const applyAll = () => {
     if (suggestions.length === 0) return;
@@ -519,10 +528,12 @@ function EmpfehlungenTab({ portfolioId }: { portfolioId: number }) {
             portfoliorelativ und beschreibend; echte Trades brauchen den
             Nutzer-Entscheid. Der Schalter ist entfernt, ein evtl. gespeichertes
             Flag wird serverseitig ignoriert. */}
-        <p className="mt-3 text-xs text-gray-500">
+          <p className="mt-3 text-xs text-gray-500">
           Vorschläge werden nie automatisch ausgeführt — Sie übernehmen sie einzeln
-          oder gesamt im Empfehlungen-Tab.
-        </p>
+          oder gesamt im Empfehlungen-Tab. Dieser laufende Modus passt nur bestehende
+          Positionen an: Aufstocken = Zukauf, Reduzieren = Teilverkauf, Verkaufen = Ausstieg.
+          Neue Käufe und vollständige Austausche gehören in «Vollständige Neu-Optimierung».
+          </p>
       </div>
 
       {/* Aktuelle Empfehlungsliste */}
@@ -538,6 +549,14 @@ function EmpfehlungenTab({ portfolioId }: { portfolioId: number }) {
           <p className="text-sm text-gray-400 text-center py-6">Empfehlungen werden berechnet…</p>
         ) : analysis.data?.error ? (
           <p className="text-sm text-red-400 text-center py-6">{analysis.data.error}</p>
+        ) : protection?.isProtected ? (
+          <div className="text-center py-6" data-testid="ai-portfolio-protection-notice">
+            <p className="text-sm font-medium text-[#00CFC1]">Beobachtungsphase aktiv — keine Umschichtung vorgeschlagen.</p>
+            <p className="text-xs text-gray-400 mt-2">
+              Dieses Portfolio stammt aus dem KI-Wizard. Für weitere {protection.remainingDays} Tag{protection.remainingDays === 1 ? '' : 'e'}{' '}
+              bleiben normale Rebalancing-Vorschläge gesperrt, damit die ursprüngliche Allokation beobachtet werden kann.
+            </p>
+          </div>
         ) : suggestions.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-6">Aktuell keine Handlungsempfehlungen — das Portfolio ist im Zielbereich.</p>
         ) : (
@@ -561,6 +580,11 @@ function EmpfehlungenTab({ portfolioId }: { portfolioId: number }) {
                   <p className="text-xs text-gray-400 mt-1">
                     {(s.currentWeight * 100).toFixed(1)}% → {(s.targetWeight * 100).toFixed(1)}% · {s.reason}
                   </p>
+                  {(s.signalContext || s.decisionCategory) && (
+                    <p className="text-[11px] text-gray-500 mt-1">
+                      {s.signalContext}{s.signalContext && s.decisionCategory ? ' · ' : ''}{decisionLabel[s.decisionCategory] ?? ''}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={() => apply.mutate({ portfolioId, targetWeights: [{ ticker: s.ticker, companyName: s.companyName, targetWeight: s.targetWeight }] })}

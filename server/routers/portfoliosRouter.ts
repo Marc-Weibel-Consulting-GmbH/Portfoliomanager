@@ -813,6 +813,7 @@ export const portfoliosRouter = router({
           investmentAmount: z.coerce.number().positive(),
           portfolioType: z.enum(["demo", "live"]).default("demo"),
           isAiOptimized: z.boolean().optional().default(false),
+          creationSource: z.enum(["manual", "ai_wizard", "import"]).optional().default("manual"),
         })
       )
       .mutation(async ({ input, ctx }) => {
@@ -879,6 +880,7 @@ export const portfoliosRouter = router({
             isLive: input.portfolioType === "live" ? 1 : 0,
             liveStartDate: input.portfolioType === "live" ? new Date() : null,
             isAiOptimized: input.isAiOptimized ? 1 : 0,
+            creationSource: input.creationSource,
           };
                  console.log(`[portfolios.create ${debugId}] Inserting portfolio...`);
           await db.insert(savedPortfolios).values(portfolioData);

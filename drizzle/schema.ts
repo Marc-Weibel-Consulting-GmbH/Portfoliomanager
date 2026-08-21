@@ -265,6 +265,9 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
   snapshotOfPortfolioId: int("snapshotOfPortfolioId"), // ID des Original-Portfolios (falls isSnapshot=1)
   snapshotNote: varchar("snapshotNote", { length: 255 }), // Optionale Notiz zum Snapshot
   isAiOptimized: tinyint("isAiOptimized").notNull().default(0), // 1 = Portfolio aus KI-angepasstem Vorschlag (finalAdjustments angewendet)
+  // Dauerhafte Herkunft; bleibt bei Aktivierung demo → live erhalten und steuert
+  // ausschliesslich die Schutzfrist gegen voreilige Umschichtungen.
+  creationSource: mysqlEnum("creationSource", ["manual", "ai_wizard", "import"]).notNull().default("manual"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (t) => ({

@@ -1,0 +1,1 @@
+ALTER TABLE `savedPortfolios` ADD `creationSource` enum('manual','ai_wizard','import') DEFAULT 'manual' NOT NULL;

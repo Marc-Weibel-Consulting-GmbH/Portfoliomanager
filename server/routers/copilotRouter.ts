@@ -26,6 +26,7 @@ import { calcRiskMetrics } from '../analytics/engine';
 import { fetchEODHDFundamentals, type EODHDFundamentals } from '../_core/eodhdApi';
 import { MULTI_ASSET_ETFS, ASSET_CLASS_LABELS } from '../lib/multiAssetSleeve';
 import { withDeepDiveTimeout } from '../lib/deepDiveTimeout';
+import { applyRecommendationProtection, reconcileSignalWithPortfolioAction } from '../lib/recommendationPolicy';
 
 /** Flat lookup: ticker (uppercase) → Anlageklassen-Label (z.B. "AGGH.SW" → "Obligationen") */
 const SLEEVE_TICKER_LABEL: Record<string, string> = Object.fromEntries(
@@ -287,7 +288,8 @@ export const copilotRouter = router({
         // Keep the original portfolioMetrics from runCopilotAnalysis as fallback
       }
 
-      // Signal-Cache-Scores in rebalancingSuggestions integrieren für Konsistenz mit Signale-Tab
+      // Signal-Cache-Scores in rebalancingSuggestions integrieren. Ein positives
+      // Signal darf eine Reduzierung nur bei explizitem Risiko-Override auslösen.
       analysis.rebalancingSuggestions = analysis.rebalancingSuggestions.map(s => {
         const sc = signalCacheMap.get(s.ticker);
         if (!sc) return s;
@@ -300,30 +302,33 @@ export const copilotRouter = router({
         const scoreStr = score != null ? ` (Signal-Score ${Math.round(score)}/100)` : '';
         const strengthStr = sigStrength === 'strong' ? 'Starkes ' : sigStrength === 'weak' ? 'Schwaches ' : '';
 
-        // Aktion basierend auf Signal-Cache erzwingen:
-        // VERKAUF/SELL -> nur decrease/exit erlaubt
-        // KAUF/BUY -> increase erlaubt
-        // HALTEN -> hold oder decrease (kein increase)
         let action = s.action;
         let reason = s.reason;
+        if (score !== null && (score <= 40 || sigType === 'sell') && action === 'increase') action = 'decrease';
+        if (score !== null && score > 40 && score < 60 && action === 'increase') action = 'hold';
 
-        if (score !== null) {
-          if (score >= 60 || sigType === 'buy') {
-            // Gutes Signal: Empfehlung beibehalten
-            reason = `${strengthStr}${sigLabel}-Signal${scoreStr}. ${s.reason.replace(/Ranking-Score \d+\/100[^.]*\.?\s*/g, '').replace(/Starkes Verkaufssignal[^.]*\.?\s*/g, '').trim()}`;
-          } else if (score <= 40 || sigType === 'sell') {
-            // Verkaufssignal: increase -> decrease
-            if (action === 'increase') action = 'decrease';
-            reason = `${strengthStr}${sigLabel}-Signal${scoreStr}. ${s.reason.replace(/Ranking-Score \d+\/100[^.]*\.?\s*/g, '').trim()}`;
-          } else {
-            // Halten: increase -> hold
-            if (action === 'increase') action = 'hold';
-            reason = `${sigLabel}-Signal${scoreStr}. Kein Handlungsbedarf.`;
-          }
-        }
-
-        return { ...s, action, reason };
+        const portfolioOverride = action === 'decrease' && s.currentWeight > 0.10
+          ? 'max_position_weight' as const
+          : null;
+        return reconcileSignalWithPortfolioAction({
+          ...s,
+          action,
+          signalType: sigType === 'buy' || sigType === 'sell' || sigType === 'hold' ? sigType : null,
+          signalScore: score,
+          reason: `${strengthStr}${sigLabel}-Signal${scoreStr}. ${reason.replace(/Ranking-Score \d+\/100[^.]*\.?\s*/g, '').replace(/Starkes Verkaufssignal[^.]*\.?\s*/g, '').trim()}`.trim(),
+          portfolioOverride,
+        });
       }).filter(s => s.action !== 'hold'); // hold-Einträge aus Liste entfernen
+
+      const recommendationProtection = applyRecommendationProtection({
+        createdAt: new Date((portfolio as any).createdAt),
+        isAiOptimized: (portfolio as any).isAiOptimized ?? 0,
+        portfolioType: (portfolio as any).portfolioType,
+        creationSource: (portfolio as any).creationSource ?? null,
+        now: new Date(),
+        suggestions: analysis.rebalancingSuggestions,
+      });
+      analysis.rebalancingSuggestions = recommendationProtection.suggestions as any;
 
       // Generate LLM explanation
       let explanation: string | null;
@@ -356,7 +361,7 @@ export const copilotRouter = router({
         console.error('[Copilot] Failed to auto-save history:', histErr);
       }
 
-      return { error: null, analysis, explanation };
+      return { error: null, analysis, explanation, recommendationProtection };
     }),
 
   /**

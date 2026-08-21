@@ -491,6 +491,7 @@ export default function PortfolioBuilderWizard() {
         investmentAmount: parseFloat(initialCapital) || 0,
         portfolioType: isLive ? "live" : "demo",
         isAiOptimized,
+        creationSource: path === 'auto' ? 'ai_wizard' : 'manual',
       });
       toast.success("Portfolio erstellt 🎉");
       // M-02: Invalidate dashboard caches so data loads immediately after navigation
