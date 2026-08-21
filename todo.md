@@ -667,6 +667,7 @@
 - [ ] P0: Markt-Hub markiert oder verbirgt zeitlich veraltete Berichtsinhalte nicht, obwohl der angezeigte Berichtstag aktuell ist; Ursprungsdatum/Quellenalter im Erzeugungs- und Anzeigevertrag absichern
 - [x] P0: Globaler Copilot bleibt nach einer Portfolio-Diversifikationsfrage ohne Antwort oder Fehlerhinweis im Ladezustand; Provider- und Timeoutpfad analysieren und testgetrieben beheben
 - [ ] P1: Copilot-Timeouts zusätzlich als dauerhafte, nicht nur flüchtige Gesprächsstatusmeldung zeigen
+- [x] P1-Validierungsprüfung KI-Builder: Kein Produktfehler bestätigt. Der automatisierte Klick traf ausserhalb des sichtbaren Buttonbereichs; der verifizierte `Weiter`-Handler erzeugt bei leeren Pflichtfeldern den sichtbaren Hinweis „Bitte wählen Sie einen Portfolio-Typ“.
 
 ## Visual Audit — verifizierte Teilremediation (2026-08-21)
 - [x] P0-Teilbefund Aktivierung: Beim Übergang von Demo zu Live zusätzlich `portfolioType='live'` persistieren; rote Regression, Datenbanknachweis und Browsernachprüfung des Audit-Testportfolios durchgeführt
