@@ -4,10 +4,26 @@
  * Berichte werden via POST /api/market-report empfangen und in der DB gespeichert.
  */
 import { z } from "zod";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { marketReports } from "../../drizzle/schema";
+
+/** Entscheidet, ob ein Bericht im Markt-Hub als aktuell sichtbar sein darf. */
+export function isVisibleReportDate(reportDate: string, today: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(reportDate) && reportDate <= today;
+}
+
+const MARKET_REPORT_MAX_AGE_MS = 36 * 60 * 60 * 1000;
+
+/** Berichte dürfen nur aus einem begrenzten aktuellen Empfangsfenster stammen. */
+export function isFreshMarketReport(createdAt: Date, now: Date): boolean {
+  return now.getTime() - createdAt.getTime() <= MARKET_REPORT_MAX_AGE_MS;
+}
+
+function currentReportDate(): string {
+  return new Date().toISOString().split("T")[0];
+}
 
 export const marketReportRouter = router({
   /**
@@ -16,9 +32,12 @@ export const marketReportRouter = router({
   getLatest: publicProcedure.query(async () => {
     const db = await getDb();
     if (!db) return null;
+    const today = currentReportDate();
+    const cutoff = new Date(Date.now() - MARKET_REPORT_MAX_AGE_MS);
     const rows = await db
       .select()
       .from(marketReports)
+      .where(and(lte(marketReports.reportDate, today), gte(marketReports.createdAt, cutoff)))
       .orderBy(desc(marketReports.createdAt))
       .limit(1);
     return rows[0] ?? null;
@@ -32,9 +51,12 @@ export const marketReportRouter = router({
     .query(async ({ input }) => {
       const db = await getDb();
       if (!db) return [];
+      const today = currentReportDate();
+      const cutoff = new Date(Date.now() - MARKET_REPORT_MAX_AGE_MS);
       const rows = await db
         .select()
         .from(marketReports)
+        .where(and(lte(marketReports.reportDate, today), gte(marketReports.createdAt, cutoff)))
         .orderBy(desc(marketReports.createdAt))
         .limit(input?.limit ?? 10);
       return rows;
@@ -104,6 +126,16 @@ export async function handleMarketReportWebhook(req: any, res: any) {
     }
 
     const date = reportDate || new Date().toISOString().split("T")[0];
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: "reportDate muss im Format YYYY-MM-DD vorliegen" });
+    }
+    // Berichte aus der Zukunft wären im Markt-Hub als „aktuell“ sichtbar und
+    // können aus fehlerhaften Task-/LLM-Zeitangaben stammen. UTC passt zur
+    // bisherigen Speicher- und Tagesjobkonvention.
+    const today = new Date().toISOString().split("T")[0];
+    if (date > today) {
+      return res.status(400).json({ error: "reportDate darf nicht in der Zukunft liegen" });
+    }
 
     // Sanitise title: remove any embedded date (LLM often hallucinates wrong dates).
     // Replace patterns like "– 22. Juli 2026", "- 13.07.2026", "(22. Juli 2026)" etc.

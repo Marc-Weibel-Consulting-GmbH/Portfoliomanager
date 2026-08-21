@@ -1610,6 +1610,25 @@ export async function markEmailAsVerified(userId: number) {
 /**
  * Activate a portfolio by setting status to 'live', recording start capital, and generating initial buy transactions
  */
+export function buildPortfolioActivationUpdates(
+  startCapital: string,
+  benchmark?: "SMI" | "SP500" | "MSCI_WORLD",
+) {
+  const updates: any = {
+    status: "live",
+    portfolioType: "live",
+    startCapital,
+    isLive: 1,
+    liveStartDate: new Date(),
+  };
+
+  if (benchmark) {
+    updates.benchmark = benchmark;
+  }
+
+  return updates;
+}
+
 export async function activatePortfolio(
   portfolioId: number,
   userId: number,
@@ -1714,16 +1733,7 @@ export async function activatePortfolio(
     }
 
     // Update portfolio status
-    const updates: any = {
-      status: "live",
-      startCapital,
-      isLive: 1,
-      liveStartDate: new Date(),
-    };
-
-    if (benchmark) {
-      updates.benchmark = benchmark;
-    }
+    const updates = buildPortfolioActivationUpdates(startCapital, benchmark);
 
     await db
       .update(savedPortfolios)

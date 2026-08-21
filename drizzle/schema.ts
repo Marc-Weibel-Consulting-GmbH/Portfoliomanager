@@ -639,8 +639,11 @@ export const copilotHistory = mysqlTable("copilotHistory", {
   confidence: varchar("confidence", { length: 10 }), // e.g. "0.75"
   priceAtSignal: varchar("priceAtSignal", { length: 50 }).notNull(), // Price when recommendation was made
   currency: varchar("currency", { length: 10 }).default("USD"),
-  targetWeight: varchar("targetWeight", { length: 10 }), // Suggested weight
-  currentWeight: varchar("currentWeight", { length: 10 }), // Weight at time of signal
+  // Präzise Gewichtungen können durch Divisionen mehr als zehn Zeichen
+  // enthalten (z. B. "29.23076923076923"). Beide Felder bleiben Strings,
+  // benötigen aber ausreichend Raum für den revisionsfähigen Rohwert.
+  targetWeight: varchar("targetWeight", { length: 32 }), // Suggested weight
+  currentWeight: varchar("currentWeight", { length: 32 }), // Weight at time of signal
   // Outcome tracking (filled later)
   priceAfter30d: varchar("priceAfter30d", { length: 50 }),
   priceAfter60d: varchar("priceAfter60d", { length: 50 }),

@@ -646,6 +646,31 @@
 - [x] Sechs EODHD-Fundamentalsantworten read-only mit den vorgegebenen EODHD-Symbolen abrufen und Rohfelder belegen
 - [x] Bit-identische PERatio-/ForwardPE-Werte je Partnergruppe auf vier Dezimalstellen vergleichen und Vendor oder App eindeutig klassifizieren — Ursache: EODHD `Valuation.ForwardPE`, nicht die App
 
+## Visual- und Funktionsaudit — End-to-End (2026-08-20)
+- [ ] Isoliertes Testkonto und eindeutig gekennzeichnetes Testportfolio vorbereiten; keine produktiven Benachrichtigungen oder irreversiblen Löschungen auslösen
+- [ ] Navigation, Konto, Suche, Aktiendetails und alle erreichbaren Nutzeraktionen visuell und funktional prüfen
+- [ ] Portfolioanlage, Positionsbearbeitung, Optimierung, Performance, Kennzahlen und Fehlerzustände end-to-end prüfen
+- [ ] Adminbereich, Screener, Exporte, Berechtigungen und Datenqualitäts-Review-Queue prüfen
+- [ ] Preise, KGV/PEG, Dividenden und Performancekennzahlen stichprobenartig gegen Drittquellen vergleichen
+- [ ] Reproduzierbare Befunde mit Ursachen, Minimalremediation, Tests und Release-Gates als Auditbericht dokumentieren
+- [ ] P0: Onboarding-Rückleitung nach erfolgreicher Erstellung des Beispielportfolios reproduzieren, Ursache bestimmen und testgetrieben beheben
+- [ ] P0: Erfolgreiche manuelle Testtransaktion aktualisiert Positionen und Kennzahlen des Demo-Portfolios nicht; Datenfluss bis zur Ursache analysieren und testgetrieben beheben
+- [ ] P0: Aktivierung erzeugt Initialtransaktionen, belässt das Testportfolio aber im Demo-/Nicht-Live-Zustand und aktualisiert Kennzahlen nicht; Ursache bestimmen und testgetrieben beheben
+- [ ] P0: Der Button „Optimieren“ setzt nur `?tab=optimierung`, zeigt aber keinen Optimierungsinhalt oder Vorschlag; Route, Query-State und Komponente analysieren und testgetrieben beheben
+- [ ] P1: Der Bearbeiten-Button einer einzelnen Kurslückenposition liefert keine sichtbare Rückmeldung oder Dialog; Ereignis- und Dialogpfad analysieren und testgetrieben beheben
+- [x] P0: Empfehlungslauf bleibt im Ladezustand, weil `copilotHistory.currentWeight` für den berechneten Gewichtsstring zu kurz ist; Schema, Speicherkonvertierung und Fehlerzustand testgetrieben beheben
+- [ ] P1: Bereits übernommene Empfehlungen in der Vorschlagsliste eindeutig als verarbeitet markieren oder ausblenden
+- [ ] P1: Deep-Dive-KI benötigt deutlich länger als die kommunizierten 15–30 Sekunden und hat keinen globalen Timeout mit verständlichem Fehlerzustand; asynchronen Fundamentaldaten-/KI-Pfad begrenzen und transparent machen
+- [ ] QA-Bereinigung: Die temporär erhöhte Adminrolle des isolierten Auditkontos nach Abschluss wieder auf Nutzerrolle zurücksetzen
+- [ ] P1: Research Observatory zeigt trotz algorithmischer Relevanzpriorisierung viele Zentralbank-/Geldpolitiksignale; Quell- oder Tagfilter nachvollziehbar auf Algo-relevante Themen beschränken
+- [ ] P0: Markt-Hub zeigt einen zukünftigen Tagesbericht (5.9.2026) und widersprüchliche S&P-500-Stände; Zeitstempel-, Datenfrische- und Quellenvertrag analysieren und korrigieren
+- [ ] P0: Markt-Hub markiert oder verbirgt zeitlich veraltete Berichtsinhalte nicht, obwohl der angezeigte Berichtstag aktuell ist; Ursprungsdatum/Quellenalter im Erzeugungs- und Anzeigevertrag absichern
+- [x] P0: Globaler Copilot bleibt nach einer Portfolio-Diversifikationsfrage ohne Antwort oder Fehlerhinweis im Ladezustand; Provider- und Timeoutpfad analysieren und testgetrieben beheben
+- [ ] P1: Copilot-Timeouts zusätzlich als dauerhafte, nicht nur flüchtige Gesprächsstatusmeldung zeigen
+
+## Visual Audit — verifizierte Teilremediation (2026-08-21)
+- [x] P0-Teilbefund Aktivierung: Beim Übergang von Demo zu Live zusätzlich `portfolioType='live'` persistieren; rote Regression, Datenbanknachweis und Browsernachprüfung des Audit-Testportfolios durchgeführt
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern

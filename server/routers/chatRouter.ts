@@ -253,13 +253,19 @@ ${portfolioContext}${fundamentalsContext}`;
         // die Daten des Nutzers begrenzt; Fehler kommen als ehrliche Meldung
         // zurück statt den Chat zu brechen.
         const { COPILOT_TOOLS, executeCopilotTool } = await import("../lib/copilotTools");
+        const { withTimeout } = await import("../lib/asyncTimeout");
         const MAX_TOOL_ROUNDS = 3;
+        const COPILOT_RESPONSE_TIMEOUT_MS = 45_000;
         let assistantMessage = "";
         for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
-          const response = await invokeKimi({
-            messages: llmMessages,
-            ...(round < MAX_TOOL_ROUNDS ? { tools: COPILOT_TOOLS } : {}),
-          });
+          const response = await withTimeout(
+            invokeKimi({
+              messages: llmMessages,
+              ...(round < MAX_TOOL_ROUNDS ? { tools: COPILOT_TOOLS } : {}),
+            }),
+            COPILOT_RESPONSE_TIMEOUT_MS,
+            "Copilot-Antwort hat das Zeitlimit überschritten. Bitte versuchen Sie es erneut."
+          );
           const msg = response.choices[0]?.message;
           const toolCalls = msg?.tool_calls ?? [];
           if (toolCalls.length === 0) {
