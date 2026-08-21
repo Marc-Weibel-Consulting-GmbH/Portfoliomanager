@@ -568,6 +568,11 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
   // Namensabgleich erst am Laufende: Die Partnerzeile einer Kreuznotierung
   // kann in einem späteren Häppchen liegen — vorher fehlt der Anker.
   if (nochOffen === 0) {
+    const isinBereinigt = await bereinigeIsinDuplikate(laufId);
+    if (isinBereinigt > 0) {
+      zweitkotierungen += isinBereinigt;
+      meldungen.push(`${isinBereinigt} ISIN-identische Zweitnotizen eindeutig aussortiert.`);
+    }
     const namensbereinigt = await bereinigeNamensDuplikate(laufId);
     if (namensbereinigt > 0) {
       zweitkotierungen += namensbereinigt;
@@ -575,6 +580,30 @@ export async function rechneHaeppchen(laufId: number, maxTitel: number): Promise
     }
   }
   return { berechnet, fehlgeschlagen, zweitkotierungen, ausgeschlossen, nochOffen, meldungen: meldungen.slice(0, 10) };
+}
+
+/**
+ * ISIN vor dem Namensrückfall anwenden: Die exakte Wertpapieridentität ist
+ * stärker als ein normalisierter Firmenname und erlaubt keinen Ausschluss bei
+ * mehrdeutigen oder fehlenden Anbieter-Primärangaben.
+ */
+async function bereinigeIsinDuplikate(laufId: number): Promise<number> {
+  const { alleKandidaten, schreibeErgebnis } = await import("./screenerStore");
+  const { isinDuplikate } = await import("./emittentenDedup");
+  const duplikate = isinDuplikate(
+    (await alleKandidaten(laufId))
+      .filter((k) => k.status === "berechnet")
+      .map((k) => ({
+        ticker: k.ticker,
+        isin: k.isin,
+        primaerTicker: k.primaerTicker,
+        boerse: k.boerse,
+      })),
+  );
+  for (const d of duplikate) {
+    await schreibeErgebnis(laufId, d.ticker, { status: "zweitkotierung", fehler: d.grund });
+  }
+  return duplikate.length;
 }
 
 /**
@@ -629,6 +658,13 @@ export async function uebernimmKandidat(k: {
   waehrung: string | null;
   marktKap: number | null;
   dividendenrendite: number | null;
+  isin: string | null;
+  primaerTicker: string | null;
+  kgvTrailing: number | null;
+  kgvSelbst: number | null;
+  kgvSelbstHinweis: string | null;
+  dividendenValidierung: string | null;
+  dividendenPruefgrund: string | null;
   laufId: number;
   /**
    * Die im Lauf bereits fertig gerechneten Scores samt Faktor-Herleitung —
@@ -652,6 +688,7 @@ export async function uebernimmKandidat(k: {
   const db = await getDb();
   if (!db) throw new Error("Datenbank nicht verfügbar");
   const { stocks } = await import("../../drizzle/schema");
+  const { screenerDatenqualitaet } = await import("./screenerDatenqualitaet");
 
   // Duplikatprüfung inklusive Alias-Formen: exakter Ticker UND die
   // EODHD-Vergleichsform (ROG.SW ≙ RO.SW, .DE ≙ .XETRA). Ohne das liesse
@@ -680,6 +717,16 @@ export async function uebernimmKandidat(k: {
     }
   } catch { /* Kurs holt der nächste Refresh-Lauf nach */ }
 
+  const datenqualitaet = screenerDatenqualitaet({
+    isin: k.isin,
+    primaerTicker: k.primaerTicker,
+    kgvTrailing: k.kgvTrailing,
+    kgvSelbst: k.kgvSelbst,
+    kgvSelbstHinweis: k.kgvSelbstHinweis,
+    dividendenValidierung: k.dividendenValidierung,
+    dividendenPruefgrund: k.dividendenPruefgrund,
+  });
+
   await db.insert(stocks).values({
     ticker: k.ticker,
     companyName: k.name ?? k.ticker,
@@ -698,6 +745,11 @@ export async function uebernimmKandidat(k: {
     notes: `screener|lauf:${k.laufId}`,
     isActive: 1,
     currentPrice: kurs,
+    isin: k.isin,
+    primaryTicker: k.primaerTicker,
+    dataQualityStatus: datenqualitaet.status,
+    dataQualityNotes: datenqualitaet.gruende.join(" · ") || null,
+    dataQualityUpdatedAt: new Date(),
   });
 
   // Die Screener-Scores sofort als vorberechnete Zeile ablegen: Die Titelseite

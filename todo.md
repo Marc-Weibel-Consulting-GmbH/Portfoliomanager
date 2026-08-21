@@ -672,6 +672,12 @@
 ## Visual Audit — verifizierte Teilremediation (2026-08-21)
 - [x] P0-Teilbefund Aktivierung: Beim Übergang von Demo zu Live zusätzlich `portfolioType='live'` persistieren; rote Regression, Datenbanknachweis und Browsernachprüfung des Audit-Testportfolios durchgeführt
 
+## Datenqualitäts-Release — EU/SIX und Emittentenidentität (2026-08-21)
+- [x] P0: Für EU-/SIX-Titel einen datierten, nachvollziehbaren KGV-/PEG-Fallback aus verfügbaren Earnings-History-Daten definieren; Vendor-Multiples nur bei bestandener Plausibilitätsprüfung verwenden. Der Score-Flag bleibt verpflichtend standardmässig `false`, bis die separate OOS-/Walk-Forward-Freigabe vorliegt.
+- [x] P0: ISIN als ergänzenden Emittentenschlüssel im Screener-Persistenz- und Deduplizierungspfad verwenden, ohne unterschiedliche Unternehmen mit fehlender ISIN zusammenzuführen
+- [x] P1: Datenqualitätsstatus und konkrete Prüfhinweise in Screener- und Admin-UI sichtbar machen; fehlende Kurse, Vendor-Konflikte und unvollständige Fundamentals eindeutig erklären
+- [x] P1: Reale EU-/SIX-Stichprobe, vollständige Regression und nicht-destruktive Datenmigration für das Datenqualitäts-Release dokumentieren
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern

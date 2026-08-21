@@ -221,13 +221,20 @@ export default function AdminWatchlist() {
     );
   }
 
-  // K9 (Soll-Ablauf S2): Datenqualitäts-Ampel je Titel — grün = vollständig,
-  // gelb = lückenhaft, orange = veraltet; die Gründe stehen im Tooltip.
+  // Datenqualitäts-Ampel je Titel: zusätzlich zur Kurs-/Scorebasis zeigt sie
+  // Screener-Evidenz wie KGV-Konflikte, fehlende Identität und Datenlücken.
   const getDatenAmpel = (ticker: string) => {
     const st = (watchlistData as any)?.datenstatus?.[ticker] as { status: string; gruende: string[] } | undefined;
     if (!st) return <span className="text-xs text-muted-foreground">—</span>;
-    const farbe = st.status === "vollstaendig" ? "bg-green-500" : st.status === "veraltet" ? "bg-orange-500" : "bg-yellow-500";
-    const label = st.status === "vollstaendig" ? "vollständig" : st.status === "veraltet" ? "veraltet" : "lückenhaft";
+    const farbe = st.status === "vollstaendig" ? "bg-green-500"
+      : st.status === "veraltet" ? "bg-orange-500"
+      : st.status === "luecke" ? "bg-red-500"
+      : "bg-yellow-500";
+    const label = st.status === "vollstaendig" ? "vollständig"
+      : st.status === "veraltet" ? "veraltet"
+      : st.status === "luecke" ? "Datenlücke"
+      : st.status === "pruefen" ? "Prüfung nötig"
+      : "lückenhaft";
     return (
       <span
         className="inline-flex items-center gap-1.5"

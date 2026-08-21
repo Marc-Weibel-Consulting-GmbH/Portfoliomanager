@@ -3512,7 +3512,11 @@ export const adminRouter = router({
       const { uebernimmKandidat } = await import("../lib/screenerLauf");
       const ergebnis = await uebernimmKandidat({
         ticker: k.ticker, name: k.name, sektor: k.sektor, waehrung: k.waehrung,
-        marktKap: k.marktKap, dividendenrendite: k.dividendenrendite, laufId: input.laufId,
+        marktKap: k.marktKap, dividendenrendite: k.dividendenrendite,
+        isin: k.isin, primaerTicker: k.primaerTicker,
+        kgvTrailing: k.kgvTrailing, kgvSelbst: k.kgvSelbst, kgvSelbstHinweis: k.kgvSelbstHinweis,
+        dividendenValidierung: k.dividendenValidierung, dividendenPruefgrund: k.dividendenPruefgrund,
+        laufId: input.laufId,
         // Die im Lauf gerechneten Scores mitgeben — sie stehen sofort auf der
         // Titelseite statt erst nach dem nächsten Stundenlauf (Burkhalter-Befund).
         scores: {

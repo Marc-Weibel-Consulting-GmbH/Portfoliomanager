@@ -122,6 +122,20 @@ export type PegQuadrant =
   | "expensive_slow"    // Hohes PE + Niedriges Wachstum → Teuer
   | "unknown";
 
+/**
+ * Standardmässig deaktiviert: Die EU-/SIX-Selbst-PEG-Logik ist vollständig
+ * implementiert und testbar, darf aber erst nach separater OOS-Validierung in
+ * die produktive Scoreberechnung einfliessen. Ohne exakt `true` bleibt der
+ * bisherige, ebenfalls gegenprüfte PEG-Vertrag aktiv.
+ */
+export const FEATURE_EU_SELF_CALCULATED_PEG =
+  process.env.FEATURE_EU_SELF_CALCULATED_PEG === "true";
+
+export interface ExtractMetricsOptions {
+  /** Test-/Schattenmodus; produktiv gilt standardmässig das Feature-Flag. */
+  useEuSelfCalculatedPeg?: boolean;
+}
+
 // ─── Cache ────────────────────────────────────────────────────────────────────
 
 const cache = new Map<string, { data: QualityMetrics; expiresAt: number }>();
@@ -210,7 +224,7 @@ export async function getQualityMetrics(ticker: string): Promise<QualityMetrics>
 
 /** Exportiert für den Test — die Netzabfrage ist der einzige Grund, warum
  *  `getQualityMetrics` nicht direkt prüfbar ist. */
-export function extractMetrics(d: any, ticker: string): QualityMetrics {
+export function extractMetrics(d: any, ticker: string, options: ExtractMetricsOptions = {}): QualityMetrics {
   const highlights = d.Highlights || {};
   const financials = d.Financials || {};
   const earnings = d.Earnings || {};
@@ -468,6 +482,24 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
   }
   qualityScore = Math.max(0, Math.min(100, qualityScore));
 
+  // ── Selbst gerechnetes KGV (datierte TTM-Gewinne) ─────────────────────────
+  // Die Rechnung muss VOR dem PEG vorliegen: Für EU-/SIX-Titel wird sie im
+  // explizit aktivierten Schattenmodus zum einzigen tragfähigen PEG-Zähler.
+  const isQuarterly = financials.Income_Statement?.quarterly || {};
+  const quartalsGewinne = Object.keys(isQuarterly).sort()
+    .map((k) => ({ datum: k, gewinn: parseFloatOrNull(isQuarterly[k]?.netIncome) }))
+    .filter((q): q is { datum: string; gewinn: number } => q.gewinn !== null);
+  const selbstKgv = kgvSelbst({
+    marktkapitalisierung,
+    quartalsGewinne,
+    jahresGewinn: isKeys.length > 0 ? parseFloatOrNull(isYearly[isKeys.at(-1)!]?.netIncome) : null,
+  });
+  const kgvBewertung = kgvMitGegenprobe(selbstKgv.kgv, trailingPE, forwardPE);
+  const euSuffix = /\.(SW|VX|DE|XETRA|PA|L|LSE|AS|MI)$/i;
+  const istEuropaeischeNotierung = euSuffix.test(ticker.trim());
+  const nutzeEuSelbstPeg = options.useEuSelfCalculatedPeg ??
+    (FEATURE_EU_SELF_CALCULATED_PEG && istEuropaeischeNotierung);
+
   // ── Adjusted PEG ─────────────────────────────────────────────────────────
   // Befund 2 der Scoring-Prüfung: Der bereinigte Pfad lief ohne die Wächter,
   // die das forward PEG längst hatte — ein Vendor-PEG von 15.63 (BCHN.SW)
@@ -488,7 +520,10 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
   );
 
   const bereinigt = bereinigtesPeg({
-    vendorPeg: trailingPeg,
+    // Im zugelassenen EU-/SIX-Schattenmodus ist das Vendor-PEG ausdrücklich
+    // keine Quelle mehr. Fehlt die Selbst-KGV-Basis, wird PEG ausgeblendet,
+    // statt ein bekannt unzuverlässiges Feld als günstige Bewertung zu lesen.
+    vendorPeg: nutzeEuSelbstPeg ? null : trailingPeg,
     epsVolatility,
     qualityScore,
     epsWachstum5j: epsGrowth5y,
@@ -497,11 +532,14 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
     wachstumErwartet,
     // Rückfall, wenn der Vendor kein PEG führt: selbst rechnen aus KGV und
     // belegtem Wachstum (Screener-Befund — betraf reihenweise Nicht-US-Titel).
-    kgv: trailingPE,
+    kgv: nutzeEuSelbstPeg ? selbstKgv.kgv : trailingPE,
     // Frame-Konsistenz: Schätzungs-Nenner paart mit dem Forward-KGV.
     kgvForward: forwardPE,
   });
   const adjustedPeg = bereinigt.peg;
+  const adjustedPegHinweis = nutzeEuSelbstPeg && selbstKgv.kgv === null
+    ? "PEG ausgeblendet — keine nachvollziehbare Selbst-KGV-Basis für EU/SIX"
+    : bereinigt.hinweis;
 
   // ── Forward PEG ──────────────────────────────────────────────────────────
   // Konzeptionell korrekt: Forward PE / zukunftsgerichtetes Wachstum (5Y CAGR)
@@ -527,27 +565,12 @@ export function extractMetrics(d: any, ticker: string): QualityMetrics {
   const growthForQuadrant = epsGrowthTTM ?? epsGrowth5y;
   const pegQuadrant = calcPegQuadrant(trailingPE, growthForQuadrant);
 
-  // ── Selbst gerechnetes KGV (Schattenwert, KIMI-PEG-Audit R2) ─────────────
-  // Marktkapitalisierung ÷ TTM-Nettogewinn aus den Quartalsabschlüssen —
-  // unabhängig vom Vendor-Feld, das Duplikat-Raster und Lücken zeigte.
-  const isQuarterly = financials.Income_Statement?.quarterly || {};
-  const quartalsGewinne = Object.keys(isQuarterly).sort()
-    .map((k) => ({ datum: k, gewinn: parseFloatOrNull(isQuarterly[k]?.netIncome) }))
-    .filter((q): q is { datum: string; gewinn: number } => q.gewinn !== null);
-  const selbstKgv = kgvSelbst({
-    marktkapitalisierung,
-    quartalsGewinne,
-    jahresGewinn: isKeys.length > 0 ? parseFloatOrNull(isYearly[isKeys.at(-1)!]?.netIncome) : null,
-  });
-  // E4b: Die validierte Selbstrechnung führt, das Vendor-Feld prüft gegen.
-  const kgvBewertung = kgvMitGegenprobe(selbstKgv.kgv, trailingPE, forwardPE);
-
   return {
     trailingPeg,
     forwardPeg,
     adjustedPeg,
     adjustedPegGrund: bereinigt.grund,
-    adjustedPegHinweis: bereinigt.hinweis,
+    adjustedPegHinweis,
     adjustedPegRechnung: bereinigt.rechnung,
     adjustedPegRoh: bereinigt.roh,
     kgvSelbst: selbstKgv.kgv,

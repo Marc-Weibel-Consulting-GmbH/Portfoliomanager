@@ -120,6 +120,7 @@ export const watchlistRouter = router({
           const { sql: sqlFn, inArray } = await import("drizzle-orm");
           const { titelDatenstatus } = await import("../lib/titelDatenstatus");
           const { leseScores } = await import("../lib/dreiScoresStore");
+          const { screenerDatenqualitaetHinweis } = await import("../lib/screenerDatenqualitaet");
 
           const kursZeilen = await db
             .select({
@@ -139,17 +140,24 @@ export const watchlistRouter = router({
             results.map((r) => {
               const kurs = kursMap.get(r.ticker);
               const score = scoreMap.get(r.ticker);
-              return [
-                r.ticker,
-                titelDatenstatus({
+              const basis = titelDatenstatus({
                   kursTage: Number(kurs?.tage ?? 0),
                   letzterKursTag: kurs?.letzter ?? null,
                   letzteKennzahlen: r.lastMetricsUpdate ?? null,
                   hatQualitaet: score?.qualitaet != null,
                   hatTiming: score?.timing != null,
                   heute,
-                }),
-              ];
+                });
+              const screenerGruende = screenerDatenqualitaetHinweis(
+                r.dataQualityStatus,
+                r.dataQualityNotes,
+              );
+              const status = r.dataQualityStatus === "luecke"
+                ? "luecke"
+                : r.dataQualityStatus === "pruefen" && basis.status === "vollstaendig"
+                  ? "pruefen"
+                  : basis.status;
+              return [r.ticker, { status, gruende: [...basis.gruende, ...screenerGruende] }];
             }),
           );
         }

@@ -132,6 +132,15 @@ export const stocks = mysqlTable("stocks", {
    * If NULL, the `ticker` column is used directly.
    */
   eodhdTicker: varchar("eodhdTicker", { length: 50 }),
+  /** ISIN als ergänzender, börsenübergreifender Wertpapier-/Emittentenschlüssel. */
+  isin: varchar("isin", { length: 12 }),
+  /** Kanonische EODHD-Hauptnotiz aus den Fundamentaldaten, falls vorhanden. */
+  primaryTicker: varchar("primaryTicker", { length: 24 }),
+  /** geprüfte Datenbasis | Prüfung nötig | Datenlücke — keine Anlagebewertung. */
+  dataQualityStatus: varchar("dataQualityStatus", { length: 16 }),
+  /** Menschlich lesbare Prüfhintergründe, getrennt mit ` · `. */
+  dataQualityNotes: text("dataQualityNotes"),
+  dataQualityUpdatedAt: timestamp("dataQualityUpdatedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (t) => ({

@@ -283,7 +283,7 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
     rohesPeg = zaehlerFinal / nennerFinal.wert;
     quelle = "selbst";
     quellenHinweis = `selbst gerechnet: ${zaehlerLabelFinal} ${zaehlerFinal.toFixed(1)} ÷ ${nennerFinal.wert.toFixed(1)} % ${nennerFinal.label} (${vendorNote}${ausweichNote})`;
-    rechnungKopf = `${zaehlerLabelFinal} ${zaehlerFinal.toFixed(1)} ÷ ${nennerFinal.wert.toFixed(1)} % ${nennerFinal.label} = ${rohesPeg.toFixed(2)} roh`;
+    rechnungKopf = `selbst gerechnet: ${zaehlerLabelFinal} ${zaehlerFinal.toFixed(1)} ÷ ${nennerFinal.wert.toFixed(1)} % ${nennerFinal.label} = ${rohesPeg.toFixed(2)} roh`;
   }
 
   const peg = bereinigung(rohesPeg);

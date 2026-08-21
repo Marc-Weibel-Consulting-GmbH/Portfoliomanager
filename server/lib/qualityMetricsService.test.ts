@@ -102,6 +102,47 @@ describe("Forward PEG", () => {
   });
 });
 
+describe("EU-/SIX-PEG-Datenvertrag", () => {
+  const europaeischeHistorie = [1.0, 1.1, 1.21, 1.331, 1.4641, 1.61051];
+  const ttmGewinn = {
+    "2025-03-31": { netIncome: 25 },
+    "2025-06-30": { netIncome: 25 },
+    "2025-09-30": { netIncome: 25 },
+    "2025-12-31": { netIncome: 25 },
+  };
+
+  it("berechnet das SIX-PEG aus datiertem Selbst-KGV und Wachstum statt aus dem Vendor-PEG", () => {
+    const m = extractMetrics(payload(europaeischeHistorie, {
+      Highlights: { MarketCapitalization: 1000, PERatio: 20, PEGRatio: 1.5 },
+      Financials: { Income_Statement: { quarterly: ttmGewinn } },
+    }), "BELEG.SW", { useEuSelfCalculatedPeg: true });
+
+    expect(m.kgvSelbst).toBeCloseTo(10, 6);
+    expect(m.epsGrowth5y).toBeCloseTo(10, 6);
+    expect(m.adjustedPegRoh).toBeCloseTo(1, 6);
+    expect(m.adjustedPegRechnung).toContain("selbst gerechnet");
+  });
+
+  it("blendet ein Schweizer Vendor-PEG ohne nachvollziehbare Selbst-KGV-Basis aus", () => {
+    const m = extractMetrics(payload(europaeischeHistorie, {
+      Highlights: { MarketCapitalization: 1000, PERatio: 20, PEGRatio: 1.5 },
+    }), "LUECKE.SW", { useEuSelfCalculatedPeg: true });
+
+    expect(m.kgvSelbst).toBeNull();
+    expect(m.adjustedPeg).toBeNull();
+    expect(m.adjustedPegHinweis).toContain("keine nachvollziehbare Selbst-KGV-Basis");
+  });
+
+  it("bleibt ohne explizite Freigabe im bestehenden Vendor-Vertrag", () => {
+    const m = extractMetrics(payload(europaeischeHistorie, {
+      Highlights: { MarketCapitalization: 1000, PERatio: 20, PEGRatio: 1.5 },
+      Financials: { Income_Statement: { quarterly: ttmGewinn } },
+    }), "BELEG.SW");
+
+    expect(m.adjustedPegRoh).toBeCloseTo(1.5, 6);
+  });
+});
+
 describe("temporäre EODHD-Ausfälle", () => {
   afterEach(() => {
     clearQualityMetricsCache("RETRY.XETRA");
