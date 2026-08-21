@@ -11,6 +11,7 @@
 import { getSavedPortfolioById, getStocksByTickers, getStockByTicker, getPortfolioTransactions } from '../db';
 import { getStockCurrency, tryConvertToCHF, getHistoricalPrice } from '../fxHelper';
 import { calculateStockScore } from '../scoring';
+import { reconcileSharesWithTransactions } from './portfolioPositionReconciliation';
 
 function safeParseFloat(v: any): number {
   const n = parseFloat(v);
@@ -41,9 +42,10 @@ export async function getEnrichedPortfolioStocks(
   // Build per-ticker avg buy price maps from transactions
   const avgBuyPriceLocalMap = new Map<string, number>();
   const avgFxRateAtPurchaseMap = new Map<string, number>();
+  let transactions: any[] = [];
   try {
-    const transactions = await getPortfolioTransactions(portfolioId);
-    const buyTxs = (transactions as any[]).filter(
+    transactions = (await getPortfolioTransactions(portfolioId)) as any[];
+    const buyTxs = transactions.filter(
       (t: any) => t.transactionType === 'buy' || t.transactionType === 'entry'
     );
     const byTicker = new Map<string, { totalShares: number; totalCostLocal: number; totalCostCHF: number }>();
@@ -103,7 +105,7 @@ export async function getEnrichedPortfolioStocks(
       const rawWeight = stock.portfolioWeight || stock.weight || defaultWeight;
       const weight = typeof rawWeight === 'number' ? rawWeight : parseFloat(String(rawWeight)) || defaultWeight;
 
-      let shares = parseFloat(stock.shares) || 0;
+      let shares = reconcileSharesWithTransactions(parseFloat(stock.shares) || 0, ticker, transactions);
       if (shares === 0 && (portfolio as any).investmentAmount && priceCHF > 0) {
         const investmentAmount = parseFloat((portfolio as any).investmentAmount) || 0;
         const allocationAmount = investmentAmount * (weight / 100);

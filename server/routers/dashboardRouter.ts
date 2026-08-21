@@ -2687,6 +2687,7 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
       const { getDb } = await import('../db');
       const { marketAnalysis } = await import('../../drizzle/schema');
       const { eq, desc } = await import('drizzle-orm');
+      const { isFreshMarketAnalysis } = await import('../lib/marketAnalysisFreshness');
       const db = await getDb();
       if (!db) return null;
       const rows = await db
@@ -2695,7 +2696,8 @@ Antworte NUR mit validem JSON-Array. Keine Erklärungen ausserhalb des JSON.`
         .where(eq(marketAnalysis.period, input.period))
         .orderBy(desc(marketAnalysis.generatedAt))
         .limit(1);
-      return rows[0] ?? null;
+      const latest = rows[0] ?? null;
+      return latest && isFreshMarketAnalysis(latest) ? latest : null;
     }),
 
   /** Anstehende Termine: Earnings + Dividenden für Portfolio-Aktien (nächste 14 Tage) */

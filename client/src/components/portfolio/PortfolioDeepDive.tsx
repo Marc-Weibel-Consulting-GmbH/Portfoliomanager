@@ -135,12 +135,12 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
                 <span className="inline-block w-2 h-2 rounded-full bg-[#00CFC1] animate-pulse" />
                 Fundamentaldaten werden geladen…
               </span>
-              <span className="text-xs text-slate-500">ca. 15–30 Sek.</span>
+              <span className="text-xs text-slate-500">max. 90 Sek.</span>
             </div>
             <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
               <div className="h-full bg-[#00CFC1] rounded-full" style={{ width: '100%', animation: 'indeterminate 2s ease-in-out infinite' }} />
             </div>
-            <p className="text-xs text-slate-600 mt-2">EODHD-API · KI-Analyse · Sektorverteilung</p>
+            <p className="text-xs text-slate-600 mt-2">EODHD-API · KI-Analyse · Sektorverteilung · bei Verzögerung erscheint eine Fehlermeldung</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[1,2,3,4].map(i => <Skeleton key={i} className="h-20 bg-slate-800/50" />)}
@@ -152,7 +152,10 @@ export default function PortfolioDeepDive({ portfolioId }: { portfolioId: number
         <Card className="bg-slate-800/30 border-slate-700/50">
           <CardContent className="py-8 text-center">
             <AlertTriangle className="w-8 h-8 mx-auto text-amber-500/50 mb-2" />
-            <p className="text-slate-400 text-sm">Fehler beim Laden der Fundamentaldaten.</p>
+            <p className="text-slate-400 text-sm">{error.message || "Fehler beim Laden der Fundamentaldaten."}</p>
+            <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-3 border-slate-600 text-slate-300 hover:text-white">
+              Erneut versuchen
+            </Button>
           </CardContent>
         </Card>
       )}

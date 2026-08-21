@@ -195,7 +195,11 @@ export function KIAnalyse() {
     ABWARTEN: 'bg-gray-600 text-gray-200',
   };
 
-  const todayFormatted = new Date().toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const analysisDateFormatted = analysis?.dataDate
+    ? new Date(`${analysis.dataDate}T00:00:00`).toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+    : analysis?.generatedAt
+      ? new Date(analysis.generatedAt).toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+      : 'Datum nicht verfügbar';
 
   return (
     <Card className="bg-[#0d1220] border-[#1e2840]">
@@ -252,7 +256,7 @@ export function KIAnalyse() {
                   {analysis.regime}
                 </Badge>
               </div>
-              <span className="text-xs text-gray-400">{todayFormatted}</span>
+              <span className="text-xs text-gray-400">{analysisDateFormatted}</span>
             </div>
 
             {/* Headline */}

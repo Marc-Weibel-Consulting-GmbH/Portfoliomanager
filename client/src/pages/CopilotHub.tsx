@@ -112,7 +112,10 @@ function ChatTab() {
       utils.chat.getMessages.invalidate();
       setMessage('');
     },
-    onError: (e) => toast.error('Nachricht konnte nicht gesendet werden', { description: getUserErrorMessage(e) }),
+    onError: (e) => {
+      utils.chat.getMessages.invalidate();
+      toast.error('Nachricht konnte nicht gesendet werden', { description: getUserErrorMessage(e) });
+    },
   });
 
   const deleteConversation = trpc.chat.deleteConversation.useMutation({

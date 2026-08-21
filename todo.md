@@ -654,19 +654,19 @@
 - [ ] Preise, KGV/PEG, Dividenden und Performancekennzahlen stichprobenartig gegen Drittquellen vergleichen
 - [ ] Reproduzierbare Befunde mit Ursachen, Minimalremediation, Tests und Release-Gates als Auditbericht dokumentieren
 - [ ] P0: Onboarding-Rückleitung nach erfolgreicher Erstellung des Beispielportfolios reproduzieren, Ursache bestimmen und testgetrieben beheben
-- [ ] P0: Erfolgreiche manuelle Testtransaktion aktualisiert Positionen und Kennzahlen des Demo-Portfolios nicht; Datenfluss bis zur Ursache analysieren und testgetrieben beheben
+- [x] P0: Erfolgreiche manuelle Testtransaktion aktualisiert Positionen und Kennzahlen des Demo-Portfolios nicht; Datenfluss bis zur Ursache analysieren und testgetrieben beheben
 - [ ] P0: Aktivierung erzeugt Initialtransaktionen, belässt das Testportfolio aber im Demo-/Nicht-Live-Zustand und aktualisiert Kennzahlen nicht; Ursache bestimmen und testgetrieben beheben
-- [ ] P0: Der Button „Optimieren“ setzt nur `?tab=optimierung`, zeigt aber keinen Optimierungsinhalt oder Vorschlag; Route, Query-State und Komponente analysieren und testgetrieben beheben
+- [x] P0-Optimierungsprüfung: Nach vollständiger Portfolioladung zeigt `?tab=optimierung` den erklärten Optimierungs-/Empfehlungsbereich mit Anlageprofilhinweis, Kadenzsteuerung und expliziter Ladeaktion; kein Produktfehler im aktuellen Stand reproduzierbar.
 - [ ] P1: Der Bearbeiten-Button einer einzelnen Kurslückenposition liefert keine sichtbare Rückmeldung oder Dialog; Ereignis- und Dialogpfad analysieren und testgetrieben beheben
 - [x] P0: Empfehlungslauf bleibt im Ladezustand, weil `copilotHistory.currentWeight` für den berechneten Gewichtsstring zu kurz ist; Schema, Speicherkonvertierung und Fehlerzustand testgetrieben beheben
 - [ ] P1: Bereits übernommene Empfehlungen in der Vorschlagsliste eindeutig als verarbeitet markieren oder ausblenden
-- [ ] P1: Deep-Dive-KI benötigt deutlich länger als die kommunizierten 15–30 Sekunden und hat keinen globalen Timeout mit verständlichem Fehlerzustand; asynchronen Fundamentaldaten-/KI-Pfad begrenzen und transparent machen
+- [x] P1: Deep-Dive-KI benötigt deutlich länger als die kommunizierten 15–30 Sekunden und hat keinen globalen Timeout mit verständlichem Fehlerzustand; asynchronen Fundamentaldaten-/KI-Pfad begrenzen und transparent machen
 - [ ] QA-Bereinigung: Die temporär erhöhte Adminrolle des isolierten Auditkontos nach Abschluss wieder auf Nutzerrolle zurücksetzen
 - [ ] P1: Research Observatory zeigt trotz algorithmischer Relevanzpriorisierung viele Zentralbank-/Geldpolitiksignale; Quell- oder Tagfilter nachvollziehbar auf Algo-relevante Themen beschränken
-- [ ] P0: Markt-Hub zeigt einen zukünftigen Tagesbericht (5.9.2026) und widersprüchliche S&P-500-Stände; Zeitstempel-, Datenfrische- und Quellenvertrag analysieren und korrigieren
-- [ ] P0: Markt-Hub markiert oder verbirgt zeitlich veraltete Berichtsinhalte nicht, obwohl der angezeigte Berichtstag aktuell ist; Ursprungsdatum/Quellenalter im Erzeugungs- und Anzeigevertrag absichern
+- [x] P0: Markt-Hub zeigt einen zukünftigen Tagesbericht (5.9.2026) und widersprüchliche S&P-500-Stände; Zeitstempel-, Datenfrische- und Quellenvertrag analysieren und korrigieren
+- [x] P0: Markt-Hub markiert oder verbirgt zeitlich veraltete Berichtsinhalte nicht, obwohl der angezeigte Berichtstag aktuell ist; Ursprungsdatum/Quellenalter im Erzeugungs- und Anzeigevertrag absichern
 - [x] P0: Globaler Copilot bleibt nach einer Portfolio-Diversifikationsfrage ohne Antwort oder Fehlerhinweis im Ladezustand; Provider- und Timeoutpfad analysieren und testgetrieben beheben
-- [ ] P1: Copilot-Timeouts zusätzlich als dauerhafte, nicht nur flüchtige Gesprächsstatusmeldung zeigen
+- [x] P1: Copilot-Timeouts zusätzlich als dauerhafte, nicht nur flüchtige Gesprächsstatusmeldung zeigen
 - [x] P1-Validierungsprüfung KI-Builder: Kein Produktfehler bestätigt. Der automatisierte Klick traf ausserhalb des sichtbaren Buttonbereichs; der verifizierte `Weiter`-Handler erzeugt bei leeren Pflichtfeldern den sichtbaren Hinweis „Bitte wählen Sie einen Portfolio-Typ“.
 
 ## Visual Audit — verifizierte Teilremediation (2026-08-21)

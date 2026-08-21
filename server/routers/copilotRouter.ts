@@ -25,6 +25,7 @@ import { runLPPLFullBacktest, runLPPLCustomBacktest, KNOWN_BUBBLES, fitLPPLMulti
 import { calcRiskMetrics } from '../analytics/engine';
 import { fetchEODHDFundamentals, type EODHDFundamentals } from '../_core/eodhdApi';
 import { MULTI_ASSET_ETFS, ASSET_CLASS_LABELS } from '../lib/multiAssetSleeve';
+import { withDeepDiveTimeout } from '../lib/deepDiveTimeout';
 
 /** Flat lookup: ticker (uppercase) → Anlageklassen-Label (z.B. "AGGH.SW" → "Obligationen") */
 const SLEEVE_TICKER_LABEL: Record<string, string> = Object.fromEntries(
@@ -950,7 +951,7 @@ export const copilotRouter = router({
    */
   portfolioDeepDive: protectedProcedure
     .input(z.object({ portfolioId: z.number() }))
-    .query(async ({ ctx, input }) => {
+    .query(({ ctx, input }) => withDeepDiveTimeout((async () => {
       const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
       if (!portfolio) throw new Error('Portfolio nicht gefunden');
 
@@ -1118,7 +1119,7 @@ export const copilotRouter = router({
       }
 
       return { error: null, portfolioName: (portfolio as any).name, holdings, sectorBreakdown, portfolioMetrics, topDividend, highBeta, aiSummary };
-    }),
+    })())),
 
   /** Admin: Deep-Dive-Summary-Cache leeren (erzwingt Neugenerierung beim nächsten Aufruf) */
   clearDeepDiveCache: protectedProcedure

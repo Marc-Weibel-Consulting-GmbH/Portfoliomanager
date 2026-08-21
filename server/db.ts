@@ -1045,6 +1045,29 @@ export async function createPortfolioTransaction(transaction: any) {
     
     console.log("[DB] Extracted transactionId:", transactionId);
     const returnValue: any = { id: transactionId, ...transaction };
+
+    const { getPortfolioCashMutation } = await import("./lib/portfolioCashMutation");
+    const cashMutation = getPortfolioCashMutation(transaction);
+    if (cashMutation.cashDelta !== 0 || cashMutation.investmentDelta !== 0) {
+      const { savedPortfolios } = await import("../drizzle/schema");
+      const portfolioRows = await db
+        .select({ cashBalance: savedPortfolios.cashBalance, investmentAmount: savedPortfolios.investmentAmount })
+        .from(savedPortfolios)
+        .where(eq(savedPortfolios.id, transaction.portfolioId))
+        .limit(1);
+      const portfolio = portfolioRows[0];
+      if (!portfolio) throw new Error("Portfolio nicht gefunden für Cash-Fortschreibung");
+
+      const currentCash = Number.parseFloat(String(portfolio.cashBalance ?? "0")) || 0;
+      const currentInvestment = Number.parseFloat(String(portfolio.investmentAmount ?? "0")) || 0;
+      await db
+        .update(savedPortfolios)
+        .set({
+          cashBalance: (currentCash + cashMutation.cashDelta).toFixed(2),
+          investmentAmount: (currentInvestment + cashMutation.investmentDelta).toFixed(2),
+        })
+        .where(eq(savedPortfolios.id, transaction.portfolioId));
+    }
     
     // If this is a sell transaction, calculate realized gain/loss
     if (transaction.transactionType === 'sell' && transaction.ticker) {

@@ -73,6 +73,14 @@ export const portfolioTransactionsRouter = router({
         transactionDate,
         portfolioId: input.portfolioId,
       });
+      try {
+        const { cacheDel } = await import("../redisClient");
+        const { invalidatePortfolioDetailCache } = await import("../lib/portfolioDetailCache");
+        await invalidatePortfolioDetailCache(cacheDel, input.portfolioId, ctx.user.id);
+      } catch (cacheError) {
+        // Die Transaktion ist bereits persistiert; ein Cachefehler darf den Schreibvorgang nicht rückgängig machen.
+        console.warn("[Transaction] Detailcache konnte nicht invalidiert werden:", cacheError);
+      }
       console.log("[Transaction] Result:", result);
       return result;
     }),

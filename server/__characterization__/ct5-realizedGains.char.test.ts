@@ -35,18 +35,32 @@ const h = vi.hoisted(() => ({
 
 vi.mock("drizzle-orm/mysql2", () => ({
   drizzle: () => ({
-    select: () => ({
-      from: () => ({
-        // Einzige SELECT-Abfrage im Sell-Pfad: alle Transaktionen des Tickers
-        // (Cash-Validierung läuft nur für withdrawal/buy). Direkt awaitbar → Promise.
-        where: () => Promise.resolve([...h.buyRows]),
-      }),
-    }),
+    select: (fields?: Record<string, unknown>) => {
+      const isPortfolioBalanceQuery = !!fields && "cashBalance" in fields && "investmentAmount" in fields;
+      const rows = isPortfolioBalanceQuery
+        ? [{ cashBalance: "0", investmentAmount: "0" }]
+        : [...h.buyRows];
+      return {
+        from: () => ({
+          // Charakterisierungsqueries für das Wertpapierledger bleiben direkt
+          // awaitbar. Die neue Cash-Fortschreibung liest zusätzlich genau eine
+          // Portfoliozeile per `.limit(1)`.
+          where: () => {
+            const result = Promise.resolve(rows) as Promise<any[]> & { limit?: (count: number) => Promise<any[]> };
+            result.limit = () => Promise.resolve(rows);
+            return result;
+          },
+        }),
+      };
+    },
     insert: () => ({
       values: (values: any) => {
         h.inserts.push(values);
         return Promise.resolve({ insertId: h.nextInsertId++ });
       },
+    }),
+    update: () => ({
+      set: () => ({ where: () => Promise.resolve() }),
     }),
   }),
 }));

@@ -5,6 +5,7 @@ import { getDb } from "../db";
 import { chatConversations, chatMessages } from "../../drizzle/schema";
 import { invokeLLM, invokeKimi } from "../_core/llm";
 import { TRPCError } from "@trpc/server";
+import { persistCopilotFailure } from "../lib/copilotFailurePersistence";
 
 /**
  * Chat Router - AI-powered portfolio assistant
@@ -327,6 +328,29 @@ ${portfolioContext}${fundamentalsContext}`;
         };
       } catch (error) {
         console.error("LLM Error:", error);
+        try {
+          await persistCopilotFailure(
+            {
+              appendAssistantMessage: async ({ conversationId, content }) => {
+                await db.insert(chatMessages).values({
+                  conversationId,
+                  role: "assistant" as const,
+                  content,
+                } as const);
+              },
+              touchConversation: async (conversationId) => {
+                await db
+                  .update(chatConversations)
+                  .set({ updatedAt: new Date() })
+                  .where(eq(chatConversations.id, conversationId));
+              },
+            },
+            input.conversationId,
+            error
+          );
+        } catch (historyError) {
+          console.error("[chat] Fehlernachricht konnte nicht gespeichert werden:", historyError);
+        }
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Fehler beim Generieren der Antwort. Bitte versuche es erneut.",

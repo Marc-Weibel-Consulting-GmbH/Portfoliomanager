@@ -347,8 +347,9 @@ export const portfoliosRouter = router({
         // avgFxRateAtPurchaseMap: weighted avg FX rate at purchase time
         const avgBuyPriceLocalMap = new Map<string, number>();
         const avgFxRateAtPurchaseMap = new Map<string, number>();
+        let transactions: any[] = [];
         try {
-          const transactions = await getPortfolioTransactions(input);
+          transactions = await getPortfolioTransactions(input);
           const buyTxs = transactions.filter((t: any) => t.transactionType === 'buy' || t.transactionType === 'entry');
           if (buyTxs.length > 0) {
             buyTxs.sort((a: any, b: any) => new Date(a.transactionDate).getTime() - new Date(b.transactionDate).getTime());
@@ -599,8 +600,9 @@ export const portfoliosRouter = router({
             // bewusst HINTER der Kaufpreis-Kette, damit auch die aus
             // Transaktionen hergeleiteten Kaufpreise greifen.
             const { anteileFuerPosition } = await import("../lib/demoAnteile");
+            const { reconcileSharesWithTransactions } = await import("../helpers/portfolioPositionReconciliation");
             const anteil = anteileFuerPosition({
-              gespeicherteStueck: parseFloat(stock.shares) || 0,
+              gespeicherteStueck: reconcileSharesWithTransactions(parseFloat(stock.shares) || 0, ticker, transactions),
               investmentAmount: parseFloat(portfolio.investmentAmount) || 0,
               gewichtPct: weight,
               kaufpreisCHF: hasBuyPrice ? avgBuyPriceCHF : null,
