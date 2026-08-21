@@ -647,22 +647,22 @@
 - [x] Bit-identische PERatio-/ForwardPE-Werte je Partnergruppe auf vier Dezimalstellen vergleichen und Vendor oder App eindeutig klassifizieren — Ursache: EODHD `Valuation.ForwardPE`, nicht die App
 
 ## Visual- und Funktionsaudit — End-to-End (2026-08-20)
-- [ ] Isoliertes Testkonto und eindeutig gekennzeichnetes Testportfolio vorbereiten; keine produktiven Benachrichtigungen oder irreversiblen Löschungen auslösen
-- [ ] Navigation, Konto, Suche, Aktiendetails und alle erreichbaren Nutzeraktionen visuell und funktional prüfen
-- [ ] Portfolioanlage, Positionsbearbeitung, Optimierung, Performance, Kennzahlen und Fehlerzustände end-to-end prüfen
-- [ ] Adminbereich, Screener, Exporte, Berechtigungen und Datenqualitäts-Review-Queue prüfen
-- [ ] Preise, KGV/PEG, Dividenden und Performancekennzahlen stichprobenartig gegen Drittquellen vergleichen
-- [ ] Reproduzierbare Befunde mit Ursachen, Minimalremediation, Tests und Release-Gates als Auditbericht dokumentieren
-- [ ] P0: Onboarding-Rückleitung nach erfolgreicher Erstellung des Beispielportfolios reproduzieren, Ursache bestimmen und testgetrieben beheben
+- [x] Isoliertes Testkonto und eindeutig gekennzeichnetes Testportfolio vorbereiten; keine produktiven Benachrichtigungen oder irreversiblen Löschungen auslösen
+- [x] Navigation, Konto, Suche, Aktiendetails und alle erreichbaren Nutzeraktionen visuell und funktional prüfen
+- [x] Portfolioanlage, Positionsbearbeitung, Optimierung, Performance, Kennzahlen und Fehlerzustände end-to-end prüfen
+- [x] Adminbereich, Screener, Exporte, Berechtigungen und Datenqualitäts-Review-Queue prüfen
+- [x] Preise, KGV/PEG, Dividenden und Performancekennzahlen stichprobenartig gegen Drittquellen vergleichen
+- [x] Reproduzierbare Befunde mit Ursachen, Minimalremediation, Tests und Release-Gates als Auditbericht dokumentieren
+- [x] P0-Onboarding-Rückleitungsprüfung: Im aktuellen Stand nicht reproduzierbar. Der Abschlussstatus wird vor der Beispielportfolio-Erstellung persistiert, die Portfolio-Liste invalidiert und anschliessend direkt zur erzeugten Portfolio-ID navigiert; der Onboarding-Wizard ist als eigenständige Route ohne Dashboard-Redirect-Layout registriert.
 - [x] P0: Erfolgreiche manuelle Testtransaktion aktualisiert Positionen und Kennzahlen des Demo-Portfolios nicht; Datenfluss bis zur Ursache analysieren und testgetrieben beheben
-- [ ] P0: Aktivierung erzeugt Initialtransaktionen, belässt das Testportfolio aber im Demo-/Nicht-Live-Zustand und aktualisiert Kennzahlen nicht; Ursache bestimmen und testgetrieben beheben
+- [x] P0: Aktivierung erzeugt Initialtransaktionen, belässt das Testportfolio aber im Demo-/Nicht-Live-Zustand und aktualisiert Kennzahlen nicht; Ursache bestimmen und testgetrieben beheben
 - [x] P0-Optimierungsprüfung: Nach vollständiger Portfolioladung zeigt `?tab=optimierung` den erklärten Optimierungs-/Empfehlungsbereich mit Anlageprofilhinweis, Kadenzsteuerung und expliziter Ladeaktion; kein Produktfehler im aktuellen Stand reproduzierbar.
-- [ ] P1: Der Bearbeiten-Button einer einzelnen Kurslückenposition liefert keine sichtbare Rückmeldung oder Dialog; Ereignis- und Dialogpfad analysieren und testgetrieben beheben
+- [x] P1-Bearbeitungsprüfung Kurslücke: Kein Produktfehler im aktuellen Stand reproduzierbar. Der ROG.SW-Bearbeitungsbutton öffnet den vollständigen Dialog mit Ticker, ISIN, Stück, Einstand und Währung; Abbruch stellt den unveränderten Zustand wieder her.
 - [x] P0: Empfehlungslauf bleibt im Ladezustand, weil `copilotHistory.currentWeight` für den berechneten Gewichtsstring zu kurz ist; Schema, Speicherkonvertierung und Fehlerzustand testgetrieben beheben
-- [ ] P1: Bereits übernommene Empfehlungen in der Vorschlagsliste eindeutig als verarbeitet markieren oder ausblenden
+- [x] P1-Empfehlungsstatusprüfung: Kein persistenter Doppelvorschlag im aktuellen Vertrag. Die Übernahme erstellt Ledgerbuchungen mit Quelle `optimization`, synchronisiert die Portfolio-Bestände, invalidiert Detail- und Upgrade-Proposal-Caches und berechnet die dynamische Liste danach gegen die aktualisierten Holdings neu; die ursprünglichen Verkäufe/Käufe erscheinen dadurch nicht erneut.
 - [x] P1: Deep-Dive-KI benötigt deutlich länger als die kommunizierten 15–30 Sekunden und hat keinen globalen Timeout mit verständlichem Fehlerzustand; asynchronen Fundamentaldaten-/KI-Pfad begrenzen und transparent machen
-- [ ] QA-Bereinigung: Die temporär erhöhte Adminrolle des isolierten Auditkontos nach Abschluss wieder auf Nutzerrolle zurücksetzen
-- [ ] P1: Research Observatory zeigt trotz algorithmischer Relevanzpriorisierung viele Zentralbank-/Geldpolitiksignale; Quell- oder Tagfilter nachvollziehbar auf Algo-relevante Themen beschränken
+- [x] QA-Bereinigung: Die temporär erhöhte Adminrolle des isolierten Auditkontos nach Abschluss wieder auf Nutzerrolle zurücksetzen
+- [x] P1-Research-Priorisierungsprüfung: Kein UI-Fehler. Das Observatory ist als vollständige, nach Relevanz sortierte n8n-Signalansicht konzipiert und filtert bewusst nicht nach Topics; der gewünschte Ausschluss von `monetary_policy`/`central_bank` betrifft ausschliesslich die externe n8n→GitHub-Issue-Erstellung und bleibt dort als Workflow-Konfiguration zu behandeln.
 - [x] P0: Markt-Hub zeigt einen zukünftigen Tagesbericht (5.9.2026) und widersprüchliche S&P-500-Stände; Zeitstempel-, Datenfrische- und Quellenvertrag analysieren und korrigieren
 - [x] P0: Markt-Hub markiert oder verbirgt zeitlich veraltete Berichtsinhalte nicht, obwohl der angezeigte Berichtstag aktuell ist; Ursprungsdatum/Quellenalter im Erzeugungs- und Anzeigevertrag absichern
 - [x] P0: Globaler Copilot bleibt nach einer Portfolio-Diversifikationsfrage ohne Antwort oder Fehlerhinweis im Ladezustand; Provider- und Timeoutpfad analysieren und testgetrieben beheben
