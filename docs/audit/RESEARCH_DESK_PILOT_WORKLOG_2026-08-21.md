@@ -24,6 +24,14 @@ Der erste Live-Run wurde am **21. August 2026 um 11:06 Uhr** über die neue Admi
 
 Die Triageaktion „Prüfen“ wurde für genau eine META-Form-4-Evidenz getestet. Sie änderte ausschliesslich den Checker-Status von `pending` zu `reviewed`; die UI bestätigte anschliessend 16 offene Checker und zeigte weiter `Impact: none`.
 
+## Tägliche Ausführung und Abschlussverifikation
+
+Der produktive, fail-closed Heartbeat `research-desk-shadow-daily` ist aktiv und mit der UID `J6amTPb7x4KAL8mVMrMYET` ausschliesslich an den Handler `researchDeskShadow` gebunden. Er läuft täglich um **22:15 UTC**. Die Datenbankprüfung nach Registrierung bestätigt eine aktive Bindung, einen abgeschlossenen Shadow-Run, 17 Evidenzen mit `decisionImpact='none'`, null unvollständige Evidenzen und keine Evidenz ausserhalb des Shadow-Modus.
+
+Die Implementierungsgates sind damit erfüllt. Das fachliche OOS-Gate bleibt dennoch geschlossen, bis die künftigen sechs Wochen des täglichen, punkt-in-zeit-sicheren Shadow-Runs vollständig vorliegen.
+
+Ein zweiter manueller Start am selben Kalendertag wurde zusätzlich live getestet. Die Anwendung bestätigte „Heutiger Shadow-Run liegt bereits vor“, beließ den Lauf bei 5/5 Quellen und die Evidenzliste unverändert bei 17 Zeilen. Damit ist die tagesbezogene Idempotenz sowohl technisch als auch in der Adminoberfläche nachgewiesen.
+
 ## Nächste Prüfgates
 
 Der tägliche Lauf muss über eine gebundene Heartbeat-UID registriert werden und über sechs Wochen in Shadow Mode laufen. Erst danach sind Datenvollständigkeit, Punkt-in-Zeit-Qualität, Mehrquellenbestätigung und eine strikt vom Collector getrennte OOS-Backtesthypothese zu bewerten. Die automatische Übergabe an Scores, Empfehlungen, GitHub-Issues oder Handel bleibt gesperrt.
