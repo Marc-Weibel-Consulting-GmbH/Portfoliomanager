@@ -75,6 +75,7 @@ import { RealizedGainsTable } from "@/components/RealizedGainsTable";
 import { CostFeesReport } from "@/components/CostFeesReport";
 import RiskTab from "@/components/portfolio/RiskTab";
 import OptimierenTab from "@/components/portfolio/OptimierenTab";
+import { getPortfolioAllocationScope } from "@/lib/optimizationPresentation";
 import PortfolioDeepDive from "@/components/portfolio/PortfolioDeepDive";
 import PositionsKonstellation from "@/components/portfolio/PositionsKonstellation";
 import PortfolioQualityHistory from "@/components/portfolio/PortfolioQualityHistory";
@@ -615,8 +616,8 @@ const PROFILE_GOAL_LABEL: Record<string, string> = {
 };
 
 function OptimierungEmpfehlungenTab({
-  portfolioId, holdings, totalValueCHF, cashBalance, onNavigateToTransactions, onNavigateToPositions, portfolioCreatedAt, portfolioType,
-}: { portfolioId: number; holdings: any[]; totalValueCHF?: number; cashBalance?: number; onNavigateToTransactions?: () => void; onNavigateToPositions?: () => void; portfolioCreatedAt?: string | null; portfolioType?: string | null }) {
+  portfolioId, holdings, totalValueCHF, cashBalance, onNavigateToTransactions, onNavigateToPositions, portfolioCreatedAt, portfolioType, allocationScope,
+}: { portfolioId: number; holdings: any[]; totalValueCHF?: number; cashBalance?: number; onNavigateToTransactions?: () => void; onNavigateToPositions?: () => void; portfolioCreatedAt?: string | null; portfolioType?: string | null; allocationScope?: import('@/lib/optimizationPresentation').PortfolioAllocationScope }) {
   const [mode, setMode] = useState<"empfehlungen" | "optimierung">("empfehlungen");
   const { data: profile } = trpc.investmentProfile.get.useQuery();
 
@@ -664,10 +665,17 @@ function OptimierungEmpfehlungenTab({
         <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0f1420] border border-white/10 rounded-lg px-4 py-3">
           <div className="flex items-center gap-2 text-sm">
             <Target className="w-4 h-4 text-[#00CFC1]" />
-            <span className="text-gray-400">Anlageprofil:</span>
+            <span className="text-gray-400">Risikoprofil:</span>
             <span className="text-white font-medium">{PROFILE_RISK_LABEL[profile.riskProfile] ?? profile.riskProfile}</span>
             <span className="text-gray-600">·</span>
+            <span className="text-gray-400">Ziel:</span>
             <span className="text-white font-medium">{PROFILE_GOAL_LABEL[profile.investmentGoal] ?? profile.investmentGoal}</span>
+            {allocationScope === 'stocks_only' && (
+              <>
+                <span className="text-gray-600">·</span>
+                <span className="text-[#00CFC1] font-medium">Strategie: nur Aktien</span>
+              </>
+            )}
           </div>
           <Link href="/einstellungen?tab=anlageprofil" className="text-xs text-[#00CFC1] hover:underline">
             Profil anpassen
@@ -734,6 +742,7 @@ function OptimierungEmpfehlungenTab({
           onNavigateToPositions={onNavigateToPositions}
           portfolioCreatedAt={portfolioCreatedAt}
           portfolioType={portfolioType}
+          allocationScope={allocationScope}
           profileMismatch={profileMismatch ? { reasons: profileMismatch.reasons, severity: profileMismatch.severity, aiSuggestion: profileMismatch.aiSuggestion } : null}
         />
       )}
@@ -3168,7 +3177,7 @@ export default function PortfolioDetailsPage() {
               title="Portfolio-Optimierung & KI-Empfehlungen"
               description="Lassen Sie Ihr Portfolio optimieren und erhalten Sie konkrete KI-Umschichtungsvorschläge. Teil von Basic und Pro."
             >
-              <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} onNavigateToPositions={() => handleTabChange('positionen')} portfolioCreatedAt={portfolio.createdAt ? String(portfolio.createdAt) : null} portfolioType={portfolio.portfolioType ?? null} />
+              <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} onNavigateToPositions={() => handleTabChange('positionen')} portfolioCreatedAt={portfolio.createdAt ? String(portfolio.createdAt) : null} portfolioType={portfolio.portfolioType ?? null} allocationScope={getPortfolioAllocationScope((portfolio as any).portfolioData)} />
             </FeatureGate>
           </TabsContent>
 

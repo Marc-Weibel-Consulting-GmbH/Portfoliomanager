@@ -13,6 +13,11 @@ import { getUserErrorMessage } from "@/lib/errorMessages";
 import { SLEEVE_TICKER_LABEL } from "@shared/const";
 import { THEME_LABELS, themeOfTicker } from "@shared/themes";
 import { DEFAULT_DIVERSIFICATION_RULES } from "@shared/diversificationRules";
+import {
+  getAssetClassTargetsForScope,
+  getVisibleDiversificationRules,
+  type PortfolioAllocationScope,
+} from "@/lib/optimizationPresentation";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -319,6 +324,7 @@ export default function OptimierenTab({
   portfolioCreatedAt,
   portfolioType,
   profileMismatch,
+  allocationScope = 'profile_mix',
 }: {
   portfolioId: number;
   holdings: any[];
@@ -338,6 +344,8 @@ export default function OptimierenTab({
   portfolioType?: string | null;
   /** Profil-Mismatch: Gründe und KI-Vorschlag wenn Portfolio nicht mehr zum Anlegerprofil passt */
   profileMismatch?: { reasons: string[]; severity: "low" | "medium" | "high"; aiSuggestion: string | null } | null;
+  /** Bewusst gewählte Anlageklassenstrategie aus dem Portfolio-Builder. */
+  allocationScope?: PortfolioAllocationScope;
 }) {
   // P-ALIGN: Frisch erstelltes KI-Portfolio (demo, < 7 Tage)?
   // "Jetzt" einmalig beim Mounten festhalten — Date.now() im Render ist unrein.
@@ -347,8 +355,11 @@ export default function OptimierenTab({
     const ageDays = (nowMs - new Date(portfolioCreatedAt).getTime()) / (1000 * 60 * 60 * 24);
     return ageDays < 7;
   }, [portfolioCreatedAt, portfolioType, nowMs]);
-  const [showDivRules, setShowDivRules] = useState(true);
-  const [showUpgrades, setShowUpgrades] = useState(true);
+  const [showDivRules, setShowDivRules] = useState(false);
+  const [showAllDivRules, setShowAllDivRules] = useState(false);
+  const [showUpgrades, setShowUpgrades] = useState(false);
+  const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+  const [showDroppedPositions, setShowDroppedPositions] = useState(false);
   const [showAllWeak, setShowAllWeak] = useState(false);
   const [showAllAdditions, setShowAllAdditions] = useState(false);
   // Empfehlungs-Umsetzung: "Optimierung anwenden" Dialog
@@ -663,12 +674,20 @@ export default function OptimierenTab({
   );
 
   // Diversification rules
+  const scopedAssetClassTargets = useMemo(
+    () => getAssetClassTargetsForScope(assetClassData, allocationScope),
+    [assetClassData, allocationScope],
+  );
   const divRules = useMemo(
-    () => checkDiversificationRules(holdings, totalValueCHF || 0, rules, assetClassData),
-    [holdings, totalValueCHF, rules, assetClassData]
+    () => checkDiversificationRules(holdings, totalValueCHF || 0, rules, scopedAssetClassTargets),
+    [holdings, totalValueCHF, rules, scopedAssetClassTargets]
   );
   const passedCount = divRules.filter(r => r.passed).length;
   const allPassed = passedCount === divRules.length;
+  const visibleDivRules = useMemo(
+    () => getVisibleDiversificationRules(divRules, showAllDivRules),
+    [divRules, showAllDivRules],
+  );
 
   if (tickers.length < 2) {
     return (
@@ -890,17 +909,28 @@ export default function OptimierenTab({
               ? <CheckCircle className="w-4 h-4 text-[#00CFC1]" />
               : <AlertTriangle className="w-4 h-4 text-amber-400" />
             }
-            <span className="text-sm font-semibold text-white">Diversifikationsregeln</span>
+            <span className="text-sm font-semibold text-white">{allocationScope === 'stocks_only' ? 'Aktien-Diversifikation' : 'Diversifikationsregeln'}</span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${allPassed ? 'bg-[#00CFC1]/20 text-[#00CFC1]' : 'bg-amber-500/20 text-amber-400'}`}>
               {passedCount}/{divRules.length}
             </span>
-            <span className="text-[10px] text-gray-600 ml-1">Bandbreite: {rules.minPositionPercent}–{rules.maxPositionPercent}% pro Titel</span>
+            <span className="text-[10px] text-gray-600 ml-1">
+              {allPassed ? 'Kein Handlungsbedarf' : `${divRules.length - passedCount} Punkt(e) prüfen`}
+            </span>
           </div>
           <span className="text-gray-500 text-xs">{showDivRules ? '▲ Schliessen' : '▼ Aufklappen'}</span>
         </button>
         {showDivRules && (
           <div className="border-t border-white/10 divide-y divide-white/5">
-            {divRules.map((rule) => (
+            {allocationScope === 'stocks_only' && (
+              <div className="px-4 py-2.5 bg-[#00CFC1]/5 border-b border-[#00CFC1]/15 text-xs text-[#00CFC1]/90">
+                Aktienstrategie gewählt: Nicht gewählte Anlageklassen werden bewusst nicht geprüft.
+              </div>
+            )}
+            {visibleDivRules.length === 0 ? (
+              <div className="px-4 py-4 text-sm text-[#00CFC1] flex items-center gap-2">
+                <CheckCircle className="w-4 h-4" /> Keine aktienrelevante Diversifikationsmassnahme erforderlich.
+              </div>
+            ) : visibleDivRules.map((rule) => (
               <div key={rule.id} className="flex items-start gap-3 px-4 py-3 bg-[#0a0e1a]">
                 <div className="mt-0.5 flex-shrink-0">
                   {rule.passed
@@ -919,6 +949,14 @@ export default function OptimierenTab({
                 </div>
               </div>
             ))}
+            {divRules.some((rule) => rule.passed) && (
+              <button
+                onClick={() => setShowAllDivRules((open) => !open)}
+                className="w-full px-4 py-2.5 text-left text-xs text-gray-400 hover:text-white bg-[#0f1420]"
+              >
+                {showAllDivRules ? 'Nur Handlungsbedarf zeigen' : `Alle ${divRules.length} Regeln anzeigen`}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1627,16 +1665,24 @@ export default function OptimierenTab({
           {droppedPositions.length > 0 && (
             <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/40 rounded-lg px-4 py-3">
               <Info className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-amber-200">
-                Mindest-Positionsgrösse CHF 3'000: {droppedPositions.length === 1
-                  ? 'Eine Position unterschreitet im Zielportfolio die Mindestgrösse und wurde auf 0 % gesetzt'
-                  : `${droppedPositions.length} Positionen unterschreiten im Zielportfolio die Mindestgrösse und wurden auf 0 % gesetzt`}
-                {' '}(Gewicht auf die übrigen Titel umverteilt):{' '}
-                {droppedPositions
-                  .map((d) => `${d.ticker} (CHF ${Math.round(d.targetValueCHF).toLocaleString('de-CH')})`)
-                  .join(', ')}
-                .
-              </p>
+              <div className="min-w-0">
+                <p className="text-sm text-amber-200">
+                  {droppedPositions.length} Zielposition{droppedPositions.length === 1 ? '' : 'en'} liegen unter CHF 3'000 und werden nicht vorgeschlagen.
+                </p>
+                <button
+                  onClick={() => setShowDroppedPositions((open) => !open)}
+                  className="mt-1 text-xs text-amber-300 hover:text-amber-100"
+                >
+                  {showDroppedPositions ? 'Einzelheiten ausblenden' : 'Einzelheiten anzeigen'}
+                </button>
+                {showDroppedPositions && (
+                  <p className="mt-1 text-xs text-amber-200/80">
+                    Gewicht wurde auf verbleibende Titel verteilt: {droppedPositions
+                      .map((d) => `${d.ticker} (CHF ${Math.round(d.targetValueCHF).toLocaleString('de-CH')})`)
+                      .join(', ')}.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
@@ -2024,6 +2070,19 @@ export default function OptimierenTab({
             </div>
           )}
 
+          <div className="border border-white/10 rounded-lg overflow-hidden bg-[#0f1420]">
+            <button
+              onClick={() => setShowTechnicalDetails((open) => !open)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-white/[0.02]"
+            >
+              <span>
+                <span className="text-sm font-semibold text-white">Technische Optimierungsdetails</span>
+                <span className="block text-xs text-gray-500 mt-0.5">Gewichtsvorschläge, Effizienzgrenze und mathematische Vergleichswerte</span>
+              </span>
+              <span className="text-xs text-gray-500">{showTechnicalDetails ? '▲ Schliessen' : '▼ Anzeigen'}</span>
+            </button>
+          </div>
+          {showTechnicalDetails && (
           <div className="grid lg:grid-cols-2 gap-5">
             {/* KI-Vorschläge (Re-Allocation) — alle Positionen, kein Limit */}
             <div className="bg-[#0f1420] border border-white/10 rounded-lg p-5">
@@ -2227,6 +2286,7 @@ export default function OptimierenTab({
               )}
             </div>
           </div>
+          )}
 
           {/* ─── HRP: Cluster-Reihenfolge & Risikobeiträge ─── */}
           {method === 'hrp' && (result as any)?.hrpMeta && (

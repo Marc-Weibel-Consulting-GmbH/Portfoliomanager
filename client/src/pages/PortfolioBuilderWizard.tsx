@@ -481,6 +481,10 @@ export default function PortfolioBuilderWizard() {
           };
         }),
       };
+      // «Nur Aktien» ist eine bewusste Portfolioentscheidung und muss über die
+      // Erstellung hinaus erhalten bleiben; sonst wertet die Optimierung später
+      // die nicht gewählten Profil-Anlageklassen fälschlich als Lücke.
+      portfolioData.allocationScope = path === 'auto' && stocksOnly ? 'stocks_only' : 'profile_mix';
       // If KI proposal has a cash reserve, store it so server calculates cashBalance correctly
       if (liquidityNeedPct > 0) {
         portfolioData.cashPercentage = liquidityNeedPct;

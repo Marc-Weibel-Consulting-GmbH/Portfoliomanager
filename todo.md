@@ -694,6 +694,12 @@
 - [x] P1: Empfehlungen als klare Kauf-, Verkauf-, Aufstocken-, Reduzieren- oder Austauschhandlung mit Zielgewicht, Delta, Kategorie und vollständiger Begründung darstellen. Der laufende Modus ist bewusst auf bestehende Positionen begrenzt; neue Käufe und gekoppelte Austausche gehören in die vollständige Neu-Optimierung.
 - [x] P1: Die korrigierte Empfehlungslogik am gezeigten Testportfolio sowie per Regression und Live-UI prüfen
 
+## Profilgerechte Diversifikation und Optimierungs-UX (2026-08-21)
+- [x] P0: Bei der Auswahl «nur Aktien» ausschliesslich aktienrelevante Diversifikationsregeln prüfen; nicht gewählte Anlageklassen nicht als Warnung oder Zielquote darstellen
+- [x] P1: Diversifikationsübersicht auf eine kompakte Zusammenfassung mit nur Handlungsbedarf reduzieren; Details auf expliziten Aufklappbereich verschieben
+- [x] P1: Vollständige Neu-Optimierung auf klare, schrittweise Entscheidungsblöcke reduzieren und technische Analyse-/Backtestdetails standardmässig verbergen
+- [x] P1: Vereinfachte, profilorientierte Ansicht mit dem betroffenen Aktienportfolio live und per Regression verifizieren
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern
