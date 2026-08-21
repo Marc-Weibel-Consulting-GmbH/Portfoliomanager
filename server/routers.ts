@@ -51,6 +51,7 @@ import { pdfImportRouter } from "./routers/pdfImportRouter";
 import { tradingviewRouter } from "./routers/tradingview";
 import { researchRouter } from "./routers/researchRouter";
 import { researchObservatoryRouter } from "./routers/researchObservatoryRouter";
+import { researchDeskRouter } from "./routers/researchDeskRouter";
 import { macroSourcesRouter } from "./routers/macroSourcesRouter";
 import { marketReportRouter } from "./routers/marketReportRouter";
 import { kiBoomRouter } from "./routers/kiBoomRouter";
@@ -1114,6 +1115,7 @@ export const appRouter = router({
     onboarding: onboardingRouter,
   researchAdmin: researchRouter,
   researchObservatory: researchObservatoryRouter,
+  researchDesk: researchDeskRouter,
   macroSources: macroSourcesRouter,
   // Logo service for stock logos
   logos: router({

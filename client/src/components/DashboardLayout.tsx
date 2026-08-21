@@ -25,7 +25,7 @@ import {
 import { APP_LOGO, APP_TITLE } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import { needsOnboardingRedirect } from "@/lib/onboarding";
-import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wrench, Eye, Zap, FlaskConical, Camera, Search, Gauge, Telescope } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, TrendingUp, Settings, Bell, Calculator, Shield, ChevronDown, ChevronRight, Brain, Globe, Wrench, Eye, Zap, FlaskConical, Camera, Search, Gauge, Telescope, FileSearch } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -75,6 +75,7 @@ const adminMenuItems = [
   { icon: Eye, label: "Watchlist", path: "/admin/watchlist" },
   { icon: Zap, label: "Signal-Optimizer", path: "/admin/optimizer" },
   { icon: Brain, label: "Research & Multi-Agent", path: "/admin/research" },
+  { icon: FileSearch, label: "Research Desk", path: "/admin/research-desk" },
   { icon: FlaskConical, label: "KI-Vorschläge Archiv", path: "/admin/proposal-analysis" },
   { icon: LayoutDashboard, label: "Feedback-Dashboard", path: "/admin/feedback-dashboard" },
   { icon: Settings, label: "Einstellungen", path: "/admin/settings" },

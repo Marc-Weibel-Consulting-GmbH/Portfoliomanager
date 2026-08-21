@@ -682,6 +682,12 @@
 - [x] Konzept eines spezialisierten Research-Agentenverbunds gegen bestehende Research-Observatory-, Scheduler-, Datenqualitäts- und Backtest-Komponenten abgleichen
 - [x] Einen eng begrenzten, beobachtenden Pilot für Filing-/Earnings-/Insider-Ereignisse mit Quellenbeleg, Maker-Checker-Trennung, Stop-Bedingungen und OOS-Erfolgsmessung spezifizieren
 
+## Research Desk Lite — Shadow-Mode-Pilot (2026-08-21)
+- [ ] P0: Evidenz-Ledger für US-Filing-, Earnings- und Insider-Ereignisse mit Quellen-URL, Ereignis-/Abrufzeit, Rohdatenhash, ISIN/Ticker und Laufversion nicht-destruktiv anlegen
+- [ ] P0: Deterministischen, idempotenten täglichen Shadow-Mode-Collector mit Quoten, Laufprotokoll, Quellenvalidierung und keinen Score-/Handelsnebenwirkungen implementieren
+- [ ] P1: Maker-Checker-Adminansicht für Evidenz, Mehrquellenbestätigung und verworfene/unvollständige Datensätze erstellen
+- [ ] P1: Sechs-Wochen-Shadow-Run mit Datenvollständigkeits- und Punkt-in-Zeit-Outcome-Gates dokumentieren; automatische Regeländerungen ausdrücklich sperren
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern

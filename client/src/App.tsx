@@ -81,6 +81,7 @@ const AdminScoreConfig = lazy(() => import("./pages/AdminScoreConfig"));
 const AdminAlgoBacktest = lazy(() => import("./pages/AdminAlgoBacktest"));
 const AdminWatchlistCandidates = lazy(() => import("./pages/AdminWatchlistCandidates"));
 const AdminImprovementTimeline = lazy(() => import("./pages/AdminImprovementTimeline"));
+const AdminResearchDesk = lazy(() => import("./pages/AdminResearchDesk"));
 
 function Router() {
   return (
@@ -182,6 +183,7 @@ function Router() {
         <Route path="/admin/wikifolio"><RequireAdmin><AdminWikifolio /></RequireAdmin></Route>
         <Route path="/admin/settings"><RequireAdmin><AdminSettings /></RequireAdmin></Route>
         <Route path="/admin/research"><RequireAdmin><AdminResearch /></RequireAdmin></Route>
+        <Route path="/admin/research-desk"><RequireAdmin><AdminResearchDesk /></RequireAdmin></Route>
         <Route path="/admin/berechnungen"><RequireAdmin><AdminBerechnungen /></RequireAdmin></Route>
         <Route path="/admin/signal-config"><RequireAdmin><AdminSignalConfig /></RequireAdmin></Route>
         <Route path="/admin/screenshots"><RequireAdmin><AdminScreenshots /></RequireAdmin></Route>

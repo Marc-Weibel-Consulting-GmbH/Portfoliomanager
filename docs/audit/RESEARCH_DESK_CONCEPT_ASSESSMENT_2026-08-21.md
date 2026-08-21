@@ -58,6 +58,10 @@ Jeder neue Befund benötigt eine persistierte Evidenzzeile mit `source_type`, `s
 
 Der Pilot erhält vier verbindliche Regeln. Erstens bleiben alle Feature Flags standardmässig deaktiviert. Zweitens darf keine Research-Evidenz unmittelbar Score, Optimierung oder Handelsentscheidung ändern. Drittens sind Prompt-, Regel- und Quellenversionen unveränderlich pro Lauf zu speichern. Viertens sind Regeländerungen nur über eine genehmigte, versionierte Konfiguration zulässig; ein Bot darf seine Schwellen nie selbst umschreiben.
 
+### Verifizierte Primärquelle für Pilot 1
+
+Die SEC stellt über `data.sec.gov/submissions/CIK##########.json` eine authentifizierungsfreie, laufend aktualisierte Submission-Historie je CIK bereit. Der Datensatz enthält aktuelle Namen, Börsen- und Tickersymbole sowie mindestens ein Jahr bzw. bis zu 1'000 aktuelle Filings; XBRL-Fakten stehen separat zur Verfügung. Die SEC begrenzt automatisierte Zugriffe auf höchstens zehn Anfragen pro Sekunde und verlangt effiziente, klar identifizierbare Abrufe. Der Pilot bleibt deshalb bei einem kleinen US-Universum, cached pro CIK und führt keine Vollarchiv-Crawls aus.[7] [8]
+
 ## Messung ohne Selbsttäuschung
 
 Der Artikel schlägt vor, Regeln anhand späterer Kursbewegungen anzupassen. Das ist nur dann zulässig, wenn die Entscheidung zeitlich sauber vor dem Ergebnis liegt und der Anpassungszeitraum vom Testzeitraum getrennt wird. Der Portfoliomanager soll deshalb je Signal mindestens `t+1`, `t+3`, `t+5` und `t+20` Handelstage sowie eine Benchmark-bereinigte Rendite speichern. Ein Ergebnis misst zunächst **Research-Qualität**, nicht Alpha.
@@ -92,3 +96,5 @@ Zuerst wird **Ansatz A als zweiwöchiger technischer Pilot** umgesetzt: Schema, 
 [4]: [Lokaler Code: `server/routers/backtestRouter.ts`](../../server/routers/backtestRouter.ts)  
 [5]: [Loughran–McDonald Master Dictionary, University of Notre Dame](https://sraf.nd.edu/loughranmcdonald-master-dictionary/)  
 [6]: [Ben-Rephael et al. — Who Pays Attention to SEC Form 8-K?](https://publications.aaahq.org/accounting-review/article/97/5/59/336/Who-Pays-Attention-to-SEC-Form-8-K)
+[7]: [SEC — EDGAR Application Programming Interfaces](https://www.sec.gov/search-filings/edgar-application-programming-interfaces)  
+[8]: [SEC — Developer Resources und Fair Access](https://www.sec.gov/about/developer-resources)

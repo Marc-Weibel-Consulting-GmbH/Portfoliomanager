@@ -1824,6 +1824,67 @@ export type ResearchSignal = typeof researchSignals.$inferSelect;
 export type InsertResearchSignal = typeof researchSignals.$inferInsert;
 
 /**
+ * Laufprotokoll für den beobachtenden Research-Desk-Piloten. Der Pilot ist
+ * explizit keine Signalerzeugung für Scores, Empfehlungen oder Handel.
+ */
+export const researchDeskRuns = mysqlTable("research_desk_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  runKey: varchar("runKey", { length: 192 }).notNull().unique(),
+  runDate: date("runDate").notNull(),
+  universeVersion: varchar("universeVersion", { length: 64 }).notNull(),
+  sourceVersion: varchar("sourceVersion", { length: 64 }).notNull(),
+  isShadowMode: tinyint("isShadowMode").notNull().default(1),
+  status: varchar("status", { length: 32 }).notNull().default("running"),
+  tickersRequested: int("tickersRequested").notNull().default(0),
+  tickersFetched: int("tickersFetched").notNull().default(0),
+  evidenceObserved: int("evidenceObserved").notNull().default(0),
+  evidenceIncomplete: int("evidenceIncomplete").notNull().default(0),
+  errors: json("errors"),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  runDateIdx: index("ix_research_desk_runs_date").on(t.runDate),
+}));
+export type ResearchDeskRun = typeof researchDeskRuns.$inferSelect;
+export type InsertResearchDeskRun = typeof researchDeskRuns.$inferInsert;
+
+/**
+ * Versionierte Primärquellen-Evidenz aus dem Research-Desk-Pilot. `evidenceKey`
+ * bindet eine SEC-Accession idempotent an genau einen Datensatz.
+ */
+export const researchDeskEvidence = mysqlTable("research_desk_evidence", {
+  id: int("id").autoincrement().primaryKey(),
+  evidenceKey: varchar("evidenceKey", { length: 192 }).notNull().unique(),
+  runId: int("runId").notNull(),
+  ticker: varchar("ticker", { length: 32 }).notNull(),
+  isin: varchar("isin", { length: 16 }),
+  cik: varchar("cik", { length: 10 }).notNull(),
+  eventType: varchar("eventType", { length: 48 }).notNull(),
+  formType: varchar("formType", { length: 16 }).notNull(),
+  sourceUrl: varchar("sourceUrl", { length: 1024 }).notNull(),
+  sourcePublishedAt: timestamp("sourcePublishedAt"),
+  fetchedAt: timestamp("fetchedAt").notNull(),
+  sourceVersion: varchar("sourceVersion", { length: 64 }).notNull(),
+  rawHash: varchar("rawHash", { length: 64 }).notNull(),
+  rawPayload: json("rawPayload").notNull(),
+  isShadowMode: tinyint("isShadowMode").notNull().default(1),
+  decisionImpact: varchar("decisionImpact", { length: 16 }).notNull().default("none"),
+  completenessStatus: varchar("completenessStatus", { length: 32 }).notNull(),
+  checkerStatus: varchar("checkerStatus", { length: 32 }).notNull().default("pending"),
+  validationReasons: json("validationReasons"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  runIdx: index("ix_research_desk_evidence_run").on(t.runId),
+  tickerPublishedIdx: index("ix_research_desk_evidence_ticker_published").on(t.ticker, t.sourcePublishedAt),
+  checkerIdx: index("ix_research_desk_evidence_checker").on(t.checkerStatus, t.completenessStatus),
+}));
+export type ResearchDeskEvidence = typeof researchDeskEvidence.$inferSelect;
+export type InsertResearchDeskEvidence = typeof researchDeskEvidence.$inferInsert;
+
+/**
  * Quartalsweise Hyperscaler-Capex-Daten (MSFT, GOOGL, META, AMZN, ORCL).
  * Quelle: SEC 10-Q / 10-K Filings + Earnings Releases.
  * Wird für den KI-Boom-Regime-Indikator (Issue #271) verwendet.
