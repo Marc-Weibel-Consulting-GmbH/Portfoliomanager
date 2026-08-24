@@ -83,6 +83,22 @@ export default function AdminDashboard() {
   const scoreDiagnose = trpc.admin.scoreDiagnose.useMutation({
     onError: (err) => toast.error("Diagnose fehlgeschlagen", { description: err.message }),
   });
+
+  // K13 — Variations-Loop der Lernwerkstatt: misst kleine Gewichts-Variationen
+  // und legt sie im Ledger ab. Übernommen wird nichts; der Entscheid unten ist
+  // das L3-Gate.
+  const variationsLage = trpc.admin.variationsLage.useQuery(undefined, { staleTime: 60 * 1000 });
+  const variationsLauf = trpc.admin.variationsLauf.useMutation({
+    onSuccess: () => variationsLage.refetch(),
+    onError: (err) => toast.error("Variations-Lauf fehlgeschlagen", { description: err.message }),
+  });
+  const variationsEntscheid = trpc.admin.variationsEntscheid.useMutation({
+    onSuccess: (r) => {
+      variationsLage.refetch();
+      if (r.ok) toast.success(r.message); else toast.error(r.message);
+    },
+    onError: (err) => toast.error("Entscheid fehlgeschlagen", { description: err.message }),
+  });
   const [jahreOffen, setJahreOffen] = useState(false);
 
   // Die Messung, die zur Anwendung passt: die besten N halten. Alle Kandidaten
@@ -1125,6 +1141,100 @@ export default function AdminDashboard() {
           })()}
         </div>
 
+        {/* K13 — Variations-Loop: statt des vollen Rasters kleine, benannte
+            Schritte um die Betriebs-Gewichte, mit Ledger und Herkunftslinie.
+            Der Loop schlägt vor, der Projektleiter entscheidet (L3). */}
+        <div id="variations-loop" className="p-4 bg-muted/30 rounded-lg border space-y-3">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="min-w-[260px]">
+              <p className="text-sm font-medium flex items-center gap-2">
+                <FlaskConical className="h-4 w-4 text-emerald-400" />Variations-Loop (K13)
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Misst je Regime kleine Qualität↔Timing-Verschiebungen gegen die Betriebs-Gewichte —
+                gleiche Rechnung wie oben (nach Kosten, Zeit-Holdout). Der beste taugliche Kandidat
+                wird zum Vorschlag; übernommen wird nur nach Freigabe.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="gap-2"
+              disabled={variationsLauf.isPending}
+              onClick={() => variationsLauf.mutate({ horizontMonate: horizont })}
+            >
+              {variationsLauf.isPending
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <FlaskConical className="h-4 w-4" />}
+              {variationsLauf.isPending ? "Rechnet..." : `Lauf starten (${horizont} Mt.)`}
+            </Button>
+          </div>
+
+          {variationsLauf.data && (() => {
+            const e = variationsLauf.data;
+            return (
+              <div className="space-y-2 border-t pt-3">
+                <p className="text-xs text-muted-foreground">
+                  Lauf {e.laufId} · {e.titel} Titel · {e.beobachtungen.toLocaleString("de-CH")} Beobachtungen ·{" "}
+                  {e.geplant} Kandidaten gemessen · {e.tauglich} tauglich und besser als der Betrieb ·{" "}
+                  {e.dauerSekunden}s
+                </p>
+                <div className={`rounded p-3 text-sm ${e.vorschlag
+                  ? "bg-emerald-500/10 border border-emerald-500/40"
+                  : "bg-muted/40 border"}`}>
+                  <p className="font-medium">
+                    {e.vorschlag
+                      ? `Vorschlag: ${e.vorschlag.beschreibung} — Prüf-Sharpe ${e.vorschlag.pruefSharpe.toFixed(2)} gegen ${e.heute.pruefSharpe.toFixed(2)} im Betrieb`
+                      : "Kein Kandidat schlägt die Betriebs-Gewichte im Prüfzeitraum — es bleibt beim Betrieb."}
+                  </p>
+                  {e.vorschlag?.hinweis && (
+                    <p className="text-xs mt-1 text-muted-foreground">{e.vorschlag.hinweis}</p>
+                  )}
+                </div>
+                {e.stop && <p className="text-xs text-amber-400">{e.stop}</p>}
+              </div>
+            );
+          })()}
+
+          {(variationsLage.data?.offeneVorschlaege?.length ?? 0) > 0 && (
+            <div className="space-y-2 border-t pt-3">
+              <p className="text-xs font-medium">Offene Vorschläge — Ihr Entscheid</p>
+              {variationsLage.data!.offeneVorschlaege.map((v: any) => (
+                <div key={v.id} className="rounded border bg-background/40 p-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-sm font-medium">{v.beschreibung}
+                      <span className="text-xs font-normal text-muted-foreground"> · {v.horizontMonate} Mt. · Lauf {v.laufId}</span>
+                    </p>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="outline" className="h-7 px-3 text-xs"
+                        disabled={variationsEntscheid.isPending}
+                        onClick={() => variationsEntscheid.mutate({ id: v.id, entscheid: "verwerfen" })}>
+                        Verwerfen
+                      </Button>
+                      <Button size="sm" className="h-7 px-3 text-xs"
+                        disabled={variationsEntscheid.isPending}
+                        onClick={() => variationsEntscheid.mutate({ id: v.id, entscheid: "freigeben" })}>
+                        Freigeben
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Prüfzeitraum: Sharpe {Number(v.messwerte?.pruefSharpe ?? 0).toFixed(2)} (Betrieb{" "}
+                    {Number(v.messwerte?.heuteSharpe ?? 0).toFixed(2)}) · Ø{" "}
+                    {Number(v.messwerte?.pruefMittel ?? 0).toFixed(2)} % gegen «alles kaufen»{" "}
+                    {Number(v.messwerte?.basisMittel ?? 0).toFixed(2)} % · {Number(v.messwerte?.signalN ?? 0)} Signale ·
+                    Anpassung {Number(v.messwerte?.ueberanpassung ?? 0).toFixed(2)}
+                  </p>
+                  {v.hinweis && <p className="text-xs text-amber-400">{v.hinweis}</p>}
+                  <p className="text-[11px] text-muted-foreground">
+                    Freigeben dokumentiert den Entscheid im Tuning-Log — wirksam wird er erst mit der
+                    Übernahme in die Betriebs-Gewichte per Code-Änderung samt Änderungslog (Regel 1).
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Die vorgelagerte Frage. Die Gewichtssuche misst eine Schwellenregel
             gegen «alles kaufen» und mischt damit Auswahl und Zeitpunkt. Hier
             wird quer je Stichtag gerechnet: alle Titel desselben Monats
@@ -1590,7 +1700,7 @@ function CockpitLageBlock() {
         <h2 className="text-sm font-semibold uppercase tracking-wider text-[#00CFC1]">Cockpit — Lagebild</h2>
         <span className="text-xs text-muted-foreground">Meldung jeden Montag · Übernahme nur per Klick</span>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
         <button onClick={() => geheZu("/admin/watchlist")} className="text-left rounded-md bg-background/40 border border-border/50 px-3 py-2 hover:border-[#00CFC1]/50 transition-colors">
           <div className="text-xs text-muted-foreground mb-0.5">Universum vollständig</div>
           <div className="text-lg font-bold text-green-500">{lage.titel.vollstaendig}<span className="text-xs font-normal text-muted-foreground"> / {lage.titel.gesamt}</span></div>
@@ -1607,6 +1717,13 @@ function CockpitLageBlock() {
         <button onClick={() => geheZu("/admin/algo-backtest")} className="text-left rounded-md bg-background/40 border border-border/50 px-3 py-2 hover:border-[#00CFC1]/50 transition-colors">
           <div className="text-xs text-muted-foreground mb-0.5">Gewichts-Vorschläge (nur Bericht)</div>
           <div className={`text-lg font-bold ${lage.lernwerkstatt.tuningVorschlaege.length > 0 ? "text-blue-400" : "text-muted-foreground"}`}>{lage.lernwerkstatt.tuningVorschlaege.length}</div>
+        </button>
+        <button
+          onClick={() => document.getElementById("variations-loop")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          className="text-left rounded-md bg-background/40 border border-border/50 px-3 py-2 hover:border-[#00CFC1]/50 transition-colors"
+        >
+          <div className="text-xs text-muted-foreground mb-0.5">Variations-Vorschläge (K13)</div>
+          <div className={`text-lg font-bold ${(lage.lernwerkstatt as any).variationsVorschlaege > 0 ? "text-blue-400" : "text-muted-foreground"}`}>{(lage.lernwerkstatt as any).variationsVorschlaege ?? 0}</div>
         </button>
       </div>
     </div>

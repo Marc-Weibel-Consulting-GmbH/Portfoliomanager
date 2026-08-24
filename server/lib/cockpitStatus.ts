@@ -23,6 +23,8 @@ export interface CockpitLage {
     mlKandidaten: number;
     /** Jüngste Gewichts-Vorschläge des Feedback-Loops (nur Bericht, K1). */
     tuningVorschlaege: Array<{ erstellt: string; rationale: string }>;
+    /** Offene Vorschläge des Variations-Loops (K13) — warten auf den Entscheid. */
+    variationsVorschlaege: number;
   };
 }
 
@@ -32,7 +34,7 @@ export async function ermittleCockpitLage(): Promise<CockpitLage> {
   const db = await getDb();
   const leer: CockpitLage = {
     titel: { gesamt: 0, vollstaendig: 0, lueckenhaft: 0, veraltet: 0, problemTitel: [] },
-    lernwerkstatt: { mlKandidaten: 0, tuningVorschlaege: [] },
+    lernwerkstatt: { mlKandidaten: 0, tuningVorschlaege: [], variationsVorschlaege: 0 },
   };
   if (!db) return leer;
 
@@ -108,6 +110,12 @@ export async function ermittleCockpitLage(): Promise<CockpitLage> {
     }));
   } catch { /* dito */ }
 
+  let variationsVorschlaege = 0;
+  try {
+    const { zaehleOffeneVorschlaege } = await import("./variationsLedger");
+    variationsVorschlaege = await zaehleOffeneVorschlaege();
+  } catch { /* dito */ }
+
   return {
     titel: {
       gesamt: statusJeTitel.size,
@@ -116,6 +124,6 @@ export async function ermittleCockpitLage(): Promise<CockpitLage> {
       veraltet: zaehle("veraltet"),
       problemTitel,
     },
-    lernwerkstatt: { mlKandidaten, tuningVorschlaege },
+    lernwerkstatt: { mlKandidaten, tuningVorschlaege, variationsVorschlaege },
   };
 }

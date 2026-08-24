@@ -281,7 +281,7 @@ export interface Suchergebnis {
  * Vier Bedingungen, alle im PRÜFZEITRAUM: genug Signale, positive Zielgrösse,
  * besser als «alles kaufen», und nicht bloss am Trainingszeitraum angepasst.
  */
-function pruefeTauglichkeit(
+export function pruefeTauglichkeit(
   pruefung: Auswertung,
   ueberanpassung: number,
   trainingSharpe: number,

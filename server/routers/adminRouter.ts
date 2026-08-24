@@ -1919,6 +1919,183 @@ export const adminRouter = router({
       }),
 
     /**
+     * K13 — ein Lauf des Variations-Loops (design/KONSOLIDIERUNG_RECHENWERKE.md).
+     *
+     * Plant kleine Variationen um die Betriebs-Gewichte, misst jede mit der
+     * Rechnung von `gewichteBacktest` und legt alles im Kandidaten-Ledger ab.
+     * Der beste taugliche Kandidat, der die Betriebs-Gewichte im Prüfzeitraum
+     * schlägt, wird als VORSCHLAG markiert — übernommen wird nichts (L3):
+     * Der Commit ist der Freigabe-Klick in `variationsEntscheid`.
+     */
+    variationsLauf: adminProcedure
+      .input(z.object({
+        horizontMonate: z.number().int().min(1).max(12).default(1),
+      }))
+      .mutation(async ({ input }) => {
+        const { leseAlleReihen } = await import("../lib/punktInZeitStore");
+        const { beobachtungenAusReihe } = await import("../lib/signalGewichteBacktest");
+        const { DEFAULT_SIGNAL_GEWICHTE } = await import("../lib/dreiScoreSignal");
+        const { planeVariationen, bewerteKandidatenSatz, kandidatenSchluessel, stopHinweis } =
+          await import("../lib/variationsLoop");
+        const ledger = await import("../lib/variationsLedger");
+
+        const begonnen = Date.now();
+        const reihen = await leseAlleReihen();
+        const beobachtungen = [...reihen.values()]
+          .flatMap((r) => beobachtungenAusReihe(r, input.horizontMonate));
+
+        const bisher = await ledger.leseLedger(input.horizontMonate);
+        const schonGemessen = new Set(bisher.map((z) => z.schluessel));
+        const plan = planeVariationen(DEFAULT_SIGNAL_GEWICHTE, schonGemessen);
+        const laufId = bisher.reduce((m, z) => Math.max(m, z.laufId), 0) + 1;
+
+        // Die Betriebs-Gewichte als Massstab desselben Fensters — ohne diesen
+        // Vergleich wäre «besser» eine Behauptung.
+        const heute = bewerteKandidatenSatz(beobachtungen, DEFAULT_SIGNAL_GEWICHTE, input.horizontMonate);
+
+        const gemessen = plan.map((k) => ({
+          kandidat: k,
+          bewertung: bewerteKandidatenSatz(beobachtungen, k.gewichte, input.horizontMonate),
+        }));
+
+        // Vorschlag nur, wenn tauglich UND im Prüfzeitraum besser als der Betrieb.
+        const tauglich = gemessen
+          .filter((g) => g.bewertung.taugt
+            && g.bewertung.pruefung.signal.sharpe > heute.pruefung.signal.sharpe)
+          .sort((a, b) => b.bewertung.pruefung.signal.sharpe - a.bewertung.pruefung.signal.sharpe);
+        const vorschlag = tauglich[0] ?? null;
+
+        await ledger.schreibeKandidaten(gemessen.map((g) => ({
+          laufId,
+          schluessel: g.kandidat.schluessel,
+          elternSchluessel: g.kandidat.elternSchluessel,
+          beschreibung: g.kandidat.beschreibung,
+          horizontMonate: input.horizontMonate,
+          status: g === vorschlag ? "vorgeschlagen" as const : "gemessen" as const,
+          taugt: g.bewertung.taugt,
+          hinweis: g.bewertung.hinweis,
+          gewichte: g.kandidat.gewichte,
+          messwerte: {
+            pruefSharpe: g.bewertung.pruefung.signal.sharpe,
+            pruefMittel: g.bewertung.pruefung.signal.mittlereRendite,
+            basisMittel: g.bewertung.pruefung.basis.mittlereRendite,
+            signalN: g.bewertung.pruefung.signal.n,
+            trainingSharpe: g.bewertung.training.signal.sharpe,
+            ueberanpassung: g.bewertung.ueberanpassung,
+            heuteSharpe: heute.pruefung.signal.sharpe,
+            trennDatum: g.bewertung.trennDatum,
+          },
+        })));
+
+        // Ein neuer, besserer Vorschlag löst die alten offenen desselben
+        // Horizonts ab — sonst stapeln sich überholte Entscheide.
+        if (vorschlag) {
+          for (const alt of bisher.filter((z) => z.status === "vorgeschlagen")) {
+            await ledger.setzeStatus(alt.id, "gemessen");
+          }
+        }
+
+        // Stop-Bedingung: Läufe seit dem letzten neuen Bestwert (Prüf-Sharpe).
+        const sharpeJeLauf = new Map<number, number>();
+        for (const z of bisher) {
+          const s = Number(z.messwerte?.pruefSharpe ?? Number.NEGATIVE_INFINITY);
+          sharpeJeLauf.set(z.laufId, Math.max(sharpeJeLauf.get(z.laufId) ?? Number.NEGATIVE_INFINITY, s));
+        }
+        sharpeJeLauf.set(laufId, gemessen.reduce(
+          (m, g) => Math.max(m, g.bewertung.pruefung.signal.sharpe), Number.NEGATIVE_INFINITY));
+        let bestwert = Number.NEGATIVE_INFINITY;
+        let ohneVerbesserung = 0;
+        for (const id of [...sharpeJeLauf.keys()].sort((a, b) => a - b)) {
+          const s = sharpeJeLauf.get(id)!;
+          if (s > bestwert) { bestwert = s; ohneVerbesserung = 0; }
+          else ohneVerbesserung++;
+        }
+
+        return {
+          laufId,
+          horizontMonate: input.horizontMonate,
+          titel: reihen.size,
+          beobachtungen: beobachtungen.length,
+          geplant: plan.length,
+          tauglich: tauglich.length,
+          basisSchluessel: kandidatenSchluessel(DEFAULT_SIGNAL_GEWICHTE),
+          heute: {
+            pruefSharpe: heute.pruefung.signal.sharpe,
+            pruefMittel: heute.pruefung.signal.mittlereRendite,
+            basisMittel: heute.pruefung.basis.mittlereRendite,
+          },
+          vorschlag: vorschlag
+            ? {
+                beschreibung: vorschlag.kandidat.beschreibung,
+                pruefSharpe: vorschlag.bewertung.pruefung.signal.sharpe,
+                pruefMittel: vorschlag.bewertung.pruefung.signal.mittlereRendite,
+                hinweis: vorschlag.bewertung.hinweis,
+              }
+            : null,
+          stop: stopHinweis(ohneVerbesserung),
+          dauerSekunden: Math.round((Date.now() - begonnen) / 100) / 10,
+        };
+      }),
+
+    /** K13 — offene Variations-Vorschläge fürs Cockpit und die Entscheid-Liste. */
+    variationsLage: adminProcedure.query(async () => {
+      const ledger = await import("../lib/variationsLedger");
+      return { offeneVorschlaege: await ledger.leseOffeneVorschlaege() };
+    }),
+
+    /**
+     * K13 — der Entscheid des Projektleiters (das L3-Gate).
+     *
+     * «freigeben» dokumentiert die Freigabe im Ledger und im algoTuningLog —
+     * WIRKSAM wird sie erst mit der Übernahme in `DEFAULT_SIGNAL_GEWICHTE`
+     * per Code-Änderung samt Änderungslog (Regel 1). Es gibt bewusst keine
+     * zweite Laufzeit-Quelle für die Betriebs-Gewichte (L1).
+     */
+    variationsEntscheid: adminProcedure
+      .input(z.object({
+        id: z.number().int().positive(),
+        entscheid: z.enum(["freigeben", "verwerfen"]),
+      }))
+      .mutation(async ({ input }) => {
+        const ledger = await import("../lib/variationsLedger");
+        const kandidat = await ledger.leseKandidat(input.id);
+        if (!kandidat) return { ok: false, message: `Kandidat ${input.id} nicht gefunden.` };
+        if (kandidat.status !== "vorgeschlagen") {
+          return { ok: false, message: `Kandidat ${input.id} ist nicht offen (Status ${kandidat.status}).` };
+        }
+
+        await ledger.setzeStatus(input.id, input.entscheid === "freigeben" ? "freigegeben" : "verworfen");
+
+        if (input.entscheid === "freigeben") {
+          const { getDb } = await import("../db");
+          const db = await getDb();
+          if (db) {
+            const { algoTuningLog } = await import("../../drizzle/schema");
+            const m = kandidat.messwerte ?? {};
+            await db.insert(algoTuningLog).values({
+              fromVersion: "aktiv",
+              toVersion: `freigabe-variation-${kandidat.id}`,
+              parameterChanged: "kernsignal.regimeGewichte",
+              oldValue: kandidat.elternSchluessel ? `basis ${kandidat.elternSchluessel.slice(0, 12)}` : "basis",
+              newValue: kandidat.beschreibung.slice(0, 256),
+              rationale: `FREIGEGEBEN (K13-Variations-Loop, Kandidat ${kandidat.id}): `
+                + `${kandidat.beschreibung}. Prüfzeitraum: Sharpe ${Number(m.pruefSharpe ?? 0).toFixed(2)} `
+                + `(Betrieb ${Number(m.heuteSharpe ?? 0).toFixed(2)}), Ø ${Number(m.pruefMittel ?? 0).toFixed(2)} % `
+                + `gegen «alles kaufen» ${Number(m.basisMittel ?? 0).toFixed(2)} %, n=${Number(m.signalN ?? 0)}. `
+                + `Wirksam erst mit Übernahme in DEFAULT_SIGNAL_GEWICHTE per Code-Änderung (Regel 1).`,
+              overfittingRisk: "low",
+              expectedImpact: "Freigabe-Beleg — Betriebs-Gewichte unverändert bis zur Regel-1-Übernahme.",
+              source: "admin_manual",
+            });
+          }
+        }
+
+        return { ok: true, message: input.entscheid === "freigeben"
+          ? "Freigegeben und im Tuning-Log belegt. Die Übernahme in den Betrieb folgt als Code-Änderung mit Änderungslog."
+          : "Verworfen — der Kandidat bleibt als gemessene Herkunftslinie im Ledger." };
+      }),
+
+    /**
      * Steckt in den einzelnen Scores ueberhaupt Auswahlinformation?
      *
      * Die Gewichtssuche beantwortet das NICHT: Sie misst eine Schwellenregel
