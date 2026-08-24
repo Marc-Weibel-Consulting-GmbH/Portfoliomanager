@@ -409,6 +409,24 @@ dieses Dokument.
   ihr KGV selbst aus Kurs und EPS rechnet — die historischen Zeilen
   müssen mit den neuen Ankern neu aufgebaut werden («Rekonstruieren» im
   Admin), sonst mischen sich zwei Ankerwelten in einer Reihe.
+- **K13 — Variations-Loop der Lernwerkstatt (2026-08, ohne
+  FASSUNG-Wechsel).** Neues Labor-Werkzeug (`variationsLoop`,
+  `variationsLedger`, Admin-Karte): plant je Regime kleine
+  Qualität↔Timing-Verschiebungen (±5/±10 pp) um die Betriebs-Gewichte,
+  misst jeden Kandidaten mit der unveränderten Rechnung aus
+  `signalGewichteBacktest` (Zeit-Holdout, nach Kosten, gegen «alles
+  kaufen», gleiches Tauglichkeits-Urteil — eine Mess-Wahrheit) und legt
+  alles mit Herkunftslinie im Kandidaten-Ledger ab
+  (`variations_kandidaten`, additiv, selbstverwaltet). Der beste
+  taugliche Kandidat, der den Betrieb im Prüfzeitraum schlägt, wird als
+  Vorschlag markiert; Freigeben/Verwerfen ist ein Admin-Klick (L3), die
+  Freigabe wird im algoTuningLog belegt. Kein FASSUNG-Wechsel: Die
+  Kernrechnung und `DEFAULT_SIGNAL_GEWICHTE` bleiben unberührt — eine
+  freigegebene Variation wird erst durch eine gewöhnliche
+  Regel-1-Codeänderung wirksam (bewusst keine zweite Laufzeit-Quelle
+  für die Betriebs-Gewichte, L1). Stop-Bedingungen: Budget 30 je Lauf,
+  Dedupe gegen alles je Gemessene, Stopp-Rat nach 3 Läufen ohne
+  Verbesserung.
 
 ## 6. Fahrplan
 

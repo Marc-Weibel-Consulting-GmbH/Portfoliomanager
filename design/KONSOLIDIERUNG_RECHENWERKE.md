@@ -279,8 +279,11 @@ Benchmark bei idealerweise tieferem Risiko.
   Dashboard-Insights vs. Copilot-Hub-Doppelung. Jede Entfernung einzeln
   aufgelistet, nichts still gelöscht.
 
-- **K13 — Lernwerkstatt als Variations-Loop** *(aufgenommen 24.08., Marcs
-  AVO-Vorlage — «agentic variation loop»)*: Die Lernwerkstatt (K11) bekommt
+- **K13 — Lernwerkstatt als Variations-Loop** ✅ *(umgesetzt 24.08.:
+  Planer + Ledger `variations_kandidaten` + Admin-Karte mit
+  Freigabe/Verwerfen + Cockpit-Kennfeld; eine Freigabe wird erst per
+  Regel-1-Codeänderung an den Betriebs-Gewichten wirksam)* *(aufgenommen
+  24.08., Marcs AVO-Vorlage — «agentic variation loop»)*: Die Lernwerkstatt (K11) bekommt
   einen systematischen **Variations-Schritt** nach dem AVO-Muster: Kandidaten
   erzeugen → messen → diagnostizieren → besten Kandidaten zur Freigabe
   vorlegen. Der Loop läuft vollständig im Labor; **der Commit ist Marcs
