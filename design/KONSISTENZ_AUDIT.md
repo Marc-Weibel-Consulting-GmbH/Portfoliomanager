@@ -82,9 +82,17 @@ Teil des in der Konsolidierungs-Vorlage und im K4-Änderungslog als
 Merkmal). Die OFFEN-Vermerke in beiden Dokus müssen nachgeführt werden,
 sonst beschreibt die Vorlage einen Stand, den es nicht mehr gibt.
 
+### B4 (klein, bereits behoben) — main war lint-rot
+
+Der Empfehlungslogik-Checkpoint hinterliess einen ESLint-Error
+(`copilotRouter.ts`: `let reason` statt `const`) — `main` war damit
+lint-rot, und jeder nachfolgende PR erbte die rote CI (aufgefallen an
+diesem Audit-PR). Behoben mit PR #341 (Einzeiler, gemerged). Der Punkt
+bleibt als Beleg im Bericht: Der Checkpoint-Pfad läuft ohne PR-CI-Gate.
+
 ## Beobachtung (kein Befund)
 
 Die zehn Checkpoint-Commits liefen direkt auf `main` (ohne PR). Das ist
 der etablierte Manus-Arbeitsfluss und verletzt keinen Leitsatz; der
 wöchentliche Audit-Lauf bleibt damit aber die einzige nachgelagerte
-Leitsatz-Prüfung für diesen Pfad.
+Leitsatz-Prüfung für diesen Pfad — siehe B4 für die praktische Folge.
