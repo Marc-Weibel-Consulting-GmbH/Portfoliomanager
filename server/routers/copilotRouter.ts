@@ -303,7 +303,7 @@ export const copilotRouter = router({
         const strengthStr = sigStrength === 'strong' ? 'Starkes ' : sigStrength === 'weak' ? 'Schwaches ' : '';
 
         let action = s.action;
-        let reason = s.reason;
+        const reason = s.reason;
         if (score !== null && (score <= 40 || sigType === 'sell') && action === 'increase') action = 'decrease';
         if (score !== null && score > 40 && score < 60 && action === 'increase') action = 'hold';
 
