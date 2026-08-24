@@ -704,6 +704,7 @@
 - [x] Maximal zwei offene, nicht priorisierte `[Research]`-Issues nach Konfidenz, Engine-Umsetzbarkeit und realer Historienabdeckung triagieren. Ergebnis des Durchlaufs: keine zulässigen offenen Kandidaten; alle offenen Research-Issues tragen bereits einen Fortschrittslabel.
 - [x] Je umsetzbarem Issue einen default-false Feature-Flag, einen punkt-in-zeit-sicheren OOS-Backtest sowie Regime-/Sensitivitätschecks auf einem eigenen Research-Branch implementieren. Nicht ausgelöst, da kein zulässiger Kandidat vorlag.
 - [x] Je bearbeitetem Issue Ergebnis, Entscheidung, Draft-PR, Labels und Abschlusskommentar nach dem verbindlichen Triage-Protokoll veröffentlichen. Nicht ausgelöst, da kein zulässiger Kandidat vorlag.
+- [x] Ein neues, vorregistriertes `[Research]`-Issue zur Vereinfachung der Diversifikationsregeln mit ausschliesslichem Label `research` und ohne Fortschrittslabel erstellen — GitHub #342
 
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
