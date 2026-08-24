@@ -279,8 +279,49 @@ Benchmark bei idealerweise tieferem Risiko.
   Dashboard-Insights vs. Copilot-Hub-Doppelung. Jede Entfernung einzeln
   aufgelistet, nichts still gelöscht.
 
+- **K13 — Lernwerkstatt als Variations-Loop** *(aufgenommen 24.08., Marcs
+  AVO-Vorlage — «agentic variation loop»)*: Die Lernwerkstatt (K11) bekommt
+  einen systematischen **Variations-Schritt** nach dem AVO-Muster: Kandidaten
+  erzeugen → messen → diagnostizieren → besten Kandidaten zur Freigabe
+  vorlegen. Der Loop läuft vollständig im Labor; **der Commit ist Marcs
+  Freigabe-Klick, nie das System selbst** (L3).
+
+  *Ablauf je Lauf (die fünf AVO-Schritte, auf uns übersetzt):*
+  1. **Kontext lesen** — bisherige Kandidaten samt Messwerten aus dem
+     Kandidaten-Ledger (Herkunftslinie: wer stammt von wem ab, was wurde
+     schon verworfen und warum).
+  2. **Planen** — nächste Variation wählen, klein und benannt (z. B.
+     Regime-Qualitätsanteil ±5 pp, Alert-Cooldown ±2 Tage). Nur Parameter
+     der bestehenden FASSUNG-Formeln — nie eine neue Formel (L1).
+  3. **Umsetzen** — Kandidat = Parametersatz im Labor, ohne jede Wirkung
+     auf Kundenpfad, Badges, Alerts oder Vorschläge (L4).
+  4. **Evaluieren** — EIN Evaluator: Out-of-Sample-Alpha **nach Kosten**
+     UND Risiko gegen den Benchmark, im K7-Messfenster mit Zeit-Holdout.
+     Misst beschreibend, erzeugt keine Kaufrangliste (L5).
+  5. **Diagnostizieren** — schlechtere Kandidaten mit Grund im Ledger
+     protokollieren; die nächste Runde plant daraus.
+
+  *Commit-Gate:* Besteht der beste Kandidat das OOS-Gate, erscheint er als
+  **Cockpit-Vorschlag** mit Messbeleg und Herkunftslinie. Übernahme nur per
+  Freigabe-Klick (bestehende mlPromoteModel-Mechanik als Muster); jede
+  Übernahme mit Änderungslog-Eintrag nach Regel 1. Kein maschineller
+  Supervisor: bedingtes Eingreifen bleibt beim Projektleiter.
+
+  *Stop-Bedingungen:* festes Kandidaten-Budget je Lauf; Abbruch nach N
+  Runden ohne Verbesserung; keine Bewertung unter Mindest-Stichprobe im
+  Messfenster (sonst «nicht beurteilbar», kein Vorschlag).
+
+  *Existiert schon:* OOS-Vorwärtsmessung mit fixiertem Fenster (K7,
+  signalEvaluationCron), Vorschlags-Berichte statt Selbst-Übernahme (K1,
+  berichteFeedbackLoopVorschlag/algoTuningLog), Kandidaten-Gate mit
+  manueller Promotion (modelStore/mlPromoteModel), Cockpit-Meldewesen
+  (K11). *Neu zu bauen:* Variations-Planer (systematische
+  Kandidaten-Erzeugung), Kandidaten-Ledger mit Herkunftslinie (additive
+  Tabelle), Cockpit-Karte «Variations-Lauf» mit Freigabe-Knopf.
+
 **Empfohlene Reihenfolge:** K1 → K2 → K3 → K12 → K9 → K6/K8 → K10 → K5 →
-K7 → K11 → K4 (E3). K1–K3 beseitigen die kundenwirksamen Widersprüche,
+K7 → K11 → K4 (E3). K13 setzt K7 und K11 voraus (beide ✅) und kann nach
+dem E3-Umbau oder parallel dazu gebaut werden. K1–K3 beseitigen die kundenwirksamen Widersprüche,
 K12 ist der schnelle Aufräum-Gewinn im Frontend, K9 sichert die Datenbasis,
 K10 liefert die Rahmenregeln, auf denen der Wizard-Umbau K4 aufsetzt;
 K11 kommt zuletzt, weil das Cockpit den konsolidierten Zustand überwachen
