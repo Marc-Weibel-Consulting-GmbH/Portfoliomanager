@@ -706,6 +706,12 @@
 - [x] Je bearbeitetem Issue Ergebnis, Entscheidung, Draft-PR, Labels und Abschlusskommentar nach dem verbindlichen Triage-Protokoll veröffentlichen. Nicht ausgelöst, da kein zulässiger Kandidat vorlag.
 - [x] Ein neues, vorregistriertes `[Research]`-Issue zur Vereinfachung der Diversifikationsregeln mit ausschliesslichem Label `research` und ohne Fortschrittslabel erstellen — GitHub #342
 
+## Selma-Onboarding-Benchmark (2026-08-24)
+- [x] Den öffentlich erreichbaren Selma-Onboardingprozess bis vor Identitäts-, Steuer-, Zahlungs- oder Vertragsdaten dokumentieren; jede zugängliche Bildschirmseite und Unteransicht als Screenshot festhalten
+- [x] Den innerhalb des bestehenden, legitimierten Selma-Kontos erreichbaren Onboarding- und Planungsflow ohne Konto-, Vertrags- oder Geldänderung dokumentieren
+- [x] Onboardingmuster, Informationshierarchie, Vertrauenssignale und Abbruchsrisiken gegen den aktuellen Portfoliomanager vergleichen
+- [x] Einen priorisierten UX- und Customer-Journey-Plan mit klaren Umsetzungsschritten, Messgrössen und Sicherheitsgrenzen für den Portfoliomanager erstellen
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern
