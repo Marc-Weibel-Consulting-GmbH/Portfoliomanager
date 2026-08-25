@@ -711,6 +711,7 @@
 - [x] Den innerhalb des bestehenden, legitimierten Selma-Kontos erreichbaren Onboarding- und Planungsflow ohne Konto-, Vertrags- oder Geldänderung dokumentieren
 - [x] Onboardingmuster, Informationshierarchie, Vertrauenssignale und Abbruchsrisiken gegen den aktuellen Portfoliomanager vergleichen
 - [x] Einen priorisierten UX- und Customer-Journey-Plan mit klaren Umsetzungsschritten, Messgrössen und Sicherheitsgrenzen für den Portfoliomanager erstellen
+- [x] Den Selma-Benchmark mit zentralen Screenshots als mobil lesbare, geprüfte PDF bereitstellen
 
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
