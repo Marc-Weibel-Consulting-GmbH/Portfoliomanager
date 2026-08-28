@@ -32,3 +32,9 @@ Die mittlere Strecke verdichtet die Eignungsprüfung auf vier positive Selbsterk
 Die zusätzliche Vergleichs- und Ablaufstrecke zeigt zwei übertragbare Muster: Selma verzichtet auf eine Wettbewerber-Featureliste im Fachjargon und zeigt stattdessen eine leicht lesbare Tabellenfrage; zudem wird der gesamte Prozess wiederholt als kurze, erwartungsbildende Abfolge kommuniziert. Weitere lineare Scrolling-Schritte liefern keinen neuen Onboardingmechanismus; die Analyse wechselt daher gezielt auf die öffentlichen Angebots- und Gebührenunterseiten.
 
 Die Zielunterseite reduziert die Komplexität nochmals auf eine einzelne Anlegerabsicht und wiederholt dabei nur die relevanten Sicherheitssignale. Die Gebührenstrecke setzt auf konkrete Frankenbeträge vor abstrakten Prozentsätzen. Für den Portfoliomanager sind diese Muster besonders relevant: Eine Entscheidung beginnt mit einer Absicht und endet mit einer greifbaren Konsequenz – nicht mit einem Fachdiagramm.
+
+## Erneute Mobile-Web-Prüfung
+
+Der erneute Login im Smartphone-Viewport (390 × 844 Pixel) reproduziert dieselbe technische Grenze: Nach erfolgreicher Authentifizierung leitet Selma nach `https://app.selma.com/de/download_app` weiter. Die mobile Weboberfläche bietet keinen Beratungs-, Anlageprofil- oder Portfolioerstellungsflow, sondern ausschliesslich den Handoff zur nativen App. Der Screenshot `selma-mobile-web-handoff-2026-08-25.png` hält diesen Zustand fest.
+
+Die konkreten Schritte *Beratung → Anlageprofil → Plan/Portfolio → Kontoeröffnung* werden deshalb erst dokumentiert, wenn native App-Bildschirme verfügbar sind. Es wird ausdrücklich keine solche Strecke rekonstruiert, geschätzt oder als beobachtet ausgegeben.

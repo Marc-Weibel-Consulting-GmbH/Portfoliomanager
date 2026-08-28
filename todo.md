@@ -712,6 +712,13 @@
 - [x] Onboardingmuster, Informationshierarchie, Vertrauenssignale und Abbruchsrisiken gegen den aktuellen Portfoliomanager vergleichen
 - [x] Einen priorisierten UX- und Customer-Journey-Plan mit klaren Umsetzungsschritten, Messgrössen und Sicherheitsgrenzen für den Portfoliomanager erstellen
 - [x] Den Selma-Benchmark mit zentralen Screenshots als mobil lesbare, geprüfte PDF bereitstellen
+- [ ] Den tatsächlichen mobilen Selma-Flow mit Beratung, Anlageprofil, Portfolioerstellung und der klaren Kontoeröffnungsgrenze Seite für Seite als Screenshot dokumentieren
+- [ ] Den UX-Plan und die mobile PDF ausschliesslich auf Basis des tatsächlich erreichten Beratungs-/Portfoliopfads aktualisieren
+
+## Brügger-Invest-Serie: KI-Investitionen (2026-08-25)
+- [x] Alle drei Serienteile vollständig lesen, Quellen und überprüfbare Kernaussagen sichern sowie Annahmen von Fakten trennen
+- [x] Auswirkungen auf Aktienauswahl, KI-/Halbleiterexposure und Portfoliorisiko mit bestehender Daten- und Backtest-Governance abgleichen
+- [x] Eine quellenbasierte, handlungsorientierte Zusammenfassung mit klaren Grenzen für Score-, Alert- und Optimierungslogik bereitstellen
 
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
