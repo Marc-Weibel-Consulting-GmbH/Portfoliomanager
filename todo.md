@@ -719,6 +719,7 @@
 - [x] Alle drei Serienteile vollständig lesen, Quellen und überprüfbare Kernaussagen sichern sowie Annahmen von Fakten trennen
 - [x] Auswirkungen auf Aktienauswahl, KI-/Halbleiterexposure und Portfoliorisiko mit bestehender Daten- und Backtest-Governance abgleichen
 - [x] Eine quellenbasierte, handlungsorientierte Zusammenfassung mit klaren Grenzen für Score-, Alert- und Optimierungslogik bereitstellen
+- [x] Den vollständigen Bericht zur Brügger-Invest-Serie als mobil lesbare, technisch und visuell geprüfte PDF bereitstellen
 
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
