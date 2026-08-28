@@ -721,6 +721,13 @@
 - [x] Eine quellenbasierte, handlungsorientierte Zusammenfassung mit klaren Grenzen für Score-, Alert- und Optimierungslogik bereitstellen
 - [x] Den vollständigen Bericht zur Brügger-Invest-Serie als mobil lesbare, technisch und visuell geprüfte PDF bereitstellen
 
+## AI Capital Cycle Dashboard und Watchlist-Overlay (2026-08-25)
+- [x] P0: Quellengebundene Capital-Cycle-Analyse für vorhandene Watchlist-Titel mit Datenstand, Evidenzstatus, Wertschöpfungsrolle und fehlenden Kennzahlen definieren
+- [x] P0: Laufenden, idempotenten Watchlist-Abgleich im reinen Shadow-Modus implementieren; weder Score, Alert noch Portfolio- oder Handelszustand darf automatisch verändert werden
+- [x] P1: Research-Dashboard mit Watchlist-Kontext, Quellenbelegen, Monitoring-Erkenntnissen und klar abgegrenzten manuellen Prüfvorschlägen gestalten
+- [ ] P1: Manuelle Übernahmeaktion ausschliesslich als vorbereitete Entwurfsaktion mit sichtbarer Bestätigung, ohne automatische Ausführung oder Transaktion, integrieren
+- [ ] P1: Echte Daten, Quellenprovenienz, Schutzgrenzen, Rollenrechte und alle UI-Interaktionen live sowie per Regression verifizieren
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern
