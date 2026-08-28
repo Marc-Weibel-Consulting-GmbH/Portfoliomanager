@@ -42,7 +42,7 @@ Die Abfragen wurden am 28. August 2026 gegen die produktiv eingebundene Projektd
 | Vorab zugeordnete Capital-Cycle-Titel im Dashboard | 17 |
 | Frische Dynamic-Metric-Schlüssel | 12 |
 | Dynamic-Metric-Zeilen innerhalb der 36-Stunden-Grenze | 19 |
-| Letzter Dynamic-Metric-Cache-Abruf | 28.08.2026, 10:03 Uhr |
+| Letzter Dynamic-Metric-Cache-Abruf | 28.08.2026, 10:11 Uhr |
 | Evidenzen nach manuellem Shadow-Run | 30 |
 | Letzter SEC-Shadow-Abruf | 28.08.2026, 10:04 Uhr |
 | Evidenzen mit `isShadowMode=1` und `decisionImpact='none'` | 30 |
@@ -55,6 +55,8 @@ Der im Rahmen der Live-Prüfung gestartete bestehende Shadow-Run erfasste 13 Evi
 Die neue Sektion ist unter **Admin → Research Desk** integriert. Sie zeigt den Abrufzeitpunkt des globalen Caches, die Anzahl der zugeordneten Titel sowie die Anzahl der manuellen Prüfhweise und Datenprüfungen. Die Quellenliste ist einklappbar. Pro Titel werden Rolle, Monitoringstatus, Cache-Frische, SEC-Status, Watchlist-Datenstatus und alle tatsächlich verwendeten Quellen angezeigt. SEC-Originale bleiben als externe Links zugänglich.
 
 Die bereits bestehende Maker-Checker-Tabelle und ihr manueller Shadow-Run bleiben erhalten. Die bestehenden Checker-Schaltflächen wurden während der Release-Prüfung nicht automatisiert betätigt, weil sie einen menschlichen Prüfstatus in realer Evidenz verändern würden. Nach einer echten menschlichen Checker-Aktion invalidiert die Seite jedoch sowohl die Evidenz- als auch die Overlayabfrage.
+
+Für einen Hinweis mit `manuell_pruefen` kann der Admin nun **«Entwurf vormerken»** wählen. Ein Bestätigungsdialog erklärt vor der Vormerkung ausdrücklich, dass der Entwurf nur lokal in der aktuellen Browser-Sitzung liegt, weder gespeichert noch geteilt wird und keine Transaktion, Score-, Signal-, Alert- oder Portfolioänderung auslöst. Der Entwurf kann anschliessend über **«Entwurf verwerfen»** rückstandslos entfernt werden. Dies bietet einen manuellen Übernahme-/Ablehnungsschritt, ohne eine verdeckte Ausführungsfunktion einzuführen.
 
 ## Verifikation
 
@@ -69,6 +71,7 @@ Die bereits bestehende Maker-Checker-Tabelle und ihr manueller Shadow-Run bleibe
 | Vollständige Regression | 1'469 Tests bestanden, 11 bewusst übersprungen |
 | Live-Desktopprüfung | Seite, Zahlen, Quellen-Details, Shadow-Run und keine Browser-Konsolenfehler bestätigt |
 | Live-Mobilprüfung | Kopfbereich, Shadow-Run und responsive Karten bestätigt; Tabelle bleibt horizontal scrollbar statt Inhalte zu verlieren |
+| Lokaler Prüfentwurf | Dialog, positive Bestätigung, sichtbare lokale Vormerkung und anschliessendes Verwerfen für GOOG live bestätigt; keine Datenbank- oder Anlageaktion ausgelöst |
 
 In den Entwicklungslogs auftretende `QualityMetrics`-Timeouts für externe Kursanbieter wurden beobachtet. Sie sind ein vorbestehender, separater Datenabrufpfad und verursachten keinen TypeScript-, Test-, Browser- oder Dashboardfehler dieses Releases.
 

@@ -1,5 +1,7 @@
+import { useState } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,8 +58,17 @@ function formatFreshness(status: string) {
   return "fehlt";
 }
 
+type ManualReviewDraft = {
+  ticker: string;
+  companyName: string;
+  role: string;
+  createdAt: string;
+};
+
 export default function AdminResearchDesk() {
   const utils = trpc.useUtils();
+  const [pendingDraft, setPendingDraft] = useState<Omit<ManualReviewDraft, "createdAt"> | null>(null);
+  const [reviewDrafts, setReviewDrafts] = useState<ManualReviewDraft[]>([]);
   const { data, isLoading } = trpc.researchDesk.overview.useQuery({ limit: 100 });
   const { data: capitalCycle, isLoading: isCapitalCycleLoading, error: capitalCycleError } = trpc.researchDesk.capitalCycleWatchlistOverview.useQuery();
   const runNow = trpc.researchDesk.runShadowNow.useMutation({
@@ -88,6 +99,16 @@ export default function AdminResearchDesk() {
     const candidate = new Date(metric.fetchedAt);
     return !latest || candidate > latest ? candidate : latest;
   }, null);
+  const confirmDraft = () => {
+    if (!pendingDraft) return;
+    setReviewDrafts((current) => current.some((draft) => draft.ticker === pendingDraft.ticker)
+      ? current
+      : [...current, { ...pendingDraft, createdAt: new Date().toISOString() }]);
+    toast.success(`${pendingDraft.ticker} als Prüfentwurf vorgemerkt`, {
+      description: "Nur lokal in dieser Browser-Sitzung. Keine Transaktion, Score-, Signal- oder Alert-Änderung.",
+    });
+    setPendingDraft(null);
+  };
 
   return (
     <DashboardLayout>
@@ -131,6 +152,8 @@ export default function AdminResearchDesk() {
                 <div className="rounded-md bg-muted/35 p-3"><div className="text-xs uppercase tracking-wide text-muted-foreground">Manuelle Prüfung</div><div className="mt-1 font-semibold text-foreground">{capitalCycle?.summary.manualReview ?? 0} Hinweise · {capitalCycle?.summary.dataCheck ?? 0} Datenprüfungen</div><div className="mt-1 text-xs text-muted-foreground">Keine davon löst eine Systemaktion aus</div></div>
               </div>
 
+              {reviewDrafts.length > 0 && <div className="rounded-md border border-amber-500/25 bg-amber-500/5 p-3"><div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><div className="text-sm font-medium text-foreground">Lokale Prüfentwürfe</div><p className="mt-1 text-xs text-muted-foreground">Diese Vormerkungen bleiben ausschliesslich in der aktuellen Browser-Sitzung. Sie lösen keine Umsetzung aus und werden weder gespeichert noch geteilt.</p></div><Badge variant="outline" className="w-fit border-amber-500/30 bg-amber-500/10 text-amber-300">{reviewDrafts.length} vorgemerkt</Badge></div><div className="mt-3 flex flex-wrap gap-2">{reviewDrafts.map((draft) => <div key={draft.ticker} className="inline-flex items-center gap-2 rounded-md border border-border/70 px-2 py-1 text-xs"><span className="font-medium text-foreground">{draft.ticker}</span><span className="text-muted-foreground">{roleLabel[draft.role] ?? draft.role}</span><Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs text-muted-foreground hover:text-rose-300" onClick={() => setReviewDrafts((current) => current.filter((item) => item.ticker !== draft.ticker))}>Entwurf verwerfen</Button></div>)}</div></div>}
+
               <div className="rounded-md border border-border/70 p-3 text-xs text-muted-foreground"><strong className="text-foreground">Provenienz:</strong> {capitalCycle?.monitoring.disclosure} Die Frischegrenze misst nur den Cache-Abruf; der Quellenzeitraum bleibt Teil der ausgeschriebenen Quelle.<details className="mt-2"><summary className="cursor-pointer text-cyan-300">{capitalCycleMetrics.length} globale Monitoringquelle{capitalCycleMetrics.length === 1 ? "" : "n"} anzeigen</summary><ul className="mt-2 space-y-1"><li>Cache-Frischegrenze: 36 Stunden für erforderliche Monitoringmetriken.</li>{capitalCycleMetrics.map((metric) => <li key={metric.metricKey}><span className="font-mono text-foreground">{metric.metricKey}</span>: {metric.displayValue} · {metric.source} · Cache abgerufen {formatDate(metric.fetchedAt)}</li>)}</ul></details></div>
 
               {relevantAssessments.length === 0 ? <div className="py-8 text-center text-sm text-muted-foreground">Keine vorab zum KI-Kapitalzyklus zugeordneten Watchlist-Titel verfügbar. Nicht zugeordnete Titel bleiben bewusst ausserhalb dieser Beobachtungsansicht.</div> : <div className="overflow-x-auto">
@@ -140,7 +163,7 @@ export default function AdminResearchDesk() {
                     <td className="px-3 py-4"><div className="font-semibold text-foreground">{item.ticker} · {item.companyName}</div><div className="mt-1 text-xs text-muted-foreground">{roleLabel[item.role] ?? item.role} · {item.listType ?? "kuratiert"}</div></td>
                     <td className="px-3 py-4"><MonitoringBadge status={item.monitoringStatus} /><div className="mt-2 max-w-xs text-xs text-muted-foreground">{item.explanation}</div></td>
                     <td className="px-3 py-4"><div className="text-xs text-foreground">Cache (global): <span className={item.sourceFreshness.status === "aktuell" ? "text-emerald-300" : "text-amber-300"}>{formatFreshness(item.sourceFreshness.status)}</span></div><div className="mt-1 text-xs text-muted-foreground">Letzte Metrik: {formatDate(item.sourceFreshness.latestMetricFetchedAt)} · SEC: {item.secEvidence.status.replaceAll("_", " ")} ({item.secEvidence.count})</div><div className="mt-1 text-xs text-muted-foreground">Watchlist-Daten: {item.dataQuality.status}</div></td>
-                    <td className="px-3 py-4">{item.manualAction === "manuell_pruefen" ? <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300">Manuell prüfen</Badge> : <Badge variant="outline" className="border-border text-muted-foreground">Keine Handlung</Badge>}<div className="mt-1 text-xs text-muted-foreground">Impact: none</div></td>
+                    <td className="px-3 py-4">{item.manualAction === "manuell_pruefen" ? <><Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300">Manuell prüfen</Badge><Button variant="outline" size="sm" className="mt-2 h-7 border-amber-500/25 text-xs text-amber-200 hover:bg-amber-500/10" onClick={() => setPendingDraft({ ticker: item.ticker, companyName: item.companyName, role: item.role })}><FileSearch className="mr-1 h-3 w-3" />Entwurf vormerken</Button></> : <Badge variant="outline" className="border-border text-muted-foreground">Keine Handlung</Badge>}<div className="mt-1 text-xs text-muted-foreground">Impact: none</div></td>
                     <td className="px-3 py-4"><details><summary className="cursor-pointer text-xs text-cyan-300">{item.sourceRefs.length} Quelle{item.sourceRefs.length === 1 ? "" : "n"}</summary><ul className="mt-2 max-w-xs space-y-1 break-words text-xs text-muted-foreground">{item.sourceRefs.length === 0 ? <li>Keine Quelle im aktuellen Datensatz</li> : item.sourceRefs.map((source) => <li key={source}>{source.startsWith("http") ? <a href={source} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-cyan-300 hover:text-cyan-200"><ExternalLink className="h-3 w-3" />SEC-Original</a> : source}</li>)}</ul></details></td>
                   </tr>)}</tbody>
                 </table>
@@ -179,6 +202,18 @@ export default function AdminResearchDesk() {
         </Card>
 
         <div className="flex items-start gap-3 rounded-md border border-cyan-500/20 bg-cyan-500/5 p-4 text-sm text-muted-foreground"><Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" /><p><strong className="text-foreground">OOS-Gate bleibt geschlossen.</strong> Erst nach einem sechs­wöchigen Shadow-Run mit vollständigen Punkt-in-Zeit-Daten kann eine Hypothese als Research-Issue in den bestehenden Backtestprozess übergeben werden. Diese Ansicht aktiviert selbst keine Strategie.</p></div>
+        <AlertDialog open={Boolean(pendingDraft)} onOpenChange={(open) => { if (!open) setPendingDraft(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Prüfentwurf vormerken?</AlertDialogTitle>
+              <AlertDialogDescription>Für {pendingDraft?.ticker ?? "diesen Titel"} wird nur ein lokaler Research-Entwurf in dieser Browser-Sitzung angelegt. Es erfolgt keine Transaktion, keine Änderung von Score, Signal, Alert oder Portfolio und keine Übertragung an Dritte.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Abbrechen</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDraft} className="bg-amber-500 text-slate-950 hover:bg-amber-400">Entwurf vormerken</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
