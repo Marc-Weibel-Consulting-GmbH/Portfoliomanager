@@ -1647,23 +1647,24 @@ export const portfoliosRouter = router({
         
         if (isLivePortfolio) {
           transactions = await getPortfolioTransactions(portfolioId);
-          // If live portfolio has no transactions, fall back to portfolioData (like test portfolios)
-          if (transactions.length === 0) {
-            console.log(`[getHistoricalPerformance] Live portfolio ${portfolioId} has no transactions, falling back to portfolioData`);
-            try {
-              const portfolioData = typeof portfolio.portfolioData === 'string' 
-                ? JSON.parse(portfolio.portfolioData) 
-                : portfolio.portfolioData;
-              portfolioStocks = portfolioData?.stocks || [];
-              if (portfolioStocks.length === 0) {
-                console.log(`[getHistoricalPerformance] No stocks in portfolioData either, returning empty`);
-                return { chartData: [], totalValueHistory: [] };
-              }
-              console.log(`[getHistoricalPerformance] Found ${portfolioStocks.length} stocks in portfolioData`);
-            } catch (e) {
-              console.error(`[getHistoricalPerformance] Failed to parse portfolioData:`, e);
+          // Die gewichtete Serie ist die gemeinsame Darstellung für Demo und
+          // Live. Deshalb werden die gespeicherten Portfoliogewichte auch bei
+          // vorhandenen Live-Buchungen benötigt: Sie liefern den klar als
+          // hypothetisch verstandenen Verlauf vor dem Go-live, während die
+          // eigentliche Wertanzeige am heutigen Bestand orientiert bleibt.
+          try {
+            const portfolioData = typeof portfolio.portfolioData === 'string'
+              ? JSON.parse(portfolio.portfolioData)
+              : portfolio.portfolioData;
+            portfolioStocks = portfolioData?.stocks || [];
+            if (portfolioStocks.length === 0) {
+              console.log(`[getHistoricalPerformance] No stocks in portfolioData for live portfolio ${portfolioId}`);
               return { chartData: [], totalValueHistory: [] };
             }
+            console.log(`[getHistoricalPerformance] Found ${portfolioStocks.length} stocks in portfolioData`);
+          } catch (e) {
+            console.error(`[getHistoricalPerformance] Failed to parse portfolioData:`, e);
+            return { chartData: [], totalValueHistory: [] };
           }
         } else {
           // For test portfolios, get stocks from portfolioData
@@ -1771,8 +1772,12 @@ export const portfoliosRouter = router({
           startDate = creationDate;
         }
         
-        // Legacy compatibility
-        const allowHypotheticalPerformance = false; // No more hypothetical performance
+        // Die gewichtete Reihe ist keine rückwirkend ausgeführte Strategie und
+        // keine Handelsinformation. Sie zeigt für die Zeit vor dem Go-live
+        // transparent die Entwicklung der heute gespeicherten Allokation.
+        // Ohne sie verlieren frisch aktivierte Portfolios ihre zuvor sichtbare
+        // Historie vollständig.
+        const allowHypotheticalPerformance = isLivePortfolio && portfolioStocks.length > 0;
         
         // ALWAYS log this decision for debugging
         console.log('[getHistoricalPerformance] Branch decision:', {
@@ -1790,7 +1795,7 @@ export const portfoliosRouter = router({
           debug.ytdStartDate = startDate.toISOString().split('T')[0];
           debug.endDate = todayStr;
           debug.earliestTransactionDate = earliestTransactionDate?.toISOString() || null;
-          debug.allowHypotheticalPerformance = false;
+          debug.allowHypotheticalPerformance = allowHypotheticalPerformance;
         }
         
         // SIMPLIFIED: Live portfolios with transactions use real TWR calculation
@@ -2808,7 +2813,7 @@ export const portfoliosRouter = router({
         let totalShares = 0;
         
         for (const tx of transactions) {
-          if (tx.transactionType === 'buy' && tx.ticker) {
+          if ((tx.transactionType === 'buy' || tx.transactionType === 'entry') && tx.ticker) {
             if (!initialHoldings[tx.ticker]) {
               initialHoldings[tx.ticker] = { shares: 0, weight: 0 };
             }

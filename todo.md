@@ -728,6 +728,13 @@
 - [x] P1: Manuelle Übernahmeaktion ausschliesslich als vorbereitete Entwurfsaktion mit sichtbarer Bestätigung, ohne automatische Ausführung oder Transaktion, integrieren
 - [x] P1: Echte Daten, Quellenprovenienz, Schutzgrenzen, Rollenrechte und alle UI-Interaktionen live sowie per Regression verifizieren
 
+## Depotwert-Abweichung bei Live-Tracking (2026-08-29)
+- [x] Den Wertsprung des Portfolios «Test KI» beim Aktivieren von Live-Tracking anhand von Portfolio-, Transaktions-, Positions-, Preis- und Wechselkursdaten reproduzieren und die Wurzelursache belegen
+- [x] Eine minimale, testgetriebene Korrektur umsetzen, welche die Depotwertbasis beim Umschalten unverändert lässt und keine Transaktionen oder Bestände mutiert
+- [x] Wert, Einstand, Rendite und Trackingmodus live sowie über alle bestehenden Berechnungspfade regressiv verifizieren und den Befund dokumentieren
+- [x] Eintrittsbuchungen des Live-Trackings im Aktivitäten- und Transaktionsbereich als Anfangsbestand statt fälschlich als Verkauf darstellen
+- [x] Den vor Live-Tracking bestehenden hypothetischen Performanceverlauf vor dem Aktivierungsdatum im Live-Modus weiterhin darstellen und regressiv absichern
+
 ## Audit-Remediation — F1-02 TTWROR (2026-08-15)
 - [x] Tatsächliche TTWROR ohne stille 50-%-Tageskappung als verbindlichen Reportingwert festlegen
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern

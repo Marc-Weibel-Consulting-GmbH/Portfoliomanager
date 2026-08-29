@@ -108,6 +108,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SLEEVE_LABEL_CONFIG, SLEEVE_TICKER_LABEL } from '@shared/const';
+import { getTransactionActivityPresentation } from "@/lib/transactionActivityPresentation";
 
 // ─── Performance Tab with Attribution Waterfall ───
 function PerformanceTab({
@@ -944,22 +945,21 @@ function LetzteAktivitaet({ transactions }: { transactions: any[] }) {
           const isToday = txDate.toDateString() === todayStr;
           const isYesterday = txDate.toDateString() === yesterdayStr;
           const dateLabel = isToday ? 'Heute' : isYesterday ? 'Gestern' : txDate.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' });
-          const isBuy = tx.transactionType === 'buy';
-          const isDividend = tx.transactionType === 'dividend';
+          const presentation = getTransactionActivityPresentation(tx.transactionType);
           const isOptimization = tx.source === 'optimization';
           return (
             <div key={tx.id} className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-2 min-w-0">
                 <span className="text-gray-400 w-12 shrink-0">{dateLabel}</span>
-                <span className={`truncate ${isDividend ? 'text-[#00CFC1]' : isBuy ? 'text-blue-400' : 'text-negative'}`}>
-                  {isDividend ? 'Dividende' : isBuy ? 'Kauf' : 'Verkauf'} {tx.ticker}
+                <span className={`truncate ${presentation.tone === 'positive' ? 'text-[#00CFC1]' : presentation.tone === 'negative' ? 'text-negative' : 'text-gray-300'}`}>
+                  {presentation.label} {tx.ticker}
                 </span>
                 {isOptimization && (
                   <span className="shrink-0 text-[9px] px-1 py-0.5 rounded bg-violet-500/20 text-violet-400 font-medium">KI</span>
                 )}
               </div>
-              <span className={`font-mono shrink-0 ml-2 ${isDividend || isBuy ? 'text-[#00CFC1]' : 'text-negative'}`}>
-                {isDividend || isBuy ? '+' : '-'}{tx.shares ? `${Math.abs(parseFloat(tx.shares)).toFixed(0)} Stk.` : `CHF ${Math.abs(parseFloat(tx.totalAmount || '0')).toFixed(0)}`}
+              <span className={`font-mono shrink-0 ml-2 ${presentation.tone === 'positive' ? 'text-[#00CFC1]' : presentation.tone === 'negative' ? 'text-negative' : 'text-gray-300'}`}>
+                {presentation.sign}{tx.shares ? `${Math.abs(parseFloat(tx.shares)).toFixed(0)} Stk.` : `CHF ${Math.abs(parseFloat(tx.totalAmount || '0')).toFixed(0)}`}
               </span>
             </div>
           );

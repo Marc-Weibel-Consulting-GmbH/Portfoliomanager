@@ -1672,9 +1672,12 @@ export async function activatePortfolio(
     const portfolioData = JSON.parse(portfolio.portfolioData);
     const holdings = portfolioData.stocks || [];
 
-    // Calculate transaction amounts based on weights
+    // Die Aktivierung ist eine reine Zustandsänderung: Die vorhandenen
+    // Positionen und die bereits gespeicherte Liquiditätsreserve sind der
+    // Anfangsbestand. Insbesondere darf `startCapital` nicht nochmals als
+    // Einzahlung gebucht werden, weil das die Cash-Reserve doppelt zählen
+    // würde (z. B. CHF 25'000 Reserve + CHF 250'000 neue Einzahlung − Käufe).
     const capitalNum = parseFloat(startCapital);
-    const transactions = [];
 
     // Fetch fresh current prices from the stocks table to avoid stale portfolioData prices
     const { stocks: stocksTable } = await import("../drizzle/schema");
@@ -1697,6 +1700,14 @@ export async function activatePortfolio(
       }
     }
 
+    const activationPositions: Array<{
+      ticker: string;
+      shares: number;
+      pricePerShare: number;
+      currency: string;
+      fxRate: number;
+    }> = [];
+
     for (const holding of holdings) {
       const weight = parseFloat(holding.weight || "0") / 100;
       const allocationAmount = capitalNum * weight;
@@ -1709,50 +1720,42 @@ export async function activatePortfolio(
       const currency = fresh ? fresh.currency : (holding.currency || 'CHF');
       const fxRate = fresh ? fresh.fxRate : parseFloat(holding.exchangeRateToChf || '1.0');
       
-      if (!isNaN(currentPrice) && currentPrice > 0) {
-        const shares = (allocationAmount / (currentPrice * fxRate)).toFixed(6);
-        const totalAmountLocal = (parseFloat(shares) * currentPrice).toFixed(2);
-        const totalAmountCHF = (parseFloat(totalAmountLocal) * fxRate).toFixed(2);
-        
-        console.log(`[activatePortfolio] ${holding.ticker}: price=${currentPrice} ${currency}, fxRate=${fxRate}, shares=${shares}, CHF=${totalAmountCHF} (${fresh ? 'fresh' : 'stale'})`);
-        
-        transactions.push({
-          portfolioId,
-          transactionType: "buy" as const,
+      if (!isNaN(currentPrice) && currentPrice > 0 && Number.isFinite(fxRate) && fxRate > 0) {
+        // Primär: exakt die gespeicherten Demo-Stückzahlen übernehmen. Dadurch
+        // bleibt der Depotwert beim Umschalten identisch. Nur Portfolios ohne
+        // gespeicherte Stückzahl erhalten die bisherige Gewichtungsableitung.
+        const storedShares = parseFloat(holding.shares || '0');
+        const shares = storedShares > 0
+          ? storedShares
+          : allocationAmount / (currentPrice * fxRate);
+        if (!(shares > 0)) continue;
+
+        activationPositions.push({
           ticker: holding.ticker,
           shares,
-          pricePerShare: currentPrice.toString(),
+          pricePerShare: currentPrice,
           currency,
-          totalAmount: totalAmountLocal,
-          fxRate: fxRate.toString(),
-          totalAmountCHF,
-          fees: "0",
-          notes: `Initial purchase for portfolio activation`,
-          transactionDate: new Date(),
+          fxRate,
         });
       }
     }
 
-    // First create a deposit transaction for the start capital so cash balance is positive
-    // before the buy transactions are processed (otherwise cash-balance validation fails)
-    await createPortfolioTransaction({
-      portfolioId,
-      transactionType: "deposit" as const,
-      ticker: null,
-      shares: null,
-      pricePerShare: null,
-      currency: "CHF",
-      totalAmount: capitalNum.toFixed(2),
-      fxRate: "1",
-      totalAmountCHF: capitalNum.toFixed(2),
-      fees: "0",
-      notes: `Startkapital für Portfolio-Aktivierung`,
-      transactionDate: new Date(),
+    const { buildPortfolioActivationLedger } = await import("./lib/portfolioActivationLedger");
+    const existingCashBalanceCHF = parseFloat(String(portfolio.cashBalance ?? '0')) || 0;
+    const ledger = buildPortfolioActivationLedger({
+      existingCashBalanceCHF,
+      positions: activationPositions,
     });
 
-    // Create all buy transactions
-    for (const transaction of transactions) {
-      await createPortfolioTransaction(transaction);
+    // `entry` erzeugt Bestands- und Performance-Startpunkte, ist aber keine
+    // Cash- oder Einstandsbewegung. Daher bleibt die vor dem Umschalten
+    // gültige Liquiditätsreserve unverändert.
+    for (const entry of ledger.transactions) {
+      await createPortfolioTransaction({
+        portfolioId,
+        ...entry,
+        transactionDate: new Date(),
+      });
     }
 
     // Update portfolio status
@@ -1765,7 +1768,7 @@ export async function activatePortfolio(
 
     return {
       success: true,
-      transactionsCreated: transactions.length,
+      transactionsCreated: ledger.transactions.length,
     };
   } catch (error) {
     console.error("[Database] Failed to activate portfolio:", error);
