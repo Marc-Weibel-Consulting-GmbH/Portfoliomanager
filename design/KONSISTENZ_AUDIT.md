@@ -1,4 +1,25 @@
-# Konsistenz-Audit — Woche vom 24.08.2026
+# Konsistenz-Audit — Wochen vom 24.08. und 31.08.2026
+
+## Nachtrag: Woche vom 31.08.2026 (Prüfbereich `06ea95c..dcae848`)
+
+**Audit sauber — kein neuer Befund.** Geprüft: K13-Umsetzung (PRs
+#343/#344, eigene Arbeit) plus acht Checkpoint-Commits (Research-Triage,
+Selma-/Brügger-Analysen als Doku-PDFs, AI-Capital-Cycle-Dashboard,
+Depotwert-Integritätsfix). Kernrechenwerke unberührt. Das
+Capital-Cycle-Overlay ist eine reine, kategoriale Read-only-Ableitung
+ohne Zweitscore und ohne Score-/Alert-/Portfolio-Writes (L4 ✓, «keine
+neue Zahl ohne Heimat» ✓ — Rollen und Status statt Zahlen); der
+Aktivierungs-Fix (`portfolioActivationLedger`) ist Buchhaltung, keine
+Score-Rechnung.
+
+**B1–B3 aus der Vorwoche sind weiterhin offen** —
+`recommendationPolicy.ts` (Schwelle 60, Kauf-Default) und die
+E3-OFFEN-Vermerke sind unverändert. Sie warten auf Marcs Entscheid zu
+diesem Bericht. B4 bleibt behoben (PR #341).
+
+---
+
+# Bericht der Woche vom 24.08.2026
 
 Wöchentliche Prüfung von `main` gegen die Leitsätze L1–L5
 (`design/KONSOLIDIERUNG_RECHENWERKE.md`) gemäss CLAUDE.md Abschnitt 6.
