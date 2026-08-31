@@ -1643,7 +1643,7 @@ export const portfoliosRouter = router({
         
         const isLivePortfolio = portfolio.isLive;
         let transactions: any[] = [];
-        let portfolioStocks: any[] = [];
+        let portfolioStocks: any[];
         
         if (isLivePortfolio) {
           transactions = await getPortfolioTransactions(portfolioId);
