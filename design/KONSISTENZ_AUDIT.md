@@ -17,6 +17,13 @@ Score-Rechnung.
 E3-OFFEN-Vermerke sind unverändert. Sie warten auf Marcs Entscheid zu
 diesem Bericht. B4 bleibt behoben (PR #341).
 
+**B4 wiederholt sich als Muster:** Auch diese Woche hinterliess ein
+Checkpoint-Commit `main` lint-rot (`no-useless-assignment` in
+`portfoliosRouter`, aus dem Depotwert-Fix) — behoben mit PR #345.
+Zweimal in zwei Wochen bestätigt: Der Checkpoint-Pfad läuft ohne
+PR-CI-Gate; ein Lint-Lauf vor dem Push in den Manus-Ablauf würde die
+wiederkehrende Aufräumarbeit ersparen.
+
 ---
 
 # Bericht der Woche vom 24.08.2026
