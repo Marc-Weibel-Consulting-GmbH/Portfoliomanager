@@ -740,3 +740,9 @@
 - [x] Datenanomalien separat kennzeichnen statt Renditen unbemerkt zu verändern
 - [x] Roten Referenztest für eine echte Tagesrendite oberhalb 50 % ergänzen und minimal implementieren
 - [x] Performance-, UI- und Regressionstests ausführen sowie Audit-Nachweis aktualisieren
+
+## Research-Triage-Loop — offene GitHub-Issues (2026-08-29)
+- [x] Höchstens zwei offene `[Research]`-Issues ohne Fortschrittslabel anhand von Relevanz, Konfidenz, Engine-Umsetzbarkeit und realer OOS-Datenabdeckung triagieren
+- [x] Für jeden zulässigen Kandidaten einen klar feature-flagged Forschungsprototypen und einen reproduzierbaren OOS-Backtest ohne Look-ahead-Bias erstellen
+- [x] Echte OOS-, Regime- und Parametersensitivitätsresultate gegen die vorregistrierte Schwelle auswerten und auf dem jeweiligen Issue nachvollziehbar dokumentieren
+- [x] Branch, Commit, Push, Draft-PR und Abschlusslabels gemäss Research-Governance durchführen, ohne Feature-Flags in Produktion zu aktivieren
