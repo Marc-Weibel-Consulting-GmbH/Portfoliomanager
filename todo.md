@@ -746,3 +746,8 @@
 - [x] Für jeden zulässigen Kandidaten einen klar feature-flagged Forschungsprototypen und einen reproduzierbaren OOS-Backtest ohne Look-ahead-Bias erstellen
 - [x] Echte OOS-, Regime- und Parametersensitivitätsresultate gegen die vorregistrierte Schwelle auswerten und auf dem jeweiligen Issue nachvollziehbar dokumentieren
 - [x] Branch, Commit, Push, Draft-PR und Abschlusslabels gemäss Research-Governance durchführen, ohne Feature-Flags in Produktion zu aktivieren
+
+## Brügger-Monatsbericht — Ergänzungskandidaten (2026-09-01)
+- [x] Bestehende Watchlist- und Portfolioüberschneidungen gegen die Thesen Biological Intelligence, Americas Energy Corridor und physische Infrastruktur abgleichen
+- [x] Ergänzungskandidaten mit aktuellen Unternehmensquellen, realer Datenqualität sowie Cashflow-, Knappheits- und Konzentrationsrisiken recherchieren
+- [x] Eine nicht bindende Research-Shortlist mit klaren Ausschluss- und Prüfbedingungen dokumentieren; keine Portfolio-, Score-, Signal- oder Handelsaktion auslösen
