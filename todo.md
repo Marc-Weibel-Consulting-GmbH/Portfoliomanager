@@ -751,3 +751,8 @@
 - [x] Bestehende Watchlist- und Portfolioüberschneidungen gegen die Thesen Biological Intelligence, Americas Energy Corridor und physische Infrastruktur abgleichen
 - [x] Ergänzungskandidaten mit aktuellen Unternehmensquellen, realer Datenqualität sowie Cashflow-, Knappheits- und Konzentrationsrisiken recherchieren
 - [x] Eine nicht bindende Research-Shortlist mit klaren Ausschluss- und Prüfbedingungen dokumentieren; keine Portfolio-, Score-, Signal- oder Handelsaktion auslösen
+
+## Research-Triage-Loop — erneute aktuelle Prüfung (2026-09-01)
+- [x] Den aktuellen Bestand offener `[Research]`-Issues ohne Fortschrittslabel erfassen und höchstens zwei Kandidaten strikt nach Konfidenz und OOS-Fähigkeit triagieren
+- [x] Falls zulässig, nur deaktivierte Forschungsprototypen mit reproduzierbarem Backtest, Regime- und Sensitivitätschecks erstellen; andernfalls die Abweisung auf GitHub begründen
+- [x] Die Ergebnisse, Labels, Branches und allfälligen Draft-PRs gemäss OOS- und Nichtaktivierungs-Governance dokumentieren
