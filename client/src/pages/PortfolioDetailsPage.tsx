@@ -60,6 +60,8 @@ import {
   Zap,
   Camera,
   GitCompareArrows,
+  FileDown,
+  FileSpreadsheet,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -109,6 +111,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SLEEVE_LABEL_CONFIG, SLEEVE_TICKER_LABEL } from '@shared/const';
 import { getTransactionActivityPresentation } from "@/lib/transactionActivityPresentation";
+import { buildPortfolioExportModel } from "@/lib/portfolioExportModel";
+import { downloadPortfolioExcel, downloadPortfolioPdf } from "@/lib/portfolioExportFiles";
 
 // ─── Performance Tab with Attribution Waterfall ───
 function PerformanceTab({
@@ -192,9 +196,10 @@ function PerformanceTab({
           disabled={tearsheet.isPending}
           onClick={() => tearsheet.mutate({ portfolioId })}
           className="border-white/10 text-gray-200 hover:text-white hover:border-white/30 gap-2"
+          title="Öffnet den bestehenden QuantStats-Analysebericht als HTML in einem neuen Tab"
         >
           <FileText className="h-4 w-4" />
-          {tearsheet.isPending ? 'Report wird erstellt…' : 'Report (Tear-Sheet)'}
+          {tearsheet.isPending ? 'Analyse wird erstellt…' : 'Analysebericht (HTML)'}
         </Button>
       </div>
 
@@ -1086,6 +1091,9 @@ export default function PortfolioDetailsPage() {
 
   // State for share
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  // Erzeugt nur lokale Download-Dateien; keine Mutation von Positionen,
+  // Transaktionen, Signalen oder Portfoliozuständen.
+  const [exportingFormat, setExportingFormat] = useState<"excel" | "pdf" | null>(null);
 
   // U-03: Transaktion erfassen + Swissquote-PDF-Import (Transaktionen-Tab)
   const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
@@ -1462,6 +1470,43 @@ export default function PortfolioDetailsPage() {
       currency: h.currency || 'CHF'
     }));
   }, [holdings]);
+
+  const portfolioExportModel = useMemo(() => {
+    if (!portfolio) return null;
+    return buildPortfolioExportModel({
+      portfolio: portfolio as Record<string, unknown>,
+      holdings: holdings as Record<string, unknown>[],
+      performance: perfMetrics as Record<string, unknown> | undefined,
+      risk: riskMetrics as Record<string, unknown> | undefined,
+      fallbackIndexedSeries: (historicalData?.chartData ?? []) as Record<string, unknown>[],
+      referenceCurrency: typeof profile?.referenceCurrency === "string" ? profile.referenceCurrency : "CHF",
+      asOf: new Date(),
+      periodLabel: selectedPeriod,
+    });
+  }, [portfolio, holdings, perfMetrics, riskMetrics, historicalData?.chartData, profile?.referenceCurrency, selectedPeriod]);
+
+  const handlePortfolioExport = async (format: "excel" | "pdf") => {
+    if (!portfolioExportModel) {
+      toast.error("Export noch nicht bereit", { description: "Die Portfoliodaten werden noch geladen." });
+      return;
+    }
+    setExportingFormat(format);
+    try {
+      if (format === "excel") {
+        await downloadPortfolioExcel(portfolioExportModel);
+        toast.success("Excel-Export erstellt", { description: "Übersicht, Titelliste und Depotentwicklung wurden heruntergeladen." });
+      } else {
+        await downloadPortfolioPdf(portfolioExportModel);
+        toast.success("PDF-Report erstellt", { description: "Kennzahlen, Depotentwicklung, Allokation und Titelliste wurden heruntergeladen." });
+      }
+    } catch (error: any) {
+      toast.error(`${format === "excel" ? "Excel" : "PDF"}-Export fehlgeschlagen`, {
+        description: getUserErrorMessage(error),
+      });
+    } finally {
+      setExportingFormat(null);
+    }
+  };
   
   if (isLoading) {
     return (
@@ -1630,7 +1675,7 @@ export default function PortfolioDetailsPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex flex-wrap items-center justify-end gap-2 flex-shrink-0">
               <ViewDensityToggle className="mr-1" />
               {isDemo && (
                 <>
@@ -1693,6 +1738,28 @@ export default function PortfolioDetailsPage() {
                 onClick={() => setIsShareDialogOpen(true)}
               >
                 <Share2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!portfolioExportModel || exportingFormat !== null}
+                onClick={() => void handlePortfolioExport("excel")}
+                className="border-emerald-500/35 text-emerald-300 hover:bg-emerald-500/10 hover:text-emerald-200"
+                title="Excel: Übersicht, Kennzahlen, Titelliste und Depotentwicklung"
+              >
+                <FileSpreadsheet className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">{exportingFormat === "excel" ? "Exportiert…" : "Excel"}</span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!portfolioExportModel || exportingFormat !== null}
+                onClick={() => void handlePortfolioExport("pdf")}
+                className="border-cyan-500/35 text-cyan-200 hover:bg-cyan-500/10 hover:text-cyan-100"
+                title="PDF: grafische Depotentwicklung, Kennzahlen, Allokation und Titelliste"
+              >
+                <FileDown className="h-4 w-4 mr-1" />
+                <span className="hidden sm:inline">{exportingFormat === "pdf" ? "Erstellt…" : "PDF-Report"}</span>
               </Button>
               <Button size="sm" onClick={() => handleTabChange('optimierung')} className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
                 Optimieren

@@ -3356,6 +3356,13 @@ export const portfoliosRouter = router({
             totalInvestedCHF: result.totalInvestedCHF,
             periodDays: result.ttwror.periodDays,
             dailySeries: result.dailySeries,
+            // Für Export und Detaildarstellung: dieselbe historische CHF-Wertreihe
+            // wie die TTWROR-Berechnung. Sie enthält Aktien und Cash und wird nicht
+            // aus der Rendite rückgerechnet.
+            dailyValuations: result.dailyValuations.map((valuation) => ({
+              date: valuation.date,
+              marketValue: valuation.marketValue,
+            })),
             converged: result.irr.converged,
             // Positionen ohne Kursdaten im Zeitraum — die Kurve ist dann
             // unvollständig (Client zeigt einen ehrlichen Hinweis statt
@@ -3376,6 +3383,7 @@ export const portfoliosRouter = router({
             totalInvestedCHF: 0,
             periodDays: 0,
             dailySeries: [],
+            dailyValuations: [] as Array<{ date: string; marketValue: number }>,
             converged: false,
             unpricedTickers: [] as string[],
             dataQualityWarnings: [] as Array<{

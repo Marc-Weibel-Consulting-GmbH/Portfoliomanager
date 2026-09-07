@@ -756,3 +756,10 @@
 - [x] Den aktuellen Bestand offener `[Research]`-Issues ohne Fortschrittslabel erfassen und höchstens zwei Kandidaten strikt nach Konfidenz und OOS-Fähigkeit triagieren
 - [x] Falls zulässig, nur deaktivierte Forschungsprototypen mit reproduzierbarem Backtest, Regime- und Sensitivitätschecks erstellen; andernfalls die Abweisung auf GitHub begründen
 - [x] Die Ergebnisse, Labels, Branches und allfälligen Draft-PRs gemäss OOS- und Nichtaktivierungs-Governance dokumentieren
+
+## Portfolioexport — Excel und PDF (2026-09-07)
+- [x] Bestehenden Portfolioexport sowie die verlässlichen Quellen für Positionen, Kennzahlen, Depotwert und Zeitreihen analysieren
+- [x] Exportdatenvertrag für Excel-Titelliste, Kennzahlen und nachvollziehbare Zeitstände testgetrieben festlegen
+- [x] Excel-Export mit einer vollständigen Titelliste, Positionswerten, Gewichten und Portfolio-Kennzahlen implementieren
+- [x] PDF-Report visuell aufwerten: grafische Depotentwicklung, Kennzahlen, Allokationsüberblick und gut lesbare Titeltabelle ergänzen
+- [x] Exportaktionen, Dateiinhalte und mobile/desktop UI in der Live-Anwendung prüfen und den Release dokumentieren
