@@ -27,7 +27,13 @@ import { proposalJobs, SLEEVE_CLASS_LABELS, formatSleeveAllocation, type Proposa
    * Löst den HTTP 524 Timeout bei langen Kimi-K3-Anfragen.
    */
 export const startProposalProcedure = protectedProcedure
-    .input(z.object({ investmentAmount: z.number().positive().optional(), stocksOnly: z.boolean().optional() }).optional())
+    .input(z.object({
+      investmentAmount: z.number().positive().optional(),
+      stocksOnly: z.boolean().optional(),
+      // Explizite Testauswahl; ohne diesen Wert bleibt der bestehende
+      // Dividendenmodus unverändert. Eine Auswahl aktiviert keinen Handel.
+      optimizationObjective: z.enum(["standard", "dividend_quality_10y"]).optional(),
+    }).optional())
     .mutation(async ({ ctx, input }) => {
       const jobId = randomUUID();
       const job: ProposalJob = {
@@ -84,6 +90,15 @@ export const startProposalProcedure = protectedProcedure
 
           const stocksOnly = input?.stocksOnly ?? false;
           const notes: string[] = [];
+          const { resolveDividendQualityObjective, hasTenYearPriceHistory, tenYearHistoryCutoff } = await import('../lib/dividendQualityObjective');
+          const { DIVIDEND_QUALITY_10Y_FEATURE_FLAG } = await import('../lib/dividendQualityObjective');
+          if (input?.optimizationObjective === 'dividend_quality_10y' && process.env[DIVIDEND_QUALITY_10Y_FEATURE_FLAG] !== 'true') {
+            throw new Error('Der experimentelle Dividenden-Qualitätsmodus ist noch nicht freigegeben. Der bestehende Dividendenmodus bleibt unverändert verfügbar.');
+          }
+          const optimizationObjective = resolveDividendQualityObjective({
+            investmentGoal: goal,
+            selection: input?.optimizationObjective,
+          });
 
           // Die Positionsgrenzen gelten fuer das GESAMTPORTFOLIO, nicht nur fuer
           // den Aktienteil. Der Optimizer sieht aber nur die Aktien, deren
@@ -307,6 +322,53 @@ export const startProposalProcedure = protectedProcedure
           if (ranked.length < rules.minTitles) { qualityTier = 'erweitert'; ranked = stableSort(allCandidates.filter((x) => x.signal !== 'SELL' && x.scoreGrade !== 'F' && x.combinedScore >= 45)); }
           if (ranked.length < rules.minTitles) { qualityTier = 'basis'; ranked = stableSort(allCandidates.filter((x) => x.signal !== 'SELL')); }
           if (qualityTier !== 'kaufkandidaten') notes.push(qualityTier === 'erweitert' ? 'Zu wenige klare Kaufkandidaten (Score ≥ 55) — die Auswahl enthält auch neutrale Titel mit Score ≥ 45.' : 'Sehr wenige geeignete Kandidaten — die Auswahl umfasst alle Titel ohne Verkaufssignal, unabhängig vom Score.');
+
+          // Die optionale Dividenden-Qualitätsrechnung lässt nur Titel mit
+          // nachweisbarer Preisbeobachtung vor exakt zehn Kalenderjahren zu.
+          // Es wird nicht versucht, fehlende Historie nachträglich zu schätzen
+          // oder als Zehnjahresbasis auszugeben.
+          const tenYearCutoff = tenYearHistoryCutoff(new Date());
+          let historyGate = {
+            required: optimizationObjective.requiresTenYearHistory,
+            cutoff: tenYearCutoff,
+            candidateCount: ranked.length,
+            eligibleCount: ranked.length,
+            excludedTickers: [] as string[],
+          };
+          if (optimizationObjective.requiresTenYearHistory) {
+            const historyTickerFor = (ticker: string) => {
+              const normalized = String(ticker ?? '').toUpperCase();
+              return normalized.endsWith('.US') ? normalized.slice(0, -3) : normalized;
+            };
+            const candidateByHistoryTicker = new Map<string, any>();
+            for (const candidate of ranked) candidateByHistoryTicker.set(historyTickerFor(candidate.stock.ticker), candidate);
+            const { inArray: inArrayHistory, min: minHistory } = await import('drizzle-orm');
+            const firstHistoryRows = candidateByHistoryTicker.size > 0
+              ? await db.select({ ticker: historicalPrices.ticker, firstObservedDate: minHistory(historicalPrices.date) })
+                .from(historicalPrices)
+                .where(inArrayHistory(historicalPrices.ticker, Array.from(candidateByHistoryTicker.keys())) as any)
+                .groupBy(historicalPrices.ticker)
+              : [];
+            const firstDateByTicker = new Map(firstHistoryRows.map((row: any) => [String(row.ticker).toUpperCase(), row.firstObservedDate ? String(row.firstObservedDate).slice(0, 10) : null]));
+            const eligibleRanked = ranked.filter((candidate: any) => {
+              const ticker = historyTickerFor(candidate.stock.ticker);
+              return hasTenYearPriceHistory(firstDateByTicker.get(ticker) ?? null);
+            });
+            historyGate = {
+              required: true,
+              cutoff: tenYearCutoff,
+              candidateCount: ranked.length,
+              eligibleCount: eligibleRanked.length,
+              excludedTickers: ranked
+                .filter((candidate: any) => !hasTenYearPriceHistory(firstDateByTicker.get(historyTickerFor(candidate.stock.ticker)) ?? null))
+                .map((candidate: any) => candidate.stock.ticker),
+            };
+            if (eligibleRanked.length < rules.minTitles) {
+              throw new Error(`Der optionale 10-Jahres-Dividendenmodus benötigt mindestens ${rules.minTitles} Titel mit einer Kursbeobachtung am oder vor ${tenYearCutoff}; verfügbar sind ${eligibleRanked.length}.`);
+            }
+            ranked = eligibleRanked;
+            notes.push(`10-Jahres-Datengate: ${historyGate.eligibleCount} von ${historyGate.candidateCount} geeigneten Titeln haben Preisbeobachtungen am oder vor ${tenYearCutoff}. Fehlende Historie wird ausgeschlossen, nicht geschätzt.`);
+          }
           const target = Math.min(effectiveMaxTitles, ranked.length);
           const maxPerSector = Math.max(1, Math.floor((rules.maxSectorPercent / 100) * target));
           // Heimatmarkt-Korrelations-Cap: max. 3 Titel aus demselben Land+Sektor
@@ -379,37 +441,49 @@ export const startProposalProcedure = protectedProcedure
           }
 
           job.progress.push('Portfolio-Optimierung läuft...');
-          const method = goal === 'dividends' ? 'max_dividend' : params.method;
+          const method = goal === 'dividends' ? optimizationObjective.method : params.method;
           const selectedTickers = selected.map((c) => c.stock.ticker);
           let weights: Record<string, number> = {};
           let weightingSource: 'optimizer' | 'score_fallback' = 'optimizer';
           let weightingNote: string | null = null;
           let weightingEngine: 'exact' | 'random_search' | 'analytic' | null = null;
-          let proposalMetrics: { expectedReturnPct: number; volatilityPct: number; sharpe: number } | null = null;
+          let proposalMetrics: {
+            expectedReturnPct: number;
+            volatilityPct: number;
+            sharpe: number;
+            maxDrawdownPct: number | null;
+            basisJahreMin: number | null;
+            basisJahreMedian: number | null;
+            gemeinsameTage: number | null;
+          } | null = null;
           try {
             const { optimizePortfolio } = await import('../analytics/engine');
-            // 10 Jahre statt des Default-Jahres: Aus zwoelf guten Monaten annualisiert
-            // ergaben sich ~28 % p.a. — eine Zahl, die eine Zukunftserwartung
-            // suggeriert, aber nur einen Ausschnitt beschreibt. Wie viel davon
-            // wirklich genutzt wird, begrenzt der juengste Titel: die Engine
-            // schneidet die gemeinsame Datums-Schnittmenge aller Titel. Der
-            // tatsaechliche Zeitraum wird deshalb unten ausgewiesen.
-            // Zurueck auf fuenf Jahre. Mit 2520 Tagen blieb die Erstellung
-            // haengen: die Datenmenge, die durch Alignment, Kovarianz und
-            // Effizienzgrenze laeuft, waechst linear mit dem Zeitraum.
-            // Fuenf Jahre umfassen einen vollen Zyklus und sind damit weit
-            // aussagekraeftiger als die frueheren zwoelf Monate, ohne die
-            // Optimierung zu ueberlasten. Zusammen mit dem jetzt in SQL
-            // gefilterten Kursabruf ist das schneller als der alte Zustand.
-            const LOOKBACK_5J = 1260;
-            const opt = await optimizePortfolio({ tickers: selectedTickers, method, lookbackDays: LOOKBACK_5J, minPositionWeight: params.minPositionWeight, maxPositionWeight: params.maxPositionWeight, riskFreeRate: dynamicRiskFreeRate, sectorByTicker: Object.fromEntries(selected.map((c) => [c.stock.ticker, c.stock.sector || 'Andere'])), maxSectorWeightPct: rules.maxSectorPercent });
+            const opt = await optimizePortfolio({
+              tickers: selectedTickers,
+              method,
+              lookbackDays: optimizationObjective.lookbackDays,
+              minPositionWeight: params.minPositionWeight,
+              maxPositionWeight: params.maxPositionWeight,
+              riskFreeRate: dynamicRiskFreeRate,
+              sectorByTicker: Object.fromEntries(selected.map((c) => [c.stock.ticker, c.stock.sector || 'Andere'])),
+              maxSectorWeightPct: rules.maxSectorPercent,
+              userConstraints: optimizationObjective.userConstraints,
+            });
             weights = { ...opt.weights };
             weightingEngine = opt.optimizerEngine ?? 'random_search';
             const rawReturn = opt.optimalPortfolio.expectedReturn;
             const rawVol = opt.optimalPortfolio.volatility;
             const rawSharpe = opt.optimalPortfolio.sharpe;
             if (Number.isFinite(rawReturn) && Number.isFinite(rawVol) && Number.isFinite(rawSharpe)) {
-              proposalMetrics = { expectedReturnPct: Math.round(rawReturn * 1000) / 10, volatilityPct: Math.round(rawVol * 1000) / 10, sharpe: rawSharpe };
+              proposalMetrics = {
+                expectedReturnPct: Math.round(rawReturn * 1000) / 10,
+                volatilityPct: Math.round(rawVol * 1000) / 10,
+                sharpe: rawSharpe,
+                maxDrawdownPct: Number.isFinite((opt.optimalPortfolio as any).maxDrawdown) ? Math.abs((opt.optimalPortfolio as any).maxDrawdown) : null,
+                basisJahreMin: (opt as any).renditeBasis?.jahreMin ?? null,
+                basisJahreMedian: (opt as any).renditeBasis?.jahreMedian ?? null,
+                gemeinsameTage: (opt as any).renditeBasis?.gemeinsameTage ?? null,
+              };
               // Effektiven Zeitraum ausweisen — er ist regelmaessig kuerzer als
               // die angeforderten 10 Jahre, sobald ein junger Titel dabei ist.
               const beobachteteTage = (opt as any).observedDays;
@@ -418,7 +492,9 @@ export const startProposalProcedure = protectedProcedure
                 const zeitraum = jahre >= 1 ? `${jahre.toFixed(1)} Jahre` : `${Math.round(beobachteteTage)} Handelstage`;
                 weightingNote = (weightingNote ? weightingNote + ' ' : '')
                   + `Rendite und Schwankung sind ueber ${zeitraum} gemeinsamer Kurshistorie gerechnet`
-                  + (jahre < 4.5 ? ' — kuerzer als die angestrebten 5 Jahre, weil der juengste Titel den gemeinsamen Zeitraum begrenzt.' : '.');
+                  + (optimizationObjective.requiresTenYearHistory
+                    ? (jahre < 9.5 ? ' — trotz 10-Jahres-Preisgate ist die gemeinsame Handelskalender-Schnittmenge kürzer; sie wird ausdrücklich angezeigt.' : '.')
+                    : (jahre < 4.5 ? ' — kürzer als die angestrebten 5 Jahre, weil der jüngste Titel den gemeinsamen Zeitraum begrenzt.' : '.'));
               }
             } else {
               proposalMetrics = null;
@@ -588,9 +664,12 @@ export const startProposalProcedure = protectedProcedure
             return {
               positions: primary,
               method,
-              methodLabel: weightingSource === 'optimizer' ? (method === 'min_variance' ? 'Min. Varianz' : method === 'max_dividend' ? 'Max. Dividende' : 'Max. Sharpe') : 'Score-gewichtet (Fallback)',
+              methodLabel: weightingSource === 'optimizer'
+                ? (optimizationObjective.id === 'dividend_quality_10y' ? 'Dividende + Sharpe + Drawdown (10 Jahre)' : method === 'min_variance' ? 'Min. Varianz' : method === 'max_dividend' ? 'Max. Dividende' : 'Max. Sharpe')
+                : 'Score-gewichtet (Fallback)',
               weighting: { source: weightingSource, engine: weightingEngine, note: weightingNote, minPositionPct: Math.round(params.minPositionWeight * 1000) / 10, maxPositionPct: Math.round(params.maxPositionWeight * 1000) / 10 },
               metrics: proposalMetrics,
+              optimizationObjective: { ...optimizationObjective, historyGate },
               allocation: { sectors: sectorWeights, fxWeightPct, sectorCapPct: rules.maxSectorPercent, fxCapPct: maxFxExposurePct },
               // Multi-Asset-Sleeve: effektive Anlageklassen-Allokation (in %,
               // vor Cash-Quote), gewählter Modus, Abweichungs-Hinweis.

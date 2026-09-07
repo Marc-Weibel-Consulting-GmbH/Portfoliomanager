@@ -763,3 +763,9 @@
 - [x] Excel-Export mit einer vollständigen Titelliste, Positionswerten, Gewichten und Portfolio-Kennzahlen implementieren
 - [x] PDF-Report visuell aufwerten: grafische Depotentwicklung, Kennzahlen, Allokationsüberblick und gut lesbare Titeltabelle ergänzen
 - [x] Exportaktionen, Dateiinhalte und mobile/desktop UI in der Live-Anwendung prüfen und den Release dokumentieren
+
+## Dividendenportfolio: erweiterte Optimierungsziele und 10-Jahres-Gate (2026-09-07)
+- [x] Bestehende Strategieauswahl, Optimierungsoptionen und zehnjährige punkt-in-zeitliche Preisabdeckung für eine dividendenorientierte Zielallokation analysieren
+- [x] Einen transparenten Zielkonfliktvertrag für Dividendenqualität, risikoadjustierte Rendite und maximalen Drawdown definieren; fehlende Historie muss zum Ausschluss oder sichtbaren Datenstatus führen
+- [x] Zusätzliche, standardmässig deaktivierte Wizard-/Optimierungsoptionen samt 10-Jahres-Datengate testgetrieben ergänzen, ohne eine Portfolioerstellung, Score-, Signal- oder Handelswirkung auszulösen
+- [x] Die Zielwahl, Datenlücken und resultierende Erklärung im Wizard live prüfen und die methodischen Grenzen dokumentieren

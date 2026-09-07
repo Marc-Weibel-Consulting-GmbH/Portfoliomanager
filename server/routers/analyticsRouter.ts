@@ -116,6 +116,7 @@ export const analyticsRouter = router({
           minDividendYield: z.number().min(0).max(1).optional(),
           maxVolatility: z.number().min(0).max(2).optional(),
           minSharpe: z.number().min(-5).max(10).optional(),
+          maxDrawdown: z.number().min(0).max(1).optional(),
         }).optional(),
       })
     )

@@ -151,6 +151,8 @@ export interface OptimizeInput {
     maxVolatility?: number;
     /** Mindest-Sharpe-Ratio (z.B. 1.0) */
     minSharpe?: number;
+    /** Maximaler historischer Drawdown als positiver Verlustbetrag (z.B. 0.25 = -25%). */
+    maxDrawdown?: number;
   };
   /**
    * Sektor je Ticker — nur vom exakten Optimierer (PyPortfolioOpt) als harter
@@ -383,6 +385,7 @@ interface UserConstraints {
   minDividendYield?: number;
   maxVolatility?: number;
   minSharpe?: number;
+  maxDrawdown?: number;
 }
 
 // Tägliche Portfolio-Renditereihe aus Gewichten und den (datums-alignierten)
@@ -485,6 +488,15 @@ function optimizeWeights(
         const sharpe = vol > 0 ? (ret - riskFreeRate) / vol : 0;
         const shortfall = Math.max(0, userConstraints.minSharpe - sharpe);
         base -= PENALTY * shortfall;
+      }
+      // Maximaler historischer Drawdown. calcMaxDrawdown liefert einen negativen
+      // Wert; die Eingabe ist bewusst ein positiver Verlustbetrag (0.25 = -25 %).
+      // Die Zeitreihe enthält nur bereits vorhandene, datums-ausgerichtete
+      // Renditen und führt damit keine künftigen Preise in die Zielfunktion ein.
+      if (userConstraints.maxDrawdown !== undefined && cvarReturns) {
+        const observedDrawdown = Math.abs(calcMaxDrawdown(weightedDailySeries(w, cvarReturns)));
+        const excess = Math.max(0, observedDrawdown - userConstraints.maxDrawdown);
+        base -= PENALTY * excess;
       }
     }
     return base;
@@ -1357,7 +1369,11 @@ export async function optimizePortfolio(input: OptimizeInput) {
   // Datums-alignierte Asset-Renditematrix (EODHD, CHF) — Basis für die
   // CVaR-Zielfunktion und für die CVaR-Kennzahl (aktuell vs. optimiert).
   const assetReturnsMatrix: number[][] = available.map((t) => returnsMap[t]);
-  const cvarReturns = method === "min_cvar" ? assetReturnsMatrix : undefined;
+  // Auch Drawdown-Nebenbedingungen benötigen dieselbe vollständig
+  // datums-ausgerichtete historische Renditematrix wie CVaR.
+  const cvarReturns = method === "min_cvar" || input.userConstraints?.maxDrawdown !== undefined
+    ? assetReturnsMatrix
+    : undefined;
   if ((method === "max_sharpe" || method === "min_variance") && !input.userConstraints) {
     const { solveExactWeights } = await import("./exactOptimizer");
     const { minW, maxW } = effectiveBounds(n, minPositionWeight, maxPositionWeight);
@@ -1489,6 +1505,12 @@ export async function optimizePortfolio(input: OptimizeInput) {
       achieved: Math.round(optSharpe * 1000) / 1000,
       current: Math.round(currSharpe * 1000) / 1000,
       met: optSharpe >= input.userConstraints.minSharpe - 0.01,
+    } : undefined,
+    maxDrawdown: input.userConstraints.maxDrawdown !== undefined ? {
+      target: input.userConstraints.maxDrawdown,
+      achieved: Math.round(Math.abs(calcMaxDrawdown(weightedDailySeries(finalWeights, assetReturnsMatrix))) * 10000) / 10000,
+      current: Math.round(Math.abs(calcMaxDrawdown(weightedDailySeries(currentWeightsArr, assetReturnsMatrix))) * 10000) / 10000,
+      met: Math.abs(calcMaxDrawdown(weightedDailySeries(finalWeights, assetReturnsMatrix))) <= input.userConstraints.maxDrawdown + 0.001,
     } : undefined,
   } : undefined;
 
@@ -2161,4 +2183,3 @@ export async function calcRiskScoreHistory(input: RiskScoreHistoryInput): Promis
   dataPoints.reverse();
   return dataPoints;
 }
-

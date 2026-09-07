@@ -25,6 +25,7 @@ import { ProposalPositionEditor, type EditablePosition } from "@/components/port
 
 type PortfolioType = "dividends" | "growth" | "balanced" | "etf";
 type BuilderPath = "auto" | "manual" | "import";
+type AutoOptimizationObjective = "standard" | "dividend_quality_10y";
 
 // Sub-steps for the Auto (KI) flow
 // autoStep 1 = Anlageziel, 2 = Risikoprofil, 3 = Anlagehorizont,
@@ -177,6 +178,9 @@ export default function PortfolioBuilderWizard() {
   const [autoExcluded, setAutoExcluded] = useState<string[]>([]);
   const [autoProposal, setAutoProposal] = useState<any | null>(null);
   const [stocksOnly, setStocksOnly] = useState(false); // true = «Nur Aktien» (Abweichung vom Profil-Mix)
+  // Keine Vorauswahl: Dieser Modus kann nur nach expliziter Serverfreigabe
+  // angefragt werden und erstellt ohne anschliessende Übernahme kein Portfolio.
+  const [autoOptimizationObjective, setAutoOptimizationObjective] = useState<AutoOptimizationObjective>("standard");
 
   // ── Manual / shared state ──
   const [portfolioType, setPortfolioType] = useState<PortfolioType | null>(null);
@@ -205,6 +209,7 @@ export default function PortfolioBuilderWizard() {
   const utils = trpc.useUtils();
   const { data: savedProfile } = trpc.investmentProfile.get.useQuery();
   const { data: allStocks = [] } = trpc.stocks.list.useQuery();
+  const { data: objectiveCapabilities } = trpc.autoPortfolio.objectives.useQuery(undefined, { staleTime: 5 * 60 * 1000 });
   const createPortfolioMutation = trpc.portfolios.create.useMutation();
   const setProfileMutation = trpc.investmentProfile.set.useMutation();
   const { user } = useAuth();
@@ -557,8 +562,14 @@ export default function PortfolioBuilderWizard() {
       // Non-fatal — continue even if profile save fails
       console.warn("[handleBuildProposal] Profile save failed (non-fatal):", e);
     }
-    // Start async job (returns immediately with jobId, polling handles the rest)
-    startProposal.mutate({ investmentAmount: capital, stocksOnly });
+    // Der Server validiert die Freigabe erneut. Ohne aktive Freigabe wird der
+    // bestehende Standardmodus gesendet; der Client kann nichts einschalten.
+    const optimizationObjective: AutoOptimizationObjective = autoGoal === "dividends"
+      && autoOptimizationObjective === "dividend_quality_10y"
+      && objectiveCapabilities?.dividendQuality10y.enabled === true
+      ? "dividend_quality_10y"
+      : "standard";
+    startProposal.mutate({ investmentAmount: capital, stocksOnly, optimizationObjective });
   };
 
   // Accepts the proposal — uses adjustedPositions (KI-Empfehlungen eingearbeitet) if available
@@ -964,11 +975,12 @@ export default function PortfolioBuilderWizard() {
               <div className="space-y-6">
                 {/* Profile summary */}
                 <div className="flex flex-wrap gap-2">
-                  {[
-                    INVESTMENT_GOALS.find((g) => g.value === autoGoal)?.label,
-                    RISK_PROFILES.find((r) => r.value === autoRisk)?.label,
-                    HORIZONS.find((h) => h.value === autoHorizon)?.label,
-                  ].map((label, i) => label && (
+	                  {[
+	                    INVESTMENT_GOALS.find((g) => g.value === autoGoal)?.label,
+	                    RISK_PROFILES.find((r) => r.value === autoRisk)?.label,
+	                    HORIZONS.find((h) => h.value === autoHorizon)?.label,
+	                    autoOptimizationObjective === "dividend_quality_10y" ? "Dividende + Qualität (10 J.)" : null,
+	                  ].map((label, i) => label && (
                     <span key={i} className="px-3 py-1 rounded-full bg-[#00CFC1]/15 text-[#00CFC1] text-sm font-medium">
                       {label}
                     </span>
@@ -1058,16 +1070,56 @@ export default function PortfolioBuilderWizard() {
                       </div>
                     </button>
                   </div>
-                  {stocksOnly && (PROFILE_EQUITY_SHARE[autoRisk] ?? 100) < 100 && (
-                    <p className="text-xs text-amber-400">
+	                  {stocksOnly && (PROFILE_EQUITY_SHARE[autoRisk] ?? 100) < 100 && (
+	                    <p className="text-xs text-amber-400">
                       ⚠ «Nur Aktien» weicht von Ihrem Anlegerprofil ab — empfohlene Aktienquote für «
                       {RISK_PROFILES.find((r) => r.value === autoRisk)?.label ?? autoRisk}» ca. {PROFILE_EQUITY_SHARE[autoRisk]}%.
                       Das bedeutet ein höheres Risiko als Ihr Profil vorsieht.
-                    </p>
-                  )}
-                </div>
+	                    </p>
+	                  )}
+	                </div>
 
-                {/* Proposal result */}
+	                {autoGoal === "dividends" && (() => {
+	                  const advancedAvailable = objectiveCapabilities?.dividendQuality10y.enabled === true;
+	                  return (
+	                    <div className="rounded-lg border border-white/10 bg-[#0f1420] p-4 space-y-3">
+	                      <div className="flex flex-wrap items-baseline justify-between gap-2">
+	                        <Label className="text-gray-300">Gewichtungsziel</Label>
+	                        <span className="text-xs text-gray-500">Optional · keine Renditegarantie</span>
+	                      </div>
+	                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+	                        <button
+	                          type="button"
+	                          disabled={isProposalRunning || !!autoProposal}
+	                          onClick={() => setAutoOptimizationObjective("standard")}
+	                          className={`rounded-lg border p-3 text-left transition-colors ${autoOptimizationObjective === "standard" ? "border-[#00CFC1]/60 bg-[#00CFC1]/10" : "border-white/10 hover:border-white/25"} disabled:opacity-50 disabled:cursor-not-allowed`}
+	                        >
+	                          <div className={`text-sm font-semibold ${autoOptimizationObjective === "standard" ? "text-[#00CFC1]" : "text-white"}`}>Dividendenfokus</div>
+	                          <div className="text-xs text-gray-400 mt-1">Bestehende Gewichtung auf Dividendenrendite mit bis zu fünf Jahren Kurshistorie.</div>
+	                        </button>
+	                        <button
+	                          type="button"
+	                          disabled={!advancedAvailable || isProposalRunning || !!autoProposal}
+	                          onClick={() => setAutoOptimizationObjective("dividend_quality_10y")}
+	                          className={`rounded-lg border p-3 text-left transition-colors ${autoOptimizationObjective === "dividend_quality_10y" ? "border-amber-400/60 bg-amber-400/10" : "border-white/10"} ${advancedAvailable ? "hover:border-amber-300/60" : "opacity-55 cursor-not-allowed"}`}
+	                        >
+	                          <div className="flex items-center gap-2">
+	                            <div className={`text-sm font-semibold ${autoOptimizationObjective === "dividend_quality_10y" ? "text-amber-300" : "text-white"}`}>Dividende + Qualität (10 Jahre)</div>
+	                            {!advancedAvailable && <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-gray-300">In Prüfung</span>}
+	                          </div>
+	                          <div className="text-xs text-gray-400 mt-1">Mindestrendite 2,5 %, Sharpe-Ziel 0,5 und historischer Drawdown-Zielwert 25 %. Nur Titel mit belegter Preisbeobachtung über zehn Kalenderjahre.</div>
+	                        </button>
+	                      </div>
+	                      {advancedAvailable ? (
+	                        <p className="text-xs text-amber-200 leading-relaxed">Diese Option optimiert gegen drei Ziele zugleich. Das Ergebnis weist transparent aus, ob Dividendenschwelle, Sharpe und maximaler historischer Drawdown tatsächlich erreicht wurden.</p>
+	                      ) : (
+	                        <p className="text-xs text-gray-500 leading-relaxed">Der 10-Jahres-Modus ist methodisch vorbereitet, aber standardmässig deaktiviert. Bis zur expliziten Freigabe bleibt der bestehende Dividendenfokus unverändert.</p>
+	                      )}
+	                    </div>
+	                  );
+	                })()}
+
+	                {/* Proposal result */}
                 {autoProposal ? (
                   <div className="space-y-4">
                     {/* A: Hinweis, dass die KI-Gegenprüfung noch läuft und sich der Vorschlag noch ändern kann */}
@@ -1104,10 +1156,16 @@ export default function PortfolioBuilderWizard() {
                             <span className="text-base font-mono font-semibold text-white">~{(autoProposal as any).metrics.volatilityPct.toFixed(1)}%</span>
                             <span className="text-sm text-gray-400">Schwankung</span>
                           </div>
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="text-base font-mono font-semibold text-white">{(autoProposal as any).metrics.sharpe.toFixed(2)}</span>
-                            <span className="text-sm text-gray-400">Sharpe</span>
-                          </div>
+	                          <div className="flex items-baseline gap-1.5">
+	                            <span className="text-base font-mono font-semibold text-white">{(autoProposal as any).metrics.sharpe.toFixed(2)}</span>
+	                            <span className="text-sm text-gray-400">Sharpe</span>
+	                          </div>
+	                          {(autoProposal as any).metrics.maxDrawdownPct != null && (
+	                            <div className="flex items-baseline gap-1.5">
+	                              <span className="text-base font-mono font-semibold text-amber-300">−{Math.abs((autoProposal as any).metrics.maxDrawdownPct).toFixed(1)}%</span>
+	                              <span className="text-sm text-gray-400">Max. Drawdown</span>
+	                            </div>
+	                          )}
                         </>
                       )}
                       {(autoProposal as any).profile?.liquidityNeedPct > 0 && (
