@@ -40,6 +40,7 @@ import {
 import { getFxRate, getStockCurrency } from "../fxHelper";
 import { ENV } from "../_core/env";
 import { toEodhdSymbol } from "../lib/eodhdSymbol";
+import { normalizeTickerForDb } from "../tickerNormalization";
 // ─────────────────────────────────────────────
 // DB-based price fetcher (replaces Yahoo Finance)
 // Uses historicalPrices table populated by EODHD daily cron
@@ -58,7 +59,7 @@ async function fetchPricesFromDB(
     .split("T")[0];
   // Normalize tickers for DB lookup
   const normalizedMap: Record<string, string> = {};
-  for (const t of tickers) normalizedMap[t] = normalizeTicker(t);
+  for (const t of tickers) normalizedMap[t] = normalizeTickerForDb(t);
   const uniqueNorm = Array.from(new Set(Object.values(normalizedMap)));
   // Datumsfilter gehoert in die Abfrage. Vorher wurde die KOMPLETTE Historie
   // aller Titel geladen und erst in JavaScript beschnitten — bei Dutzenden
@@ -199,14 +200,6 @@ export interface TechnicalIndicators {
   rsiHistory: Array<{ date: string; value: number }>;
   overallSignal: "buy" | "hold" | "sell";
   overallDescription: string;
-}
-
-// ─────────────────────────────────────────────
-// Ticker Normalization
-// ─────────────────────────────────────────────
-function normalizeTicker(ticker: string): string {
-  if (ticker.endsWith(".US")) return ticker.slice(0, -3);
-  return ticker;
 }
 
 // ─────────────────────────────────────────────
@@ -1835,7 +1828,7 @@ function calcBollingerBands(
  */
 export async function calcTechnicalAnalysis(input: TechnicalAnalysisInput): Promise<TechnicalIndicators> {
   const { ticker, lookbackDays = 180 } = input;
-  const normalizedTicker = normalizeTicker(ticker);
+  const normalizedTicker = normalizeTickerForDb(ticker);
 
   const end = new Date();
   // Use 2x lookback to ensure enough data for RSI(14) warm-up period

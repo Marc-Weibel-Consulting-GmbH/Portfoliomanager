@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from 'react';
+import { buildProposalAnalysisCopy } from '@/lib/proposalAnalysisCopy';
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -118,6 +119,7 @@ const HORIZONS = [
   { value: 2, label: "1–3 Jahre", description: "Kurzfristig — Kapital bald benötigt", icon: <Clock className="h-7 w-7" /> },
   { value: 5, label: "3–7 Jahre", description: "Mittelfristig — moderater Zeithorizont", icon: <Clock className="h-7 w-7" /> },
   { value: 10, label: "7–15 Jahre", description: "Langfristig — Zeit für Wachstum", icon: <Clock className="h-7 w-7" /> },
+  { value: 15, label: "15 Jahre", description: "Langfristig — klarer Planungshorizont", icon: <Clock className="h-7 w-7" /> },
   { value: 20, label: "15+ Jahre", description: "Sehr langfristig — maximales Wachstumspotenzial", icon: <Clock className="h-7 w-7" /> },
 ];
 
@@ -181,6 +183,7 @@ export default function PortfolioBuilderWizard() {
   // Keine Vorauswahl: Dieser Modus kann nur nach expliziter Serverfreigabe
   // angefragt werden und erstellt ohne anschliessende Übernahme kein Portfolio.
   const [autoOptimizationObjective, setAutoOptimizationObjective] = useState<AutoOptimizationObjective>("standard");
+  const [autoTrancheCount, setAutoTrancheCount] = useState<3 | 4>(3);
 
   // ── Manual / shared state ──
   const [portfolioType, setPortfolioType] = useState<PortfolioType | null>(null);
@@ -335,7 +338,7 @@ export default function PortfolioBuilderWizard() {
       if (savedProfile.riskProfile) setAutoRisk(savedProfile.riskProfile);
       if (savedProfile.investmentHorizonYears) {
         const yr = savedProfile.investmentHorizonYears;
-        setAutoHorizon(yr <= 3 ? 2 : yr <= 7 ? 5 : yr <= 15 ? 10 : 20);
+        setAutoHorizon(yr <= 3 ? 2 : yr <= 7 ? 5 : yr < 15 ? 10 : yr === 15 ? 15 : 20);
       }
       if (Array.isArray(savedProfile.excludedSectors) && savedProfile.excludedSectors.length > 0) {
         setAutoExcluded(savedProfile.excludedSectors);
@@ -452,7 +455,7 @@ export default function PortfolioBuilderWizard() {
       const alloc = calculateAllocation();
       // Extract cash reserve percentage from KI proposal profile (liquidityNeedPct)
       // This ensures the server stores the correct cashBalance when positions only cover e.g. 50% of capital
-      const liquidityNeedPct = (autoProposal as any)?.profile?.liquidityNeedPct ?? 0;
+      const liquidityNeedPct = (autoProposal as any)?.cashReservePct ?? (autoProposal as any)?.profile?.liquidityNeedPct ?? 0;
       const portfolioData: Record<string, any> = {
         stocks: selectedStocks.map((s) => {
           const a = alloc.find((x) => x.ticker === s.ticker);
@@ -569,7 +572,7 @@ export default function PortfolioBuilderWizard() {
       && objectiveCapabilities?.dividendQuality10y.enabled === true
       ? "dividend_quality_10y"
       : "standard";
-    startProposal.mutate({ investmentAmount: capital, stocksOnly, optimizationObjective });
+    startProposal.mutate({ investmentAmount: capital, stocksOnly, optimizationObjective, trancheCount: autoTrancheCount });
   };
 
   // Accepts the proposal — uses adjustedPositions (KI-Empfehlungen eingearbeitet) if available
@@ -592,7 +595,7 @@ export default function PortfolioBuilderWizard() {
     // Eine Normierung auf 100 % hätte die Positionen also auf das volle Kapital
     // dimensioniert und die Reserve obendrauf gelegt — das Portfolio wäre mit
     // 110 % des Einsatzes gestartet und «Seit Kauf» am ersten Tag bei +10 %.
-    const cashPct = parseFloat(String((autoProposal as any)?.profile?.liquidityNeedPct ?? 0)) || 0;
+    const cashPct = parseFloat(String((autoProposal as any)?.cashReservePct ?? (autoProposal as any)?.profile?.liquidityNeedPct ?? 0)) || 0;
     const zielSumme = cashPct > 0 && cashPct < 100 ? 100 - cashPct : 100;
     const totalW = source.reduce((s: number, p: any) => s + (parseFloat(String(p.weightPct ?? p.weight ?? '0')) || 0), 0);
     const positionsToUse: any[] = totalW > 0
@@ -980,6 +983,7 @@ export default function PortfolioBuilderWizard() {
 	                    RISK_PROFILES.find((r) => r.value === autoRisk)?.label,
 	                    HORIZONS.find((h) => h.value === autoHorizon)?.label,
 	                    autoOptimizationObjective === "dividend_quality_10y" ? "Dividende + Qualität (10 J.)" : null,
+	                    `${autoTrancheCount} manuelle Tranchen`,
 	                  ].map((label, i) => label && (
                     <span key={i} className="px-3 py-1 rounded-full bg-[#00CFC1]/15 text-[#00CFC1] text-sm font-medium">
                       {label}
@@ -1119,6 +1123,32 @@ export default function PortfolioBuilderWizard() {
 	                  );
 	                })()}
 
+                {autoGoal === "dividends" && (
+                  <div className="rounded-lg border border-white/10 bg-[#0f1420] p-4 space-y-3">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <Label className="text-gray-300">Geplanter Einstieg</Label>
+                      <span className="text-xs text-gray-500">Jede Tranche nur nach Ihrer separaten Freigabe</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {[3, 4].map((count) => (
+                        <button
+                          key={count}
+                          type="button"
+                          disabled={isProposalRunning || !!autoProposal}
+                          onClick={() => setAutoTrancheCount(count as 3 | 4)}
+                          className={`rounded-lg border p-3 text-left transition-colors ${autoTrancheCount === count ? "border-[#00CFC1]/60 bg-[#00CFC1]/10" : "border-white/10 hover:border-white/25"} disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          <div className={`text-sm font-semibold ${autoTrancheCount === count ? "text-[#00CFC1]" : "text-white"}`}>{count} Tranchen</div>
+                          <div className="text-xs text-gray-400 mt-1">Der Gesamtbetrag wird centgenau aufgeteilt. Es entstehen keine automatischen Käufe.</div>
+                        </button>
+                      ))}
+                    </div>
+                    {autoRisk === "konservativ" && (
+                      <p className="text-xs text-amber-200 leading-relaxed">Konservatives Schwankungsband: historischer Maximalverlust bis 15 % bevorzugt; zwischen 15 % und 25 % ist eine explizite Review erforderlich. Historische Kennzahlen sind keine Garantie.</p>
+                    )}
+                  </div>
+                )}
+
 	                {/* Proposal result */}
                 {autoProposal ? (
                   <div className="space-y-4">
@@ -1146,31 +1176,31 @@ export default function PortfolioBuilderWizard() {
                         <span className="text-xl font-bold text-[#00CFC1]">{autoProposal.positions.length}</span>
                         <span className="text-sm text-gray-400">Titel</span>
                       </div>
-                      {(autoProposal as any).metrics && (
-                        <>
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="text-base font-mono font-semibold text-white">~{(autoProposal as any).metrics.expectedReturnPct.toFixed(1)}%</span>
-                            <span className="text-sm text-gray-400">Rendite p.a.</span>
-                          </div>
-                          <div className="flex items-baseline gap-1.5">
-                            <span className="text-base font-mono font-semibold text-white">~{(autoProposal as any).metrics.volatilityPct.toFixed(1)}%</span>
-                            <span className="text-sm text-gray-400">Schwankung</span>
-                          </div>
+	                      {(autoProposal as any).metrics && (
+	                        <>
+	                          <div className="flex items-baseline gap-1.5">
+	                            <span className="text-base font-mono font-semibold text-white">~{(autoProposal as any).metrics.expectedReturnPct.toFixed(1)}%</span>
+	                            <span className="text-sm text-gray-400">{(autoProposal as any).metrics.titlePrefix} · Rendite p.a.</span>
+	                          </div>
+	                          <div className="flex items-baseline gap-1.5">
+	                            <span className="text-base font-mono font-semibold text-white">~{(autoProposal as any).metrics.volatilityPct.toFixed(1)}%</span>
+	                            <span className="text-sm text-gray-400">{(autoProposal as any).metrics.titlePrefix} · Schwankung</span>
+	                          </div>
 	                          <div className="flex items-baseline gap-1.5">
 	                            <span className="text-base font-mono font-semibold text-white">{(autoProposal as any).metrics.sharpe.toFixed(2)}</span>
-	                            <span className="text-sm text-gray-400">Sharpe</span>
+	                            <span className="text-sm text-gray-400">{(autoProposal as any).metrics.titlePrefix} · Sharpe</span>
 	                          </div>
 	                          {(autoProposal as any).metrics.maxDrawdownPct != null && (
 	                            <div className="flex items-baseline gap-1.5">
 	                              <span className="text-base font-mono font-semibold text-amber-300">−{Math.abs((autoProposal as any).metrics.maxDrawdownPct).toFixed(1)}%</span>
-	                              <span className="text-sm text-gray-400">Max. Drawdown</span>
+	                              <span className="text-sm text-gray-400">{(autoProposal as any).metrics.titlePrefix} · Max. Drawdown</span>
 	                            </div>
 	                          )}
                         </>
                       )}
-                      {(autoProposal as any).profile?.liquidityNeedPct > 0 && (
+                      {(autoProposal as any).cashReservePct > 0 && (
                         <div className="flex items-baseline gap-1.5">
-                          <span className="text-base font-mono font-semibold text-emerald-400">{(autoProposal as any).profile.liquidityNeedPct}%</span>
+                          <span className="text-base font-mono font-semibold text-emerald-400">{(autoProposal as any).cashReservePct}%</span>
                           <span className="text-sm text-gray-400">Cash-Reserve</span>
                         </div>
                       )}
@@ -1180,12 +1210,18 @@ export default function PortfolioBuilderWizard() {
                         {(autoProposal as any).metrics?.basisJahreMedian != null
                           ? `historisch geschätzt · Ø ${(autoProposal as any).metrics.basisJahreMedian} J. Kurshistorie`
                           : 'historisch geschätzt'}
-                      </span>
-                    </div>
-                    {/* Anlageklassen-Mischung des Vorschlags (Multi-Asset-Sleeve, vor Cash-Quote) */}
+	                      </span>
+	                    </div>
+	                    {(autoProposal as any).metrics?.scopeNote && (
+	                      <div className="flex items-start gap-2 rounded-lg border border-amber-500/35 bg-amber-500/10 px-4 py-2.5 text-xs leading-relaxed text-amber-100">
+	                        <span className="mt-0.5 text-amber-300">Hinweis</span>
+	                        <p>{(autoProposal as any).metrics.scopeNote}</p>
+	                      </div>
+	                    )}
+	                    {/* Endgültige Anlageklassen-Mischung nach Cash-Abzug. */}
                     {(autoProposal as any).assetAllocation && (
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-gray-400">Mischung:</span>
+                        <span className="text-xs text-gray-400">Gesamte Mischung:</span>
                         {Object.entries((autoProposal as any).assetAllocation as Record<string, number>)
                           .filter(([, v]) => v > 0)
                           .map(([k, v]) => (
@@ -1193,6 +1229,11 @@ export default function PortfolioBuilderWizard() {
                               {ASSET_CLASS_LABELS[k] ?? k} {v}%
                             </span>
                           ))}
+                        {(autoProposal as any).cashReservePct > 0 && (
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-200 text-xs border border-emerald-500/30">
+                            Liquidität {(autoProposal as any).cashReservePct}%
+                          </span>
+                        )}
                       </div>
                     )}
                     {(autoProposal as any).weighting?.note && (
@@ -1217,19 +1258,23 @@ export default function PortfolioBuilderWizard() {
                       const sharpe = metrics?.sharpe ?? null;
                       const ret = metrics?.expectedReturnPct ?? null;
                       const vol = metrics?.volatilityPct ?? null;
+                      const metricsScope = metrics?.scope ?? 'whole_portfolio';
                       const fxPct = (autoProposal as any).allocation?.fxWeightPct ?? null;
                       // Bevorzugt die ausführliche KI-Gesamtbewertung (verdict, nach
                       // dem Enhancing-Schritt vorhanden); vorher/als Fallback das
                       // einfache Kennzahlen-Template.
                       const llmVerdict = (autoProposal as any).synthesizerVerdict;
+                      const fallbackCopy = buildProposalAnalysisCopy({
+                        positionCount: autoProposal.positions.length,
+                        expectedReturnPct: ret,
+                        sharpe,
+                        volatilityPct: vol,
+                        metricsScope,
+                      });
                       const portfolioSummary =
                         (typeof llmVerdict === 'string' && llmVerdict.trim().length > 40)
                           ? llmVerdict.trim()
-                          : `Dieses Portfolio umfasst ${autoProposal.positions.length} Titel` +
-                            (ret != null ? ` mit einer erwarteten Rendite von ~${ret.toFixed(1)}% p.a.` : '') +
-                            (sharpe != null ? ` und einer Sharpe-Ratio von ${sharpe.toFixed(2)}` : '') +
-                            (vol != null ? ` (Volatilität ~${vol.toFixed(1)}%)` : '') +
-                            '. Die Zusammensetzung basiert auf Score-Ranking, Sektor-Diversifikation und Markt-Regime-Analyse.';
+                          : fallbackCopy.summary;
                       const portfolioFactors = [
                         ...(sharpe != null ? [{ label: 'Sharpe', value: sharpe.toFixed(2), sentiment: sharpe >= 0.5 ? 'positive' as const : sharpe >= 0.3 ? 'neutral' as const : 'negative' as const }] : []),
                         ...(ret != null ? [{ label: 'Erw. Rendite', value: `${ret.toFixed(1)}% p.a.`, sentiment: ret >= 8 ? 'positive' as const : ret >= 5 ? 'neutral' as const : 'negative' as const }] : []),
@@ -1240,13 +1285,13 @@ export default function PortfolioBuilderWizard() {
                       const panelVariant = confidence === 'hoch' ? 'success' as const : confidence === 'niedrig' ? 'warning' as const : 'default' as const;
                       return (
                         <InsightPanel
-                          title="KI-Portfolio-Analyse"
+                          title={fallbackCopy.title}
                           summary={portfolioSummary}
                           factors={portfolioFactors}
                           variant={panelVariant}
                           collapsible
                           defaultOpen={false}
-                          riskNote="Historische Schätzungen — keine Garantie für zukünftige Ergebnisse. Alle Angaben basieren auf Vergangenheitsdaten."
+                          riskNote={fallbackCopy.scopeNote ?? 'Historische Schätzungen — keine Garantie für zukünftige Ergebnisse. Alle Angaben basieren auf Vergangenheitsdaten.'}
                         />
                       );
                     })()}
@@ -1313,11 +1358,11 @@ export default function PortfolioBuilderWizard() {
                           positions={reviewPositions}
                           allStocks={allStocks}
                           onChange={setReviewPositions}
-                          cashReservePct={(autoProposal as any).profile?.liquidityNeedPct}
+                          cashReservePct={(autoProposal as any).cashReservePct ?? (autoProposal as any).profile?.liquidityNeedPct}
                         />
                         <p className="text-xs text-gray-500 mt-3">
                           Gewichte anpassen, Titel austauschen (Ticker anklicken), entfernen oder
-                          hinzufügen. Beim Übernehmen werden die Gewichte auf 100 % normiert.
+                          hinzufügen. Beim Übernehmen werden die Positionen auf den investierten Anteil normiert; die Cash-Reserve bleibt separat.
                         </p>
                       </div>
                     )}

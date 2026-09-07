@@ -4,6 +4,7 @@ import {
   DIVIDEND_QUALITY_10Y_LOOKBACK_DAYS,
   resolveDividendQualityObjective,
   hasTenYearPriceHistory,
+  historicalPriceKeyForDividendQuality,
 } from "./dividendQualityObjective";
 
 describe("dividend quality objective", () => {
@@ -43,5 +44,11 @@ describe("dividend quality objective", () => {
     expect(hasTenYearPriceHistory("2016-09-07", asOf)).toBe(true);
     expect(hasTenYearPriceHistory("2016-09-08", asOf)).toBe(false);
     expect(hasTenYearPriceHistory(null, asOf)).toBe(false);
+  });
+
+  it("uses the canonical historical-price key for the ten-year gate", () => {
+    expect(historicalPriceKeyForDividendQuality("AAPL")).toBe("AAPL.US");
+    expect(historicalPriceKeyForDividendQuality("MSFT.US")).toBe("MSFT.US");
+    expect(historicalPriceKeyForDividendQuality("ENEL.MI")).toBe("ENEL.MI");
   });
 });

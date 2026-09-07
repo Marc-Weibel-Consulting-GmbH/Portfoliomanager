@@ -769,3 +769,33 @@
 - [x] Einen transparenten Zielkonfliktvertrag für Dividendenqualität, risikoadjustierte Rendite und maximalen Drawdown definieren; fehlende Historie muss zum Ausschluss oder sichtbaren Datenstatus führen
 - [x] Zusätzliche, standardmässig deaktivierte Wizard-/Optimierungsoptionen samt 10-Jahres-Datengate testgetrieben ergänzen, ohne eine Portfolioerstellung, Score-, Signal- oder Handelswirkung auszulösen
 - [x] Die Zielwahl, Datenlücken und resultierende Erklärung im Wizard live prüfen und die methodischen Grenzen dokumentieren
+
+## Konservativer Dividenden-Entwurf — menschliche Prüfung (2026-09-07)
+- [x] Rahmenbedingungen für einen unverbindlichen Entwurf dokumentieren: CHF 600'000, 15 Jahre, konservativ, Liquidität separat und gestaffelter Einstieg in drei bis vier Tranchen
+- [x] Bestehende Datenabdeckung, Dividenden-Qualitätsmodus und konservative Schwankungsbandbreite auf die Entwurfsanforderungen prüfen
+- [x] Eine nicht ausführende Entwurfsansicht mit Tranchierung, Zielbandbreite, Datenqualitätsstatus und manueller Review-Grenze vorbereiten
+- [x] Entwurfsresultat live prüfen und ausschliesslich zur menschlichen Entscheidung vorlegen; kein Portfolio, keine Transaktion und keine Flag-Freigabe
+
+## Dividenden-Entwurf im Wizard als Portfolio übernehmen (2026-09-07)
+- [x] Den überprüften Dividenden-Entwurf mit Anlagebetrag, Tranchierungsplan und Risikoband als explizite Wizard-Vorschau bereitstellen
+- [x] Die Portfolioanlage erst nach sichtbarer Nutzerübernahme mit dem bestehenden sicheren Erstellungsvertrag verbinden; keine Börsenorder oder Geldbewegung auslösen
+- [ ] Den konkreten Erstellungsfluss mit Wert-, Cash- und Transaktionsinvarianten live sowie regressiv prüfen
+
+## EODHD-Zehnjahres-Backfill für Dividenden-Qualitätsprüfung (2026-09-07)
+- [x] Fehlende Langfristreihen der kuratierten Dividendenkandidaten gegen vorhandene EODHD-Symbole und bereits persistierte Kurse abgrenzen
+- [x] Ausschliesslich fehlende historische EODHD-Tageskurse bis zum jeweiligen zehnjährigen Stichtag idempotent nachladen, ohne bestehende Kurs-, Portfolio- oder Transaktionsdaten zu löschen
+- [x] Den Backfill auf Duplikate, zeitliche Vollständigkeit, Anpassungsbasis und die erreichbare zehnjährige Abdeckung validieren
+- [x] Das Dividenden-Qualitäts-Datengate und den konkreten Entwurf erst nach belegter Datenaktualisierung neu bewerten
+
+## Konservativer Dividendenentwurf: 15 Jahre und Tranchierung (2026-09-07)
+- [x] Exakten 15-Jahres-Anlagehorizont und einen freiwilligen 3-/4-Tranchen-Plan im bestehenden Vorschlagsvertrag ergänzen, ohne eine Börsenorder, Geldbewegung oder automatische Portfolioanlage auszulösen
+- [x] Die Parameter, Beträge und die vollständige Zielallokation als klaren, editierbaren Wizard-Entwurf anzeigen und erst nach sichtbarer Nutzerübernahme zur Portfolioanlage zulassen
+
+## Multi-Asset-Kennzahlen im Dividendenentwurf (2026-09-07)
+- [x] Sicherstellen, dass erwartete Rendite, Volatilität, Sharpe und historischer Drawdown im Multi-Asset-Entwurf auf der vollständigen Zielallokation beruhen oder andernfalls als Kennzahlen des Aktienteils gekennzeichnet bzw. nicht dargestellt werden
+- [x] Die narrative KI-Analyse im Multi-Asset-Entwurf auf denselben Aktienkomponenten-Geltungsbereich begrenzen und keine Gesamtportfolioeigenschaft aus Aktienteilkennzahlen ableiten
+- [x] Fehlende historische FX-Reihen im Dividenden-Qualitätsentwurf als mögliche Kennzahlenverzerrung reproduzieren, abgrenzen und vor einer Entwurfsentscheidung korrekt behandeln
+- [x] Sicherstellen, dass die ausgewiesene Cash-Reserve die Summe aller investierten Multi-Asset-Positionen entsprechend reduziert und der Entwurf inklusive Cash exakt 100 Prozent des Anlagebetrags ergibt
+
+## Deterministischer Vorschlagsabschluss bei optionalem KI-Ausfall (2026-09-07)
+- [x] Sicherstellen, dass ein bereits berechneter Portfolioentwurf bei nicht verfügbarem Challenger/Synthesizer zeitbegrenzt als gekennzeichneter deterministischer Entwurf abgeschlossen wird statt im Wizard zu warten

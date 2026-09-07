@@ -60,9 +60,9 @@ function buildRows() {
   const series = (ticker: string, fn: (i: number) => number) =>
     dates.map((date, i) => ({ ticker, date, close: fn(i), adj: null }));
   return {
-    T1: series("T1", (i) => 100 + 0.05 * i + 2 * Math.sin(i * 0.7)),
-    T2: series("T2", (i) => 50 + 0.06 * i + 1.5 * Math.sin(i * 1.3 + 1)),
-    T3: series("T3", (i) => 200 + 0.08 * i + 3 * Math.sin(i * 0.5 + 2)),
+    "T1.US": series("T1.US", (i) => 100 + 0.05 * i + 2 * Math.sin(i * 0.7)),
+    "T2.US": series("T2.US", (i) => 50 + 0.06 * i + 1.5 * Math.sin(i * 1.3 + 1)),
+    "T3.US": series("T3.US", (i) => 200 + 0.08 * i + 3 * Math.sin(i * 0.5 + 2)),
   };
 }
 
@@ -134,7 +134,7 @@ describe("CT-16 optimizeWeights via optimizePortfolio (R-34 gefixt)", () => {
     // T3 hat nur 20 Renditen (< 60) → wird ausgeschlossen; T1/T2 werden
     // normal optimiert. Vorher drückte T3 die gemeinsame Datums-Schnittmenge
     // aller drei Titel auf 20 Tage und die GESAMTE Optimierung brach ab.
-    h.rowsByTicker.T3 = h.rowsByTicker.T3.slice(0, 21);
+    h.rowsByTicker["T3.US"] = h.rowsByTicker["T3.US"].slice(0, 21);
     const res = await optimizePortfolio({ tickers: ["T1", "T2", "T3"], method: "max_sharpe" });
     expect(res.tickers).toEqual(["T1", "T2"]);
     expect(res.excludedShortHistory).toEqual([{ ticker: "T3", dataPoints: 20 }]);
@@ -142,8 +142,8 @@ describe("CT-16 optimizeWeights via optimizePortfolio (R-34 gefixt)", () => {
   });
 
   it("OPT-7: unter 2 Titeln mit Mindesthistorie bricht die Optimierung ehrlich ab", async () => {
-    h.rowsByTicker.T2 = h.rowsByTicker.T2.slice(0, 21);
-    h.rowsByTicker.T3 = h.rowsByTicker.T3.slice(0, 21);
+    h.rowsByTicker["T2.US"] = h.rowsByTicker["T2.US"].slice(0, 21);
+    h.rowsByTicker["T3.US"] = h.rowsByTicker["T3.US"].slice(0, 21);
     await expect(
       optimizePortfolio({ tickers: ["T1", "T2", "T3"], method: "max_sharpe" })
     ).rejects.toThrow(/Zu wenig Kurshistorie/);
@@ -156,10 +156,10 @@ describe("CT-16 optimizeWeights via optimizePortfolio (R-34 gefixt)", () => {
     const shiftedDates = Array.from({ length: 61 }, (_, i) =>
       new Date(Date.UTC(2026, 3, 42 + i)).toISOString().slice(0, 10)
     );
-    h.rowsByTicker.T2 = shiftedDates.map((date, i) => ({
-      ticker: "T2", date, close: 50 + 0.06 * i + 1.5 * Math.sin(i * 1.3 + 1), adj: null,
+    h.rowsByTicker["T2.US"] = shiftedDates.map((date, i) => ({
+      ticker: "T2.US", date, close: 50 + 0.06 * i + 1.5 * Math.sin(i * 1.3 + 1), adj: null,
     }));
-    delete (h.rowsByTicker as any).T3;
+    delete (h.rowsByTicker as any)["T3.US"];
     await expect(
       optimizePortfolio({ tickers: ["T1", "T2"], method: "max_sharpe" })
     ).rejects.toThrow(/gemeinsame Handelstage/);

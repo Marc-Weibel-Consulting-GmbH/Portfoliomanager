@@ -1,0 +1,3591 @@
+{
+  "asOfDate": "2026-09-07",
+  "rows": [
+    {
+      "ticker": "6856.T",
+      "companyName": "Horiba Seisakusho",
+      "eodhdSymbol": "01H.F",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "7735.T",
+      "companyName": "SCREEN Holdings",
+      "eodhdSymbol": "SCRNY.US",
+      "earliestBefore": "2026-04-27",
+      "plan": {
+        "ticker": "7735.T",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2026-04-26",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2026-04-27",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "8015.T",
+      "companyName": "Toyota Tsusho",
+      "eodhdSymbol": "9TO.F",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "9962.T",
+      "companyName": "MISUMI GROUP INC.",
+      "eodhdSymbol": "MSSMY.US",
+      "earliestBefore": "2020-12-22",
+      "plan": {
+        "ticker": "9962.T",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2020-12-21",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2020-12-22",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "AAPL.US",
+      "companyName": "Apple Inc.",
+      "eodhdSymbol": "AAPL.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "AAPL.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "AAPL.US",
+      "companyName": "Apple Inc",
+      "eodhdSymbol": "AAPL.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "AAPL.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "ABBN.SW",
+      "companyName": "ABB",
+      "eodhdSymbol": "ABBN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ABBV.US",
+      "companyName": "AbbVie Inc",
+      "eodhdSymbol": "ABBV.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "ABBV.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "ABX.TO",
+      "companyName": "Barrick Gold Corp",
+      "eodhdSymbol": "ABX.TO",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ACA.PA",
+      "companyName": "Crédit Agricole",
+      "eodhdSymbol": "ACA.PA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ACWI.US",
+      "companyName": "iShares MSCI ACWI ETF",
+      "eodhdSymbol": "ACWI.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "ACWI.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "ADB.MI",
+      "companyName": "Aeroporto Guglielmo Marconi di Bologna",
+      "eodhdSymbol": "169.F",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ADEN.SW",
+      "companyName": "Adecco Group AG Class N",
+      "eodhdSymbol": "ADEN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ADI.US",
+      "companyName": "Analog Devices",
+      "eodhdSymbol": "ADI.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "AGG.US",
+      "companyName": "iShares Core U.S. Aggregate Bond ETF",
+      "eodhdSymbol": "AGG.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "AGG.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "AGX.US",
+      "companyName": "Argan",
+      "eodhdSymbol": "AGX.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "AGX.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "AKRBP.OL",
+      "companyName": "Aker BP",
+      "eodhdSymbol": "AKRBP.OL",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ALAB.US",
+      "companyName": "Astera Labs Inc",
+      "eodhdSymbol": "ALAB.US",
+      "earliestBefore": "2024-03-20",
+      "plan": {
+        "ticker": "ALAB.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-03-19",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2024-03-20",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "ALV.DE",
+      "companyName": "Allianz",
+      "eodhdSymbol": "ALV.XETRA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "AMAT.US",
+      "companyName": "Applied Materials",
+      "eodhdSymbol": "AMAT.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "AMD.US",
+      "companyName": "Advanced Micro Devices",
+      "eodhdSymbol": "AMD.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "AMGN.US",
+      "companyName": "Amgen Inc",
+      "eodhdSymbol": "AMGN.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "AMKR.US",
+      "companyName": "Amkor Technology",
+      "eodhdSymbol": "AMKR.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "AMT.US",
+      "companyName": "American Tower Corp",
+      "eodhdSymbol": "AMT.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "AMZN.US",
+      "companyName": "Amazon.com Inc",
+      "eodhdSymbol": "AMZN.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ANET.US",
+      "companyName": "Arista Networks Inc",
+      "eodhdSymbol": "ANET.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "ANET.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "APD.US",
+      "companyName": "Air Products and Chemicals Inc",
+      "eodhdSymbol": "APD.US",
+      "earliestBefore": "2024-07-15",
+      "plan": {
+        "ticker": "APD.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-14",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1978,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-15",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "APP.US",
+      "companyName": "AppLovin Corp",
+      "eodhdSymbol": "APP.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "APP.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 432,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "AR.US",
+      "companyName": "Antero Resources",
+      "eodhdSymbol": "AR.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "AR.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "ARM.US",
+      "companyName": "ARM Holdings PLC",
+      "eodhdSymbol": "ARM.US",
+      "earliestBefore": "2023-09-14",
+      "plan": {
+        "ticker": "ARM.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2023-09-13",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2023-09-14",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "ASM.AS",
+      "companyName": "ASM International",
+      "eodhdSymbol": "ASM.AS",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ASML.AS",
+      "companyName": "ASML Holding",
+      "eodhdSymbol": "ASML.AS",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ATI.US",
+      "companyName": "Allegheny Technologies",
+      "eodhdSymbol": "ATI.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "ATI.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "AUTN.SW",
+      "companyName": "Autoneum Holding AG",
+      "eodhdSymbol": "AUTN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "AVGO.US",
+      "companyName": "Broadcom Inc",
+      "eodhdSymbol": "AVGO.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "AVGO.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "AXON.US",
+      "companyName": "Axon Enterprise Inc",
+      "eodhdSymbol": "AXON.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "AZN.L",
+      "companyName": "AstraZeneca PLC",
+      "eodhdSymbol": "AZN.LSE",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "B.US",
+      "companyName": "Barrick Mining Corporation",
+      "eodhdSymbol": "B.US",
+      "earliestBefore": "2026-08-26",
+      "plan": {
+        "ticker": "B.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2026-08-25",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 2509,
+      "insertedRows": 0,
+      "earliestAfter": "2026-08-26",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "BAC.US",
+      "companyName": "Bank of America",
+      "eodhdSymbol": "BAC.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "BAER.SW",
+      "companyName": "Julius Baer Gruppe AG",
+      "eodhdSymbol": "BAER.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "BAS.DE",
+      "companyName": "BASF SE",
+      "eodhdSymbol": "BAS.XETRA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "BATS.L",
+      "companyName": "British American Tobacco",
+      "eodhdSymbol": "BATS.LSE",
+      "earliestBefore": "2011-07-11",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-07-11",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "BAYN.DE",
+      "companyName": "Bayer",
+      "eodhdSymbol": "BAYN.XETRA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "BE.US",
+      "companyName": "Bloom Energy Corp",
+      "eodhdSymbol": "BE.US",
+      "earliestBefore": "2018-07-25",
+      "plan": {
+        "ticker": "BE.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2018-07-24",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2018-07-25",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "BHP.AX",
+      "companyName": "BHP Billiton",
+      "eodhdSymbol": "BHP.AU",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "BION.SW",
+      "companyName": "BB Biotech AG",
+      "eodhdSymbol": "BION.SW",
+      "earliestBefore": "2011-07-11",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-07-11",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "BKW.SW",
+      "companyName": "BKW AG",
+      "eodhdSymbol": "BKW.SW",
+      "earliestBefore": "2011-12-12",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-12-12",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "BLBD.US",
+      "companyName": "Blue Bird Corp",
+      "eodhdSymbol": "BLBD.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "BND.US",
+      "companyName": "Vanguard Total Bond Market ETF",
+      "eodhdSymbol": "BND.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "BND.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "BRK-B.US",
+      "companyName": "Berkshire Hathaway",
+      "eodhdSymbol": "BRK-B.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "BRKN.SW",
+      "companyName": "Burkhalter Holding AG",
+      "eodhdSymbol": "BRKN.SW",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "BTI.US",
+      "companyName": "British American Tobacco p.l.c.",
+      "eodhdSymbol": "BTI.US",
+      "earliestBefore": "2020-01-02",
+      "plan": {
+        "ticker": "BTI.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2020-01-01",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 839,
+      "insertedRows": 0,
+      "earliestAfter": "2020-01-02",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "BVS.US",
+      "companyName": "Bioventus Inc",
+      "eodhdSymbol": "BVS.US",
+      "earliestBefore": "2024-07-29",
+      "plan": {
+        "ticker": "BVS.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-28",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 869,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-29",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "CAT.US",
+      "companyName": "Caterpillar Inc",
+      "eodhdSymbol": "CAT.US",
+      "earliestBefore": "2024-07-17",
+      "plan": {
+        "ticker": "CAT.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-16",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1980,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-17",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "CEG.US",
+      "companyName": "Constellation Energy Corporation",
+      "eodhdSymbol": "CEG.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "CEG.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 622,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "CHDVD.SW",
+      "companyName": "iShares Swiss Dividend ETF",
+      "eodhdSymbol": "CHDVD.SW",
+      "earliestBefore": "2014-04-29",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2014-04-29",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "CHSPI.SW",
+      "companyName": "iShares Core SPI ETF (CH)",
+      "eodhdSymbol": "CHSPI.SW",
+      "earliestBefore": "2014-04-29",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2014-04-29",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "CIFR.US",
+      "companyName": "Cipher Mining Inc",
+      "eodhdSymbol": "CIFR.US",
+      "earliestBefore": "2020-10-20",
+      "plan": {
+        "ticker": "CIFR.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2020-10-19",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2020-10-20",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "CMBN.SW",
+      "companyName": "Cembra Money Bank",
+      "eodhdSymbol": "CMBN.SW",
+      "earliestBefore": "2013-10-30",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2013-10-30",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "CRWD.US",
+      "companyName": "Crowdstrike Holding",
+      "eodhdSymbol": "CRWD.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "CRWD.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 896,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "CRWV.US",
+      "companyName": "CoreWeave Inc",
+      "eodhdSymbol": "CRWV.US",
+      "earliestBefore": "2025-03-28",
+      "plan": {
+        "ticker": "CRWV.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2025-03-27",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2025-03-28",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "CSL.US",
+      "companyName": "Carlisle Cos Inc",
+      "eodhdSymbol": "CSL.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "D05.SI",
+      "companyName": "DBS Group",
+      "eodhdSymbol": "DBSDY.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "DAVE.US",
+      "companyName": "Dave Inc",
+      "eodhdSymbol": "DAVE.US",
+      "earliestBefore": "2021-04-26",
+      "plan": {
+        "ticker": "DAVE.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2021-04-25",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2021-04-26",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "DECK.US",
+      "companyName": "Deckers Outdoor Corporation",
+      "eodhdSymbol": "DECK.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "DECK.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "DELL.US",
+      "companyName": "Dell Technologies",
+      "eodhdSymbol": "DELL.US",
+      "earliestBefore": "2016-08-17",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-17",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "DGE.L",
+      "companyName": "Diageo",
+      "eodhdSymbol": "DGE.LSE",
+      "earliestBefore": "2011-07-11",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-07-11",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "DINO.US",
+      "companyName": "HF Sinclair Corp",
+      "eodhdSymbol": "DINO.US",
+      "earliestBefore": "2024-07-29",
+      "plan": {
+        "ticker": "DINO.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-28",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1988,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-29",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "DIOD.US",
+      "companyName": "Diodes",
+      "eodhdSymbol": "DIOD.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "DOCN.US",
+      "companyName": "DigitalOcean Holdings",
+      "eodhdSymbol": "DOCN.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "DOCN.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 830,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "DWS.DE",
+      "companyName": "DWS Group",
+      "eodhdSymbol": "DWS.XETRA",
+      "earliestBefore": "2018-03-23",
+      "plan": {
+        "ticker": "DWS.DE",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2018-03-22",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2018-03-23",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "EEM.US",
+      "companyName": "iShares MSCI Emerging Markets ETF",
+      "eodhdSymbol": "EEM.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "EMR.US",
+      "companyName": "Emerson Electric Company",
+      "eodhdSymbol": "EMR.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "EN.PA",
+      "companyName": "Bouygues",
+      "eodhdSymbol": "EN.PA",
+      "earliestBefore": "2011-07-11",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-07-11",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ENEL.MI",
+      "companyName": "Enel",
+      "eodhdSymbol": "ENL.XETRA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ENGI.PA",
+      "companyName": "Engie",
+      "eodhdSymbol": "ENGI.PA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "EOSE.US",
+      "companyName": "Eos Energy Enterprise",
+      "eodhdSymbol": "EOSE.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "EOSE.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 648,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "EQUI.MI",
+      "companyName": "EQUITA GROUP S.P.A.",
+      "eodhdSymbol": "SR2.F",
+      "earliestBefore": "2015-02-09",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2015-02-09",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "EWL.US",
+      "companyName": "iShares MSCI Switzerland ETF",
+      "eodhdSymbol": "EWL.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "EWL.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "EXE.TO",
+      "companyName": "Extendicare Inc",
+      "eodhdSymbol": "EXE.TO",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "EXSA.DE",
+      "companyName": "iShares STOXX Europe 600 UCITS ETF",
+      "eodhdSymbol": "EXSA.XETRA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "FACC.VI",
+      "companyName": "FACC",
+      "eodhdSymbol": "FACC.VI",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "FHZN.SW",
+      "companyName": "Flughafen Zurich A",
+      "eodhdSymbol": "FHZN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "FISV.US",
+      "companyName": "Fiserv, Inc.",
+      "eodhdSymbol": "FISV.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "FIX.US",
+      "companyName": "Comfort Systems USA",
+      "eodhdSymbol": "FIX.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "FLEX.US",
+      "companyName": "Flex",
+      "eodhdSymbol": "FLEX.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "FLEX.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "FLXS.US",
+      "companyName": "Flexsteel Industries Inc",
+      "eodhdSymbol": "FLXS.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "FTK.US",
+      "companyName": "Flotek Industries Inc",
+      "eodhdSymbol": "FTK.US",
+      "earliestBefore": "2024-07-29",
+      "plan": {
+        "ticker": "FTK.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-28",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1988,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-29",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "GALD.SW",
+      "companyName": "Galderma Group A",
+      "eodhdSymbol": "GALD.SW",
+      "earliestBefore": "2024-03-21",
+      "plan": {
+        "ticker": "GALD.SW",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-03-20",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2024-03-21",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "GALE.SW",
+      "companyName": "Galenica AG",
+      "eodhdSymbol": "GALE.SW",
+      "earliestBefore": "2017-04-07",
+      "plan": {
+        "ticker": "GALE.SW",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2017-04-06",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2017-04-07",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "GE.US",
+      "companyName": "GE Aerospace",
+      "eodhdSymbol": "GE.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "GE.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "GEBN.SW",
+      "companyName": "Geberit AG",
+      "eodhdSymbol": "GEBN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "GF.SW",
+      "companyName": "Georg Fischer AG",
+      "eodhdSymbol": "GF.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "GFS.US",
+      "companyName": "GlobalFoundries",
+      "eodhdSymbol": "GFS.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "GFS.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 678,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "GIVN.SW",
+      "companyName": "Givaudan SA",
+      "eodhdSymbol": "GIVN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "GLD.US",
+      "companyName": "SPDR Gold Shares",
+      "eodhdSymbol": "GLD.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "GLD.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "GOOG.US",
+      "companyName": "Alphabet C (Google)",
+      "eodhdSymbol": "GOOG.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "GOOG.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "GOOGL.US",
+      "companyName": "Alphabet Inc",
+      "eodhdSymbol": "GOOGL.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "GOOGL.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "GPW.WA",
+      "companyName": "Warsaw Stock Exchange",
+      "eodhdSymbol": "GPW.WAR",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "HBAN.SW",
+      "companyName": "Helvetia Holding AG",
+      "eodhdSymbol": "HBAN.SW",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "HD.US",
+      "companyName": "The Home Depot, Inc.",
+      "eodhdSymbol": "HD.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "HIMS.US",
+      "companyName": "Hims & Hers Health",
+      "eodhdSymbol": "HIMS.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "HIMS.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 831,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "HOLN.SW",
+      "companyName": "Holcim AG",
+      "eodhdSymbol": "HOLN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "HOOD.US",
+      "companyName": "Robinhood Markets (A)",
+      "eodhdSymbol": "HOOD.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "HOOD.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 742,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "HWM.US",
+      "companyName": "Howmet Aerospace Inc.",
+      "eodhdSymbol": "HWM.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "HWM.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1934,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "IBE.MC",
+      "companyName": "Iberdrola S.A.",
+      "eodhdSymbol": "IBE.MC",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "IBM.US",
+      "companyName": "International Business Machines",
+      "eodhdSymbol": "IBM.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "IBS.LS",
+      "companyName": "IBERSOL SGPS SA NAM. EO 1",
+      "eodhdSymbol": "IBS.LS",
+      "earliestBefore": "2011-07-11",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-07-11",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "IG.MI",
+      "companyName": "Italgas",
+      "eodhdSymbol": "I10.F",
+      "earliestBefore": "2016-11-08",
+      "plan": {
+        "ticker": "IG.MI",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2016-11-07",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-11-08",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "INTC.US",
+      "companyName": "Intel Corporation",
+      "eodhdSymbol": "INTC.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "INTC.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "error",
+      "error": "The operation was aborted due to timeout"
+    },
+    {
+      "ticker": "INTU.US",
+      "companyName": "Intuit Inc",
+      "eodhdSymbol": "INTU.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "IOS.DE",
+      "companyName": "IONOS",
+      "eodhdSymbol": "IOS.XETRA",
+      "earliestBefore": "2023-02-08",
+      "plan": {
+        "ticker": "IOS.DE",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2023-02-07",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2023-02-08",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "IREN.US",
+      "companyName": "IREN Ltd",
+      "eodhdSymbol": "IREN.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "IREN.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 281,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "ISRG.US",
+      "companyName": "Intuitive Surgical, Inc.",
+      "eodhdSymbol": "ISRG.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ITX.MC",
+      "companyName": "Industria de Diseno Textil SA",
+      "eodhdSymbol": "ITX.MC",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "IWM.US",
+      "companyName": "iShares Russell 2000 ETF",
+      "eodhdSymbol": "IWM.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "IWM.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "JBL.US",
+      "companyName": "Jabil",
+      "eodhdSymbol": "JBL.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "JEPI.US",
+      "companyName": "JPMorgan Equity Premium Income ETF",
+      "eodhdSymbol": "JEPI.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "JEPI.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1041,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "JNJ.US",
+      "companyName": "Johnson & Johnson",
+      "eodhdSymbol": "JNJ.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "KAP.IL",
+      "companyName": "Kazatomprom",
+      "eodhdSymbol": "KAP.IL",
+      "earliestBefore": "2018-11-13",
+      "plan": {
+        "ticker": "KAP.IL",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2018-11-12",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2018-11-13",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "KIT.OL",
+      "companyName": "Kitron ASA",
+      "eodhdSymbol": "KIT.OL",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "KLAC.US",
+      "companyName": "KLA Corp",
+      "eodhdSymbol": "KLAC.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "KLAC.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "KNIN.SW",
+      "companyName": "Kuehne & Nagel",
+      "eodhdSymbol": "KNIN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "KREATE.HE",
+      "companyName": "KREATE GROUP OYJ",
+      "eodhdSymbol": "KREATE.HE",
+      "earliestBefore": "2021-02-19",
+      "plan": {
+        "ticker": "KREATE.HE",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2021-02-18",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2021-02-19",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "LGND.US",
+      "companyName": "Ligand Pharmaceuticals Incorporated",
+      "eodhdSymbol": "LGND.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "LIN.US",
+      "companyName": "Linde plc Ordinary Shares",
+      "eodhdSymbol": "LIN.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "LISN.SW",
+      "companyName": "Chocoladefabriken",
+      "eodhdSymbol": "LISN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "LLY.US",
+      "companyName": "Eli Lilly and Company",
+      "eodhdSymbol": "LLY.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "LLY.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "LOGN.SW",
+      "companyName": "Logitech International S.A.",
+      "eodhdSymbol": "LOGN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "LONN.SW",
+      "companyName": "Lonza Group AG",
+      "eodhdSymbol": "LONN.SW",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "LRCX.US",
+      "companyName": "Lam Research Corp",
+      "eodhdSymbol": "LRCX.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "LVMUY.US",
+      "companyName": "LVMH Moet Hennessy Louis Vuitton SA ADR",
+      "eodhdSymbol": "LVMUY.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "MAR.US",
+      "companyName": "Marriott International Inc",
+      "eodhdSymbol": "MAR.US",
+      "earliestBefore": "2026-08-13",
+      "plan": {
+        "ticker": "MAR.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2026-08-12",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 2500,
+      "insertedRows": 0,
+      "earliestAfter": "2026-08-13",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "MATX.US",
+      "companyName": "Matson Inc",
+      "eodhdSymbol": "MATX.US",
+      "earliestBefore": "2024-07-29",
+      "plan": {
+        "ticker": "MATX.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-28",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1988,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-29",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "MC.PA",
+      "companyName": "LVMH Moet Hennessy",
+      "eodhdSymbol": "MC.PA",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "MDB.US",
+      "companyName": "MongoDB Inc",
+      "eodhdSymbol": "MDB.US",
+      "earliestBefore": "2017-10-19",
+      "plan": {
+        "ticker": "MDB.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2017-10-18",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2017-10-19",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "MELI.US",
+      "companyName": "MercadoLibre Inc",
+      "eodhdSymbol": "MELI.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "MELI.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "META.US",
+      "companyName": "Meta Platforms Inc",
+      "eodhdSymbol": "META.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "META.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "MKSI.US",
+      "companyName": "MKS Instruments",
+      "eodhdSymbol": "MKSI.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "MKSI.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "MNG.L",
+      "companyName": "M&G",
+      "eodhdSymbol": "MNG.LSE",
+      "earliestBefore": "2019-10-21",
+      "plan": {
+        "ticker": "MNG.L",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2019-10-20",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2019-10-21",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "MO.US",
+      "companyName": "Altria Group, Inc.",
+      "eodhdSymbol": "MO.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "MO.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "MOH.US",
+      "companyName": "Molina Healthcare",
+      "eodhdSymbol": "MOH.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "MOH.AT",
+      "companyName": "Motor Oil (Hellas) Corinth Refineries S.A",
+      "eodhdSymbol": "MOH.AT",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "MOV.F",
+      "companyName": "Moncler SpA",
+      "eodhdSymbol": "MOV.F",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "MRK.US",
+      "companyName": "Merck & Company Inc",
+      "eodhdSymbol": "MRK.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "MRVL.US",
+      "companyName": "Marvell Technology",
+      "eodhdSymbol": "MRVL.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "MRVL.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "MSFT.US",
+      "companyName": "Microsoft Corp",
+      "eodhdSymbol": "MSFT.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "MSFT.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "MSTR.US",
+      "companyName": "MicroStrategy Incorporated",
+      "eodhdSymbol": "MSTR.US",
+      "earliestBefore": "2024-07-15",
+      "plan": {
+        "ticker": "MSTR.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-14",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1978,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-15",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "MTX.DE",
+      "companyName": "MTU Aero Engines",
+      "eodhdSymbol": "MTX.XETRA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "MU.US",
+      "companyName": "Micron Technology",
+      "eodhdSymbol": "MU.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "MUV2.DE",
+      "companyName": "Münchener Rück",
+      "eodhdSymbol": "MUV2.XETRA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "MYRG.US",
+      "companyName": "MYR Group",
+      "eodhdSymbol": "MYRG.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "MYRG.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "NDA-FI.HE",
+      "companyName": "Nordea Bank Abp",
+      "eodhdSymbol": "NDA-FI.HE",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "NEE.US",
+      "companyName": "NextEra Energy Inc",
+      "eodhdSymbol": "NEE.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "NEE.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "NESN.SW",
+      "companyName": "Nestle SA",
+      "eodhdSymbol": "NESN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "NET.US",
+      "companyName": "Cloudflare Inc",
+      "eodhdSymbol": "NET.US",
+      "earliestBefore": "2019-09-13",
+      "plan": {
+        "ticker": "NET.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2019-09-12",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2019-09-13",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "NFLX.US",
+      "companyName": "Netflix Inc",
+      "eodhdSymbol": "NFLX.US",
+      "earliestBefore": "2026-08-12",
+      "plan": {
+        "ticker": "NFLX.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2026-08-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 2499,
+      "insertedRows": 0,
+      "earliestAfter": "2026-08-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "NLBR.VI",
+      "companyName": "NOVA LJUBLJ.BANKA (NEW)",
+      "eodhdSymbol": "NLBR.VI",
+      "earliestBefore": "2026-03-09",
+      "plan": {
+        "ticker": "NLBR.VI",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2026-03-08",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2026-03-09",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "NN.AS",
+      "companyName": "NN Group NV",
+      "eodhdSymbol": "NN.AS",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "NOBL.US",
+      "companyName": "ProShares S&P 500 Dividend Aristocrats ETF",
+      "eodhdSymbol": "NOBL.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "NOBL.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "NOVN.SW",
+      "companyName": "Novartis AG",
+      "eodhdSymbol": "NOVN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "NOVO-B.CO",
+      "companyName": "Novo Nordisk A/S",
+      "eodhdSymbol": "NOVO-B.CO",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "NOW.US",
+      "companyName": "ServiceNow, Inc.",
+      "eodhdSymbol": "NOW.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "NOW.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "NTLA.US",
+      "companyName": "Intellia Therapeutic",
+      "eodhdSymbol": "NTLA.US",
+      "earliestBefore": "2016-05-06",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-05-06",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "NTRA.US",
+      "companyName": "Natera Inc",
+      "eodhdSymbol": "NTRA.US",
+      "earliestBefore": "2024-09-03",
+      "plan": {
+        "ticker": "NTRA.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-09-02",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 2013,
+      "insertedRows": 0,
+      "earliestAfter": "2024-09-03",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "NVDA.US",
+      "companyName": "NVIDIA Corp",
+      "eodhdSymbol": "NVDA.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "O.US",
+      "companyName": "Realty Income Corporation",
+      "eodhdSymbol": "O.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "OFN.SW",
+      "companyName": "Orell Fuessli Holding",
+      "eodhdSymbol": "OFN.SW",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "OII.US",
+      "companyName": "Oceaneering International Inc",
+      "eodhdSymbol": "OII.US",
+      "earliestBefore": "2024-07-29",
+      "plan": {
+        "ticker": "OII.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-28",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1988,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-29",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "OR.PA",
+      "companyName": "LOréal S.A.",
+      "eodhdSymbol": "OR.PA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ORA.PA",
+      "companyName": "Orange",
+      "eodhdSymbol": "ORA.PA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "ORCL.US",
+      "companyName": "Oracle Corporation",
+      "eodhdSymbol": "ORCL.US",
+      "earliestBefore": "2011-07-11",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-07-11",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "PANW.US",
+      "companyName": "Palo Alto Networks, Inc.",
+      "eodhdSymbol": "PANW.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "PANW.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "PARR.US",
+      "companyName": "Par Pacific Holdings Inc",
+      "eodhdSymbol": "PARR.US",
+      "earliestBefore": "2024-07-29",
+      "plan": {
+        "ticker": "PARR.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-28",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1988,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-29",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "PATH.US",
+      "companyName": "UiPath Inc",
+      "eodhdSymbol": "PATH.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "PATH.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 428,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "PCZ.DE",
+      "companyName": "ProCredit Holding",
+      "eodhdSymbol": "PCZ.XETRA",
+      "earliestBefore": "2016-12-22",
+      "plan": {
+        "ticker": "PCZ.DE",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2016-12-21",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-12-22",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "PENG.US",
+      "companyName": "Penguin Solutions",
+      "eodhdSymbol": "PENG.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "PENG.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1794,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "PG.US",
+      "companyName": "The Procter & Gamble Company",
+      "eodhdSymbol": "PG.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "PG.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "PHYMF.US",
+      "companyName": "iShares Physical Metals plc - iShares Physical Gold ETC",
+      "eodhdSymbol": "PHYMF.US",
+      "earliestBefore": "2020-10-13",
+      "plan": {
+        "ticker": "PHYMF.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2020-10-12",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2020-10-13",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "PINS.US",
+      "companyName": "Pinterest Inc",
+      "eodhdSymbol": "PINS.US",
+      "earliestBefore": "2019-04-11",
+      "plan": {
+        "ticker": "PINS.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2019-04-10",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2019-04-11",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "PLD.US",
+      "companyName": "Prologis Inc",
+      "eodhdSymbol": "PLD.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "PLTR.US",
+      "companyName": "Palantir Technologi",
+      "eodhdSymbol": "PLTR.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "PLTR.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 567,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "PM.US",
+      "companyName": "Philip Morris International Inc.",
+      "eodhdSymbol": "PM.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "PRY.MI",
+      "companyName": "Prysmian",
+      "eodhdSymbol": "PRYMY.US",
+      "earliestBefore": "2016-09-06",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-09-06",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "PSK.TO",
+      "companyName": "PrairieSky Royalty",
+      "eodhdSymbol": "PSK.TO",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "PST.MI",
+      "companyName": "Poste Italiane",
+      "eodhdSymbol": "7PI.F",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "QQQ.US",
+      "companyName": "Invesco QQQ Trust",
+      "eodhdSymbol": "QQQ.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "QQQ.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "REMX.US",
+      "companyName": "VanEck Rare Earth",
+      "eodhdSymbol": "REMX.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "RENE.LS",
+      "companyName": "REN - Redes Energeticas Nacionais SGPS",
+      "eodhdSymbol": "RENE.LS",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "RMBS.US",
+      "companyName": "Rambus Inc",
+      "eodhdSymbol": "RMBS.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "RMBS.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "RMD.US",
+      "companyName": "ResMed Inc",
+      "eodhdSymbol": "RMD.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "RO.SW",
+      "companyName": "Roche Holding AG",
+      "eodhdSymbol": "RO.SW",
+      "earliestBefore": "2011-07-08",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-07-08",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "RUS.TO",
+      "companyName": "Russel Metals Inc.",
+      "eodhdSymbol": "RUS.TO",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "RVMD.US",
+      "companyName": "Revolution Medicines",
+      "eodhdSymbol": "RVMD.US",
+      "earliestBefore": "2020-02-13",
+      "plan": {
+        "ticker": "RVMD.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2020-02-12",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2020-02-13",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "SAND.ST",
+      "companyName": "Sandvik",
+      "eodhdSymbol": "SAND.ST",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SAX.F",
+      "companyName": "Ströer SE & Co. KGaA",
+      "eodhdSymbol": "SAX.F",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SCHD.US",
+      "companyName": "Schwab U.S. Dividend Equity ETF",
+      "eodhdSymbol": "SCHD.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SCMN.SW",
+      "companyName": "Swisscom AG",
+      "eodhdSymbol": "SCMN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SE0007491303.SG",
+      "companyName": "BRAVIDA HOLDING AB",
+      "eodhdSymbol": "BRAV.ST",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SGKN.SW",
+      "companyName": "St Galler Kantonalbank",
+      "eodhdSymbol": "SGKN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SGLD.L",
+      "companyName": "Invesco Physical Gold ETC",
+      "eodhdSymbol": "SGLD.LSE",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SGY.TO",
+      "companyName": "SURGE ENERGY INC.",
+      "eodhdSymbol": "SGY.TO",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SIKA.SW",
+      "companyName": "Sika AG",
+      "eodhdSymbol": "SIKA.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SLHN.SW",
+      "companyName": "Swiss Life Holding",
+      "eodhdSymbol": "SLHN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SLV.US",
+      "companyName": "iShares Silver Trust",
+      "eodhdSymbol": "SLV.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SNPS.US",
+      "companyName": "Synopsys Inc",
+      "eodhdSymbol": "SNPS.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SNT.WA",
+      "companyName": "SYNEKTIK SA       ZY -,50",
+      "eodhdSymbol": "SNT.WAR",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SOFI.US",
+      "companyName": "SoFi Technologies",
+      "eodhdSymbol": "SOFI.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "SOFI.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 525,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "SOIL.TO",
+      "companyName": "Saturn Oil & Gas",
+      "eodhdSymbol": "SOIL.TO",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SON.LS",
+      "companyName": "Sonae SGPS",
+      "eodhdSymbol": "SON.LS",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SPICHA.SW",
+      "companyName": "UBS ETF (CH) - SPI (CHF) A-dis",
+      "eodhdSymbol": "SPICHA.SW",
+      "earliestBefore": "2011-07-18",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-07-18",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SPY.US",
+      "companyName": "SPDR S&P 500 ETF Trust",
+      "eodhdSymbol": "SPY.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SQN.SW",
+      "companyName": "Swissquote Group",
+      "eodhdSymbol": "SQN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SREN.SW",
+      "companyName": "Swiss Re AG",
+      "eodhdSymbol": "SREN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SRG.MI",
+      "companyName": "SNAM",
+      "eodhdSymbol": "SNMRF.US",
+      "earliestBefore": "2012-03-21",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2012-03-21",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "STMN.SW",
+      "companyName": "Straumann Holding",
+      "eodhdSymbol": "STMN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "STMPA.PA",
+      "companyName": "STMicroelectronics",
+      "eodhdSymbol": "STMPA.PA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "STX.US",
+      "companyName": "Seagate Technology Holdings",
+      "eodhdSymbol": "STX.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "STX.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "SU.PA",
+      "companyName": "Schneider Electric",
+      "eodhdSymbol": "SU.PA",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "SWED-A.ST",
+      "companyName": "Swedbank",
+      "eodhdSymbol": "SWED-A.ST",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "T.US",
+      "companyName": "AT&T Inc.",
+      "eodhdSymbol": "T.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "T.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "TD.US",
+      "companyName": "Toronto-Dominion Bank",
+      "eodhdSymbol": "TD.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "TEM.US",
+      "companyName": "Tempus AI Inc",
+      "eodhdSymbol": "TEM.US",
+      "earliestBefore": "2024-06-14",
+      "plan": {
+        "ticker": "TEM.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-06-13",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2024-06-14",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "TNZ.TO",
+      "companyName": "Tenaz Energy Corp.",
+      "eodhdSymbol": "TNZ.TO",
+      "earliestBefore": "2018-07-10",
+      "plan": {
+        "ticker": "TNZ.TO",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2018-07-09",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2018-07-10",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "TRGP.US",
+      "companyName": "Targa Resources Corp.",
+      "eodhdSymbol": "TRGP.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "TRGP.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "TRMB.US",
+      "companyName": "Trimble Inc",
+      "eodhdSymbol": "TRMB.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "TRMB.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "TSLA.US",
+      "companyName": "Tesla Inc",
+      "eodhdSymbol": "TSLA.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "TSM.US",
+      "companyName": "Taiwan Semiconduc",
+      "eodhdSymbol": "TSM.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "TTMI.US",
+      "companyName": "TTM Technologies",
+      "eodhdSymbol": "TTMI.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "TTMI.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "UBSG.SW",
+      "companyName": "UBS Group AG",
+      "eodhdSymbol": "UBSG.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "UEFY.DE",
+      "companyName": "UBS SBI Foreign AAA-BBB 1-5 ESG UCITS ETF CHF dis",
+      "eodhdSymbol": "UEFY.XETRA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "UNH.US",
+      "companyName": "UnitedHealth Group Incorporated",
+      "eodhdSymbol": "UNH.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "UNH.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "UQA.VI",
+      "companyName": "UNIQA Insurance Group",
+      "eodhdSymbol": "UQA.VI",
+      "earliestBefore": "2011-07-11",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-07-11",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "URTH.US",
+      "companyName": "iShares MSCI World ETF",
+      "eodhdSymbol": "URTH.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "URTH.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "V.US",
+      "companyName": "Visa Inc.",
+      "eodhdSymbol": "V.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "V.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "VATN.SW",
+      "companyName": "Valiant Holding",
+      "eodhdSymbol": "VATN.SW",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "VGK.US",
+      "companyName": "Vanguard FTSE Europe ETF",
+      "eodhdSymbol": "VGK.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "VIST.US",
+      "companyName": "Vista Energy, S.A.B. de C.V.",
+      "eodhdSymbol": "VIST.US",
+      "earliestBefore": "2024-09-03",
+      "plan": {
+        "ticker": "VIST.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-09-02",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1284,
+      "insertedRows": 0,
+      "earliestAfter": "2024-09-03",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "VLE.TO",
+      "companyName": "VALEURA ENERGY INC. NEW",
+      "eodhdSymbol": "VLE.TO",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "VMD.US",
+      "companyName": "Viemed Healthcare Inc",
+      "eodhdSymbol": "VMD.US",
+      "earliestBefore": "2024-07-29",
+      "plan": {
+        "ticker": "VMD.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-28",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1616,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-29",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "VNP.TO",
+      "companyName": "5N Plus Inc.",
+      "eodhdSymbol": "VNP.TO",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "VONN.SW",
+      "companyName": "Vontobel Holding",
+      "eodhdSymbol": "VONN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "VOO.US",
+      "companyName": "Vanguard S&P 500 ETF",
+      "eodhdSymbol": "VOO.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "VRTX.US",
+      "companyName": "Vertex Pharmaceuticals Inc",
+      "eodhdSymbol": "VRTX.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "VRTX.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "VST.US",
+      "companyName": "Vistra Corp",
+      "eodhdSymbol": "VST.US",
+      "earliestBefore": "2016-10-05",
+      "plan": {
+        "ticker": "VST.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2016-10-04",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-10-05",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "VTI.US",
+      "companyName": "Vanguard Total Stock Market ETF",
+      "eodhdSymbol": "VTI.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "VWO.US",
+      "companyName": "Vanguard FTSE Emerging Markets ETF",
+      "eodhdSymbol": "VWO.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "VWO.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "VWRL.L",
+      "companyName": "Vanguard FTSE All-World UCITS ETF",
+      "eodhdSymbol": "VWRL.LSE",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "VYM.US",
+      "companyName": "Vanguard High Dividend Yield Index Fund ETF Shares",
+      "eodhdSymbol": "VYM.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "VYM.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "VZ.US",
+      "companyName": "Verizon Communications Inc.",
+      "eodhdSymbol": "VZ.US",
+      "earliestBefore": "2024-07-12",
+      "plan": {
+        "ticker": "VZ.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2024-07-11",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1977,
+      "insertedRows": 0,
+      "earliestAfter": "2024-07-12",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "VZN.SW",
+      "companyName": "VZ Holding AG",
+      "eodhdSymbol": "VZN.SW",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "WCP.TO",
+      "companyName": "Whitecap Resources",
+      "eodhdSymbol": "WCP.TO",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "WDC.US",
+      "companyName": "Western Digital",
+      "eodhdSymbol": "WDC.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "WHA.AS",
+      "companyName": "Wereldhave",
+      "eodhdSymbol": "WHA.AS",
+      "earliestBefore": "2011-07-11",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-07-11",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "WHC.AX",
+      "companyName": "Whitehaven Coal",
+      "eodhdSymbol": "WHC.AU",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "WILC.US",
+      "companyName": "G. WILLI-FOOD INTL INC.",
+      "eodhdSymbol": "WILC.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "WTE.TO",
+      "companyName": "Westshore Terminals Investment Corp",
+      "eodhdSymbol": "WTE.TO",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "XEON.DE",
+      "companyName": "Xtrackers EUR Overnight Rate Swap",
+      "eodhdSymbol": "XEON.XETRA",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "XLE.US",
+      "companyName": "Energy Select Sector SPDR Fund",
+      "eodhdSymbol": "XLE.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "XLF.US",
+      "companyName": "Financial Select Sector SPDR Fund",
+      "eodhdSymbol": "XLF.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "XLF.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "XLK.US",
+      "companyName": "Technology Select Sector SPDR Fund",
+      "eodhdSymbol": "XLK.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "XLV.US",
+      "companyName": "Health Care Select Sector SPDR Fund",
+      "eodhdSymbol": "XLV.US",
+      "earliestBefore": "2022-12-30",
+      "plan": {
+        "ticker": "XLV.US",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2022-12-29",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 1594,
+      "insertedRows": 0,
+      "earliestAfter": "2022-12-30",
+      "status": "backfilled"
+    },
+    {
+      "ticker": "XLY.US",
+      "companyName": "Consumer Discretionary Select Sector SPDR Fund",
+      "eodhdSymbol": "XLY.US",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "XOM.US",
+      "companyName": "Exxon Mobil Corp",
+      "eodhdSymbol": "XOM.US",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "XTB.WA",
+      "companyName": "XTB S.A.           ZY-,05",
+      "eodhdSymbol": "XTB.WAR",
+      "earliestBefore": "2016-08-31",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2016-08-31",
+      "status": "skipped_complete"
+    },
+    {
+      "ticker": "YCA.L",
+      "companyName": "Yellow Cake",
+      "eodhdSymbol": "YCA.LSE",
+      "earliestBefore": "2018-07-05",
+      "plan": {
+        "ticker": "YCA.L",
+        "historyCutoffDate": "2016-09-07",
+        "fromDate": "2016-08-31",
+        "toDate": "2018-07-04",
+        "reason": "earliest_price_after_ten_year_cutoff"
+      },
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2018-07-05",
+      "status": "no_eodhd_data"
+    },
+    {
+      "ticker": "ZURN.SW",
+      "companyName": "Zurich Insurance G",
+      "eodhdSymbol": "ZURN.SW",
+      "earliestBefore": "2011-05-24",
+      "plan": null,
+      "fetchedRows": 0,
+      "insertedRows": 0,
+      "earliestAfter": "2011-05-24",
+      "status": "skipped_complete"
+    }
+  ]
+}

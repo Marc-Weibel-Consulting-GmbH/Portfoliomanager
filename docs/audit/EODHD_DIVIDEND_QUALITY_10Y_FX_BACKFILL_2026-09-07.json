@@ -1,0 +1,108 @@
+{
+  "generatedAt": "2026-09-07T19:27:11.738Z",
+  "requiredStartDate": "2016-09-07",
+  "coveredRecommendationTitles": 221,
+  "requestedPairs": [
+    "USDCHF",
+    "EURCHF",
+    "GBPCHF",
+    "CADCHF",
+    "AUDCHF",
+    "NOKCHF",
+    "SEKCHF",
+    "PLNCHF",
+    "JPYCHF",
+    "SGDCHF",
+    "DKKCHF"
+  ],
+  "windows": [
+    {
+      "currencyPair": "AUDCHF",
+      "from": "2016-09-07",
+      "to": "2019-12-31",
+      "status": "completed",
+      "providerRows": 865,
+      "insertedRows": 865
+    },
+    {
+      "currencyPair": "CADCHF",
+      "from": "2016-09-07",
+      "to": "2019-12-31",
+      "status": "completed",
+      "providerRows": 865,
+      "insertedRows": 865
+    },
+    {
+      "currencyPair": "DKKCHF",
+      "from": "2016-09-07",
+      "to": "2019-12-31",
+      "status": "completed",
+      "providerRows": 865,
+      "insertedRows": 865
+    },
+    {
+      "currencyPair": "EURCHF",
+      "from": "2016-09-07",
+      "to": "2019-12-31",
+      "status": "completed",
+      "providerRows": 865,
+      "insertedRows": 865
+    },
+    {
+      "currencyPair": "GBPCHF",
+      "from": "2016-09-07",
+      "to": "2019-12-31",
+      "status": "completed",
+      "providerRows": 865,
+      "insertedRows": 865
+    },
+    {
+      "currencyPair": "JPYCHF",
+      "from": "2016-09-07",
+      "to": "2019-12-31",
+      "status": "completed",
+      "providerRows": 865,
+      "insertedRows": 865
+    },
+    {
+      "currencyPair": "NOKCHF",
+      "from": "2016-09-07",
+      "to": "2019-12-31",
+      "status": "completed",
+      "providerRows": 865,
+      "insertedRows": 865
+    },
+    {
+      "currencyPair": "PLNCHF",
+      "from": "2016-09-07",
+      "to": "2026-07-11",
+      "status": "completed",
+      "providerRows": 2622,
+      "insertedRows": 2622
+    },
+    {
+      "currencyPair": "SEKCHF",
+      "from": "2016-09-07",
+      "to": "2019-12-31",
+      "status": "completed",
+      "providerRows": 865,
+      "insertedRows": 865
+    },
+    {
+      "currencyPair": "SGDCHF",
+      "from": "2016-09-07",
+      "to": "2019-12-31",
+      "status": "completed",
+      "providerRows": 865,
+      "insertedRows": 865
+    },
+    {
+      "currencyPair": "USDCHF",
+      "from": "2016-09-07",
+      "to": "2019-12-31",
+      "status": "completed",
+      "providerRows": 865,
+      "insertedRows": 865
+    }
+  ]
+}

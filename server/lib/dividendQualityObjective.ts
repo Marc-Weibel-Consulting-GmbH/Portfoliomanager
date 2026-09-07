@@ -1,3 +1,5 @@
+import { normalizeTickerForDb } from '../tickerNormalization';
+
 /**
  * Zusätzlicher, bewusst opt-in-basierter Optimierungsvertrag für
  * dividendenorientierte Vorschläge. Der Vertrag verändert keine Standardstrategie
@@ -76,4 +78,9 @@ export function tenYearHistoryCutoff(asOf: Date): string {
 export function hasTenYearPriceHistory(firstObservedDate: string | null | undefined, asOf = new Date()): boolean {
   if (!firstObservedDate || !/^\d{4}-\d{2}-\d{2}$/.test(firstObservedDate)) return false;
   return firstObservedDate <= tenYearHistoryCutoff(asOf);
+}
+
+/** Identischer Persistenzschlüssel für Backfill, Datengate und Preisabfrage. */
+export function historicalPriceKeyForDividendQuality(ticker: string): string {
+  return normalizeTickerForDb(ticker);
 }

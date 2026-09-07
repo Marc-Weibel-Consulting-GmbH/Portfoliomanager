@@ -41,9 +41,12 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
 
   // ─── Warsaw Stock Exchange (.WA → .WAR) ───
   'GPW.WA': 'GPW.WAR',      // Warsaw Stock Exchange
+  'SNT.WA': 'SNT.WAR',      // Synektik
+  'XTB.WA': 'XTB.WAR',      // XTB
 
   // ─── Australian Exchange (.AX → .AU) ───
   'WHC.AX': 'WHC.AU',       // Whitehaven Coal
+  'BHP.AX': 'BHP.AU',       // BHP Group (ASX primary listing)
 
   // ─── Italian Exchange (.MI → .F Frankfurt proxy, EODHD hat kein .MI) ───
   'ADB.MI': '169.F',        // Aeroporto Guglielmo Marconi di Bologna
@@ -54,6 +57,7 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
   // PRY.MI (Prysmian) and SRG.MI (Snam) are not available on EODHD — use US ADR or skip
   'PRY.MI': 'PRYMY.US',     // Prysmian → US ADR (PRYMY)
   'SRG.MI': 'SNMRF.US',     // Snam → US OTC (SNMRF)
+  'ENEL.MI': 'ENL.XETRA',   // Enel → XETRA proxy (identical ISIN, EUR)
 
   // ─── Singapore Exchange (.SI → .SG) ───
   // D05.SI (DBS Group) — EODHD hat kein .SG-Listing; US ADR DBSDY ist verfügbar
@@ -74,6 +78,10 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
   '6954.T': 'FANUY.US',   // Fanuc → US ADR (FANUY)
   '7267.T': 'HMC',        // Honda → US ADR (HMC)
   '6501.T': 'HTHIY.US',   // Hitachi → US ADR (HTHIY)
+  '8015.T': '9TO.F',      // Toyota Tsusho → Frankfurt proxy (EUR)
+
+  // ─── Legacy DB symbols confirmed through EODHD search ───
+  'SE0007491303.SG': 'BRAV.ST', // Bravida: ISIN-form DB ticker → Stockholm primary
 
   // ─── US / OTC ───
   'MESA': 'RJET',
@@ -121,6 +129,7 @@ const PROXY_CURRENCY: Record<string, string> = {
   'MONC.MI': 'USD',  // MONRY is a US ADR
   'PRY.MI': 'USD',   // PRYMY.US
   'SRG.MI': 'USD',   // SNMRF.US
+  'ENEL.MI': 'EUR',  // ENL.XETRA
   // Singapore → US ADR (USD)
   'D05.SI': 'USD',   // DBSDY.US
   // Japanese stocks → Frankfurt (EUR) or US ADR (USD)
@@ -136,6 +145,10 @@ const PROXY_CURRENCY: Record<string, string> = {
   '6954.T': 'USD',   // FANUY.US
   '7267.T': 'USD',   // HMC (US ADR)
   '6501.T': 'USD',   // HTHIY.US
+  '8015.T': 'EUR',   // 9TO.F Frankfurt
+  'SE0007491303.SG': 'SEK', // BRAV.ST Stockholm
+  'SNT.WA': 'PLN',   // SNT.WAR Warsaw
+  'XTB.WA': 'PLN',   // XTB.WAR Warsaw
 };
 
 /**

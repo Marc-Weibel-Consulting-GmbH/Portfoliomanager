@@ -18,7 +18,9 @@ import {
   describeSectorTilts,
   type MarktHubSignals,
 } from "../lib/marktHubSignals";
-import { applyMultiAssetSleeve, createDbPriceResolver } from "../lib/multiAssetSleeve";
+import { applyCashReserveToMultiAssetSleeve, applyMultiAssetSleeve, createDbPriceResolver } from "../lib/multiAssetSleeve";
+import { describeProposalMetricsScope } from "../lib/proposalMetricsScope";
+import { getRemainingOptionalProposalBudgetMs, runOptionalProposalStage } from "../lib/optionalProposalStage";
 import { proposalJobs, SLEEVE_CLASS_LABELS, formatSleeveAllocation, type ProposalJob } from "./autoPortfolioShared";
 
   /**
@@ -30,6 +32,7 @@ export const startProposalProcedure = protectedProcedure
     .input(z.object({
       investmentAmount: z.number().positive().optional(),
       stocksOnly: z.boolean().optional(),
+      trancheCount: z.union([z.literal(3), z.literal(4)]).optional(),
       // Explizite Testauswahl; ohne diesen Wert bleibt der bestehende
       // Dividendenmodus unverändert. Eine Auswahl aktiviert keinen Handel.
       optimizationObjective: z.enum(["standard", "dividend_quality_10y"]).optional(),
@@ -89,8 +92,9 @@ export const startProposalProcedure = protectedProcedure
           const rules = await getDiversificationRules();
 
           const stocksOnly = input?.stocksOnly ?? false;
+          const trancheCount = input?.trancheCount === 4 ? 4 : 3;
           const notes: string[] = [];
-          const { resolveDividendQualityObjective, hasTenYearPriceHistory, tenYearHistoryCutoff } = await import('../lib/dividendQualityObjective');
+          const { resolveDividendQualityObjective, hasTenYearPriceHistory, tenYearHistoryCutoff, historicalPriceKeyForDividendQuality } = await import('../lib/dividendQualityObjective');
           const { DIVIDEND_QUALITY_10Y_FEATURE_FLAG } = await import('../lib/dividendQualityObjective');
           if (input?.optimizationObjective === 'dividend_quality_10y' && process.env[DIVIDEND_QUALITY_10Y_FEATURE_FLAG] !== 'true') {
             throw new Error('Der experimentelle Dividenden-Qualitätsmodus ist noch nicht freigegeben. Der bestehende Dividendenmodus bleibt unverändert verfügbar.');
@@ -99,6 +103,10 @@ export const startProposalProcedure = protectedProcedure
             investmentGoal: goal,
             selection: input?.optimizationObjective,
           });
+          const { buildManualTranchePlan } = await import('../lib/manualTranchePlan');
+          const manualTranchePlan = input?.investmentAmount && input.investmentAmount > 0
+            ? buildManualTranchePlan({ totalAmountChf: input.investmentAmount, trancheCount })
+            : null;
 
           // Die Positionsgrenzen gelten fuer das GESAMTPORTFOLIO, nicht nur fuer
           // den Aktienteil. Der Optimizer sieht aber nur die Aktien, deren
@@ -336,12 +344,8 @@ export const startProposalProcedure = protectedProcedure
             excludedTickers: [] as string[],
           };
           if (optimizationObjective.requiresTenYearHistory) {
-            const historyTickerFor = (ticker: string) => {
-              const normalized = String(ticker ?? '').toUpperCase();
-              return normalized.endsWith('.US') ? normalized.slice(0, -3) : normalized;
-            };
             const candidateByHistoryTicker = new Map<string, any>();
-            for (const candidate of ranked) candidateByHistoryTicker.set(historyTickerFor(candidate.stock.ticker), candidate);
+            for (const candidate of ranked) candidateByHistoryTicker.set(historicalPriceKeyForDividendQuality(candidate.stock.ticker), candidate);
             const { inArray: inArrayHistory, min: minHistory } = await import('drizzle-orm');
             const firstHistoryRows = candidateByHistoryTicker.size > 0
               ? await db.select({ ticker: historicalPrices.ticker, firstObservedDate: minHistory(historicalPrices.date) })
@@ -351,7 +355,7 @@ export const startProposalProcedure = protectedProcedure
               : [];
             const firstDateByTicker = new Map(firstHistoryRows.map((row: any) => [String(row.ticker).toUpperCase(), row.firstObservedDate ? String(row.firstObservedDate).slice(0, 10) : null]));
             const eligibleRanked = ranked.filter((candidate: any) => {
-              const ticker = historyTickerFor(candidate.stock.ticker);
+              const ticker = historicalPriceKeyForDividendQuality(candidate.stock.ticker);
               return hasTenYearPriceHistory(firstDateByTicker.get(ticker) ?? null);
             });
             historyGate = {
@@ -360,7 +364,7 @@ export const startProposalProcedure = protectedProcedure
               candidateCount: ranked.length,
               eligibleCount: eligibleRanked.length,
               excludedTickers: ranked
-                .filter((candidate: any) => !hasTenYearPriceHistory(firstDateByTicker.get(historyTickerFor(candidate.stock.ticker)) ?? null))
+                .filter((candidate: any) => !hasTenYearPriceHistory(firstDateByTicker.get(historicalPriceKeyForDividendQuality(candidate.stock.ticker)) ?? null))
                 .map((candidate: any) => candidate.stock.ticker),
             };
             if (eligibleRanked.length < rules.minTitles) {
@@ -455,6 +459,9 @@ export const startProposalProcedure = protectedProcedure
             basisJahreMin: number | null;
             basisJahreMedian: number | null;
             gemeinsameTage: number | null;
+            scope: 'total_portfolio' | 'equity_sleeve';
+            titlePrefix: 'Portfolio' | 'Aktienkomponente';
+            scopeNote: string | null;
           } | null = null;
           try {
             const { optimizePortfolio } = await import('../analytics/engine');
@@ -483,6 +490,9 @@ export const startProposalProcedure = protectedProcedure
                 basisJahreMin: (opt as any).renditeBasis?.jahreMin ?? null,
                 basisJahreMedian: (opt as any).renditeBasis?.jahreMedian ?? null,
                 gemeinsameTage: (opt as any).renditeBasis?.gemeinsameTage ?? null,
+                scope: 'total_portfolio',
+                titlePrefix: 'Portfolio',
+                scopeNote: null,
               };
               // Effektiven Zeitraum ausweisen — er ist regelmaessig kuerzer als
               // die angeforderten 10 Jahre, sobald ein junger Titel dabei ist.
@@ -554,6 +564,11 @@ export const startProposalProcedure = protectedProcedure
           // Läuft NACH dem FX-Enforcement (Aktien-Sleeve ist final) und VOR der
           // Cash-Quote (die Cash-Reserve skaliert danach alle Positionen proportional).
           let assetAllocation: Record<string, number> | null = null;
+          // Die angefragte Profilquote bleibt als Eingabe sichtbar; die effektive
+          // Quote folgt jedoch dem final gerundeten Positionssatz, damit sie mit
+          // den angezeigten Gewichten stets exakt 100 % Kapitalbasis bildet.
+          let cashReservePct = liquidityNeedPct > 0 && liquidityNeedPct < 100 ? liquidityNeedPct : 0;
+          let sleeveCashReserveApplied = false;
           let deviationFromProfile: string | null = null;
           try {
             const sleeveResult = await applyMultiAssetSleeve({
@@ -565,11 +580,14 @@ export const startProposalProcedure = protectedProcedure
               referenceCurrency,
               assetClassTolerancePct: rules.assetClassTolerancePct,
             });
-            assetAllocation = sleeveResult.allocation;
-            deviationFromProfile = sleeveResult.deviationNote;
-            if (sleeveResult.deviationNote) notes.push(sleeveResult.deviationNote);
-            notes.push(...sleeveResult.notes);
-            positions = sleeveResult.positions.map((sp) => {
+            const cashAdjustedSleeve = applyCashReserveToMultiAssetSleeve(sleeveResult, liquidityNeedPct);
+            assetAllocation = cashAdjustedSleeve.allocation;
+            cashReservePct = cashAdjustedSleeve.cashReservePct;
+            sleeveCashReserveApplied = true;
+            deviationFromProfile = cashAdjustedSleeve.deviationNote;
+            if (cashAdjustedSleeve.deviationNote) notes.push(cashAdjustedSleeve.deviationNote);
+            notes.push(...cashAdjustedSleeve.notes);
+            positions = cashAdjustedSleeve.positions.map((sp) => {
               if (sp.assetClass === 'equity') {
                 return {
                   ticker: sp.ticker,
@@ -603,7 +621,28 @@ export const startProposalProcedure = protectedProcedure
             console.warn(`[startProposal] Multi-Asset-Sleeve fehlgeschlagen (non-fatal): ${e?.message}`);
             notes.push('Multi-Asset-Bausteine konnten nicht aufgelöst werden — Vorschlag bleibt rein aktienbasiert.');
           }
-          if (liquidityNeedPct > 0 && liquidityNeedPct < 100) { const equityPct = 1 - liquidityNeedPct / 100; positions.forEach((p) => { p.weightPct = parseFloat((p.weightPct * equityPct).toFixed(2)); }); }
+          // Fallback ohne Sleeve: auch hier wird Cash genau einmal und erst nach
+          // der finalen Aktienauswahl abgezogen. Im normalen Sleeve-Pfad hat der
+          // reine, getestete Helfer diese Aufgabe bereits übernommen.
+          if (!sleeveCashReserveApplied && liquidityNeedPct > 0 && liquidityNeedPct < 100) {
+            const equityPct = 1 - liquidityNeedPct / 100;
+            positions.forEach((p) => { p.weightPct = parseFloat((p.weightPct * equityPct).toFixed(2)); });
+            cashReservePct = parseFloat((100 - positions.reduce((sum, p) => sum + p.weightPct, 0)).toFixed(2));
+          }
+
+          // Der Optimierer läuft bewusst vor der Multi-Asset-Sleeve-Ergänzung.
+          // Damit dessen Aktien-Kennzahlen nicht als Gesamtportfolio-Kennzahlen
+          // missverstanden werden, wird ihr Geltungsbereich erst nach Aufbau der
+          // vollständigen Zielallokation bestimmt.
+          if (proposalMetrics) {
+            const metricScope = describeProposalMetricsScope({
+              stocksOnly,
+              hasSleevePositions: positions.some((p: any) => p.assetClass && p.assetClass !== 'equity'),
+            });
+            proposalMetrics.scope = metricScope.scope;
+            proposalMetrics.titlePrefix = metricScope.titlePrefix;
+            proposalMetrics.scopeNote = metricScope.note;
+          }
 
           // Price enrichment for external candidates
           const missingPriceTickers = positions.filter(p => !p.currentPrice || p.currentPrice === 0).map(p => p.ticker);
@@ -646,8 +685,20 @@ export const startProposalProcedure = protectedProcedure
               const candidates = scored.filter(x => !usedTickers.has(x.stock.ticker.toUpperCase()) && isBuyable(x) && x.combinedScore >= 45).sort((a, b) => b.combinedScore - a.combinedScore);
               for (const ra of replaceAdj) { const idx = adjusted.findIndex(p => p.ticker.toUpperCase() === ra.ticker.toUpperCase()); if (idx < 0 || isSleevePos(adjusted[idx])) continue; const replacement = candidates.shift(); if (!replacement) continue; usedTickers.add(replacement.stock.ticker.toUpperCase()); adjusted[idx] = { ...adjusted[idx], ticker: replacement.stock.ticker, companyName: replacement.stock.companyName, sector: replacement.stock.sector, currency: replacement.stock.currency, currentPrice: parseFloat(String(replacement.stock.currentPrice ?? '0')) || 0, exchangeRateToChf: fxRateForStock(replacement.stock.currency, replacement.stock.exchangeRateToChf, referenceCurrency), combinedScore: replacement.combinedScore, signal: replacement.signal, reason: `Ersetzt ${ra.ticker} gemäss KI-Empfehlung`, assetType: 'stock' as const, assetClass: undefined }; (adjusted[idx] as any).aiReason = undefined; }
             }
-            const total = adjusted.reduce((s, p) => s + p.weightPct, 0);
-            if (total > 0) adjusted = adjusted.map(p => ({ ...p, weightPct: Math.round((p.weightPct / total) * 1000) / 10 }));
+            // Fixed Multi-Asset-Sleeves und die Cash-Reserve gehören zur
+            // strategischen Kapitalbasis. KI-Gewichtsanpassungen dürfen deshalb
+            // ausschliesslich den Aktienteil auf dessen bisherige Zielsumme
+            // zurückskalieren, nicht das Gesamtportfolio auf 100 % aufblasen.
+            const adjustablePositions = adjusted.filter((p: any) => !isSleevePos(p));
+            const adjustableTargetPct = base
+              .filter((p: any) => !isSleevePos(p))
+              .reduce((sum, p) => sum + p.weightPct, 0);
+            const adjustableTotal = adjustablePositions.reduce((sum, p) => sum + p.weightPct, 0);
+            if (adjustableTotal > 0) {
+              adjusted = adjusted.map((p: any) => isSleevePos(p)
+                ? p
+                : { ...p, weightPct: Math.round((p.weightPct / adjustableTotal) * adjustableTargetPct * 100) / 100 });
+            }
             return adjusted;
           };
 
@@ -670,10 +721,15 @@ export const startProposalProcedure = protectedProcedure
               weighting: { source: weightingSource, engine: weightingEngine, note: weightingNote, minPositionPct: Math.round(params.minPositionWeight * 1000) / 10, maxPositionPct: Math.round(params.maxPositionWeight * 1000) / 10 },
               metrics: proposalMetrics,
               optimizationObjective: { ...optimizationObjective, historyGate },
+              manualTranchePlan,
+              drawdownBand: riskProfile === 'konservativ'
+                ? { preferredMaxDrawdownPct: 15, upperReviewThresholdPct: 25, label: 'Konservatives Zielband: historischer Max. Drawdown 0–15 %, Reviewbereich 15–25 %.' }
+                : null,
               allocation: { sectors: sectorWeights, fxWeightPct, sectorCapPct: rules.maxSectorPercent, fxCapPct: maxFxExposurePct },
-              // Multi-Asset-Sleeve: effektive Anlageklassen-Allokation (in %,
-              // vor Cash-Quote), gewählter Modus, Abweichungs-Hinweis.
+              // Finale Anlageklassen-Allokation nach Cash-Abzug sowie die exakt
+              // dazu passende Cash-Reserve; beides zusammen ist immer 100 %.
               assetAllocation,
+              cashReservePct,
               stocksOnly,
               deviationFromProfile,
               notes,
@@ -764,6 +820,26 @@ export const startProposalProcedure = protectedProcedure
             // fällt bei Fehlern automatisch auf Kimi zurück.
             const models = await getProposalModelConfig();
             const agentStart = Date.now();
+            // Titeltexte, Challenger und Synthese sind komfortable, nicht aber
+            // notwendige Ergänzungen. Sie teilen deshalb EINE gemeinsame Frist.
+            // Ohne diese Grenze erhält jede Providerkaskade ihr eigenes Budget
+            // und ein bereits fertiger deterministischer Vorschlag bleibt trotz
+            // mehrfacher Fallbacks minutenlang im Status "enhancing".
+            const OPTIONAL_REFINEMENT_TOTAL_TIMEOUT_MS = 120_000;
+            const runRefinementStage = async <T>(stage: string, start: () => Promise<T>): Promise<T> => {
+              const remainingMs = getRemainingOptionalProposalBudgetMs(
+                OPTIONAL_REFINEMENT_TOTAL_TIMEOUT_MS,
+                Date.now() - agentStart,
+              );
+              if (remainingMs <= 0) {
+                throw new Error(`Optionale KI-Verfeinerung nach ${OPTIONAL_REFINEMENT_TOTAL_TIMEOUT_MS / 1000}s beendet (${stage} nicht gestartet).`);
+              }
+              const stageResult = await runOptionalProposalStage(stage, start(), remainingMs);
+              if (stageResult.status === 'timed_out') {
+                throw new Error(`Optionale KI-Verfeinerung nach ${OPTIONAL_REFINEMENT_TOTAL_TIMEOUT_MS / 1000}s beendet (${stage}).`);
+              }
+              return stageResult.value;
+            };
 
             const tickerReasonItem = { type: 'object', properties: { ticker: { type: 'string' }, reason: { type: 'string' } }, required: ['ticker', 'reason'], additionalProperties: false };
             const adjustmentItem = { type: 'object', properties: { ticker: { type: 'string' }, action: { type: 'string', enum: ['keep', 'replace', 'reduce', 'increase'] }, reason: { type: 'string' } }, required: ['ticker', 'action', 'reason'], additionalProperties: false };
@@ -800,12 +876,12 @@ export const startProposalProcedure = protectedProcedure
               await Promise.all(batches.map(async (batch, bi) => {
                 try {
                   const batchLabel = batches.length > 1 ? ` (Batch ${bi + 1}/${batches.length})` : '';
-                  const { result: textResult, providerUsed } = await invokeProposalAgent(models.text, {
+                  const { result: textResult, providerUsed } = await runRefinementStage(`Titeltexte Batch ${bi + 1}`, () => invokeProposalAgent(models.text, {
                     system: 'Du bist ein erfahrener Schweizer Anlageberater und Aktienanalyst. Du erklärst Privatanlegern 50+ verständlich, aber inhaltlich fundiert, warum ein konkreter Titel überzeugt. Du kennst die grossen Unternehmen und ihre Geschäftsmodelle. Antworte immer auf Deutsch.',
                     user: `Formuliere für JEDE dieser Positionen ${posReasonsInstruction}\n\nAnlegerprofil: ${profileSummary}\n\nBerechnete Fakten (u.a. Fundamentaldaten):\n${factsSummary}\n\nPositionen (mit Signalen)${batchLabel}:\n${JSON.stringify(batch, null, 2)}\n\nGesamturteil der Analyse: ${agentResult.verdict ?? ''}`,
                     schema: { name: 'position_reasons', strict: true, schema: { type: 'object', properties: { positionReasons: posReasonsSchema }, required: ['positionReasons'], additionalProperties: false } },
                     maxTokens: 4096,
-                  });
+                  }));
                   console.log(`[fillTexts] batch ${bi + 1}/${batches.length} — providerUsed=${providerUsed}, keys: ${Object.keys(textResult ?? {}).join(', ')}`);
                   console.log(`[fillTexts] positionReasons isArray: ${Array.isArray(textResult?.positionReasons)}, length: ${Array.isArray(textResult?.positionReasons) ? textResult.positionReasons.length : 'N/A'}`);
                   if (Array.isArray(textResult?.positionReasons) && textResult.positionReasons.length > 0) {
@@ -875,18 +951,18 @@ export const startProposalProcedure = protectedProcedure
               const challengerSchema = { name: 'challenger', strict: true, schema: { type: 'object', properties: { critique: { type: 'string' }, rejected: { type: 'array', items: tickerReasonItem }, alternatives: { type: 'array', items: tickerReasonItem } }, required: ['critique', 'rejected', 'alternatives'], additionalProperties: false } };
               const empty = { critique: '', rejected: [], alternatives: [] };
               const [rA, rB] = await Promise.all([
-                invokeProposalAgent(models.analysis, { system: challengerSystem, user: challengerUser, schema: challengerSchema, maxTokens: 3072 }).catch((e: any) => { console.warn(`[startProposal] Challenger A (${models.analysis}) fehlgeschlagen: ${e?.message}`); return { result: empty }; }),
-                invokeProposalAgent(models.challengerB, { system: challengerSystem, user: challengerUser, schema: challengerSchema, maxTokens: 3072 }).catch((e: any) => { console.warn(`[startProposal] Challenger B (${models.challengerB}) fehlgeschlagen: ${e?.message}`); return { result: empty }; }),
+                runRefinementStage('Challenger A', () => invokeProposalAgent(models.analysis, { system: challengerSystem, user: challengerUser, schema: challengerSchema, maxTokens: 3072 })).catch((e: any) => { console.warn(`[startProposal] Challenger A (${models.analysis}) fehlgeschlagen: ${e?.message}`); return { result: empty }; }),
+                runRefinementStage('Challenger B', () => invokeProposalAgent(models.challengerB, { system: challengerSystem, user: challengerUser, schema: challengerSchema, maxTokens: 3072 })).catch((e: any) => { console.warn(`[startProposal] Challenger B (${models.challengerB}) fehlgeschlagen: ${e?.message}`); return { result: empty }; }),
               ]);
               const cA = rA.result ?? empty; const cB = rB.result ?? empty;
 
               job.progress.push(`Synthese (${models.synthesis}): beide Kritiken abwägen...`);
               const synthUser = `${contextBlock}\n\nKritik von Analyst A:\nGesamt: ${cA.critique}\nAbgelehnt: ${JSON.stringify(cA.rejected ?? [])}\nAlternativen: ${JSON.stringify(cA.alternatives ?? [])}\n\nKritik von Analyst B:\nGesamt: ${cB.critique}\nAbgelehnt: ${JSON.stringify(cB.rejected ?? [])}\nAlternativen: ${JSON.stringify(cB.alternatives ?? [])}\n\nWäge BEIDE Kritiken gegeneinander ab (gemeinsame Punkte wiegen schwerer, Widersprüche kritisch prüfen) und erstelle:\n1. verdict: ${verdictInstruction}\n2. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n3. overallConfidence: ${confidenceRule}.\n\nAntworte im JSON-Format.`;
               const synthSchema = { name: 'synthesis', strict: true, schema: { type: 'object', properties: { verdict: { type: 'string' }, adjustments: { type: 'array', items: adjustmentItem }, overallConfidence: { type: 'string', enum: ['hoch', 'mittel', 'niedrig'] } }, required: ['verdict', 'adjustments', 'overallConfidence'], additionalProperties: false } };
-              const { result: synth } = await invokeProposalAgent(models.synthesis, {
+              const { result: synth } = await runRefinementStage('Synthese', () => invokeProposalAgent(models.synthesis, {
                 system: 'Du bist ein erfahrener Portfolio-Manager ("Synthesizer"). Du erhältst einen algorithmischen Vorschlag und ZWEI unabhängige kritische Analysen. Moderiere die Erkenntnisse zu einer finalen Empfehlung. Antworte immer auf Deutsch.',
                 user: synthUser, schema: synthSchema, maxTokens: 4096,
-              });
+              }));
 
               const dedupByTicker = (arr: any[]) => { const seen = new Set<string>(); const out: any[] = []; for (const x of arr) { const t = x?.ticker ? String(x.ticker).toUpperCase() : ''; if (!t || seen.has(t)) continue; seen.add(t); out.push(x); } return out; };
               agentResult = {
@@ -912,12 +988,12 @@ export const startProposalProcedure = protectedProcedure
               };
               const analysisRequired = ['critique', 'rejected', 'alternatives', 'verdict', 'adjustments', 'overallConfidence'];
 
-              const { result } = await invokeProposalAgent(models.analysis, {
+              const { result } = await runRefinementStage('Gesamtanalyse', () => invokeProposalAgent(models.analysis, {
                 system: 'Du bist zugleich kritischer Portfolio-Analyst ("Challenger") und erfahrener Portfolio-Manager ("Synthesizer"). Prüfe den algorithmischen Vorschlag zuerst kritisch und erstelle im selben Schritt die finale Empfehlung mit konkreten Anpassungen. Antworte immer auf Deutsch, präzise und konstruktiv.',
                 user: `Prüfe diesen Portfolio-Vorschlag kritisch und erstelle die finale Empfehlung.\n\n${contextBlock}\n\nLiefere:\n1. critique: 1-3 Hauptschwachstellen (Klumpenrisiko, Widerspruch zu Markt-Hub, schlechte Diversifikation) in 2-3 Sätzen.\n2. rejected: kritisch gesehene Positionen (nur Ticker aus den Positionen).\n3. alternatives: bessere Ersatztitel (nur Ticker aus dem Kandidatenpool).\n4. verdict: ${verdictInstruction}\n5. adjustments: konkrete Anpassungen je Titel (keep/reduce/increase/replace) mit Begründung — Ersatz nur aus dem Kandidatenpool.\n6. overallConfidence: ${confidenceRule}.\n\nAntworte im JSON-Format.`,
                 schema: { name: 'portfolio_review', strict: true, schema: { type: 'object', properties: analysisProps, required: analysisRequired, additionalProperties: false } },
                 maxTokens: 4096,
-              });
+              }));
               // positionReasons aus dem frühen Text-Schritt beibehalten.
               agentResult = { ...result, positionReasons: agentResult.positionReasons };
             }
@@ -951,12 +1027,12 @@ export const startProposalProcedure = protectedProcedure
                 if (missing.length > 0) {
                   try {
                     const missSummary = missing.map(p => ({ ticker: p.ticker, name: p.companyName, sector: p.sector, currency: p.currency, weight: p.weightPct, score: p.combinedScore, signal: p.signal }));
-                    const { result: tr } = await invokeProposalAgent(models.text, {
+                    const { result: tr } = await runRefinementStage('Ersatz-Titeltexte', () => invokeProposalAgent(models.text, {
                       system: 'Du bist ein erfahrener Schweizer Anlageberater und Aktienanalyst. Antworte immer auf Deutsch.',
                       user: `Formuliere für JEDE dieser Positionen ${posReasonsInstruction}\n\nAnlegerprofil: ${profileSummary}\n\nPositionen:\n${JSON.stringify(missSummary, null, 2)}`,
                       schema: { name: 'position_reasons', strict: true, schema: { type: 'object', properties: { positionReasons: posReasonsSchema }, required: ['positionReasons'], additionalProperties: false } },
                       maxTokens: 4096,
-                    });
+                    }));
                     const map = new Map<string, string>();
                     for (const pr of (tr?.positionReasons ?? [])) { const t = pr?.ticker ? String(pr.ticker).toUpperCase() : ''; const txt = typeof pr?.text === 'string' ? pr.text.trim() : ''; if (t && txt) map.set(t, map.has(t) ? `${map.get(t)} ${txt}` : txt); }
                     for (const p of autoAppliedPositions) { if (!(p as any).aiReason) { const t = map.get(p.ticker.toUpperCase()); if (t) (p as any).aiReason = t; } }
@@ -992,6 +1068,8 @@ export const startProposalProcedure = protectedProcedure
             } catch (logErr: any) { console.warn(`[startProposal] DB logging failed:`, logErr?.message); }
           } catch (agentErr: any) {
             console.warn(`[startProposal] Multi-agent layer failed (non-fatal): ${agentErr?.message}`);
+            notes.push('KI-Verfeinerung zeitbegrenzt nicht verfügbar — der deterministische Vorschlag bleibt unverändert zur manuellen Prüfung bereit.');
+            job.progress.push('⚠️ KI-Verfeinerung zeitbegrenzt beendet. Der deterministische Vorschlag steht zur manuellen Prüfung bereit.');
           }
 
           // Finales Ergebnis (mit KI-Report) — ersetzt das Zwischenergebnis.

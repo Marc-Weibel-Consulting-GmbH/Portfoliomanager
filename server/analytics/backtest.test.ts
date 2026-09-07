@@ -39,8 +39,8 @@ function buildRows() {
   const series = (ticker: string, base: number, drift: number, amp: number, phase: number) =>
     dates.map((date, i) => ({ ticker, date, close: base + drift * i + amp * Math.sin(i * 0.3 + phase), adj: null }));
   return {
-    A: series("A", 100, 0.2, 3, 0),
-    B: series("B", 80, 0.15, 2, 1),
+    "A.US": series("A.US", 100, 0.2, 3, 0),
+    "B.US": series("B.US", 80, 0.15, 2, 1),
   };
 }
 
@@ -82,7 +82,7 @@ describe("runPortfolioBacktest", () => {
 
   it("wirft bei zu wenig gemeinsamer Historie", async () => {
     h.rowsByTicker = {
-      A: [{ ticker: "A", date: "2025-01-01", close: 100, adj: null }],
+      "A.US": [{ ticker: "A.US", date: "2025-01-01", close: 100, adj: null }],
     };
     await expect(runPortfolioBacktest({ tickers: ["A"], weights: [1] })).rejects.toThrow();
   });

@@ -15,6 +15,7 @@
 
 import { invokeKimi, invokeLLM, type JsonSchema } from "../_core/llm";
 import { getSecret } from "../_core/secretsManager";
+import { runOptionalProposalStage } from "./optionalProposalStage";
 
 export type ProposalProvider = "kimi" | "gemini" | "claude" | "perplexity" | "groq" | "omniroute";
 export type ProposalRole = "analysis" | "text";
@@ -252,6 +253,12 @@ export interface ProposalAgentOutcome {
  * langen Reasoning-Antworten (4096+ Token); Groq ist meist < 5 s.
  */
 const PROVIDER_TIMEOUT_MS = 90_000;
+/**
+ * Der gesamte optionale KI-Schritt darf den sofort verfügbaren deterministischen
+ * Vorschlag nicht über längere Zeit blockieren. Einzelne Provider behalten ihre
+ * bestehende 90-s-Frist; die Kaskade insgesamt wird unabhängig davon begrenzt.
+ */
+export const PROPOSAL_AGENT_TOTAL_TIMEOUT_MS = 120_000;
 
 /**
  * Führt einen Rollen-Aufruf beim gewählten Anbieter aus und liefert das
@@ -290,16 +297,28 @@ export async function invokeProposalAgent(
   // claude (stärkstes Reasoning) → omniroute (271 Modelle) → groq (gratis) → perplexity.
   const FULL_FALLBACK_ORDER: ProposalProvider[] = ["kimi", "gemini", "claude", "omniroute", "groq", "perplexity"];
   const chain = [...new Set<ProposalProvider>([provider, ...FULL_FALLBACK_ORDER])];
-  let lastErr: any;
-  for (const p of chain) {
-    try {
-      const result = await runWithTimeout(p);
-      if (result && typeof result === "object") return { result, providerUsed: p };
-      throw new Error(`${p}: leeres/ungültiges Ergebnis`);
-    } catch (err: any) {
-      lastErr = err;
-      console.warn(`[proposalModels] ${p} fehlgeschlagen (${err?.message})${p === chain[chain.length - 1] ? "" : " — versuche nächsten Anbieter"}.`);
+  const runFallbackChain = async (): Promise<ProposalAgentOutcome> => {
+    let lastErr: any;
+    for (const p of chain) {
+      try {
+        const result = await runWithTimeout(p);
+        if (result && typeof result === "object") return { result, providerUsed: p };
+        throw new Error(`${p}: leeres/ungültiges Ergebnis`);
+      } catch (err: any) {
+        lastErr = err;
+        console.warn(`[proposalModels] ${p} fehlgeschlagen (${err?.message})${p === chain[chain.length - 1] ? "" : " — versuche nächsten Anbieter"}.`);
+      }
     }
+    throw lastErr ?? new Error("Alle Anbieter fehlgeschlagen");
+  };
+
+  const bounded = await runOptionalProposalStage(
+    `KI-Verfeinerung (${provider})`,
+    runFallbackChain(),
+    PROPOSAL_AGENT_TOTAL_TIMEOUT_MS,
+  );
+  if (bounded.status === 'timed_out') {
+    throw new Error(`${bounded.stage}: Gesamtlaufzeit von ${PROPOSAL_AGENT_TOTAL_TIMEOUT_MS / 1000}s überschritten`);
   }
-  throw lastErr ?? new Error("Alle Anbieter fehlgeschlagen");
+  return bounded.value;
 }

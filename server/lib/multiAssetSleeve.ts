@@ -173,6 +173,14 @@ export interface MultiAssetSleeveResult {
   deviationNote: string | null;
 }
 
+/** Resultat nach Abzug der ausdrücklich gewünschten Cash-Reserve. */
+export interface CashAdjustedMultiAssetSleeveResult extends MultiAssetSleeveResult {
+  /** Nicht investierter Anteil des Gesamtkapitals; mit `allocation` exakt 100 %. */
+  cashReservePct: number;
+  /** Summe der finalen investierten Positionsgewichte. */
+  investedPct: number;
+}
+
 export interface ApplyMultiAssetSleeveOptions {
   equityPositions: SleeveEquityInput[];
   riskProfile: RiskProfile;
@@ -191,6 +199,62 @@ export interface ApplyMultiAssetSleeveOptions {
 }
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
+
+const emptySleeveAllocation = (): Record<SleeveAssetKey, number> => ({
+  equity: 0, bond: 0, commodity: 0, gold: 0, realestate: 0, crypto: 0,
+});
+
+/**
+ * Wendet eine Cash-Reserve auf die fertige Multi-Asset-Mischung an.
+ *
+ * Die Matrix ist eine Brutto-Mischung vor Cash. Ohne diese explizite
+ * Umrechnung würde eine 100%-Mischung zusammen mit einer separat gehaltenen
+ * Cash-Reserve mehr Kapital beanspruchen als der eingegebene Anlagebetrag.
+ * Bei bereits unvollständiger Abbildung, etwa wegen eines fehlenden ETF-Sleeves,
+ * wird die bestehende Liquidität erhalten und die zusätzliche Reserve
+ * proportional abgezogen. Wegen Positionsrundung wird die Cash-Quote aus dem
+ * finalen Satz abgeleitet, damit Gesamtallokation und Cash exakt 100 % ergeben.
+ */
+export function applyCashReserveToMultiAssetSleeve(
+  result: MultiAssetSleeveResult,
+  requestedCashReservePct: number | null | undefined,
+): CashAdjustedMultiAssetSleeveResult {
+  const requestedCashPct = Math.max(0, Math.min(100, Number(requestedCashReservePct) || 0));
+  const beforeCashInvestedPct = result.positions.reduce((sum, position) => sum + (Number(position.weight) || 0), 0);
+  const isFullyAllocatedBeforeCash = beforeCashInvestedPct >= 99.5 && beforeCashInvestedPct <= 100.5;
+  const targetInvestedPct = isFullyAllocatedBeforeCash
+    ? Math.max(0, 100 - requestedCashPct)
+    : Math.max(0, beforeCashInvestedPct * (1 - requestedCashPct / 100));
+  const factor = beforeCashInvestedPct > 0 ? targetInvestedPct / beforeCashInvestedPct : 0;
+  const positions = result.positions.map((position) => ({
+    ...position,
+    weight: round2(position.weight * factor),
+  }));
+  // Einzelpositionen sind auf zwei Nachkommastellen sichtbar und speicherbar.
+  // Den dadurch unvermeidbaren Rest führen wir auf der grössten Position nach,
+  // damit nicht aus 90.00 % stillschweigend 89.99 % werden und die Cash-Quote
+  // im selben Entwurf 10.01 % statt der angeforderten 10.00 % ausweist.
+  const roundedTargetInvestedPct = round2(targetInvestedPct);
+  const roundedPositionsTotal = round2(positions.reduce((sum, position) => sum + position.weight, 0));
+  const roundingDifference = round2(roundedTargetInvestedPct - roundedPositionsTotal);
+  if (Math.abs(roundingDifference) >= 0.01 && positions.length > 0) {
+    const largestPosition = positions.reduce((largest, position) => position.weight > largest.weight ? position : largest);
+    largestPosition.weight = round2(Math.max(0, largestPosition.weight + roundingDifference));
+  }
+  const allocation = emptySleeveAllocation();
+  for (const position of positions) {
+    allocation[position.assetClass] = round2(allocation[position.assetClass] + position.weight);
+  }
+  const investedPct = round2(Object.values(allocation).reduce((sum, value) => sum + value, 0));
+
+  return {
+    ...result,
+    positions,
+    allocation,
+    investedPct,
+    cashReservePct: round2(100 - investedPct),
+  };
+}
 
 /** Hinweistext, wenn der Nutzer «Nur Aktien» wählt, obwohl das Profil einen
  *  Multi-Asset-Mix empfiehlt. */
@@ -253,10 +317,6 @@ export async function applyMultiAssetSleeve(
   const allocationMatrix = await getMultiAssetAllocation();
   const matrix = allocationMatrix[riskProfile];
 
-  const emptyAllocation = (): Record<SleeveAssetKey, number> => ({
-    equity: 0, bond: 0, commodity: 0, gold: 0, realestate: 0, crypto: 0,
-  });
-
   if (stocksOnly) {
     const positions: SleevePosition[] = equityPositions.map((p) => ({
       ...p,
@@ -266,7 +326,7 @@ export async function applyMultiAssetSleeve(
     }));
     return {
       positions,
-      allocation: { ...emptyAllocation(), equity: round2(positions.reduce((s, p) => s + p.weight, 0)) },
+      allocation: { ...emptySleeveAllocation(), equity: round2(positions.reduce((s, p) => s + p.weight, 0)) },
       notes: [],
       deviationNote: buildDeviationNote(riskProfile),
     };
@@ -397,7 +457,7 @@ export async function applyMultiAssetSleeve(
   notes.push(...bandCorrections);
 
   // 4) Effektive Allokation nachrechnen
-  const allocation = emptyAllocation();
+  const allocation = emptySleeveAllocation();
   for (const p of positions) {
     allocation[p.assetClass] = round2(allocation[p.assetClass] + p.weight);
   }

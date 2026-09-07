@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  applyCashReserveToMultiAssetSleeve,
   applyMultiAssetSleeve,
   buildDeviationNote,
   MULTI_ASSET_ALLOCATION,
@@ -212,5 +213,61 @@ describe("applyMultiAssetSleeve — konservativ ohne Krypto", () => {
     const cryptoTickers = MULTI_ASSET_ETFS.crypto.map((e) => e.ticker);
     expect(calls.some((t) => cryptoTickers.includes(t))).toBe(false);
     expect(sumWeights(result.positions)).toBeCloseTo(100, 1);
+  });
+});
+
+describe("applyCashReserveToMultiAssetSleeve", () => {
+  it("skaliert konservative Positionen und Klassenallokation auf den investierten Anteil, sodass Positionen plus Cash exakt 100% ergeben", async () => {
+    const beforeCash = await applyMultiAssetSleeve({
+      equityPositions: equity([100]),
+      riskProfile: "konservativ",
+      stocksOnly: false,
+      resolvePrice: allAvailable,
+    });
+
+    const result = applyCashReserveToMultiAssetSleeve(beforeCash, 10);
+
+    expect(sumWeights(result.positions)).toBeCloseTo(90, 2);
+    expect(result.cashReservePct).toBe(10);
+    expect(result.allocation).toEqual({
+      equity: 27, bond: 45, commodity: 3.6, gold: 7.2, realestate: 7.2, crypto: 0,
+    });
+    expect((Object.values(result.allocation) as number[]).reduce((sum, value) => sum + value, 0) + result.cashReservePct).toBeCloseTo(100, 2);
+  });
+
+  it("behält bei 0% Cash und bei Nur-Aktien die volle 100%-Kapitalbasis bei", async () => {
+    const stocksOnly = await applyMultiAssetSleeve({
+      equityPositions: equity([60, 40]),
+      riskProfile: "konservativ",
+      stocksOnly: true,
+      resolvePrice: allAvailable,
+    });
+
+    const result = applyCashReserveToMultiAssetSleeve(stocksOnly, 0);
+
+    expect(sumWeights(result.positions)).toBeCloseTo(100, 2);
+    expect(result.allocation.equity).toBe(100);
+    expect(result.cashReservePct).toBe(0);
+  });
+
+  it("hält die angeforderte 10%-Cash-Reserve trotz vorgelagerter Positionsrundung exakt ein", () => {
+    const roundedBeforeCash = {
+      positions: [
+        { ticker: "EQUITY", weight: 29.94, assetType: "stock" as const, assetClass: "equity" as const },
+        { ticker: "BOND", weight: 50, assetType: "etf" as const, assetClass: "bond" as const },
+        { ticker: "CMDY", weight: 4, assetType: "etf" as const, assetClass: "commodity" as const },
+        { ticker: "GOLD", weight: 8, assetType: "etf" as const, assetClass: "gold" as const },
+        { ticker: "REIT", weight: 8, assetType: "etf" as const, assetClass: "realestate" as const },
+      ],
+      allocation: { equity: 29.94, bond: 50, commodity: 4, gold: 8, realestate: 8, crypto: 0 },
+      notes: [],
+      deviationNote: null,
+    };
+
+    const result = applyCashReserveToMultiAssetSleeve(roundedBeforeCash, 10);
+
+    expect(sumWeights(result.positions)).toBe(90);
+    expect(result.cashReservePct).toBe(10);
+    expect((Object.values(result.allocation) as number[]).reduce((sum, value) => sum + value, 0) + result.cashReservePct).toBe(100);
   });
 });
