@@ -440,6 +440,7 @@ export const portfoliosRouter = router({
         const heuteIso = new Date().toISOString().split('T')[0];
         const { berechneTagesveraenderung } = await import("../lib/dailyChange");
         const { getHistoricalPriceCurrency, isHistoricalPriceSeriesCompatible } = await import("../lib/eodhdSymbol");
+        const { getCuratedInstrumentDisclosure } = await import("../lib/curatedInstrumentDisclosures");
 
         // Qualitaet aus den vorgerechneten drei Scores (stock_scores), nicht
         // mehr aus dem alten Einzelscore. Ein Titel ohne Eintrag bekommt null —
@@ -517,6 +518,7 @@ export const portfoliosRouter = router({
 
             const dbStock = dbStockMap.get(ticker) || await getStockByTicker(ticker); // fallback for alias resolution
             const currency = dbStock?.currency || await getStockCurrency(ticker);
+            const instrumentDisclosure = getCuratedInstrumentDisclosure(ticker, { currency });
             const historicalPriceCurrency = getHistoricalPriceCurrency(ticker, currency || 'CHF');
             const dayChangeDataQuality = isHistoricalPriceSeriesCompatible(ticker, currency || 'CHF')
               ? null
@@ -712,6 +714,9 @@ export const portfoliosRouter = router({
               // hasBuyPrice: true only when a real purchase price exists (not the 0%-fallback)
               hasBuyPrice,
               returnDataQuality: hasBuyPrice ? null : 'Einstandsdaten fehlen; Rendite seit Kauf ist nicht verfügbar.',
+              // Reine Zusatzinformation aus einzeln datierten Primärquellen.
+              // Sie überschreibt weder Vendor-Stammdaten noch Preis-/Portfoliofelder.
+              instrumentDisclosure,
               // Tagesveraenderung gegen den letzten Schlusskurs. null = keine
               // Basis vorhanden; die Ansicht zeigt dann «—» statt eines
               // erfundenen 0.00 %.

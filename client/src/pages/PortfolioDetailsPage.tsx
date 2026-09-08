@@ -2816,6 +2816,27 @@ export default function PortfolioDetailsPage() {
                                     </div>
                                   </div>
                                 </div>
+                                {h.instrumentDisclosure?.identityStatus === 'verified' && (
+                                  <div className="mt-3 border border-sky-400/20 bg-sky-400/5 rounded-lg p-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <p className="text-xs font-semibold text-sky-100 uppercase tracking-wider">Instrumentidentität</p>
+                                      <span className="text-[10px] text-sky-200/70">Primärquelle · Stand {h.instrumentDisclosure.asOf}</span>
+                                    </div>
+                                    <div className="mt-2 grid gap-2 text-xs sm:grid-cols-3">
+                                      <div><p className="text-gray-500">ISIN</p><p className="font-mono text-gray-200">{h.instrumentDisclosure.isin}</p></div>
+                                      <div><p className="text-gray-500">Handelsplatz</p><p className="text-gray-200">{h.instrumentDisclosure.exchange} <span className="font-mono text-gray-400">({h.instrumentDisclosure.mic})</span></p></div>
+                                      <div><p className="text-gray-500">Handelswährung</p><p className="text-gray-200">{h.instrumentDisclosure.tradingCurrency}</p></div>
+                                    </div>
+                                    {h.instrumentDisclosure.fundTransparency && (
+                                      <div className="mt-3 border-t border-sky-400/15 pt-3">
+                                        <p className="text-xs font-semibold text-sky-100">ETF-Durchschau · begrenzt</p>
+                                        <p className="mt-1 text-xs leading-relaxed text-sky-100/80">Direkte Portfolioallokation: {parseFloat(h.weight || '0').toFixed(1)} %. Der Fonds hält laut Datenstand {h.instrumentDisclosure.fundTransparency.asOf} {h.instrumentDisclosure.fundTransparency.holdingsCount} Einzeltitel mit Fokus auf {h.instrumentDisclosure.fundTransparency.marketFocus}. {h.instrumentDisclosure.fundTransparency.methodology}</p>
+                                        <p className="mt-1 text-[10px] leading-relaxed text-sky-200/65">Die direkte ETF-Quote bleibt massgeblich. Titel- und Sektorgewichte des Fonds werden ohne lizenzierte, zeitnahe Bestandsdaten nicht als wirtschaftliche Durchschau berechnet.</p>
+                                      </div>
+                                    )}
+                                    <a href={h.instrumentDisclosure.sourceUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex text-xs text-sky-200 underline decoration-sky-300/40 underline-offset-2 hover:text-white">{h.instrumentDisclosure.sourceLabel}</a>
+                                  </div>
+                                )}
                                 {/* Performance seit Kauf — Kursgewinn vs FX-Gewinn Aufschlüsselung */}
                                 {h.hasBuyPrice === false ? (
                                   <div className="mt-3 border border-amber-400/25 bg-amber-400/5 rounded-lg p-3">

@@ -841,3 +841,7 @@
 
 ## Positionsrendite bei fehlender Einstandsbasis (2026-09-08)
 - [x] Eine fehlende, echte positionsbezogene Einstandsbasis als Datenlücke statt als tatsächliche Rendite von `0,0 %` ausweisen und diese Semantik klar von Gesamtperformance sowie Modell-/Planungsverlauf trennen; keine Position, Cashreserve, Preisreihe oder Handelsdaten verändern.
+
+## Instrumentidentität und ETF-Durchschau (2026-09-08)
+- [x] Den Instrumentdatenvertrag für Watchlist- und Portfolioanzeige um klar ausgewiesene ISIN-, Börsenplatz- und Handelswährungsmetadaten ergänzen, sofern belegt; fehlende Werte transparent als Datenlücke ausweisen und keine Stammdaten erfinden oder überschreiben.
+- [x] Für Fonds/ETFs mit belegten Bestanddaten eine klar abgegrenzte, optionale wirtschaftliche Durchschau (Look-through) darstellen, die direkte Instrumentgewichtung und Fondsanteil nicht verwechselt; bei fehlenden oder nicht aktuellen Bestanddaten nur die Datenlücke zeigen.
