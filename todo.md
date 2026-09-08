@@ -784,6 +784,12 @@
 - [x] Abschlussansicht der Wizard-Übernahme korrigieren: die separate Cash-Reserve sichtbar ausweisen und sie nicht als Stückzahlrundungsdifferenz zum Startkapital deklarieren
 - [x] Kritische Tag-0-Wertabweichung des neu erstellten Dividendenportfolios #3960001 (sichtbar CHF 587'629 statt CHF 600'000) bis zu Preis-, FX-, Cash- oder Bewertungsquelle reproduzieren und ohne Portfolio-/Transaktionsmutation korrigieren
 - [x] Nach ausdrücklicher Nutzerfreigabe den fehlerhaft serialisierten Demo-Eintrag #3960001 an den geprüften Instrumenttyp-, Handelswährungs- und FX-Vertrag angleichen; keine Live-Aktivierung, Börsenorder, Zahlung oder Geldbewegung
+- [x] Vollständige Portfolio-Neuoptimierung um eine rein vorschauorientierte Zielkonfiguration für Dividendenrendite, Sharpe, historische Schwankung/Drawdown und CHF-Anteil ergänzen; die bestehende Ziel-Asset-Allokation muss als Band geschützt bleiben
+- [x] Neuoptimierung für kürzlich erstellte oder manuell angepasste Demoportfolios verfügbar machen, ohne bestehende Positionen, Cash oder Transaktionen automatisch zu verändern
+- [x] In der vollständigen Neuoptimierung die tatsächlich verwendete gemeinsame Historienlänge, Datenlücken und die Erfüllung der gewählten Soft-Constraints ausweisen; historische Kennzahlen ohne ausreichenden Nachweis nicht als belastbar darstellen
+- [x] Die in der vollständigen Neuoptimierung live belegte Volatilitätsskala (0,1636 als 0,2 % statt 16,4 %) testgetrieben korrigieren, damit historische Aktienkomponentenkennzahlen konsistent formatiert sind
+- [x] Den unplausiblen Swissquote-Performancewert von ungefähr −90 % bis zu Preis-, Corporate-Action-, Import- oder Renditepfad reproduzieren und testgetrieben korrigieren
+- [ ] Nach separater ausdrücklicher Nutzerfreigabe eine geprüfte vollständige Neuoptimierung in ein Portfolio übernehmen; bis dahin bleibt jede Zielberechnung eine nicht handelnde Vorschau
 
 ## EODHD-Zehnjahres-Backfill für Dividenden-Qualitätsprüfung (2026-09-07)
 - [x] Fehlende Langfristreihen der kuratierten Dividendenkandidaten gegen vorhandene EODHD-Symbole und bereits persistierte Kurse abgrenzen

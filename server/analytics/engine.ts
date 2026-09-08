@@ -40,6 +40,7 @@ import {
 import { getFxRate, getStockCurrency } from "../fxHelper";
 import { ENV } from "../_core/env";
 import { toEodhdSymbol } from "../lib/eodhdSymbol";
+import { historicalPriceLookupKeys } from "../lib/historicalPriceLookupKeys";
 import { normalizeTickerForDb } from "../tickerNormalization";
 // ─────────────────────────────────────────────
 // DB-based price fetcher (replaces Yahoo Finance)
@@ -58,9 +59,9 @@ async function fetchPricesFromDB(
     .toISOString()
     .split("T")[0];
   // Normalize tickers for DB lookup
-  const normalizedMap: Record<string, string> = {};
-  for (const t of tickers) normalizedMap[t] = normalizeTickerForDb(t);
-  const uniqueNorm = Array.from(new Set(Object.values(normalizedMap)));
+  const lookupKeysByTicker: Record<string, string[]> = {};
+  for (const ticker of tickers) lookupKeysByTicker[ticker] = historicalPriceLookupKeys(ticker);
+  const uniqueNorm = Array.from(new Set(Object.values(lookupKeysByTicker).flat()));
   // Datumsfilter gehoert in die Abfrage. Vorher wurde die KOMPLETTE Historie
   // aller Titel geladen und erst in JavaScript beschnitten — bei Dutzenden
   // Titeln mit jahrelanger Historie zehntausende Zeilen, von denen die meisten
@@ -90,8 +91,11 @@ async function fetchPricesFromDB(
   }
   const result: Record<string, Array<{ date: string; price: number }>> = {};
   for (const orig of tickers) {
-    const norm = normalizedMap[orig];
-    if (byNorm[norm] && byNorm[norm].length > 5) result[orig] = byNorm[norm];
+    const matchedKey = lookupKeysByTicker[orig]
+      .slice()
+      .sort((left, right) => (byNorm[right]?.length ?? 0) - (byNorm[left]?.length ?? 0))
+      .find((key) => (byNorm[key]?.length ?? 0) > 5);
+    if (matchedKey) result[orig] = byNorm[matchedKey];
   }
   return result;
 }
@@ -154,6 +158,8 @@ export interface OptimizeInput {
     minSharpe?: number;
     /** Maximaler historischer Drawdown als positiver Verlustbetrag (z.B. 0.25 = -25%). */
     maxDrawdown?: number;
+    /** Mindestanteil CHF-denominierter Titel innerhalb des optimierten Aktienteils. */
+    minChfWeight?: number;
   };
   /**
    * Sektor je Ticker — nur vom exakten Optimierer (PyPortfolioOpt) als harter
@@ -379,6 +385,7 @@ interface UserConstraints {
   maxVolatility?: number;
   minSharpe?: number;
   maxDrawdown?: number;
+  minChfWeight?: number;
 }
 
 // Tägliche Portfolio-Renditereihe aus Gewichten und den (datums-alignierten)
@@ -415,7 +422,8 @@ function optimizeWeights(
   dividendYields?: number[],
   constraints?: { minWeight: number; maxWeight: number },
   userConstraints?: UserConstraints,
-  cvarReturns?: number[][]
+  cvarReturns?: number[][],
+  currencies?: string[],
 ): number[] {
   const n = mu.length;
   const x0 = new Array(n).fill(1 / n);
@@ -490,6 +498,17 @@ function optimizeWeights(
         const observedDrawdown = Math.abs(calcMaxDrawdown(weightedDailySeries(w, cvarReturns)));
         const excess = Math.max(0, observedDrawdown - userConstraints.maxDrawdown);
         base -= PENALTY * excess;
+      }
+      // Mindestanteil CHF innerhalb der optimierten Aktienkomponente. Die
+      // Asset-Allokation ausserhalb der Aktien (Sleeves und Cash) wird vom
+      // Aufrufer separat bewahrt und fliesst bewusst nicht in diese Quote ein.
+      if (userConstraints.minChfWeight !== undefined && currencies) {
+        const chfWeight = w.reduce(
+          (sum, wi, i) => sum + (String(currencies[i] ?? "").toUpperCase() === "CHF" ? wi : 0),
+          0,
+        );
+        const shortfall = Math.max(0, userConstraints.minChfWeight - chfWeight);
+        base -= PENALTY * shortfall;
       }
     }
     return base;
@@ -1362,6 +1381,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
   // Datums-alignierte Asset-Renditematrix (EODHD, CHF) — Basis für die
   // CVaR-Zielfunktion und für die CVaR-Kennzahl (aktuell vs. optimiert).
   const assetReturnsMatrix: number[][] = available.map((t) => returnsMap[t]);
+  const currencies = available.map((ticker) => currencyByTicker[ticker] ?? "CHF");
   // Auch Drawdown-Nebenbedingungen benötigen dieselbe vollständig
   // datums-ausgerichtete historische Renditematrix wie CVaR.
   const cvarReturns = method === "min_cvar" || input.userConstraints?.maxDrawdown !== undefined
@@ -1391,7 +1411,7 @@ export async function optimizePortfolio(input: OptimizeInput) {
     optimalWeights = optimizeWeights(mu, cov, method, riskFreeRate, dividendYields, {
       minWeight: minPositionWeight,
       maxWeight: maxPositionWeight,
-    }, input.userConstraints, cvarReturns);
+    }, input.userConstraints, cvarReturns, currencies);
   }
 
   // R-34c: Mindest-Positionsgrösse CHF 3'000 — Zielpositionen, deren Wert
@@ -1504,6 +1524,12 @@ export async function optimizePortfolio(input: OptimizeInput) {
       achieved: Math.round(Math.abs(calcMaxDrawdown(weightedDailySeries(finalWeights, assetReturnsMatrix))) * 10000) / 10000,
       current: Math.round(Math.abs(calcMaxDrawdown(weightedDailySeries(currentWeightsArr, assetReturnsMatrix))) * 10000) / 10000,
       met: Math.abs(calcMaxDrawdown(weightedDailySeries(finalWeights, assetReturnsMatrix))) <= input.userConstraints.maxDrawdown + 0.001,
+    } : undefined,
+    minChfWeight: input.userConstraints.minChfWeight !== undefined ? {
+      target: input.userConstraints.minChfWeight,
+      achieved: Math.round(finalWeights.reduce((sum, weight, index) => sum + (String(currencies[index] ?? "").toUpperCase() === "CHF" ? weight : 0), 0) * 10000) / 10000,
+      current: Math.round(currentWeightsArr.reduce((sum, weight, index) => sum + (String(currencies[index] ?? "").toUpperCase() === "CHF" ? weight : 0), 0) * 10000) / 10000,
+      met: finalWeights.reduce((sum, weight, index) => sum + (String(currencies[index] ?? "").toUpperCase() === "CHF" ? weight : 0), 0) >= input.userConstraints.minChfWeight - 0.001,
     } : undefined,
   } : undefined;
 

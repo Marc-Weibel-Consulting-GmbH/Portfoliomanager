@@ -13,9 +13,13 @@ import { getQualityMetrics } from "../lib/qualityMetricsService";
 import { invokeLLM, invokeKimi } from "../_core/llm";
 import { getDiversificationRules as _getDiversificationRules } from "../lib/diversificationRules";
 import { getDb } from "../db";
-import { stocks as stocksTable, portfolioTransactions, savedPortfolios } from "../../drizzle/schema";
-import { and, eq, inArray } from "drizzle-orm";
+import { historicalPrices, stocks as stocksTable, portfolioTransactions, savedPortfolios } from "../../drizzle/schema";
+import { and, eq, gte, inArray } from "drizzle-orm";
 import { getMarktHubSignals } from "../lib/marktHubSignals";
+import { SLEEVE_TICKER_LABEL } from "../../shared/const";
+import { buildAssetAllocationPreservingEquityProposal } from "../lib/fullReoptimizationProposal";
+import { selectFullReoptimizationUniverse } from "../lib/fullReoptimizationUniverse";
+import { historicalPriceLookupKeys } from "../lib/historicalPriceLookupKeys";
 
 const HoldingSchema = z.object({
   ticker: z.string(),
@@ -117,6 +121,7 @@ export const analyticsRouter = router({
           maxVolatility: z.number().min(0).max(2).optional(),
           minSharpe: z.number().min(-5).max(10).optional(),
           maxDrawdown: z.number().min(0).max(1).optional(),
+          minChfWeight: z.number().min(0).max(1).optional(),
         }).optional(),
       })
     )
@@ -187,6 +192,178 @@ export const analyticsRouter = router({
           message: err.message ?? "Portfolio optimization failed",
         });
       }
+    }),
+
+  /**
+   * Vollständige Aktien-Neuoptimierung als Vorschau. Der Aktienanteil wird aus
+   * einem überprüfbaren Universum gebildet; Cash und Multi-Asset-Sleeves bleiben
+   * als feste Kapitalbasis unverändert. Die Prozedur schreibt niemals Positionen
+   * oder Transaktionen.
+   */
+  fullReoptimizationPreview: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number().int().positive(),
+      lookbackDays: z.number().int().min(252).max(2520).default(756),
+      candidateLimit: z.number().int().min(6).max(30).default(20),
+      method: z.enum(["max_sharpe", "min_variance", "equal_weight", "max_dividend", "hrp", "min_cvar"]).default("max_sharpe"),
+      userConstraints: z.object({
+        minDividendYield: z.number().min(0).max(1).optional(),
+        maxVolatility: z.number().min(0).max(2).optional(),
+        minSharpe: z.number().min(-5).max(10).optional(),
+        maxDrawdown: z.number().min(0).max(1).optional(),
+        minChfWeight: z.number().min(0).max(1).optional(),
+      }).optional(),
+    }))
+    .query(async ({ input, ctx }) => {
+      const { requireFeature } = await import("../lib/entitlements");
+      await requireFeature(ctx.user, "optimizer");
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Datenbank nicht verfügbar." });
+      const [portfolio] = await db
+        .select()
+        .from(savedPortfolios)
+        .where(and(eq(savedPortfolios.id, input.portfolioId), eq(savedPortfolios.userId, ctx.user.id)))
+        .limit(1);
+      if (!portfolio) throw new TRPCError({ code: "NOT_FOUND", message: "Portfolio nicht gefunden." });
+
+      let storedStocks: Array<{ ticker?: string; weight?: number | string }> = [];
+      try {
+        const parsed = portfolio.portfolioData ? JSON.parse(portfolio.portfolioData) : null;
+        storedStocks = Array.isArray(parsed?.stocks) ? parsed.stocks : [];
+      } catch {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Portfoliopositionen sind nicht lesbar." });
+      }
+      if (storedStocks.length === 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Für dieses Portfolio sind keine Positionen gespeichert." });
+      }
+
+      const capital = Number(portfolio.investmentAmount);
+      const cashBalance = Number(portfolio.cashBalance ?? 0);
+      if (!Number.isFinite(capital) || capital <= 0 || !Number.isFinite(cashBalance) || cashBalance < 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Kapitalbasis des Portfolios ist nicht gültig." });
+      }
+      const isSleeve = (ticker: string) => SLEEVE_TICKER_LABEL[String(ticker ?? "").toUpperCase()] != null;
+      const currentPositions = storedStocks
+        .filter((position) => position.ticker && position.ticker !== "CASH")
+        .map((position) => ({
+          ticker: String(position.ticker),
+          weightPct: Number(position.weight ?? 0),
+          assetKind: isSleeve(String(position.ticker)) ? "sleeve" as const : "equity" as const,
+        }));
+      const cashWeightPct = (cashBalance / capital) * 100;
+      const fixedSleeveWeightPct = currentPositions
+        .filter((position) => position.assetKind === "sleeve")
+        .reduce((sum, position) => sum + position.weightPct, 0);
+      const equityBudgetPct = 100 - cashWeightPct - fixedSleeveWeightPct;
+      if (equityBudgetPct <= 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Nach Cash und Multi-Asset-Sleeves bleibt kein Aktienanteil für eine Neuoptimierung." });
+      }
+
+      const rules = await _getDiversificationRules();
+      const allCandidates = await db.select({
+        ticker: stocksTable.ticker,
+        currency: stocksTable.currency,
+        currentPrice: stocksTable.currentPrice,
+        sharpeRatio: stocksTable.sharpeRatio,
+        volatility: stocksTable.volatility,
+        dividendYield: stocksTable.dividendYield,
+        signalScore: stocksTable.signalScore,
+        signalType: stocksTable.signalType,
+        dataQualityStatus: stocksTable.dataQualityStatus,
+        isActive: stocksTable.isActive,
+      }).from(stocksTable);
+      const historyStartDate = new Date(Date.now() - input.lookbackDays * 1.5 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
+      const lookupKeysByTicker = new Map<string, string[]>();
+      for (const candidate of allCandidates) {
+        lookupKeysByTicker.set(candidate.ticker, historicalPriceLookupKeys(candidate.ticker));
+      }
+      const lookupKeys = Array.from(new Set(Array.from(lookupKeysByTicker.values()).flat()));
+      const historyRows = lookupKeys.length === 0
+        ? []
+        : await db.select({
+          ticker: historicalPrices.ticker,
+          date: historicalPrices.date,
+          close: historicalPrices.close,
+          adjustedClose: historicalPrices.adjustedClose,
+        }).from(historicalPrices).where(and(
+          inArray(historicalPrices.ticker, lookupKeys),
+          gte(historicalPrices.date, historyStartDate),
+        ));
+      const validPriceCountByKey = new Map<string, number>();
+      const validPriceDatesByKey = new Map<string, Set<string>>();
+      for (const row of historyRows) {
+        const price = Number(row.adjustedClose ?? row.close);
+        if (Number.isFinite(price) && price > 0) {
+          validPriceCountByKey.set(row.ticker, (validPriceCountByKey.get(row.ticker) ?? 0) + 1);
+          const dates = validPriceDatesByKey.get(row.ticker) ?? new Set<string>();
+          dates.add(String(row.date).slice(0, 10));
+          validPriceDatesByKey.set(row.ticker, dates);
+        }
+      }
+      const universe = selectFullReoptimizationUniverse({
+        candidates: allCandidates.map((candidate) => ({
+          ticker: candidate.ticker,
+          currency: candidate.currency,
+          currentPrice: candidate.currentPrice == null ? null : Number(candidate.currentPrice),
+          sharpeRatio: candidate.sharpeRatio == null ? null : Number(candidate.sharpeRatio),
+          volatility: candidate.volatility == null ? null : Number(candidate.volatility),
+          dividendYield: candidate.dividendYield == null ? null : Number(candidate.dividendYield),
+          signalScore: candidate.signalScore,
+          signalType: candidate.signalType,
+          dataQualityStatus: candidate.dataQualityStatus,
+          isActive: candidate.isActive === 1,
+          isSleeve: isSleeve(candidate.ticker),
+          hasSufficientHistory: (lookupKeysByTicker.get(candidate.ticker) ?? [])
+            .some((key) => (validPriceCountByKey.get(key) ?? 0) >= 61),
+          historyDates: Array.from(
+            (lookupKeysByTicker.get(candidate.ticker) ?? [])
+              .map((key) => validPriceDatesByKey.get(key) ?? new Set<string>())
+              .sort((left, right) => right.size - left.size)[0] ?? new Set<string>(),
+          ),
+        })),
+        method: input.method,
+        candidateLimit: input.candidateLimit,
+        minChfWeight: input.userConstraints?.minChfWeight,
+        maxEquityPositionWeight: rules.maxPositionPercent / 100,
+      });
+      const currentEquityWeights: Record<string, number> = {};
+      for (const position of currentPositions) {
+        if (position.assetKind === "equity" && position.weightPct > 0) {
+          currentEquityWeights[position.ticker] = position.weightPct / equityBudgetPct;
+        }
+      }
+      const { getRiskFreeRate } = await import("../lib/riskFreeRate");
+      const optimizer = await optimizePortfolio({
+        tickers: universe.tickers,
+        lookbackDays: input.lookbackDays,
+        riskFreeRate: await getRiskFreeRate(),
+        method: input.method,
+        portfolioValue: capital * (equityBudgetPct / 100),
+        minPositionChf: rules.minPositionAmountCHF,
+        minPositionWeight: rules.minPositionPercent / 100,
+        maxPositionWeight: rules.maxPositionPercent / 100,
+        currentWeights: currentEquityWeights,
+        userConstraints: input.userConstraints,
+      });
+      const allocation = buildAssetAllocationPreservingEquityProposal({
+        currentPositions,
+        cashWeightPct,
+        optimizedEquityWeights: optimizer.weights,
+      });
+      return {
+        previewOnly: true as const,
+        allocation,
+        optimizer,
+        candidateUniverse: {
+          tickers: universe.tickers,
+          excluded: universe.excluded,
+          requiredChfCandidateCount: universe.requiredChfCandidateCount,
+          historyStartDate,
+          commonHistoryDateCount: universe.commonHistoryDateCount,
+        },
+      };
     }),
 
   /**

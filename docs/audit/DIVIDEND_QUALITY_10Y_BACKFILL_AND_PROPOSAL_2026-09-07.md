@@ -91,3 +91,14 @@ Die anschliessende Live-Abnahme der Detailseite bestätigt **WERT CHF 600'000**,
 | Gezielte Verträge | 23 bestanden |
 | Vollständige Testsuite | 1'516 bestanden, 11 bewusst übersprungen |
 | TypeScript | Fehlerfrei |
+
+## Nachtrag: Swissquote-Performanceausreisser (Untersuchung läuft)
+
+Für den separaten Demo-Portfolioeintrag „Mami“ wurde am 8. September 2026 ein unplausibler YTD-Wert für `SQN.SW` reproduziert: In der Stammdatenzeile standen CHF 477.59 als YTD-Startkurs, CHF 41.18 als aktueller Kurs und daraus −91.32 %. Die lokale EODHD-Reihe zeigt gleichzeitig einen Sprung von CHF 412.60 am 26. Mai 2026 auf CHF 39.82 am 27. Mai 2026, während für die betroffenen Daten keine konsistenten `adjustedClose`-Werte vorhanden sind. Die Ursache wird daher nicht als tatsächliche Rendite, sondern als nicht nachgezogene Corporate Action behandelt.
+
+Die Corporate Action ist extern belegt: Swissquote Group Holding Ltd führte einen **1:10-Aktiensplit** durch; Eurex nennt die Umstellung einschliesslich ISIN-Änderung, und der Handelsbeginn der gesplitteten Aktien war am 28. Mai 2026. [1] [2] Die weitere Korrektur darf den Splitfaktor nicht hartkodieren oder nur den einzelnen Stammdatenwert überschreiben, sondern muss die Rendite-Baseline und betroffene historische Reihen nachvollziehbar bereinigen und mit einer Regression absichern.
+
+### Referenzen
+
+[1] [Eurex: Swissquote Group Holding Ltd – Stock Split / ISIN-Change](https://www.eurex.com/ex-en/rules-regs/corporate-actions/corporate-action-information/Swissquote-Group-Holding-Ltd-Stock-Split-ISIN-Change-5168288)
+[2] [Swissquote: Implementation of the 1:10 split of the Swissquote share](https://www.swissquote.com/en/api/internal/media/get-media?filename=press-releases/EN_Media%20Release%20share%20split%20.pdf)

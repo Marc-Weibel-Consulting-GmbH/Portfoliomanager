@@ -18,6 +18,7 @@ import {
   getVisibleDiversificationRules,
   type PortfolioAllocationScope,
 } from "@/lib/optimizationPresentation";
+import { formatFullReoptimizationFraction } from "@/lib/fullReoptimizationPresentation";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -467,19 +468,27 @@ export default function OptimierenTab({
   const [constraintMinDiv, setConstraintMinDiv] = useState<string>("");
   const [constraintMaxVol, setConstraintMaxVol] = useState<string>("");
   const [constraintMinSharpe, setConstraintMinSharpe] = useState<string>("");
+  const [constraintMaxDrawdown, setConstraintMaxDrawdown] = useState<string>("");
+  const [constraintMinChf, setConstraintMinChf] = useState<string>("");
   const [showConstraints, setShowConstraints] = useState(false);
+  const [showFullReoptimization, setShowFullReoptimization] = useState(false);
+  const [fullCandidateLimit, setFullCandidateLimit] = useState(20);
 
   // Parsed constraints (nur wenn gültige Zahlen eingegeben)
   const userConstraints = useMemo(() => {
-    const c: { minDividendYield?: number; maxVolatility?: number; minSharpe?: number } = {};
+    const c: { minDividendYield?: number; maxVolatility?: number; minSharpe?: number; maxDrawdown?: number; minChfWeight?: number } = {};
     const div = parseFloat(constraintMinDiv);
     if (!isNaN(div) && div > 0) c.minDividendYield = div / 100; // % → Anteil
     const vol = parseFloat(constraintMaxVol);
     if (!isNaN(vol) && vol > 0) c.maxVolatility = vol / 100;
     const sharpe = parseFloat(constraintMinSharpe);
     if (!isNaN(sharpe)) c.minSharpe = sharpe;
+    const drawdown = parseFloat(constraintMaxDrawdown);
+    if (!isNaN(drawdown) && drawdown > 0) c.maxDrawdown = drawdown / 100;
+    const chf = parseFloat(constraintMinChf);
+    if (!isNaN(chf) && chf > 0) c.minChfWeight = chf / 100;
     return Object.keys(c).length > 0 ? c : undefined;
-  }, [constraintMinDiv, constraintMaxVol, constraintMinSharpe]);
+  }, [constraintMinDiv, constraintMaxVol, constraintMinSharpe, constraintMaxDrawdown, constraintMinChf]);
 
   const hasActiveConstraints = userConstraints !== undefined;
 
@@ -567,6 +576,22 @@ export default function OptimierenTab({
     },
     { enabled: portfolioId > 0 && tickers.length >= 2, staleTime: 0 }
   );
+
+  const { data: fullReoptimizationPreview, isFetching: isFullReoptimizationFetching, error: fullReoptimizationError } =
+    trpc.analytics.fullReoptimizationPreview.useQuery(
+      {
+        portfolioId,
+        lookbackDays: 756,
+        candidateLimit: fullCandidateLimit,
+        method,
+        ...(userConstraints ? { userConstraints } : {}),
+      },
+      {
+        enabled: showFullReoptimization && portfolioId > 0 && tickers.length >= 2,
+        staleTime: 0,
+        retry: false,
+      },
+    );
 
   // ─── Backtest der optimierten Ziel-Allokation ───────────────────────────────
   const [showBacktest, setShowBacktest] = useState(false);
@@ -742,7 +767,7 @@ export default function OptimierenTab({
               Geben Sie quantitative Ziele ein — der Optimizer berücksichtigt diese als Soft-Constraints
               (Penalty-Terme) und strebt sie an, ohne die Optimierung zu blockieren.
             </p>
-            <div className="grid sm:grid-cols-3 gap-4">
+            <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-4">
               {/* Mindest-Dividendenrendite */}
               <div>
                 <label className="block text-xs font-semibold text-gray-400 mb-1.5">
@@ -812,6 +837,48 @@ export default function OptimierenTab({
                   <p className="text-[10px] text-[#00CFC1] mt-1">
                     Ziel: Sharpe ≥ {parseFloat(constraintMinSharpe).toFixed(2)}
                   </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+                  Max. historischer Drawdown
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    step="0.5"
+                    placeholder="z.B. 25.0"
+                    value={constraintMaxDrawdown}
+                    onChange={(e) => setConstraintMaxDrawdown(e.target.value)}
+                    className="w-full bg-[#0f1420] border border-white/20 text-white text-sm rounded-lg px-3 py-2 pr-8 focus:outline-none focus:border-[#00CFC1] placeholder-gray-600"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                </div>
+                {constraintMaxDrawdown && !isNaN(parseFloat(constraintMaxDrawdown)) && (
+                  <p className="text-[10px] text-[#00CFC1] mt-1">Ziel: Drawdown ≤ {parseFloat(constraintMaxDrawdown).toFixed(1)}%</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5">
+                  Mindestanteil CHF im Aktienteil
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    placeholder="z.B. 40"
+                    value={constraintMinChf}
+                    onChange={(e) => setConstraintMinChf(e.target.value)}
+                    className="w-full bg-[#0f1420] border border-white/20 text-white text-sm rounded-lg px-3 py-2 pr-8 focus:outline-none focus:border-[#00CFC1] placeholder-gray-600"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">%</span>
+                </div>
+                {constraintMinChf && !isNaN(parseFloat(constraintMinChf)) && (
+                  <p className="text-[10px] text-[#00CFC1] mt-1">Ziel: CHF-Aktien ≥ {parseFloat(constraintMinChf).toFixed(0)}%</p>
                 )}
               </div>
             </div>
@@ -887,13 +954,97 @@ export default function OptimierenTab({
             {hasActiveConstraints && (
               <div className="mt-3 flex items-center gap-2">
                 <button
-                  onClick={() => { setConstraintMinDiv(""); setConstraintMaxVol(""); setConstraintMinSharpe(""); }}
+                  onClick={() => { setConstraintMinDiv(""); setConstraintMaxVol(""); setConstraintMinSharpe(""); setConstraintMaxDrawdown(""); setConstraintMinChf(""); }}
                   className="text-xs text-red-400 hover:text-red-300 transition-colors"
                 >
                   Alle Ziele zurücksetzen
                 </button>
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* ─── Vollständige Aktien-Neuoptimierung (nur Vorschau) ─── */}
+      <div className={`border rounded-lg overflow-hidden ${showFullReoptimization ? 'border-indigo-400/50' : 'border-white/10'}`}>
+        <button
+          onClick={() => setShowFullReoptimization((open) => !open)}
+          className="w-full flex items-center justify-between px-4 py-3 bg-[#0f1420] hover:bg-white/[0.02] transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Target className={`w-4 h-4 ${showFullReoptimization ? 'text-indigo-300' : 'text-gray-500'}`} />
+            <span className="text-sm font-semibold text-white">Vollständige Aktien-Neuoptimierung</span>
+            <span className="text-[10px] text-indigo-200 bg-indigo-500/15 border border-indigo-400/20 px-1.5 py-0.5 rounded">Nur Vorschau</span>
+          </div>
+          <span className="text-gray-500 text-xs">{showFullReoptimization ? '▲ Schliessen' : '▼ Ziele setzen & berechnen'}</span>
+        </button>
+        {showFullReoptimization && (
+          <div className="border-t border-white/10 bg-[#0a0e1a] p-4 space-y-4">
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Diese Vorschau kann auch für frisch erstellte oder manuell angepasste Depots berechnet werden. Sie optimiert nur den Aktienanteil aus einem prüfbaren Universum. Cash und die bestehende Mischung aus Obligationen, Gold, Rohstoffen, Immobilien und Krypto bleiben unverändert; es werden keine Positionen, Buchungen oder Orders erstellt.
+            </p>
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="block text-xs text-gray-400">
+                Max. Aktienkandidaten
+                <select
+                  value={String(fullCandidateLimit)}
+                  onChange={(event) => setFullCandidateLimit(Number(event.target.value))}
+                  className="block mt-1 bg-[#0f1420] border border-white/20 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-300"
+                >
+                  <option value="10">10</option>
+                  <option value="15">15</option>
+                  <option value="20">20</option>
+                  <option value="25">25</option>
+                  <option value="30">30</option>
+                </select>
+              </label>
+              <span className="text-[11px] text-gray-600 pb-2">Ziele oben gelten als Soft-Constraints für die Aktienkomponente.</span>
+            </div>
+            {isFullReoptimizationFetching ? (
+              <div className="flex items-center gap-3 py-5 text-sm text-gray-400">
+                <span className="w-5 h-5 border-2 border-indigo-300/40 border-t-indigo-300 rounded-full animate-spin" />
+                Prüfe Aktienuniversum und berechne die geschützte Vorschau…
+              </div>
+            ) : fullReoptimizationError ? (
+              <div className="rounded-lg border border-amber-400/30 bg-amber-500/5 px-3 py-3 text-xs text-amber-200">
+                {getUserErrorMessage(fullReoptimizationError)}
+              </div>
+            ) : fullReoptimizationPreview ? (
+              <div className="space-y-4">
+                <div className="grid sm:grid-cols-4 gap-3">
+                  <div className="bg-[#0f1420] border border-white/10 rounded-lg px-3 py-2.5"><p className="text-[10px] text-gray-500">Aktienbudget</p><p className="text-sm font-mono font-semibold text-white">{fullReoptimizationPreview.allocation.equityBudgetPct.toFixed(1)}%</p></div>
+                  <div className="bg-[#0f1420] border border-white/10 rounded-lg px-3 py-2.5"><p className="text-[10px] text-gray-500">Feste Sleeves</p><p className="text-sm font-mono font-semibold text-white">{fullReoptimizationPreview.allocation.fixedSleeveWeightPct.toFixed(1)}%</p></div>
+                  <div className="bg-[#0f1420] border border-white/10 rounded-lg px-3 py-2.5"><p className="text-[10px] text-gray-500">Cash unverändert</p><p className="text-sm font-mono font-semibold text-white">{fullReoptimizationPreview.allocation.cashWeightPct.toFixed(1)}%</p></div>
+                  <div className="bg-[#0f1420] border border-emerald-400/20 rounded-lg px-3 py-2.5"><p className="text-[10px] text-gray-500">Kapitalbasis</p><p className="text-sm font-mono font-semibold text-emerald-300">{fullReoptimizationPreview.allocation.totalWeightPct.toFixed(1)}%</p></div>
+                </div>
+                <div className="rounded-lg border border-indigo-400/20 bg-indigo-500/5 px-3 py-3">
+                  <p className="text-xs font-semibold text-indigo-100">Aktienkomponente: historische Optimierung</p>
+                  <p className="text-xs text-indigo-100/70 mt-1">{fullReoptimizationPreview.candidateUniverse.tickers.length} Kandidaten nach Historien-Gate · Rendite p.a. {fullReoptimizationPreview.optimizer.optimalPortfolio.annualReturn.toFixed(1)}% · Volatilität {formatFullReoptimizationFraction(fullReoptimizationPreview.optimizer.optimalPortfolio.volatility)} · Sharpe {fullReoptimizationPreview.optimizer.optimalPortfolio.sharpe.toFixed(2)}</p>
+                  <p className="text-[11px] text-indigo-100/55 mt-1">Gemeinsame Preisbasis: {fullReoptimizationPreview.candidateUniverse.commonHistoryDateCount ?? "nicht nachgewiesen"} Handelstage seit {fullReoptimizationPreview.candidateUniverse.historyStartDate}. Titel ohne ausreichende Einzel- oder gemeinsame Historie werden ausgeschlossen.</p>
+                  <p className="text-[11px] text-indigo-100/55 mt-1">Diese historischen Kennzahlen gelten nur für die Aktienkomponente, nicht für das Gesamtportfolio und nicht als Prognose.</p>
+                </div>
+                {(() => {
+                  const achievement = fullReoptimizationPreview.optimizer.constraintAchievement as any;
+                  const rows = [
+                    achievement?.minDividendYield && { label: "Dividendenrendite", target: `${(achievement.minDividendYield.target * 100).toFixed(1)}%`, achieved: achievement.minDividendYield.achieved == null ? "keine Daten" : `${(achievement.minDividendYield.achieved * 100).toFixed(1)}%`, met: achievement.minDividendYield.met },
+                    achievement?.maxVolatility && { label: "Volatilität p.a.", target: `≤ ${(achievement.maxVolatility.target * 100).toFixed(1)}%`, achieved: achievement.maxVolatility.achieved == null ? "keine Daten" : formatFullReoptimizationFraction(achievement.maxVolatility.achieved), met: achievement.maxVolatility.met },
+                    achievement?.minSharpe && { label: "Sharpe Ratio", target: achievement.minSharpe.target.toFixed(2), achieved: achievement.minSharpe.achieved == null ? "keine Daten" : achievement.minSharpe.achieved.toFixed(2), met: achievement.minSharpe.met },
+                    achievement?.maxDrawdown && { label: "Max. historischer Drawdown", target: `≤ ${(achievement.maxDrawdown.target * 100).toFixed(1)}%`, achieved: achievement.maxDrawdown.achieved == null ? "keine Daten" : `${(achievement.maxDrawdown.achieved * 100).toFixed(1)}%`, met: achievement.maxDrawdown.met },
+                    achievement?.minChfWeight && { label: "CHF-Anteil Aktien", target: `≥ ${(achievement.minChfWeight.target * 100).toFixed(1)}%`, achieved: achievement.minChfWeight.achieved == null ? "keine Daten" : `${(achievement.minChfWeight.achieved * 100).toFixed(1)}%`, met: achievement.minChfWeight.met },
+                  ].filter(Boolean) as Array<{ label: string; target: string; achieved: string; met: boolean }>;
+                  return rows.length > 0 ? <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Zielerreichung · Soft-Constraints der Aktienkomponente</p><div className="mt-2 grid sm:grid-cols-2 gap-x-5 gap-y-2">{rows.map((row) => <div key={row.label} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs"><span className="text-gray-400">{row.label}: <span className="text-gray-300">Ziel {row.target}</span></span><span className={row.met ? "text-emerald-300 font-medium" : "text-amber-300 font-medium"}>Ergebnis {row.achieved} · {row.met ? "erreicht" : "nicht erreicht"}</span></div>)}</div></div> : null;
+                })()}
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {fullReoptimizationPreview.allocation.positions.filter((position: any) => position.assetKind === 'equity').map((position: any) => (
+                    <div key={position.ticker} className="flex items-center justify-between bg-white/[0.03] border border-white/10 rounded px-3 py-2 text-xs">
+                      <span className="font-mono text-gray-200">{position.ticker}</span>
+                      <span className="font-mono text-indigo-200">{position.weightPct.toFixed(2)}%</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[11px] text-gray-500">Die vollständige Vorschau ist absichtlich nicht direkt umsetzbar. Prüfen und übernehmen Sie sie später nur über einen separaten, ausdrücklich bestätigten Portfolio-Schritt.</p>
+              </div>
+            ) : null}
           </div>
         )}
       </div>

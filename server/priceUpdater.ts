@@ -45,27 +45,10 @@ export async function startPriceUpdater() {
               currentPrice: newPrice,
             };
 
-            // If ytdStartPrice is not set (first time or new year), set it
-            if (!stock.ytdStartPrice || parseFloat(stock.ytdStartPrice) === 0) {
-              updateData.ytdStartPrice = newPrice;
-              console.log(`→ Set YTD start price for ${stock.ticker}: ${newPrice}`);
-            }
-
-            // Calculate YTD performance if ytdStartPrice exists
-            // R-30: ytdStartPrice wird vom ytdUpdater (bzw. scripts/
-            // recompute-ytd-baselines.ts) aus adjustedClose gesetzt, damit
-            // currentPrice vs. Baseline über Splits/Spin-offs des VORJAHRES
-            // hinweg stimmt (Holcim/Amrize-Fall).
-            // TODO(R-11/R-30): Bei einer Corporate Action MITTEN im Jahr bleibt
-            // die Rechnung falsch — currentPrice springt, die Baseline nicht.
-            // Braucht Ratio-Sprung-Erkennung im täglichen Update oder eine
-            // Splits-Tabelle; bis dahin: scripts/recompute-ytd-baselines.ts
-            // nach bekannten Corporate Actions laufen lassen.
-            const ytdStart = parseFloat(stock.ytdStartPrice || "0");
-            if (ytdStart > 0) {
-              const ytdPerformance = ((parseFloat(newPrice) - ytdStart) / ytdStart) * 100;
-              updateData.ytdPerformance = ytdPerformance.toFixed(2);
-            }
+            // YTD-Felder werden ausschliesslich durch den täglichen
+            // adjusted-close-Abgleich geschrieben. Ein Real-Time-Kurs kann nach
+            // einem Split auf einer anderen Preisbasis liegen und darf daher
+            // nicht gegen eine Jahresanfangs-Baseline verglichen werden.
 
             await updateStock(stock.ticker, updateData);
             updatedCount++;
@@ -91,8 +74,8 @@ export async function startPriceUpdater() {
     }
   });
 
-  console.log("[Price Updater] ENABLED - Using Yahoo Finance API (free)");
-  console.log("[Price Updater] Cron schedule: Every 15 minutes");
+  console.log("[Price Updater] ENABLED - Using EODHD real-time prices");
+  console.log("[Price Updater] Cron schedule: daily at 18:00 local server time");
   task.start();
 
   return task;
@@ -103,4 +86,3 @@ export function stopPriceUpdater(task: ScheduledTask) {
   task.stop();
   console.log("[Price Updater] Stopped");
 }
-

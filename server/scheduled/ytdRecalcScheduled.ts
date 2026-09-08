@@ -2,12 +2,15 @@
  * YTD Recalculation Scheduled Handler
  *
  * Triggered daily at 06:30 UTC via Heartbeat cron (before signalScoreRefresh at 07:00).
- * Computes YTD performance for all stocks where ytdPerformance is NULL or ytdStartPrice is missing,
- * using historicalPrices table (Jan 1 close → today's close).
+ * Computes YTD performance from a consistent adjusted-close series. The daily
+ * recalculation deliberately includes already-filled fields so in-year stock
+ * splits and comparable corporate actions cannot preserve a stale raw-price
+ * baseline.
  *
  * Route: POST /api/scheduled/ytdRecalc
  */
 import type { Request, Response } from "express";
+import { calculateAdjustedYtdPerformance } from "../lib/ytdAdjustedPerformance";
 
 export async function handleYtdRecalc(req: Request, res: Response) {
   const startTime = Date.now();
@@ -17,7 +20,7 @@ export async function handleYtdRecalc(req: Request, res: Response) {
   try {
     const { getDb } = await import("../db");
     const { stocks: stocksTable, historicalPrices: hpTable } = await import("../../drizzle/schema");
-    const { eq, sql: sqlFn, and: andFn, gte, lte } = await import("drizzle-orm");
+    const { eq, inArray, and: andFn, gte, lte } = await import("drizzle-orm");
 
     const db = await getDb();
     if (!db) {
@@ -28,59 +31,51 @@ export async function handleYtdRecalc(req: Request, res: Response) {
     const ytdStartStr = `${currentYear}-01-01`;
     const todayStr = new Date().toISOString().split("T")[0];
 
-    // Get all stocks that need YTD update
-    const stocksNeedingYTD = await db.select().from(stocksTable).where(
-      sqlFn`(${stocksTable.ytdPerformance} IS NULL OR ${stocksTable.ytdStartPrice} IS NULL OR ${stocksTable.ytdStartPrice} = '0')`
-    );
-
-    console.log(`[ytdRecalc] ${stocksNeedingYTD.length} stocks need YTD update`);
+    // Die gesamte YTD-Reihe muss aus derselben (bereinigten) Preisbasis kommen.
+    // Ein NULL-Backfill allein beließe bei Splits bereits gespeicherte falsche
+    // Baselines und erzöge beim nächsten Kursupdate erneut Phantomrenditen.
+    const allStocks = await db.select().from(stocksTable);
+    console.log(`[ytdRecalc] Recalculate YTD from adjusted closes for ${allStocks.length} stocks`);
 
     // Time-guard: 100s limit
     const TIME_LIMIT_MS = 100_000;
 
-    for (const stock of stocksNeedingYTD) {
+    const tickers = allStocks.map((stock) => stock.ticker).filter(Boolean);
+    const yearRows = tickers.length === 0
+      ? []
+      : await db.select({
+        ticker: hpTable.ticker,
+        date: hpTable.date,
+        close: hpTable.close,
+        adjustedClose: hpTable.adjustedClose,
+      }).from(hpTable).where(andFn(
+        inArray(hpTable.ticker, tickers),
+        gte(hpTable.date, ytdStartStr),
+        lte(hpTable.date, todayStr),
+      ));
+    const rowsByTicker = new Map<string, typeof yearRows>();
+    for (const row of yearRows) {
+      const rows = rowsByTicker.get(row.ticker) ?? [];
+      rows.push(row);
+      rowsByTicker.set(row.ticker, rows);
+    }
+
+    for (const stock of allStocks) {
       if (Date.now() - startTime > TIME_LIMIT_MS) {
         console.log(`[ytdRecalc] Time limit reached after ${ytdUpdated} updates`);
         break;
       }
       try {
-        // Get Jan 1 price (or first available price of the year)
-        const ytdStartRows = await db.select({ close: hpTable.close, date: hpTable.date })
-          .from(hpTable)
-          .where(andFn(
-            eq(hpTable.ticker, stock.ticker),
-            gte(hpTable.date, ytdStartStr),
-            lte(hpTable.date, `${currentYear}-01-15`)
-          ))
-          .orderBy(hpTable.date)
-          .limit(1);
-
-        // Get most recent price
-        const latestRows = await db.select({ close: hpTable.close, date: hpTable.date })
-          .from(hpTable)
-          .where(andFn(
-            eq(hpTable.ticker, stock.ticker),
-            lte(hpTable.date, todayStr)
-          ))
-          .orderBy(sqlFn`${hpTable.date} DESC`)
-          .limit(1);
-
-        if (ytdStartRows.length > 0 && latestRows.length > 0) {
-          const ytdStartPrice = parseFloat(ytdStartRows[0].close);
-          const latestPrice = parseFloat(latestRows[0].close);
-          if (ytdStartPrice > 0 && latestPrice > 0) {
-            const ytdPerf = ((latestPrice - ytdStartPrice) / ytdStartPrice) * 100;
-            await db.update(stocksTable).set({
-              ytdStartPrice: ytdStartPrice.toFixed(4),
-              ytdPerformance: ytdPerf.toFixed(2),
-            }).where(eq(stocksTable.id, stock.id));
-            ytdUpdated++;
-          } else {
-            ytdSkipped++;
-          }
-        } else {
+        const calculated = calculateAdjustedYtdPerformance(rowsByTicker.get(stock.ticker) ?? [], currentYear);
+        if (!calculated) {
           ytdSkipped++;
+          continue;
         }
+        await db.update(stocksTable).set({
+          ytdStartPrice: calculated.startPrice.toFixed(4),
+          ytdPerformance: calculated.performancePct.toFixed(2),
+        }).where(eq(stocksTable.id, stock.id));
+        ytdUpdated++;
       } catch {
         ytdSkipped++;
       }
