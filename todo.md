@@ -835,3 +835,6 @@
 
 ## Perplexity-Review Portfolio «Mami» (2026-09-08)
 - [x] Externes Perplexity-Feedback zu Snapshotwerten, Instrumentidentität, ETF-Look-through, Performancekennzahlen und Datenprovenienz gegen Projekt- und Marktbelege read-only prüfen; belegte Datenintegritätsrisiken priorisieren, ohne Portfolio-, Cash-, Watchlist- oder Handelsänderung.
+
+## ZGLD-ISIN-Aliasintegrität (2026-09-08)
+- [x] Die ISIN-basierte EODHD-Aliasauflösung für den ZKB Gold ETF AA CHF auf die börsenbelegte ISIN `CH0139101593 → ZGLD.SW` korrigieren und die bisherige unbestätigte Aliasverknüpfung nicht mehr als ZGLD behandeln; keine historischen Preise oder Portfolio-/Cash-/Handelsdaten verändern.

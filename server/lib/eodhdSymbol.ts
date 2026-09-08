@@ -97,8 +97,10 @@ export const EODHD_TICKER_MAPPING: Record<string, string> = {
   'IE00B4ND3602': 'SGLN.SW',
   // WisdomTree Physical Gold (SIX: PHAU.SW)
   'JE00B1VS3770': 'PHAU.SW',
-  // ZKB Gold ETF (SIX: ZGLD.SW)
-  'CH0139101619': 'ZGLD.SW',
+  // ZKB Gold ETF AA CHF (SIX: ZGLD.SW, ISIN CH0139101593).
+  // Die zuvor verwendete CH0139101619 ist für diese Anteilsklasse nicht belegt
+  // und darf deshalb nicht stillschweigend auf ZGLD.SW zeigen.
+  'CH0139101593': 'ZGLD.SW',
   // Invesco Physical Gold ETC (XETRA: SGLD.DE)
   'IE00B579F325': 'SGLD.XETRA',
   // ─── Crypto ETPs/Zertifikate ───

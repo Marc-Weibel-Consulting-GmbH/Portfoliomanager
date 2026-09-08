@@ -23,6 +23,14 @@ describe("toEodhdSymbol", () => {
     expect(toEodhdSymbol("XTB.WA")).toBe("XTB.WAR");
   });
 
+  it("ordnet nur die börsenbelegte ZGLD-ISIN dem SIX-Gold-ETF zu", () => {
+    // SIX / BX Swiss: ZGLD (CHF) = CH0139101593. Die zuvor gemappte
+    // CH0139101619 ist nicht als dieselbe Anteilsklasse belegt und darf
+    // deshalb nicht stillschweigend auf ZGLD.SW zeigen.
+    expect(toEodhdSymbol("CH0139101593")).toBe("ZGLD.SW");
+    expect(toEodhdSymbol("CH0139101619")).toBe("CH0139101619");
+  });
+
   it("lässt bereits korrekte oder unbekannte Formen unangetastet", () => {
     expect(toEodhdSymbol("AAPL")).toBe("AAPL");
     expect(toEodhdSymbol("AI.PA")).toBe("AI.PA");
