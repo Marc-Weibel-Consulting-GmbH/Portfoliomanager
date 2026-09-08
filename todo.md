@@ -832,3 +832,6 @@
 
 ## Watchlisttitel im Position-Hinzufügen-Dialog (2026-09-08)
 - [x] Beheben, dass ein bereits in der Watchliste enthaltener Titel wie Swiss Life (`SLHN.SW`) im Dialog zum Hinzufügen einer Position nach Name oder Ticker zuverlässig gefunden und auswählbar ist, ohne automatisch eine Position, Cash-Reserve oder Handelsaktion zu erzeugen.
+
+## Perplexity-Review Portfolio «Mami» (2026-09-08)
+- [x] Externes Perplexity-Feedback zu Snapshotwerten, Instrumentidentität, ETF-Look-through, Performancekennzahlen und Datenprovenienz gegen Projekt- und Marktbelege read-only prüfen; belegte Datenintegritätsrisiken priorisieren, ohne Portfolio-, Cash-, Watchlist- oder Handelsänderung.
