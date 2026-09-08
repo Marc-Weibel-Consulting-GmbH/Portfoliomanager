@@ -21,6 +21,8 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { InsightExpandable, InsightPanel } from "@/components/InsightPanel";
 import { ProposalPositionEditor, type EditablePosition } from "@/components/portfolio/ProposalPositionEditor";
+import { calculateInitialPortfolioCapitalBasis } from "@shared/portfolioCapitalBasis";
+import { getProposalPositionAssetType } from '@/lib/proposalPositionAssetType';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -37,6 +39,12 @@ type StockSelection = {
   ticker: string;
   companyName: string;
   quantity: number;
+  /** Handelswährung des Wertpapiers; von der globalen Portfolioreferenzwährung getrennt. */
+  currency?: string;
+  /** Originalkurs in Handelswährung, falls der Vorschlag in CHF dimensioniert wurde. */
+  localPrice?: number;
+  /** CHF je Einheit der Handelswährung; bei CHF immer 1. */
+  exchangeRateToChf?: number;
   purchasePrice: number;
   assetType: "stock" | "bond" | "etf";
   /** Weight as % of total capital (inkl. Cash-Reserve). Stored directly from proposal weightPct. */
@@ -374,6 +382,18 @@ export default function PortfolioBuilderWizard() {
 
   const allocation = calculateAllocation();
   const totalValue = allocation.reduce((sum, item) => sum + item.value, 0);
+  const statedInitialCapital = parseFloat(initialCapital);
+  const initialCapitalForSummary = Number.isFinite(statedInitialCapital) && statedInitialCapital > 0
+    ? statedInitialCapital
+    : totalValue;
+  const targetCashReservePct = path === 'auto'
+    ? (parseFloat(String((autoProposal as any)?.cashReservePct ?? (autoProposal as any)?.profile?.liquidityNeedPct ?? 0)) || 0)
+    : 0;
+  const initialCapitalBasis = calculateInitialPortfolioCapitalBasis({
+    initialCapitalChf: initialCapitalForSummary,
+    targetCashReservePct,
+    holdings: allocation.map((item) => ({ totalValue: item.value })),
+  });
   const assetTypeBreakdown = {
     stocks: allocation.filter((a) => a.assetType === "stock").reduce((sum, a) => sum + a.weight, 0),
     bonds: allocation.filter((a) => a.assetType === "bond").reduce((sum, a) => sum + a.weight, 0),
@@ -471,22 +491,24 @@ export default function PortfolioBuilderWizard() {
           // nominalValue = CHF-Wert, Kurs = 100 → Wert = CHF-Wert. So stimmt das Gewicht
           // und die Obligationen-Einstufung (aus assetType "bond") bleibt erhalten.
           if (s.assetType === 'bond') {
-            return {
-              ticker: s.ticker, companyName: s.companyName,
-              weight, shares: Math.round(s.quantity).toString(),
-              nominalValue: chfValue.toFixed(2),
-              currentPrice: "100", avgBuyPrice: "100",
-              totalValue: chfValue.toFixed(2),
-              currency: currency || "CHF", assetType: "bond",
-            };
-          }
           return {
             ticker: s.ticker, companyName: s.companyName,
             weight, shares: Math.round(s.quantity).toString(),
-            currentPrice: s.purchasePrice.toFixed(2), avgBuyPrice: s.purchasePrice.toFixed(2),
+            nominalValue: chfValue.toFixed(2),
+            currentPrice: "100", avgBuyPrice: "100",
             totalValue: chfValue.toFixed(2),
-            currency: currency || "CHF", assetType: s.assetType,
+            currency: s.currency || currency || "CHF", assetType: "bond",
           };
+        }
+        return {
+          ticker: s.ticker, companyName: s.companyName,
+          weight, shares: Math.round(s.quantity).toString(),
+          currentPrice: (s.localPrice ?? s.purchasePrice).toFixed(2),
+          avgBuyPrice: s.purchasePrice.toFixed(2), avgBuyPriceCHF: s.purchasePrice.toFixed(2),
+          exchangeRateToChf: (s.exchangeRateToChf ?? 1).toString(),
+          totalValue: chfValue.toFixed(2),
+          currency: s.currency || currency || "CHF", assetType: s.assetType,
+        };
         }),
       };
       // «Nur Aktien» ist eine bewusste Portfolioentscheidung und muss über die
@@ -625,9 +647,22 @@ export default function PortfolioBuilderWizard() {
       const qty = priceCHF > 0 ? value / priceCHF : 0;
       // Multi-Asset-Sleeve: ETF-Positionen (inkl. Anlageklasse) korrekt typisieren,
       // Aktien bleiben "stock" (assetClass "equity"/undefined → stock).
-      const mappedAssetType: StockSelection["assetType"] =
-        p.assetClass === "bond" ? "bond" : (p.assetType === "etf" || (p.assetClass && p.assetClass !== "equity")) ? "etf" : "stock";
-      return { ticker: p.ticker, companyName: p.companyName, quantity: Math.round(qty), purchasePrice: priceCHF, assetType: mappedAssetType, weightPct: p.weightPct, assetClass: p.assetClass && p.assetClass !== "equity" ? p.assetClass : undefined };
+      const mappedAssetType: StockSelection["assetType"] = getProposalPositionAssetType({
+        assetType: p.assetType,
+        assetClass: p.assetClass,
+      });
+      return {
+        ticker: p.ticker,
+        companyName: p.companyName,
+        quantity: Math.round(qty),
+        purchasePrice: priceCHF,
+        localPrice: rawPrice,
+        currency: String(p.currency ?? 'CHF'),
+        exchangeRateToChf: fxRate,
+        assetType: mappedAssetType,
+        weightPct: p.weightPct,
+        assetClass: p.assetClass && p.assetClass !== "equity" ? p.assetClass : undefined,
+      };
     });
     setSelectedStocks(seeded);
     const goalToType: Record<string, PortfolioType> = { dividends: "dividends", growth: "growth", balanced: "balanced" };
@@ -1847,8 +1882,8 @@ export default function PortfolioBuilderWizard() {
                     </div>
                   )}
                 </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground mb-3 block">Positionen ({selectedStocks.length})</Label>
+	                <div>
+	                  <Label className="text-sm text-muted-foreground mb-3 block">Wertpapierpositionen ({selectedStocks.length})</Label>
                   <div className="border rounded-lg overflow-hidden">
                     <table className="w-full text-sm">
                       <thead className="bg-muted">
@@ -1869,21 +1904,40 @@ export default function PortfolioBuilderWizard() {
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="bg-muted font-semibold">
-                        <tr>
-                          <td className="p-2" colSpan={3}>Gesamt</td>
-                          <td className="text-right p-2">{currency} {totalValue.toFixed(2)}</td>
-                          <td className="text-right p-2">100.0%</td>
-                        </tr>
-                      </tfoot>
+	                      <tfoot className="bg-muted font-semibold">
+	                        <tr>
+	                          <td className="p-2" colSpan={3}>Wertpapiere</td>
+	                          <td className="text-right p-2">{currency} {initialCapitalBasis.securitiesValueChf.toFixed(2)}</td>
+	                          <td className="text-right p-2">{initialCapitalBasis.totalValueChf > 0 ? ((initialCapitalBasis.securitiesValueChf / initialCapitalBasis.totalValueChf) * 100).toFixed(1) : '0.0'}%</td>
+	                        </tr>
+	                        {initialCapitalBasis.cashValueChf > 0 && (
+	                          <tr className="text-emerald-700 dark:text-emerald-300">
+	                            <td className="p-2" colSpan={3}>Liquiditätsreserve</td>
+	                            <td className="text-right p-2">{currency} {initialCapitalBasis.cashValueChf.toFixed(2)}</td>
+	                            <td className="text-right p-2">{initialCapitalBasis.actualCashReservePct.toFixed(1)}%</td>
+	                          </tr>
+	                        )}
+	                        <tr>
+	                          <td className="p-2" colSpan={3}>Gesamt</td>
+	                          <td className="text-right p-2">{currency} {initialCapitalBasis.totalValueChf.toFixed(2)}</td>
+	                          <td className="text-right p-2">100.0%</td>
+	                        </tr>
+	                      </tfoot>
                     </table>
                   </div>
-                  {/* N-12: Erklärung Rundungsdifferenz */}
-                  {initialCapital && Math.abs(totalValue - parseFloat(initialCapital)) > 1 && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      ⓘ Differenz zum Startkapital ({currency} {parseFloat(initialCapital).toLocaleString("de-CH")}) durch Rundung auf ganze Aktienstückzahlen.
-                    </p>
-                  )}
+	                  {initialCapitalBasis.isOverAllocated ? (
+	                    <p className="text-xs text-red-600 dark:text-red-300 mt-2">
+	                      ⚠ Die Wertpapierpositionen überschreiten das Startkapital um {currency} {(initialCapitalBasis.securitiesValueChf - initialCapitalForSummary).toFixed(2)}. Bitte passen Sie vor der Erstellung Stückzahlen oder Gewichte an.
+	                    </p>
+	                  ) : targetCashReservePct > 0 ? (
+	                    <p className="text-xs text-gray-500 mt-2">
+	                      ⓘ Ziel-Liquidität: {targetCashReservePct.toFixed(1)}% ({currency} {initialCapitalBasis.targetCashReserveChf.toFixed(2)}). Die angezeigte Reserve von {currency} {initialCapitalBasis.cashValueChf.toFixed(2)} enthält die Rundungsdifferenz aus ganzen Stückzahlen ({initialCapitalBasis.cashRoundingDifferenceChf >= 0 ? '+' : ''}{currency} {initialCapitalBasis.cashRoundingDifferenceChf.toFixed(2)}).
+	                    </p>
+	                  ) : initialCapital && Math.abs(totalValue - parseFloat(initialCapital)) > 1 ? (
+	                    <p className="text-xs text-gray-500 mt-2">
+	                      ⓘ Nicht zugewiesener Betrag von {currency} {initialCapitalBasis.cashValueChf.toFixed(2)} wird als Liquidität geführt; die Differenz entsteht aus Positionierung und Rundung auf ganze Stückzahlen.
+	                    </p>
+	                  ) : null}
                 </div>
                 <Card className="bg-primary/5 border-primary/20">
                   <CardContent className="p-4">

@@ -608,7 +608,7 @@ export const startProposalProcedure = protectedProcedure
                 sector: SLEEVE_CLASS_LABELS[sp.assetClass] ?? String(sp.assetClass),
                 currency: String(sp.currency ?? 'CHF'),
                 currentPrice: Number(sp.price ?? 0),
-                exchangeRateToChf: 1,
+                exchangeRateToChf: fxRateForStock(sp.currency, sp.exchangeRateToChf as string | number | null | undefined, referenceCurrency),
                 weightPct: sp.weight,
                 combinedScore: null as number | null,
                 signal: 'ETF',

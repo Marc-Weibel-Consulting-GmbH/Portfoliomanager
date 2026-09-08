@@ -5,6 +5,7 @@ import { z } from "zod";
 import { computeWeightedReturnSeries } from "../lib/weightedReturnSeries";
 import { applyCashDrag } from "../lib/cashAdjust";
 import { toChfPriceMap as toChfPriceMapCore, deriveStocksValueChf } from "../lib/performanceCore";
+import { calculateInitialPortfolioCapitalBasis } from "../../shared/portfolioCapitalBasis";
 
 // Parse a possibly-string/null DB numeric field to number|undefined for scoring.
 function parseNum(v: unknown): number | undefined {
@@ -866,6 +867,28 @@ export const portfoliosRouter = router({
             await checkLimit(ctx.user, "portfolios", liveRows.length);
           }
 
+          // Reconcile the whole-share securities plan with the requested starting
+          // capital before the insert. Cash is the residual after quantity rounding;
+          // it must never be added on top of an overallocated securities plan.
+          let parsedPortfolioData: { stocks?: any[]; cashPercentage?: string | number | null };
+          try {
+            parsedPortfolioData = JSON.parse(input.portfolioData);
+          } catch {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Portfoliodaten sind ungültig." });
+          }
+          const initialCapitalBasis = calculateInitialPortfolioCapitalBasis({
+            initialCapitalChf: input.investmentAmount,
+            targetCashReservePct: parsedPortfolioData.cashPercentage,
+            holdings: parsedPortfolioData.stocks ?? [],
+          });
+          const holdings = parsedPortfolioData.stocks ?? [];
+          if (initialCapitalBasis.isOverAllocated) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: `Die Wertpapierpositionen überschreiten das Startkapital um CHF ${(initialCapitalBasis.securitiesValueChf - input.investmentAmount).toFixed(2)}.`,
+            });
+          }
+
           // 2) Insert portfolio
           const userId = ctx.user.id;
           console.log(`[portfolios.create ${debugId}] Using userId for insert:`, userId, 'type:', typeof userId);
@@ -919,30 +942,9 @@ export const portfoliosRouter = router({
           if (input.portfolioData && input.investmentAmount) {
             console.log(`[portfolios.create ${debugId}] Calculating cash balance...`);
             try {
-              const portfolioData = JSON.parse(input.portfolioData);
-              const holdings = portfolioData.stocks || [];
               const capitalNum = parseFloat(String(input.investmentAmount));
-              
-              // Check if user specified a cash percentage
-              const cashPercentage = parseFloat(portfolioData.cashPercentage || "0");
-              
-              // Calculate cash position based on user's preference
-              let cashPosition = 0;
-              if (cashPercentage > 0) {
-                // User explicitly set a cash reserve percentage
-                cashPosition = capitalNum * (cashPercentage / 100);
-                console.log(`[portfolios.create ${debugId}] User requested ${cashPercentage}% cash reserve: CHF ${cashPosition.toFixed(2)}`);
-              } else {
-                // Legacy behavior: calculate based on actual weights
-                let totalInvestedCHF = 0;
-                for (const holding of holdings) {
-                  const weight = parseFloat(holding.weight || "0") / 100;
-                  const allocationAmount = capitalNum * weight;
-                  totalInvestedCHF += allocationAmount;
-                }
-                cashPosition = capitalNum - totalInvestedCHF;
-                console.log(`[portfolios.create ${debugId}] Legacy calculation - Total invested: CHF ${totalInvestedCHF.toFixed(2)}, Cash position: CHF ${cashPosition.toFixed(2)}`);
-              }
+              const cashPosition = initialCapitalBasis.cashValueChf;
+              console.log(`[portfolios.create ${debugId}] Reconciled securities: CHF ${initialCapitalBasis.securitiesValueChf.toFixed(2)}, cash: CHF ${cashPosition.toFixed(2)}, target cash: CHF ${initialCapitalBasis.targetCashReserveChf.toFixed(2)}`);
               
               // Update portfolio with cash balance
               const { updateSavedPortfolio } = await import("../db");
@@ -1126,6 +1128,104 @@ export const portfoliosRouter = router({
             cause: err,
           });
         }
+      }),
+
+    reconcileAiWizardDemoPortfolio: protectedProcedure
+      .input(z.object({ portfolioId: z.number().int().positive() }))
+      .mutation(async ({ input, ctx }) => {
+        console.log('[portfolios.reconcileAiWizardDemoPortfolio] ctx.user:', ctx.user);
+        if (!ctx.user || !ctx.user.id || ctx.user.id === 1) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required: ctx.user.id is missing or invalid',
+          });
+        }
+
+        const { getDb, getSavedPortfolioById, updateSavedPortfolio } = await import('../db');
+        const { portfolioTransactions, stocks } = await import('../../drizzle/schema');
+        const { eq, inArray } = await import('drizzle-orm');
+        const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+        if (!portfolio) throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio nicht gefunden.' });
+        if (portfolio.portfolioType !== 'demo' || portfolio.isLive || portfolio.creationSource !== 'ai_wizard') {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Nur transaktionslose KI-Wizard-Demoportfolios dürfen technisch rekonstruiert werden.',
+          });
+        }
+
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Datenbank nicht verfügbar.' });
+        const transactions = await db
+          .select({ id: portfolioTransactions.id })
+          .from(portfolioTransactions)
+          .where(eq(portfolioTransactions.portfolioId, input.portfolioId))
+          .limit(1);
+        if (transactions.length > 0) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Portfolio mit Ledgerbuchungen darf nicht technisch rekonstruiert werden.',
+          });
+        }
+
+        let parsed: { stocks?: any[]; cashPercentage?: string | number | null };
+        try {
+          parsed = JSON.parse(portfolio.portfolioData || '{}');
+        } catch {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Portfoliodaten sind ungültig.' });
+        }
+        const holdings = parsed.stocks ?? [];
+        if (holdings.length === 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Portfolio enthält keine Positionen.' });
+        }
+
+        const tickers = holdings.map((holding) => String(holding.ticker ?? '').trim()).filter(Boolean);
+        const quoteRows = await db
+          .select({
+            ticker: stocks.ticker,
+            category: stocks.category,
+            currency: stocks.currency,
+            currentPrice: stocks.currentPrice,
+            exchangeRateToChf: stocks.exchangeRateToChf,
+          })
+          .from(stocks)
+          .where(inArray(stocks.ticker, tickers));
+        const quotesByTicker = new Map(quoteRows.map((row) => [row.ticker, row]));
+
+        const { reconcileAiWizardDemoPortfolio } = await import('../lib/reconcileAiWizardDemoPortfolio');
+        let repaired;
+        try {
+          repaired = reconcileAiWizardDemoPortfolio({
+            investmentAmountChf: Number(portfolio.investmentAmount),
+            targetCashReservePct: Number(parsed.cashPercentage ?? 0),
+            holdings,
+            quotesByTicker,
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: error instanceof Error ? error.message : 'Technische Rekonstruktion fehlgeschlagen.',
+          });
+        }
+
+        const repairedData = { ...parsed, stocks: repaired.holdings };
+        await updateSavedPortfolio(input.portfolioId, ctx.user.id, {
+          portfolioData: JSON.stringify(repairedData),
+          cashBalance: repaired.cashBalanceChf.toFixed(2),
+        });
+        const { cacheDel } = await import('../redisClient');
+        const { invalidatePortfolioDetailCache } = await import('../lib/portfolioDetailCache');
+        await invalidatePortfolioDetailCache(cacheDel, input.portfolioId, ctx.user.id);
+        await perfCache.invalidate(`perf:v2:${ctx.user.id}`);
+
+        return {
+          success: true,
+          portfolioId: input.portfolioId,
+          securitiesValueChf: repaired.securitiesValueChf,
+          cashBalanceChf: repaired.cashBalanceChf,
+          totalValueChf: repaired.securitiesValueChf + repaired.cashBalanceChf,
+          ledgerEntriesCreated: 0,
+          liveTrackingChanged: false,
+        };
       }),
 
     update: protectedProcedure

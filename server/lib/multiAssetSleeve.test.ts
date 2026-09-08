@@ -271,3 +271,22 @@ describe("applyCashReserveToMultiAssetSleeve", () => {
     expect((Object.values(result.allocation) as number[]).reduce((sum, value) => sum + value, 0) + result.cashReservePct).toBe(100);
   });
 });
+
+describe("applyMultiAssetSleeve — FX-Weitergabe", () => {
+  it("übernimmt den validierten CHF-Wechselkurs eines Fremdwährungs-ETF-Sleeves", async () => {
+    const result = await applyMultiAssetSleeve({
+      equityPositions: equity([100]),
+      riskProfile: "konservativ",
+      stocksOnly: false,
+      resolvePrice: async (ticker) => ({
+        price: 100,
+        currency: ticker === "CMDY" ? "USD" : "CHF",
+        exchangeRateToChf: ticker === "CMDY" ? 0.8092 : 1,
+        name: `Test ${ticker}`,
+      }),
+    });
+
+    const commodity = result.positions.find((position) => position.ticker === "CMDY");
+    expect((commodity as any)?.exchangeRateToChf).toBe(0.8092);
+  });
+});

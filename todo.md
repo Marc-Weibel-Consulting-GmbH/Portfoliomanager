@@ -779,7 +779,11 @@
 ## Dividenden-Entwurf im Wizard als Portfolio übernehmen (2026-09-07)
 - [x] Den überprüften Dividenden-Entwurf mit Anlagebetrag, Tranchierungsplan und Risikoband als explizite Wizard-Vorschau bereitstellen
 - [x] Die Portfolioanlage erst nach sichtbarer Nutzerübernahme mit dem bestehenden sicheren Erstellungsvertrag verbinden; keine Börsenorder oder Geldbewegung auslösen
-- [ ] Den konkreten Erstellungsfluss mit Wert-, Cash- und Transaktionsinvarianten live sowie regressiv prüfen
+- [x] Den konkreten Erstellungsfluss mit Wert-, Cash- und Transaktionsinvarianten live sowie regressiv prüfen
+- [x] Den vom Nutzer ausdrücklich freigegebenen CHF-600'000-Entwurf als rein internen Portfolioeintrag übernehmen und unmittelbar ohne Börsenorder, Zahlung oder Geldtransfer verifizieren
+- [x] Abschlussansicht der Wizard-Übernahme korrigieren: die separate Cash-Reserve sichtbar ausweisen und sie nicht als Stückzahlrundungsdifferenz zum Startkapital deklarieren
+- [x] Kritische Tag-0-Wertabweichung des neu erstellten Dividendenportfolios #3960001 (sichtbar CHF 587'629 statt CHF 600'000) bis zu Preis-, FX-, Cash- oder Bewertungsquelle reproduzieren und ohne Portfolio-/Transaktionsmutation korrigieren
+- [x] Nach ausdrücklicher Nutzerfreigabe den fehlerhaft serialisierten Demo-Eintrag #3960001 an den geprüften Instrumenttyp-, Handelswährungs- und FX-Vertrag angleichen; keine Live-Aktivierung, Börsenorder, Zahlung oder Geldbewegung
 
 ## EODHD-Zehnjahres-Backfill für Dividenden-Qualitätsprüfung (2026-09-07)
 - [x] Fehlende Langfristreihen der kuratierten Dividendenkandidaten gegen vorhandene EODHD-Symbole und bereits persistierte Kurse abgrenzen

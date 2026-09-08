@@ -146,6 +146,8 @@ export interface SleeveEquityInput {
 export interface ResolvedPrice {
   price: number;
   currency: string;
+  /** CHF je Einheit der Handelswährung; bei CHF zwingend 1. */
+  exchangeRateToChf?: number;
   name?: string;
 }
 
@@ -270,6 +272,7 @@ interface ResolvedSleeveEtf {
   etf: SleeveEtf;
   price: number;
   currency: string;
+  exchangeRateToChf?: number;
   name: string;
   /** true, wenn nicht der primäre Kandidat der Liste verwendet wurde. */
   usedFallback: boolean;
@@ -289,6 +292,7 @@ async function resolveFirstAvailable(
           etf,
           price: r.price,
           currency: r.currency || etf.currency,
+          exchangeRateToChf: r.exchangeRateToChf,
           name: r.name || etf.name,
           usedFallback: i > 0,
         };
@@ -375,6 +379,7 @@ export async function applyMultiAssetSleeve(
             assetClass: "crypto",
             price: resolved.price,
             currency: resolved.currency,
+            exchangeRateToChf: resolved.exchangeRateToChf,
           });
         } else {
           notes.push(
@@ -400,6 +405,7 @@ export async function applyMultiAssetSleeve(
         assetClass: cls,
         price: resolved.price,
         currency: resolved.currency,
+        exchangeRateToChf: resolved.exchangeRateToChf,
       });
     } else {
       notes.push(
@@ -481,6 +487,7 @@ export async function ensureSleeveStock(etf: SleeveEtf): Promise<ResolvedPrice |
       return {
         price: existingPrice,
         currency: existing.currency ?? etf.currency,
+        exchangeRateToChf: existing.exchangeRateToChf != null ? Number(existing.exchangeRateToChf) : undefined,
         name: existing.companyName ?? etf.name,
       };
     }
@@ -509,6 +516,7 @@ export async function ensureSleeveStock(etf: SleeveEtf): Promise<ResolvedPrice |
     return {
       price,
       currency: data.currency ?? etf.currency,
+      exchangeRateToChf: (data as any).exchangeRateToChf != null ? Number((data as any).exchangeRateToChf) : undefined,
       name: data.companyName ?? etf.name,
     };
   } catch (e: any) {
