@@ -838,3 +838,6 @@
 
 ## ZGLD-ISIN-Aliasintegrität (2026-09-08)
 - [x] Die ISIN-basierte EODHD-Aliasauflösung für den ZKB Gold ETF AA CHF auf die börsenbelegte ISIN `CH0139101593 → ZGLD.SW` korrigieren und die bisherige unbestätigte Aliasverknüpfung nicht mehr als ZGLD behandeln; keine historischen Preise oder Portfolio-/Cash-/Handelsdaten verändern.
+
+## Positionsrendite bei fehlender Einstandsbasis (2026-09-08)
+- [x] Eine fehlende, echte positionsbezogene Einstandsbasis als Datenlücke statt als tatsächliche Rendite von `0,0 %` ausweisen und diese Semantik klar von Gesamtperformance sowie Modell-/Planungsverlauf trennen; keine Position, Cashreserve, Preisreihe oder Handelsdaten verändern.

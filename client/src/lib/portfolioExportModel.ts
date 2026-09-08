@@ -13,6 +13,7 @@ export type PortfolioExportPosition = {
   ytdReturnPct: number | null;
   totalReturnPct: number | null;
   dataStatus: ExportDataStatus;
+  returnDataStatus: "OK" | "Einstandsdaten fehlen";
 };
 
 export type PortfolioExportKpi = {
@@ -146,6 +147,7 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
   const positions = input.holdings
     .map((holding): PortfolioExportPosition => {
       const dataStatus = getDataStatus(holding);
+      const returnDataStatus = holding.hasBuyPrice === false ? "Einstandsdaten fehlen" : "OK";
       return {
         ticker: asText(holding.ticker, "—"),
         companyName: asText(holding.companyName, asText(holding.name, "Unbekannter Titel")),
@@ -157,8 +159,9 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
         marketValueCHF: dataStatus === "OK" ? firstNumber(holding.valueCHF) : null,
         portfolioWeightPct: firstNumber(holding.weight),
         ytdReturnPct: firstNumber(holding.ytdPerformance),
-        totalReturnPct: firstNumber(holding.totalReturn),
+        totalReturnPct: returnDataStatus === "OK" ? firstNumber(holding.totalReturn) : null,
         dataStatus,
+        returnDataStatus,
       };
     })
     .sort((a, b) => (b.marketValueCHF ?? -1) - (a.marketValueCHF ?? -1));
@@ -196,6 +199,7 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
   const dataQualityNotes: string[] = [];
   for (const position of positions) {
     if (position.dataStatus !== "OK") dataQualityNotes.push(`${position.ticker}: ${position.dataStatus}.`);
+    if (position.returnDataStatus !== "OK") dataQualityNotes.push(`${position.ticker}: Einstandsdaten fehlen; «seit Kauf» wird nicht ausgewiesen.`);
   }
   const unpricedTickers = Array.isArray(performance.unpricedTickers) ? performance.unpricedTickers.filter((ticker): ticker is string => typeof ticker === "string") : [];
   if (unpricedTickers.length > 0) dataQualityNotes.push(`Keine historische Kursreihe im ausgewählten Zeitraum: ${unpricedTickers.join(", ")}.`);

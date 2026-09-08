@@ -199,6 +199,10 @@ export async function downloadPortfolioExcel(model: PortfolioExportModel): Promi
   applyHeader(positionHeader);
   const positionsStart = positionHeader.number + 1;
   for (const position of model.positions) {
+    const status = [
+      position.dataStatus !== "OK" ? position.dataStatus : null,
+      position.returnDataStatus !== "OK" ? position.returnDataStatus : null,
+    ].filter(Boolean).join(" · ") || "OK";
     const row = positions.addRow([
       position.ticker,
       position.companyName,
@@ -211,10 +215,10 @@ export async function downloadPortfolioExcel(model: PortfolioExportModel): Promi
       position.portfolioWeightPct !== null ? position.portfolioWeightPct / 100 : "n/a",
       position.ytdReturnPct !== null ? position.ytdReturnPct / 100 : "n/a",
       position.totalReturnPct !== null ? position.totalReturnPct / 100 : "n/a",
-      position.dataStatus,
+      status,
     ]);
     row.getCell(1).font = { name: "Aptos Mono", bold: true, color: { argb: COLORS.tealDark } };
-    if (position.dataStatus !== "OK") {
+    if (status !== "OK") {
       row.getCell(12).font = { name: "Aptos", color: { argb: COLORS.warning }, bold: true };
       row.getCell(12).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7ED" } };
     }
@@ -447,7 +451,10 @@ export async function downloadPortfolioPdf(model: PortfolioExportModel): Promise
       formatPercent(position.portfolioWeightPct),
       formatPercent(position.ytdReturnPct),
       formatPercent(position.totalReturnPct),
-      position.dataStatus === "OK" ? "OK" : "Prüfen",
+      [
+        position.dataStatus !== "OK" ? "Kurs/FX prüfen" : null,
+        position.returnDataStatus !== "OK" ? "Einstand fehlt" : null,
+      ].filter(Boolean).join(" · ") || "OK",
     ]),
     styles: { font: "helvetica", fontSize: 6.5, cellPadding: 1.8, lineColor: [226, 232, 240], lineWidth: 0.1, textColor: [15, 23, 42] },
     headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold" },

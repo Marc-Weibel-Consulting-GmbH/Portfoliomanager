@@ -653,14 +653,17 @@ export const portfoliosRouter = router({
                 } catch { /* non-critical */ }
                 return stored || '0';
               })(),
-              // totalReturn = performance since purchase (Seit Kauf)
+              // totalReturn = performance since purchase (Seit Kauf).
+              // Ohne bestätigten Einstand ist der aktuelle CHF-Kurs nur ein
+              // Bewertungsfallback; eine Differenz dagegen wäre per Definition
+              // 0 % und keine reale Rendite. Deshalb bewusst null statt 0.
               // IMPORTANT: Compare priceCHF (current CHF price) vs avgBuyPriceCHF (purchase CHF price)
               // Using currentPrice (local currency) vs avgBuyPrice (CHF) caused massive FX distortion
               // e.g. DGE.L: currentPrice=1547 GBp vs avgBuyPrice=270 CHF → +472% (WRONG!)
               // Correct: priceCHF=19.83 CHF vs avgBuyPriceCHF=19.50 CHF → +1.7% (RIGHT)
-              totalReturn: (avgBuyPriceCHF > 0 && priceCHF > 0)
+              totalReturn: (hasBuyPrice && avgBuyPriceCHF > 0 && priceCHF > 0)
                 ? (((priceCHF - avgBuyPriceCHF) / avgBuyPriceCHF) * 100).toFixed(4)
-                : '0',
+                : null,
               // FX breakdown: price gain (local currency) vs FX gain (exchange rate effect)
               // For CHF positions, both values equal totalReturn (no FX effect).
               // For foreign currency positions:
@@ -670,24 +673,24 @@ export const portfoliosRouter = router({
               ...(() => {
                 if (currency === 'CHF') {
                   // No FX effect for CHF positions
-                  const tr = (avgBuyPriceCHF > 0 && priceCHF > 0)
-                    ? ((priceCHF - avgBuyPriceCHF) / avgBuyPriceCHF) * 100 : 0;
-                  return { priceReturnPct: tr.toFixed(4), fxReturnPct: '0', avgBuyPriceLocal: avgBuyPriceCHF.toFixed(4) };
+                  const tr = (hasBuyPrice && avgBuyPriceCHF > 0 && priceCHF > 0)
+                    ? ((priceCHF - avgBuyPriceCHF) / avgBuyPriceCHF) * 100 : null;
+                  return { priceReturnPct: tr !== null ? tr.toFixed(4) : null, fxReturnPct: hasBuyPrice ? '0' : null, avgBuyPriceLocal: hasBuyPrice ? avgBuyPriceCHF.toFixed(4) : null };
                 }
-                const totalReturnNum = (avgBuyPriceCHF > 0 && priceCHF > 0)
-                  ? ((priceCHF - avgBuyPriceCHF) / avgBuyPriceCHF) * 100 : 0;
+                const totalReturnNum = (hasBuyPrice && avgBuyPriceCHF > 0 && priceCHF > 0)
+                  ? ((priceCHF - avgBuyPriceCHF) / avgBuyPriceCHF) * 100 : null;
                 // Use transaction-derived local price if available, otherwise approximate
                 const txAvgLocal = avgBuyPriceLocalMap.get(ticker);
                 const buyPriceLocal = txAvgLocal && txAvgLocal > 0
                   ? txAvgLocal
                   : (avgBuyPriceCHF > 0 && fxRate > 0 ? avgBuyPriceCHF / fxRate : 0);
-                const priceReturnNum = (buyPriceLocal > 0 && currentPrice > 0)
-                  ? ((currentPrice - buyPriceLocal) / buyPriceLocal) * 100 : 0;
-                const fxReturnNum = totalReturnNum - priceReturnNum;
+                const priceReturnNum = totalReturnNum !== null && buyPriceLocal > 0 && currentPrice > 0
+                  ? ((currentPrice - buyPriceLocal) / buyPriceLocal) * 100 : null;
+                const fxReturnNum = totalReturnNum !== null && priceReturnNum !== null ? totalReturnNum - priceReturnNum : null;
                 return {
-                  priceReturnPct: priceReturnNum.toFixed(4),
-                  fxReturnPct: fxReturnNum.toFixed(4),
-                  avgBuyPriceLocal: buyPriceLocal.toFixed(4),
+                  priceReturnPct: priceReturnNum !== null ? priceReturnNum.toFixed(4) : null,
+                  fxReturnPct: fxReturnNum !== null ? fxReturnNum.toFixed(4) : null,
+                  avgBuyPriceLocal: hasBuyPrice && buyPriceLocal > 0 ? buyPriceLocal.toFixed(4) : null,
                 };
               })(),
               dividendYield: dbStock?.dividendYield || stock.dividendYield || '0',
@@ -708,6 +711,7 @@ export const portfoliosRouter = router({
               qualityScore: qualitaetNachTicker.get(ticker) ?? null,
               // hasBuyPrice: true only when a real purchase price exists (not the 0%-fallback)
               hasBuyPrice,
+              returnDataQuality: hasBuyPrice ? null : 'Einstandsdaten fehlen; Rendite seit Kauf ist nicht verfügbar.',
               // Tagesveraenderung gegen den letzten Schlusskurs. null = keine
               // Basis vorhanden; die Ansicht zeigt dann «—» statt eines
               // erfundenen 0.00 %.

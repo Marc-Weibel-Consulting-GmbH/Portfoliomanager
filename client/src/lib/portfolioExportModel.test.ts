@@ -138,6 +138,34 @@ describe("buildPortfolioExportModel", () => {
     ]));
   });
 
+  it("weist fehlende echte Einstandsdaten statt einer künstlichen 0%-Rendite aus", () => {
+    const model = buildPortfolioExportModel({
+      ...base,
+      holdings: [{
+        ticker: "PLAN.SW",
+        companyName: "Planungsposition",
+        currency: "CHF",
+        shares: 100,
+        currentPriceLocal: 100,
+        valueCHF: 10_000,
+        weight: 4,
+        ytdPerformance: 8.4,
+        totalReturn: 0,
+        hasBuyPrice: false,
+      }],
+    });
+
+    expect(model.positions[0]).toMatchObject({
+      ticker: "PLAN.SW",
+      marketValueCHF: 10_000,
+      totalReturnPct: null,
+      returnDataStatus: "Einstandsdaten fehlen",
+    });
+    expect(model.dataQualityNotes).toEqual(expect.arrayContaining([
+      "PLAN.SW: Einstandsdaten fehlen; «seit Kauf» wird nicht ausgewiesen.",
+    ]));
+  });
+
   it("kennzeichnet den gewichteten Demo-Chart transparent als indexierten statt als historischen CHF-Depotwert", () => {
     const model = buildPortfolioExportModel({
       ...base,

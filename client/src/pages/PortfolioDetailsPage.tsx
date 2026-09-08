@@ -157,7 +157,8 @@ function PerformanceTab({
       const w = parseFloat(h.weight || '0') / 100;
       const y = attributionPeriod === 'ytd'
         ? parseFloat(h.ytdPerformance || '0')
-        : parseFloat(h.totalReturn || h.ytdPerformance || '0');
+        : h.hasBuyPrice === false ? null : parseFloat(h.totalReturn || '0');
+      if (y === null || !Number.isFinite(y)) return;
       if (!sectors[s]) sectors[s] = { weight: 0, perf: 0 };
       sectors[s].weight += w;
       sectors[s].perf += w * y; // weighted contribution
@@ -173,13 +174,15 @@ function PerformanceTab({
       .map((h: any) => {
         const perf = attributionPeriod === 'ytd'
           ? parseFloat(h.ytdPerformance || '0')
-          : parseFloat(h.totalReturn || h.ytdPerformance || '0');
+          : h.hasBuyPrice === false ? null : parseFloat(h.totalReturn || '0');
+        if (perf === null || !Number.isFinite(perf)) return null;
         return {
           name: h.ticker,
           label: h.companyName?.slice(0, 18) || h.ticker,
           contribution: parseFloat(((parseFloat(h.weight || '0') / 100) * perf).toFixed(2)),
         };
       })
+      .filter((item): item is { name: string; label: string; contribution: number } => item !== null)
       .sort((a, b) => Math.abs(b.contribution) - Math.abs(a.contribution))
       .slice(0, 8);
   }, [holdings, attributionPeriod]);
@@ -2814,7 +2817,12 @@ export default function PortfolioDetailsPage() {
                                   </div>
                                 </div>
                                 {/* Performance seit Kauf — Kursgewinn vs FX-Gewinn Aufschlüsselung */}
-                                {(() => {
+                                {h.hasBuyPrice === false ? (
+                                  <div className="mt-3 border border-amber-400/25 bg-amber-400/5 rounded-lg p-3">
+                                    <p className="text-xs font-semibold text-amber-200">Einstandsdaten fehlen</p>
+                                    <p className="mt-1 text-xs leading-relaxed text-amber-100/80">Eine Rendite seit Kauf wird erst ausgewiesen, wenn ein bestätigter CHF-Einstand oder eine Transaktionsbasis vorliegt. Der aktuelle Marktwert und die Gesamtkennzahlen bleiben davon getrennt.</p>
+                                  </div>
+                                ) : (() => {
                                   const totalRet = parseFloat(h.totalReturn || '0');
                                   const priceRet = parseFloat(h.priceReturnPct || '0');
                                   const fxRet = parseFloat(h.fxReturnPct || '0');
