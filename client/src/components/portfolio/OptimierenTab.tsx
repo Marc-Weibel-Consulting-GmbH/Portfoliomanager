@@ -1031,6 +1031,7 @@ export default function OptimierenTab({
                   const returnEvidence = getFullReoptimizationReturnEvidence({
                     requestedLookbackDays: fullLookbackDays,
                     historicalAnnualizedReturn: fullReoptimizationPreview.optimizer.optimalPortfolio.historicalAnnualizedReturn,
+                    hasFullRequestedWindow: fullReoptimizationPreview.candidateUniverse.hasFullRequestedWindow,
                     basis: fullReoptimizationPreview.optimizer.renditeBasis,
                   });
                   return <div className={returnEvidence.hasRequestedHistory ? "rounded-lg border border-indigo-400/20 bg-indigo-500/5 px-3 py-3" : "rounded-lg border border-amber-400/30 bg-amber-500/5 px-3 py-3"}>

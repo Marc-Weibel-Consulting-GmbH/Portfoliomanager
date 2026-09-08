@@ -9,6 +9,8 @@ export function formatFullReoptimizationFraction(value: number): string {
 export interface FullReoptimizationReturnEvidenceInput {
   requestedLookbackDays: number;
   historicalAnnualizedReturn: number | null | undefined;
+  /** Vom serverseitigen Kandidaten-Gate nach Kalenderdaten bestätigte Vollabdeckung. */
+  hasFullRequestedWindow?: boolean;
   basis: {
     jahreMin: number;
     jahreMedian: number;
@@ -30,7 +32,10 @@ export function getFullReoptimizationReturnEvidence(input: FullReoptimizationRet
   const hasRequestedHistory = Boolean(
     basis
     && basis.jahreMin >= requestedYears - 0.05
-    && basis.gemeinsameTage >= input.requestedLookbackDays - 1,
+    && (
+      input.hasFullRequestedWindow === true
+      || (input.hasFullRequestedWindow === undefined && basis.gemeinsameTage >= input.requestedLookbackDays - 1)
+    ),
   );
   const basisText = basis
     ? `${basis.jahreMin.toFixed(1)} Jahre mindestens · ${basis.jahreMedian.toFixed(1)} Jahre Median · ${basis.gemeinsameTage} gemeinsame Handelstage`

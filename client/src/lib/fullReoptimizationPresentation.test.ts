@@ -22,4 +22,13 @@ describe("formatFullReoptimizationFraction", () => {
       basisText: "1.9 Jahre mindestens · 3.2 Jahre Median · 487 gemeinsame Handelstage",
     });
   });
+
+  it("akzeptiert eine vollständig kalenderabgedeckte Dreijahresbasis trotz international weniger gemeinsamer Handelstage", () => {
+    expect(getFullReoptimizationReturnEvidence({
+      requestedLookbackDays: 756,
+      historicalAnnualizedReturn: 0.123,
+      hasFullRequestedWindow: true,
+      basis: { jahreMin: 3.0, jahreMedian: 3.1, gemeinsameTage: 709 },
+    }).hasRequestedHistory).toBe(true);
+  });
 });

@@ -20,6 +20,7 @@ import { SLEEVE_TICKER_LABEL } from "../../shared/const";
 import { buildAssetAllocationPreservingEquityProposal } from "../lib/fullReoptimizationProposal";
 import { selectFullReoptimizationUniverse } from "../lib/fullReoptimizationUniverse";
 import { historicalPriceLookupKeys } from "../lib/historicalPriceLookupKeys";
+import { assessHistoricalWindowCoverage } from "../lib/historicalWindowCoverage";
 
 const HoldingSchema = z.object({
   ticker: z.string(),
@@ -275,6 +276,10 @@ export const analyticsRouter = router({
       const historyStartDate = new Date(Date.now() - input.lookbackDays * 1.5 * 24 * 60 * 60 * 1000)
         .toISOString()
         .slice(0, 10);
+      const requestedHistoryStartDate = new Date(
+        Date.now() - (input.lookbackDays / 252) * 365.25 * 24 * 60 * 60 * 1000,
+      ).toISOString().slice(0, 10);
+      const requestedHistoryEndDate = new Date().toISOString().slice(0, 10);
       const lookupKeysByTicker = new Map<string, string[]>();
       for (const candidate of allCandidates) {
         lookupKeysByTicker.set(candidate.ticker, historicalPriceLookupKeys(candidate.ticker));
@@ -293,6 +298,7 @@ export const analyticsRouter = router({
         ));
       const validPriceCountByKey = new Map<string, number>();
       const validPriceDatesByKey = new Map<string, Set<string>>();
+      const fullWindowCoverageByTicker = new Map<string, boolean>();
       for (const row of historyRows) {
         const price = Number(row.adjustedClose ?? row.close);
         if (Number.isFinite(price) && price > 0) {
@@ -303,26 +309,33 @@ export const analyticsRouter = router({
         }
       }
       const universe = selectFullReoptimizationUniverse({
-        candidates: allCandidates.map((candidate) => ({
-          ticker: candidate.ticker,
-          currency: candidate.currency,
-          currentPrice: candidate.currentPrice == null ? null : Number(candidate.currentPrice),
-          sharpeRatio: candidate.sharpeRatio == null ? null : Number(candidate.sharpeRatio),
-          volatility: candidate.volatility == null ? null : Number(candidate.volatility),
-          dividendYield: candidate.dividendYield == null ? null : Number(candidate.dividendYield),
-          signalScore: candidate.signalScore,
-          signalType: candidate.signalType,
-          dataQualityStatus: candidate.dataQualityStatus,
-          isActive: candidate.isActive === 1,
-          isSleeve: isSleeve(candidate.ticker),
-          hasSufficientHistory: (lookupKeysByTicker.get(candidate.ticker) ?? [])
-            .some((key) => (validPriceCountByKey.get(key) ?? 0) >= 61),
-          historyDates: Array.from(
-            (lookupKeysByTicker.get(candidate.ticker) ?? [])
-              .map((key) => validPriceDatesByKey.get(key) ?? new Set<string>())
-              .sort((left, right) => right.size - left.size)[0] ?? new Set<string>(),
-          ),
-        })),
+        candidates: allCandidates.map((candidate) => {
+          const bestHistoryDates = (lookupKeysByTicker.get(candidate.ticker) ?? [])
+            .map((key) => validPriceDatesByKey.get(key) ?? new Set<string>())
+            .sort((left, right) => right.size - left.size)[0] ?? new Set<string>();
+          const historyDates = Array.from(bestHistoryDates);
+          const coverage = assessHistoricalWindowCoverage({
+            historyDates,
+            requiredStartDate: requestedHistoryStartDate,
+            requiredEndDate: requestedHistoryEndDate,
+          });
+          fullWindowCoverageByTicker.set(candidate.ticker, coverage.hasFullRequestedWindow);
+          return {
+            ticker: candidate.ticker,
+            currency: candidate.currency,
+            currentPrice: candidate.currentPrice == null ? null : Number(candidate.currentPrice),
+            sharpeRatio: candidate.sharpeRatio == null ? null : Number(candidate.sharpeRatio),
+            volatility: candidate.volatility == null ? null : Number(candidate.volatility),
+            dividendYield: candidate.dividendYield == null ? null : Number(candidate.dividendYield),
+            signalScore: candidate.signalScore,
+            signalType: candidate.signalType,
+            dataQualityStatus: candidate.dataQualityStatus,
+            isActive: candidate.isActive === 1,
+            isSleeve: isSleeve(candidate.ticker),
+            hasSufficientHistory: bestHistoryDates.size >= 61 && coverage.hasFullRequestedWindow,
+            historyDates,
+          };
+        }),
         method: input.method,
         candidateLimit: input.candidateLimit,
         minChfWeight: input.userConstraints?.minChfWeight,
@@ -361,6 +374,9 @@ export const analyticsRouter = router({
           excluded: universe.excluded,
           requiredChfCandidateCount: universe.requiredChfCandidateCount,
           historyStartDate,
+          requestedHistoryStartDate,
+          hasFullRequestedWindow: universe.tickers.length > 0
+            && universe.tickers.every((ticker) => fullWindowCoverageByTicker.get(ticker) === true),
           commonHistoryDateCount: universe.commonHistoryDateCount,
         },
       };

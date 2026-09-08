@@ -792,6 +792,8 @@
 - [ ] Nach separater ausdrücklicher Nutzerfreigabe eine geprüfte vollständige Neuoptimierung in ein Portfolio übernehmen; bis dahin bleibt jede Zielberechnung eine nicht handelnde Vorschau
 - [x] Für Portfolio «Mami» eine neue, rein unverbindliche vollständige Aktien-Neuoptimierung mit den geprüften Zielen berechnen, Kapitalbasis und Zielerreichung prüfen und die konkreten Änderungen vor einer separaten Übernahmefreigabe vorlegen
 - [x] Die annualisierte Rendite der vollständigen Aktien-Neuoptimierung gegen die tatsächlich gemeinsame Historienlänge, Kalenderbasis und Punkt-in-Zeit-Preisreihen prüfen; bei unzureichendem Nachweis keine langfristige Renditeaussage darstellen
+- [x] Für «Mami» eine neue vollständige Aktien-Neuoptimierung mit vollständig belegbarem kürzerem Zeitfenster als reine Vorschau berechnen und erst nach erneuter sichtbarer Prüfung eine Übernahmefreigabe anfragen
+- [x] Den im Drei-Jahres-Live-Lauf belegten Historien-Gate-Fehler beheben: eine als vollständig belegbar angeforderte Vorschau muss Kandidaten mit nur 2,1 Jahren Einzelhistorie ausschliessen und darf keine Teilreihe als geeignete Grundlage anbieten
 - [x] Den bestehenden Portfolio-Bearbeitungsweg auf sichere Änderung der Cash-Quote prüfen und fehlende Cash-Bearbeitung mit Kapitalbasis- und Nicht-Handelsguards ergänzen
 - [x] Portfolio-Excel- und PDF-Export um Dividendenrendite, YTD-Performance, Sharpe Ratio, Volatilität und historischen Drawdown aus belegten Datenquellen erweitern; bei vorhandener Drawdown-Basis muss diese Kennzahl gleichrangig auf der PDF-Kennzahlenübersicht erscheinen
 - [x] Eine druckbare Watchlist-PDF mit Titeln, relevanten Kennzahlen, Datenstand und Datenqualitätsstatus bereitstellen
