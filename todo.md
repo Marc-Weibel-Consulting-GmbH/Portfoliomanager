@@ -790,6 +790,12 @@
 - [x] Die in der vollständigen Neuoptimierung live belegte Volatilitätsskala (0,1636 als 0,2 % statt 16,4 %) testgetrieben korrigieren, damit historische Aktienkomponentenkennzahlen konsistent formatiert sind
 - [x] Den unplausiblen Swissquote-Performancewert von ungefähr −90 % bis zu Preis-, Corporate-Action-, Import- oder Renditepfad reproduzieren und testgetrieben korrigieren
 - [ ] Nach separater ausdrücklicher Nutzerfreigabe eine geprüfte vollständige Neuoptimierung in ein Portfolio übernehmen; bis dahin bleibt jede Zielberechnung eine nicht handelnde Vorschau
+- [x] Für Portfolio «Mami» eine neue, rein unverbindliche vollständige Aktien-Neuoptimierung mit den geprüften Zielen berechnen, Kapitalbasis und Zielerreichung prüfen und die konkreten Änderungen vor einer separaten Übernahmefreigabe vorlegen
+- [x] Die annualisierte Rendite der vollständigen Aktien-Neuoptimierung gegen die tatsächlich gemeinsame Historienlänge, Kalenderbasis und Punkt-in-Zeit-Preisreihen prüfen; bei unzureichendem Nachweis keine langfristige Renditeaussage darstellen
+- [x] Den bestehenden Portfolio-Bearbeitungsweg auf sichere Änderung der Cash-Quote prüfen und fehlende Cash-Bearbeitung mit Kapitalbasis- und Nicht-Handelsguards ergänzen
+- [x] Portfolio-Excel- und PDF-Export um Dividendenrendite, YTD-Performance, Sharpe Ratio, Volatilität und historischen Drawdown aus belegten Datenquellen erweitern; bei vorhandener Drawdown-Basis muss diese Kennzahl gleichrangig auf der PDF-Kennzahlenübersicht erscheinen
+- [x] Eine druckbare Watchlist-PDF mit Titeln, relevanten Kennzahlen, Datenstand und Datenqualitätsstatus bereitstellen
+- [x] Den im realen Excel-Export belegten Faktor-100-Fehler der Prozent-Kennzahlen (Liquiditätsanteil, Dividendenrendite, Volatilität und Drawdown) testgetrieben korrigieren; Werte sollen mit derselben Prozentbasis wie Dashboard und PDF ausgegeben werden
 
 ## EODHD-Zehnjahres-Backfill für Dividenden-Qualitätsprüfung (2026-09-07)
 - [x] Fehlende Langfristreihen der kuratierten Dividendenkandidaten gegen vorhandene EODHD-Symbole und bereits persistierte Kurse abgrenzen

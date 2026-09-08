@@ -41,6 +41,7 @@ import { getFxRate, getStockCurrency } from "../fxHelper";
 import { ENV } from "../_core/env";
 import { toEodhdSymbol } from "../lib/eodhdSymbol";
 import { historicalPriceLookupKeys } from "../lib/historicalPriceLookupKeys";
+import { calculateHistoricalAnnualizedReturn } from "../lib/historicalReturnEvidence";
 import { normalizeTickerForDb } from "../tickerNormalization";
 // ─────────────────────────────────────────────
 // DB-based price fetcher (replaces Yahoo Finance)
@@ -1456,9 +1457,13 @@ export async function optimizePortfolio(input: OptimizeInput) {
   });
   const actualWeightSum = actualWeights.reduce((s, w) => s + w, 0);
   const currentWeightsArr = actualWeightSum > 0.5
-    ? actualWeights.map(w => w / actualWeightSum) // normalise to sum=1
+    ? actualWeights.map(w => w / actualWeightSum) // normalise to 0..1
     : new Array(n).fill(1 / n); // fallback: equal weight
   const { ret: currRet, vol: currVol, sharpe: currSharpe } = portfolioStats(currentWeightsArr, mu, cov, riskFreeRate);
+  const historicalAnnualizedReturn = calculateHistoricalAnnualizedReturn({
+    dailyReturns: weightedDailySeries(finalWeights, assetReturnsMatrix),
+    tradingDaysPerYear: TRADING_DAYS_YEAR,
+  });
 
   // CVaR (95 %, historisch) der gewichteten Tagesrenditen als Tail-Risiko-Kennzahl
   // (positiver Wert = mittlerer Verlust an den schlechtesten 5 % der Handelstage).
@@ -1537,6 +1542,9 @@ export async function optimizePortfolio(input: OptimizeInput) {
     method,
     optimalPortfolio: {
       expectedReturn: Math.round(optRet * 10000) / 10000,
+      historicalAnnualizedReturn: historicalAnnualizedReturn === null
+        ? null
+        : Math.round(historicalAnnualizedReturn * 10000) / 10000,
       volatility: Math.round(optVol * 10000) / 10000,
       sharpe: Math.round(optSharpe * 1000) / 1000,
       annualReturn: Math.round(optRet * 10000) / 100,

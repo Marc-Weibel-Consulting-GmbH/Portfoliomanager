@@ -1,5 +1,8 @@
 import type { PortfolioExportKpi, PortfolioExportModel } from "./portfolioExportModel";
 import { portfolioExportFilenameStem } from "./portfolioExportModel";
+import { getPortfolioExcelMetricValue } from "./portfolioExcelMetricValue";
+import { getPortfolioPdfKpiKeys } from "./portfolioPdfKpis";
+import { getPortfolioPdfLayout } from "./portfolioPdfLayout";
 
 const COLORS = {
   navy: "0F172A",
@@ -124,7 +127,7 @@ export async function downloadPortfolioExcel(model: PortfolioExportModel): Promi
   applyHeader(kpiHeader);
   const kpiStartRow = kpiHeader.number + 1;
   for (const kpi of model.kpis) {
-    const row = overview.addRow(["", kpi.label, toExcelValue(kpi), kpi.unit === "CHF" ? "CHF" : kpi.unit === "percent" ? "%" : "Ratio", kpi.definition]);
+    const row = overview.addRow(["", kpi.label, getPortfolioExcelMetricValue(kpi), kpi.unit === "CHF" ? "CHF" : kpi.unit === "percent" ? "%" : "Ratio", kpi.definition]);
     row.getCell(2).font = { name: "Aptos", bold: true, color: { argb: COLORS.navy } };
     row.getCell(3).alignment = { horizontal: "right" };
     row.getCell(4).alignment = { horizontal: "center" };
@@ -386,9 +389,13 @@ export async function downloadPortfolioPdf(model: PortfolioExportModel): Promise
   pdf.setFontSize(7.5);
   pdf.text(`Datenstand: ${model.asOfLabel} · ${model.periodLabel} · ${model.isLive ? "Live" : "Demo"}`, margin, 30);
 
-  const reportKpis = ["current_value", "invested_capital", "absolute_gain", "ttwror", "irr", "sharpe"]
+  const reportKpis = getPortfolioPdfKpiKeys()
     .map((key) => model.kpis.find((kpi) => kpi.key === key))
     .filter((kpi): kpi is PortfolioExportKpi => Boolean(kpi));
+  const firstPageLayout = getPortfolioPdfLayout({
+    kpiCount: reportKpis.length,
+    allocationRowCount: model.sectorAllocation.length,
+  });
   const tileWidth = (usableWidth - 8) / 3;
   reportKpis.forEach((kpi, index) => {
     const column = index % 3;
@@ -397,10 +404,10 @@ export async function downloadPortfolioPdf(model: PortfolioExportModel): Promise
     drawPdfKpi(pdf, margin + column * (tileWidth + 4), 45 + row * 25, tileWidth, kpi.label, formatKpi(kpi), accent);
   });
 
-  drawDepotChart(pdf, model, margin, 101, usableWidth, 66);
-  drawAllocation(pdf, model, margin, 177, usableWidth);
+  drawDepotChart(pdf, model, margin, firstPageLayout.chartY, usableWidth, firstPageLayout.chartHeight);
+  drawAllocation(pdf, model, margin, firstPageLayout.allocationY, usableWidth);
 
-  const qualityTop = 227;
+  const qualityTop = firstPageLayout.qualityTop;
   setPdfFillColor(pdf, "F8FAFC");
   pdf.roundedRect(margin, qualityTop, usableWidth, 28, 2, 2, "F");
   setPdfTextColor(pdf, COLORS.navy);

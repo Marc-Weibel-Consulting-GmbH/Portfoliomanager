@@ -3302,6 +3302,15 @@ export default function PortfolioDetailsPage() {
         initialDescription={portfolio.description || undefined}
         initialInvestmentAmount={portfolio.investmentAmount}
         initialInceptionDate={(portfolio as any).inceptionDate ?? null}
+        initialCashReservePct={(() => {
+          try {
+            const stored = JSON.parse((portfolio as any).portfolioData || "{}");
+            const cash = Number(stored.cashPercentage);
+            return Number.isFinite(cash) ? cash : 0;
+          } catch {
+            return 0;
+          }
+        })()}
         portfolioType={portfolio.portfolioType as 'demo' | 'live'}
         onSuccess={() => refetch()}
       />

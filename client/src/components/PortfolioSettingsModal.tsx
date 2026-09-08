@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Save, X, Loader2, Settings, Calendar } from "lucide-react";
+import { Save, X, Loader2, Settings, Calendar, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface PortfolioSettingsModalProps {
@@ -17,6 +17,7 @@ interface PortfolioSettingsModalProps {
   initialDescription?: string;
   initialInvestmentAmount: string;
   initialInceptionDate?: string | null;
+  initialCashReservePct?: number;
   portfolioType: 'demo' | 'live';
   onSuccess?: () => void;
 }
@@ -29,6 +30,7 @@ export function PortfolioSettingsModal({
   initialDescription,
   initialInvestmentAmount,
   initialInceptionDate,
+  initialCashReservePct = 0,
   portfolioType,
   onSuccess
 }: PortfolioSettingsModalProps) {
@@ -36,6 +38,8 @@ export function PortfolioSettingsModal({
   const [description, setDescription] = useState(initialDescription || "");
   // Read-only Feld — wird nie gesetzt, nur beim Mount aus den Props übernommen.
   const [investmentAmount] = useState(initialInvestmentAmount);
+  const [cashReservePct, setCashReservePct] = useState(String(initialCashReservePct));
+  const [cashRebalanceConfirmed, setCashRebalanceConfirmed] = useState(false);
   // inceptionDate stored as YYYY-MM-DD string for the date input
   const [inceptionDate, setInceptionDate] = useState<string>(() => {
     if (!initialInceptionDate) return "";
@@ -95,6 +99,19 @@ export function PortfolioSettingsModal({
     },
   });
 
+  const rebalanceDemoCashReserve = trpc.portfolios.rebalanceDemoCashReserve.useMutation({
+    onSuccess: (result) => {
+      toast.success("Cash-Quote im Demoportfolio aktualisiert", {
+        description: `Wertpapiere CHF ${result.securitiesValueChf.toLocaleString('de-CH', { maximumFractionDigits: 2 })} · Cash CHF ${result.cashBalanceChf.toLocaleString('de-CH', { maximumFractionDigits: 2 })}`,
+      });
+      utils.portfolios.list.invalidate();
+      utils.portfolios.getWithCurrency.invalidate(portfolioId);
+      onSuccess?.();
+      onClose();
+    },
+    onError: (error) => toast.error("Cash-Quote konnte nicht gespeichert werden", { description: error.message }),
+  });
+
   // Save changes
   const handleSave = () => {
     if (!name.trim()) {
@@ -108,6 +125,22 @@ export function PortfolioSettingsModal({
       // inceptionDate: ISO string or null to clear
       inceptionDate: inceptionDate ? new Date(inceptionDate).toISOString() : null,
     });
+  };
+
+  const parsedCashReservePct = Number(cashReservePct);
+  const hasCashReserveChange = portfolioType === 'demo'
+    && Number.isFinite(parsedCashReservePct)
+    && Math.abs(parsedCashReservePct - initialCashReservePct) > 0.0001;
+  const handleCashReserveSave = () => {
+    if (!Number.isFinite(parsedCashReservePct) || parsedCashReservePct < 0 || parsedCashReservePct >= 100) {
+      toast.error("Bitte wählen Sie eine Cash-Quote zwischen 0 und unter 100 %.");
+      return;
+    }
+    if (!cashRebalanceConfirmed) {
+      toast.error("Bitte bestätigen Sie die technische Neugewichtung des Demoportfolios.");
+      return;
+    }
+    rebalanceDemoCashReserve.mutate({ portfolioId, targetCashReservePct: parsedCashReservePct });
   };
 
   return (
@@ -206,6 +239,24 @@ export function PortfolioSettingsModal({
               Die Investitionssumme kann nach der Erstellung nicht mehr geändert werden
             </p>
           </div>
+
+          {portfolioType === 'demo' && (
+            <div className="space-y-3 rounded-lg border border-cyan-500/30 bg-cyan-500/5 p-4">
+              <div className="flex items-center gap-2">
+                <Wallet className="h-4 w-4 text-cyan-300" />
+                <Label htmlFor="cashReservePct" className="text-sm font-medium text-white">Cash-Quote des Demoportfolios</Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Input id="cashReservePct" type="number" min="0" max="99.99" step="0.1" value={cashReservePct} onChange={(event) => { setCashReservePct(event.target.value); setCashRebalanceConfirmed(false); }} className="w-28 bg-slate-700 border-slate-600 text-white" />
+                <span className="text-sm text-gray-300">% des Startkapitals</span>
+              </div>
+              <p className="text-xs text-gray-300">Nur für nicht aktivierte Demoportfolios: Die Wertpapiergewichte und Demo-Stückzahlen werden proportional auf den verbleibenden Investitionsanteil umgerechnet. Cash ist danach das Residuum; es werden weder Orders noch Zahlungen oder Ledgerbuchungen erzeugt.</p>
+              {hasCashReserveChange && <label className="flex items-start gap-2 text-xs text-cyan-100 cursor-pointer"><input type="checkbox" checked={cashRebalanceConfirmed} onChange={(event) => setCashRebalanceConfirmed(event.target.checked)} className="mt-0.5" /><span>Ich bestätige die technische Neugewichtung bei unverändertem Startkapital.</span></label>}
+              <Button type="button" size="sm" variant="outline" onClick={handleCashReserveSave} disabled={!hasCashReserveChange || !cashRebalanceConfirmed || rebalanceDemoCashReserve.isPending} className="border-cyan-400/50 text-cyan-200 hover:bg-cyan-400/10">
+                {rebalanceDemoCashReserve.isPending ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Cash wird umgerechnet…</> : <><Wallet className="h-3.5 w-3.5 mr-2" />Cash-Quote speichern</>}
+              </Button>
+            </div>
+          )}
 
           {/* Info Box */}
           {portfolioType === 'demo' && (

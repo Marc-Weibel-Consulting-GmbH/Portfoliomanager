@@ -31,6 +31,12 @@ Der bestehende tägliche, idempotente YTD-Abgleich wurde nach dem Fix einmal aus
 
 Die Werte betreffen die historische Optimiererausgabe und sind **keine Prognose**. Die vollständige Vorschau bewahrt Cash und die nicht-aktienbezogenen Sleeves (Obligationen, Gold, Rohstoffe, Immobilien, Krypto) und erzeugt weder Positionsänderungen noch Buchungen oder Orders. Die zuvor gesetzten Beispielziele (3,0 % Dividendenrendite, Sharpe 0,50, max. Drawdown 25 %, CHF-Aktienanteil 40 %) waren nur lokale Eingaben zur UI-Prüfung und wurden nicht übernommen.
 
+## Renditebasis der Volloptimierung
+
+Die Vorschau trennt jetzt ausdrücklich die als Zielfunktion verwendete **erwartete Rendite p.a.** vom geometrisch berechneten historischen Renditenachweis. Sie bietet ein sichtbares Fenster von drei, fünf oder zehn Jahren sowie die jeweils tatsächlich verwendete gemeinsame Preisbasis. Eine Teilhistorie wird nicht mehr als zehnjährige historische Rendite bezeichnet. Die UI erläutert zudem direkt am Vorschauweg, dass Cash und die bestehenden Obligationen-, Gold-, Rohstoff-, Immobilien- und Kryptosleeves unverändert bleiben und keine Positionen, Buchungen oder Orders erzeugt werden.
+
+Der 10-Jahres-Lauf für „Mami“ wurde anschliessend live und rein lesend geprüft. Er lieferte 20 Kandidaten mit 772 gemeinsamen Handelstagen, mindestens 5,5 und median 10,0 Jahren Einzelhistorie. Die sichtbare historische Aktienkomponentenrendite von 23,4 % p.a., Volatilität von 16,1 % und Sharpe Ratio von 1,20 sind deshalb ausdrücklich als **hypothetische Kennzahlen der verfügbaren Teilreihe** markiert. Die UI erklärt, dass die beantragte zehnjährige Historie nicht für alle ausgewählten Titel vollständig belegt ist; sie stellt die Kennzahl weder als 10-Jahres-Performance noch als Prognose dar. Cash 9,8 %, feste Sleeves 14,0 % und Aktienbudget 76,2 % summieren sich unverändert auf 100,0 %. Es wurde nichts übernommen.
+
 ## Datenursache des ursprünglichen Fehlers
 
 Die frühere Vorschau kombinierte Kandidaten mit ausreichender Einzelhistorie, aber ohne ausreichende **gemeinsame** Preisdatumsbasis. Zusätzlich bestehen bei älteren US-Preisreihen sowohl Legacy-Schlüssel ohne `.US` als auch kanonische Schlüssel. Der neue Lesepfad berücksichtigt beide Varianten lesend und bevorzugt die vollständigere Reihe. Das Universums-Gate schliesst ferner Kandidaten aus, deren validierte Preisdatumsbasis mit der bereits gewählten Menge weniger als 31 gemeinsame Preiswerte (mindestens 30 Renditen) aufweist.

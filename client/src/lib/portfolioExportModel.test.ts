@@ -92,6 +92,22 @@ describe("buildPortfolioExportModel", () => {
     ]));
   });
 
+  it("übernimmt vorhandene Risikokennzahlen auch dann, wenn der Dashboardvertrag kein dataAvailable-Flag liefert", () => {
+    const model = buildPortfolioExportModel({
+      ...base,
+      risk: {
+        sharpeRatio: -0.09,
+        volatility: 13,
+        maxDrawdown: -11.2,
+      },
+    });
+
+    expect(model.kpis).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "sharpe", value: -0.09 }),
+      expect.objectContaining({ key: "max_drawdown", value: -11.2 }),
+    ]));
+  });
+
   it("weist fehlende Kurs- oder Wechselkurswerte als Datenlücke aus statt sie als Wert null zu behaupten", () => {
     const model = buildPortfolioExportModel({
       ...base,

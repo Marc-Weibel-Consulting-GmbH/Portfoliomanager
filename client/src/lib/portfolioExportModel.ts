@@ -103,7 +103,11 @@ function buildKpis(
   performance: UnknownRecord,
   risk: UnknownRecord | null | undefined,
 ): PortfolioExportKpi[] {
-  const riskAvailable = risk?.dataAvailable === true;
+  // Der Portfolio-Risikocontract liefert bei verwertbaren Reihen Kennzahlen,
+  // aber nicht in jedem Pfad zusätzlich ein `dataAvailable`-Flag. Ein explizites
+  // false bleibt ein Ausschluss; fehlendes Metadatum darf belegte Werte nicht
+  // aus dem Export entfernen.
+  const riskAvailable = risk !== undefined && risk !== null && risk.dataAvailable !== false;
   return [
     { key: "current_value", label: "Depotwert", value: summary.currentValueCHF, unit: "CHF", definition: "Aktueller Gesamtwert inklusive vorhandener Liquidität." },
     { key: "invested_capital", label: "Investiertes Kapital", value: summary.totalInvestedCHF, unit: "CHF", definition: "Externe Einzahlungen abzüglich Abflüsse gemäss Performance-Ledger." },

@@ -18,7 +18,10 @@ import {
   getVisibleDiversificationRules,
   type PortfolioAllocationScope,
 } from "@/lib/optimizationPresentation";
-import { formatFullReoptimizationFraction } from "@/lib/fullReoptimizationPresentation";
+import {
+  formatFullReoptimizationFraction,
+  getFullReoptimizationReturnEvidence,
+} from "@/lib/fullReoptimizationPresentation";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -473,6 +476,7 @@ export default function OptimierenTab({
   const [showConstraints, setShowConstraints] = useState(false);
   const [showFullReoptimization, setShowFullReoptimization] = useState(false);
   const [fullCandidateLimit, setFullCandidateLimit] = useState(20);
+  const [fullLookbackDays, setFullLookbackDays] = useState<756 | 1260 | 2520>(756);
 
   // Parsed constraints (nur wenn gültige Zahlen eingegeben)
   const userConstraints = useMemo(() => {
@@ -581,7 +585,7 @@ export default function OptimierenTab({
     trpc.analytics.fullReoptimizationPreview.useQuery(
       {
         portfolioId,
-        lookbackDays: 756,
+        lookbackDays: fullLookbackDays,
         candidateLimit: fullCandidateLimit,
         method,
         ...(userConstraints ? { userConstraints } : {}),
@@ -985,6 +989,18 @@ export default function OptimierenTab({
             </p>
             <div className="flex flex-wrap items-end gap-3">
               <label className="block text-xs text-gray-400">
+                Historisches Fenster
+                <select
+                  value={String(fullLookbackDays)}
+                  onChange={(event) => setFullLookbackDays(Number(event.target.value) as 756 | 1260 | 2520)}
+                  className="block mt-1 bg-[#0f1420] border border-white/20 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-300"
+                >
+                  <option value="756">3 Jahre</option>
+                  <option value="1260">5 Jahre</option>
+                  <option value="2520">10 Jahre</option>
+                </select>
+              </label>
+              <label className="block text-xs text-gray-400">
                 Max. Aktienkandidaten
                 <select
                   value={String(fullCandidateLimit)}
@@ -1011,17 +1027,25 @@ export default function OptimierenTab({
               </div>
             ) : fullReoptimizationPreview ? (
               <div className="space-y-4">
+                {(() => {
+                  const returnEvidence = getFullReoptimizationReturnEvidence({
+                    requestedLookbackDays: fullLookbackDays,
+                    historicalAnnualizedReturn: fullReoptimizationPreview.optimizer.optimalPortfolio.historicalAnnualizedReturn,
+                    basis: fullReoptimizationPreview.optimizer.renditeBasis,
+                  });
+                  return <div className={returnEvidence.hasRequestedHistory ? "rounded-lg border border-indigo-400/20 bg-indigo-500/5 px-3 py-3" : "rounded-lg border border-amber-400/30 bg-amber-500/5 px-3 py-3"}>
+                    <p className="text-xs font-semibold text-indigo-100">Aktienkomponente: historische Optimierung</p>
+                    <p className="text-xs text-indigo-100/70 mt-1">{fullReoptimizationPreview.candidateUniverse.tickers.length} Kandidaten nach Historien-Gate · {returnEvidence.label} {returnEvidence.value} · Volatilität {formatFullReoptimizationFraction(fullReoptimizationPreview.optimizer.optimalPortfolio.volatility)} · Sharpe {fullReoptimizationPreview.optimizer.optimalPortfolio.sharpe.toFixed(2)}</p>
+                    <p className="text-[11px] text-indigo-100/55 mt-1">Datenbasis: {returnEvidence.basisText}. Angefordert: {returnEvidence.requestedYears.toFixed(0)} Jahre.</p>
+                    {!returnEvidence.hasRequestedHistory && <p className="text-[11px] text-amber-200 mt-1">Die angeforderte Historienlänge ist für alle ausgewählten Titel nicht vollständig belegt. Die Rendite ist deshalb eine hypothetische Kennzahl der verfügbaren Teilreihe, keine {returnEvidence.requestedYears.toFixed(0)}-Jahres-Performance und keine Prognose.</p>}
+                    <p className="text-[11px] text-indigo-100/55 mt-1">Cash und feste Sleeves bleiben unverändert. Alle historischen Kennzahlen gelten nur für die Aktienkomponente und nicht für das Gesamtportfolio.</p>
+                  </div>;
+                })()}
                 <div className="grid sm:grid-cols-4 gap-3">
                   <div className="bg-[#0f1420] border border-white/10 rounded-lg px-3 py-2.5"><p className="text-[10px] text-gray-500">Aktienbudget</p><p className="text-sm font-mono font-semibold text-white">{fullReoptimizationPreview.allocation.equityBudgetPct.toFixed(1)}%</p></div>
                   <div className="bg-[#0f1420] border border-white/10 rounded-lg px-3 py-2.5"><p className="text-[10px] text-gray-500">Feste Sleeves</p><p className="text-sm font-mono font-semibold text-white">{fullReoptimizationPreview.allocation.fixedSleeveWeightPct.toFixed(1)}%</p></div>
                   <div className="bg-[#0f1420] border border-white/10 rounded-lg px-3 py-2.5"><p className="text-[10px] text-gray-500">Cash unverändert</p><p className="text-sm font-mono font-semibold text-white">{fullReoptimizationPreview.allocation.cashWeightPct.toFixed(1)}%</p></div>
                   <div className="bg-[#0f1420] border border-emerald-400/20 rounded-lg px-3 py-2.5"><p className="text-[10px] text-gray-500">Kapitalbasis</p><p className="text-sm font-mono font-semibold text-emerald-300">{fullReoptimizationPreview.allocation.totalWeightPct.toFixed(1)}%</p></div>
-                </div>
-                <div className="rounded-lg border border-indigo-400/20 bg-indigo-500/5 px-3 py-3">
-                  <p className="text-xs font-semibold text-indigo-100">Aktienkomponente: historische Optimierung</p>
-                  <p className="text-xs text-indigo-100/70 mt-1">{fullReoptimizationPreview.candidateUniverse.tickers.length} Kandidaten nach Historien-Gate · Rendite p.a. {fullReoptimizationPreview.optimizer.optimalPortfolio.annualReturn.toFixed(1)}% · Volatilität {formatFullReoptimizationFraction(fullReoptimizationPreview.optimizer.optimalPortfolio.volatility)} · Sharpe {fullReoptimizationPreview.optimizer.optimalPortfolio.sharpe.toFixed(2)}</p>
-                  <p className="text-[11px] text-indigo-100/55 mt-1">Gemeinsame Preisbasis: {fullReoptimizationPreview.candidateUniverse.commonHistoryDateCount ?? "nicht nachgewiesen"} Handelstage seit {fullReoptimizationPreview.candidateUniverse.historyStartDate}. Titel ohne ausreichende Einzel- oder gemeinsame Historie werden ausgeschlossen.</p>
-                  <p className="text-[11px] text-indigo-100/55 mt-1">Diese historischen Kennzahlen gelten nur für die Aktienkomponente, nicht für das Gesamtportfolio und nicht als Prognose.</p>
                 </div>
                 {(() => {
                   const achievement = fullReoptimizationPreview.optimizer.constraintAchievement as any;

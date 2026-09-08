@@ -1228,6 +1228,98 @@ export const portfoliosRouter = router({
         };
       }),
 
+    rebalanceDemoCashReserve: protectedProcedure
+      .input(z.object({
+        portfolioId: z.number().int().positive(),
+        targetCashReservePct: z.number().min(0).max(99.99),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user?.id || ctx.user.id === 1) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+        const { getDb, getSavedPortfolioById, updateSavedPortfolio } = await import('../db');
+        const { portfolioTransactions } = await import('../../drizzle/schema');
+        const { eq } = await import('drizzle-orm');
+        const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+        if (!portfolio) throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio nicht gefunden.' });
+        if (portfolio.portfolioType !== 'demo' || portfolio.isLive) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Die Cash-Quote kann nur bei einem nicht aktivierten Demoportfolio technisch neu gewichtet werden.',
+          });
+        }
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Datenbank nicht verfügbar.' });
+        const existingLedgerEntries = await db
+          .select({ id: portfolioTransactions.id })
+          .from(portfolioTransactions)
+          .where(eq(portfolioTransactions.portfolioId, input.portfolioId))
+          .limit(1);
+        if (existingLedgerEntries.length > 0) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Ein Portfolio mit Ledgerbuchungen darf nicht automatisch auf eine neue Cash-Quote umgerechnet werden.',
+          });
+        }
+        let parsed: { stocks?: any[]; cashPercentage?: string | number | null };
+        try {
+          parsed = JSON.parse(portfolio.portfolioData || '{}');
+        } catch {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Portfoliodaten sind ungültig.' });
+        }
+        const stocks = parsed.stocks ?? [];
+        const { rebalanceDemoCashReserve } = await import('../lib/demoCashReserveRebalance');
+        let rebalanced;
+        try {
+          rebalanced = rebalanceDemoCashReserve({
+            investmentAmountChf: Number(portfolio.investmentAmount),
+            targetCashReservePct: input.targetCashReservePct,
+            positions: stocks.map((holding) => ({
+              ticker: String(holding.ticker ?? ''),
+              weightPct: Number(holding.weight ?? 0),
+              currentPrice: Number(holding.currentPrice ?? 0),
+              currency: String(holding.currency ?? 'CHF'),
+              exchangeRateToChf: Number(holding.exchangeRateToChf ?? 1),
+            })),
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: error instanceof Error ? error.message : 'Cash-Quote konnte nicht geprüft werden.',
+          });
+        }
+        const rebalancedStocks = stocks.map((holding, index) => {
+          const result = rebalanced.positions[index]!;
+          return {
+            ...holding,
+            weight: result.weightPct,
+            shares: result.shares.toFixed(6),
+            totalValue: ((result.weightPct / 100) * Number(portfolio.investmentAmount)).toFixed(2),
+          };
+        });
+        await updateSavedPortfolio(input.portfolioId, ctx.user.id, {
+          portfolioData: JSON.stringify({
+            ...parsed,
+            stocks: rebalancedStocks,
+            cashPercentage: input.targetCashReservePct,
+          }),
+          cashBalance: rebalanced.cashBalanceChf.toFixed(2),
+        });
+        const { cacheDel } = await import('../redisClient');
+        const { invalidatePortfolioDetailCache } = await import('../lib/portfolioDetailCache');
+        await invalidatePortfolioDetailCache(cacheDel, input.portfolioId, ctx.user.id);
+        await perfCache.invalidate(`perf:v2:${ctx.user.id}`);
+        return {
+          success: true,
+          portfolioId: input.portfolioId,
+          cashBalanceChf: rebalanced.cashBalanceChf,
+          securitiesValueChf: rebalanced.securitiesValueChf,
+          totalValueChf: rebalanced.totalValueChf,
+          ledgerEntriesCreated: 0,
+          liveTrackingChanged: false,
+        };
+      }),
+
     update: protectedProcedure
       .input(
         z.object({

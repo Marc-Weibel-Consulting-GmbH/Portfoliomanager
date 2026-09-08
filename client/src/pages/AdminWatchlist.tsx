@@ -14,8 +14,9 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, RefreshCw, Sparkles, Search, TrendingUp, TrendingDown, Minus, Eye, Users, Bot, Star, ListChecks, Wrench } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Sparkles, Search, TrendingUp, TrendingDown, Minus, Eye, Users, Bot, Star, ListChecks, Wrench, FileText } from "lucide-react";
 import { Breadcrumb } from "@/components/Breadcrumb";
+import { downloadWatchlistPdf } from "@/lib/watchlistPdfExport";
 
 export default function AdminWatchlist() {
   const { user } = useAuth();
@@ -40,6 +41,7 @@ export default function AdminWatchlist() {
   const [aiCurrency, setAiCurrency] = useState<string>("all");
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [isWatchlistPdfGenerating, setIsWatchlistPdfGenerating] = useState(false);
   // U-08: Löschbestätigung über AlertDialog statt Browser-confirm()
   const [removingStock, setRemovingStock] = useState<{ id: number; ticker: string } | null>(null);
 
@@ -87,6 +89,26 @@ export default function AdminWatchlist() {
 
   const { data: stats } = trpc.watchlist.stats.useQuery();
   const { data: filterOptions } = trpc.watchlist.getFilters.useQuery();
+
+  const handleWatchlistPdfExport = async () => {
+    if (sortedStocks.length === 0) {
+      toast.error("Für die gewählten Filter sind keine Titel zum Drucken vorhanden.");
+      return;
+    }
+    setIsWatchlistPdfGenerating(true);
+    try {
+      await downloadWatchlistPdf({
+        title: "Aktienliste & Watchlist",
+        stocks: sortedStocks as Record<string, unknown>[],
+        filterLabel: `${listTypeFilter} · ${sourceFilter} · ${signalFilter}${search ? ` · Suche: ${search}` : ""}`,
+      });
+      toast.success("Watchlist-PDF wurde erstellt.");
+    } catch (error) {
+      toast.error("Watchlist-PDF konnte nicht erstellt werden", { description: error instanceof Error ? error.message : "Unbekannter Fehler" });
+    } finally {
+      setIsWatchlistPdfGenerating(false);
+    }
+  };
 
   // Ticker search autofill
   // Stammdaten-Vorschau für den Hinzufügen-Dialog: Sobald ein Ticker gewählt
@@ -291,6 +313,10 @@ export default function AdminWatchlist() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleWatchlistPdfExport} disabled={isWatchlistPdfGenerating || isLoading}>
+              <FileText className={`w-4 h-4 mr-2 ${isWatchlistPdfGenerating ? "animate-pulse" : ""}`} />
+              {isWatchlistPdfGenerating ? "PDF wird erstellt…" : "Watchlist PDF"}
+            </Button>
             <Button
               variant="outline"
               size="sm"
