@@ -58,4 +58,17 @@ describe("berechneTagesveraenderung", () => {
   it("ist 0 %, wenn sich der Kurs wirklich nicht bewegt hat", () => {
     expect(berechneTagesveraenderung(105, KURSE, "2026-07-27").percent).toBe(0);
   });
+
+  it("liefert eine Datenluecke statt eines Phantomverlusts bei nativer SGD-Position und USD-ADR-Historie", () => {
+    const dbsAdrHistory = [
+      { date: "2026-09-02", close: 243.16 },
+      { date: "2026-09-03", close: 247.69 },
+    ];
+    expect(
+      berechneTagesveraenderung(78.1, dbsAdrHistory, "2026-09-08", {
+        currentPriceCurrency: "SGD",
+        historicalPriceCurrency: "USD",
+      }).percent,
+    ).toBeNull();
+  });
 });

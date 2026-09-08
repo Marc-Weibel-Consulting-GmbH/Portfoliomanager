@@ -168,6 +168,17 @@ export function getHistoricalPriceCurrency(dbTicker: string, nativeCurrency: str
 }
 
 /**
+ * Eine historische Reihe kann nur dann direkt für Kennzahlen einer nativen
+ * Position verwendet werden, wenn sie in derselben Kurswährung notiert.
+ * Bei ADR-/Auslandsproxys in abweichender Währung fehlt ohne explizit
+ * gepflegtes Verhältnis zusätzlich die Instrumentbasis; sie bleiben deshalb
+ * bewusst eine Datenlücke und werden nicht stillschweigend umgerechnet.
+ */
+export function isHistoricalPriceSeriesCompatible(dbTicker: string, nativeCurrency: string): boolean {
+  return getHistoricalPriceCurrency(dbTicker, nativeCurrency) === nativeCurrency;
+}
+
+/**
  * Alias-Auflösung: liefert das EODHD-Symbol für einen DB-Ticker. Ist keine Sonderregel
  * hinterlegt, wird der Ticker unverändert zurückgegeben (der Aufrufer behält seine
  * bestehende Suffix-Logik). Endpunkt-agnostisch (gilt für /eod, /div, /real-time).

@@ -2556,8 +2556,8 @@ export default function PortfolioDetailsPage() {
                               )}
                             </td>
                             <td className="px-3 py-3.5 text-right">
-                              <span className={`text-sm font-mono ${today == null ? 'text-gray-600' : today >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}
-                                    title={today == null ? 'Kein Schlusskurs des Vortags verfügbar' : undefined}>
+                              <span className={`text-sm font-mono ${today == null ? (h.dayChangeDataQuality ? 'text-amber-400' : 'text-gray-600') : today >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}
+                                    title={today == null ? (h.dayChangeDataQuality || 'Kein Schlusskurs des Vortags verfügbar') : undefined}>
                                 {today == null ? '—' : `${today >= 0 ? '+' : ''}${today.toFixed(2)}%`}
                               </span>
                             </td>
@@ -3306,13 +3306,17 @@ export default function PortfolioDetailsPage() {
           try {
             const stored = JSON.parse((portfolio as any).portfolioData || "{}");
             const cash = Number(stored.cashPercentage);
-            return Number.isFinite(cash) ? cash : 0;
+            const actualCashReservePct = (Number((portfolio as any).cashBalance ?? 0) / Number((portfolio as any).investmentAmount ?? 0)) * 100;
+            return Number.isFinite(actualCashReservePct) && actualCashReservePct >= 0
+              ? Math.round(actualCashReservePct * 10) / 10
+              : (Number.isFinite(cash) ? cash : 0);
           } catch {
-            return 0;
+            const actualCashReservePct = (Number((portfolio as any).cashBalance ?? 0) / Number((portfolio as any).investmentAmount ?? 0)) * 100;
+            return Number.isFinite(actualCashReservePct) && actualCashReservePct >= 0 ? Math.round(actualCashReservePct * 10) / 10 : 0;
           }
         })()}
         portfolioType={portfolio.portfolioType as 'demo' | 'live'}
-        onSuccess={() => refetch()}
+        onSuccess={handleEditSuccess}
       />
       
       {/* Edit Modal */}
@@ -3346,7 +3350,7 @@ export default function PortfolioDetailsPage() {
         portfolioId={portfolioId}
         rawPortfolioData={(allPortfolios as any[] | undefined)?.find((p) => p.id === portfolioId)?.portfolioData}
         holding={editFieldsHolding}
-        onSuccess={() => refetch()}
+        onSuccess={handleEditSuccess}
       />
 
       {/* U-03: Transaktion erfassen (nur Live-Portfolios) */}

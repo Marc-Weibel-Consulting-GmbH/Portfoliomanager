@@ -1,6 +1,7 @@
 import cron, { ScheduledTask } from "node-cron";
 import { getAllStocks, updateStock } from "./db";
 import { fetchEODHDRealTime } from "./_core/eodhdApi";
+import { assessPortfolioMutationMarketRefresh } from "./lib/portfolioMutationMarketRefresh";
 
 // Aktuellen Kurs via EODHD holen. Yahoo Finance (bisherige Quelle) ist aus der Deploy-Umgebung
 // blockiert → der tägliche Updater lief ins Leere und stocks.currentPrice blieb leer ("Kurs
@@ -35,9 +36,21 @@ export async function startPriceUpdater() {
 
       let updatedCount = 0;
       let failedCount = 0;
+      let skippedDataGapCount = 0;
 
       for (const stock of stocks) {
         try {
+          const priceBasis = assessPortfolioMutationMarketRefresh(stock.ticker, stock.currency || 'CHF');
+          if (priceBasis.status === 'data_gap') {
+            await updateStock(stock.ticker, {
+              dataQualityStatus: 'data_gap',
+              dataQualityNotes: priceBasis.reason,
+              dataQualityUpdatedAt: new Date(),
+            });
+            skippedDataGapCount++;
+            console.warn(`– Preisupdate übersprungen für ${stock.ticker}: ${priceBasis.reason}`);
+            continue;
+          }
           const newPrice = await fetchRealTimePrice(stock.ticker);
 
           if (newPrice) {
@@ -67,7 +80,7 @@ export async function startPriceUpdater() {
       }
 
       console.log(
-        `[${new Date().toISOString()}] Price update completed. Updated: ${updatedCount}, Failed: ${failedCount}`
+        `[${new Date().toISOString()}] Price update completed. Updated: ${updatedCount}, Failed: ${failedCount}, Data gaps: ${skippedDataGapCount}`
       );
     } catch (error) {
       console.error("Price updater error:", error);

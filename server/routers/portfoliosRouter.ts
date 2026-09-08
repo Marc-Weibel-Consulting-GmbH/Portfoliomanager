@@ -439,6 +439,7 @@ export const portfoliosRouter = router({
         }
         const heuteIso = new Date().toISOString().split('T')[0];
         const { berechneTagesveraenderung } = await import("../lib/dailyChange");
+        const { getHistoricalPriceCurrency, isHistoricalPriceSeriesCompatible } = await import("../lib/eodhdSymbol");
 
         // Qualitaet aus den vorgerechneten drei Scores (stock_scores), nicht
         // mehr aus dem alten Einzelscore. Ein Titel ohne Eintrag bekommt null —
@@ -516,6 +517,10 @@ export const portfoliosRouter = router({
 
             const dbStock = dbStockMap.get(ticker) || await getStockByTicker(ticker); // fallback for alias resolution
             const currency = dbStock?.currency || await getStockCurrency(ticker);
+            const historicalPriceCurrency = getHistoricalPriceCurrency(ticker, currency || 'CHF');
+            const dayChangeDataQuality = isHistoricalPriceSeriesCompatible(ticker, currency || 'CHF')
+              ? null
+              : `Tagesrendite nicht verfügbar: historische ${historicalPriceCurrency}-Proxyreihe ist nicht mit dem nativen ${currency || 'CHF'}-Kurs vergleichbar.`;
             // Single source of truth: DB price + convertToCHF — identical to
             // portfolios.list and dashboard.getAggregatedMetrics so the WERT
             // matches across list, detail and dashboard.
@@ -625,6 +630,7 @@ export const portfoliosRouter = router({
               // U-13: Datenqualitäts-Flags (additiv, Client-Badges Phase 4)
               priceMissing,
               fxMissing,
+              dayChangeDataQuality,
               weight: parseFloat(weight.toFixed(2)),
               shares: shares.toFixed(2),
               avgBuyPrice: avgBuyPrice.toFixed(2),
@@ -710,6 +716,7 @@ export const portfoliosRouter = router({
                   parseNum(dbStock?.currentPrice),
                   schlusskurseNachTicker.get(ticker) ?? [],
                   heuteIso,
+                  { currentPriceCurrency: currency || 'CHF', historicalPriceCurrency },
                 );
                 return tv.percent != null ? tv.percent.toFixed(2) : null;
               })(),
@@ -1305,6 +1312,10 @@ export const portfoliosRouter = router({
           }),
           cashBalance: rebalanced.cashBalanceChf.toFixed(2),
         });
+        const { refreshPortfolioMutationMarketData } = await import('../lib/portfolioMutationMarketRefresh');
+        const marketDataRefresh = await refreshPortfolioMutationMarketData(
+          stocks.map((holding) => ({ ticker: String(holding.ticker ?? ''), currency: String(holding.currency ?? 'CHF') })),
+        );
         const { cacheDel } = await import('../redisClient');
         const { invalidatePortfolioDetailCache } = await import('../lib/portfolioDetailCache');
         await invalidatePortfolioDetailCache(cacheDel, input.portfolioId, ctx.user.id);
@@ -1315,6 +1326,310 @@ export const portfoliosRouter = router({
           cashBalanceChf: rebalanced.cashBalanceChf,
           securitiesValueChf: rebalanced.securitiesValueChf,
           totalValueChf: rebalanced.totalValueChf,
+          marketDataRefresh,
+          ledgerEntriesCreated: 0,
+          liveTrackingChanged: false,
+        };
+      }),
+
+    updateDemoPositionShares: protectedProcedure
+      .input(z.object({
+        portfolioId: z.number().int().positive(),
+        ticker: z.string().min(1),
+        shares: z.number().min(0),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        console.log('[portfolios.updateDemoPositionShares] ctx.user:', ctx.user);
+        if (!ctx.user?.id || ctx.user.id === 1) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+        const { getDb, getSavedPortfolioById, getStocksByTickers, updateSavedPortfolio } = await import('../db');
+        const { portfolioTransactions } = await import('../../drizzle/schema');
+        const { eq } = await import('drizzle-orm');
+        const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+        if (!portfolio) throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio nicht gefunden.' });
+        if (portfolio.portfolioType !== 'demo' || portfolio.isLive) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Stückzahlen können hier nur in einem nicht aktivierten Demoportfolio mit Cash-Gegenbuchung geändert werden.',
+          });
+        }
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Datenbank nicht verfügbar.' });
+        const ledgerEntries = await db.select({ id: portfolioTransactions.id })
+          .from(portfolioTransactions)
+          .where(eq(portfolioTransactions.portfolioId, input.portfolioId))
+          .limit(1);
+        if (ledgerEntries.length > 0) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Ein Portfolio mit Ledgerbuchungen muss über seine Transaktionen bearbeitet werden.',
+          });
+        }
+
+        let parsed: { stocks?: any[]; cashPercentage?: string | number | null };
+        try {
+          parsed = JSON.parse(portfolio.portfolioData || '{}');
+        } catch {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Portfoliodaten sind ungültig.' });
+        }
+        const rawHoldings = parsed.stocks ?? [];
+        const targetTicker = input.ticker.trim().toUpperCase();
+        if (!rawHoldings.some((holding) => String(holding.ticker).toUpperCase() === targetTicker)) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Position nicht im Portfolio gefunden.' });
+        }
+
+        const tickers = rawHoldings.map((holding) => String(holding.ticker ?? '').trim()).filter(Boolean);
+        const quotes = await getStocksByTickers(tickers);
+        const { tryConvertToCHF } = await import('../fxHelper');
+        const { resolveManualDemoHoldingShares } = await import('../lib/manualDemoHoldingShares');
+        const today = new Date().toISOString().slice(0, 10);
+        const canonicalHoldings = [] as Array<{
+          ticker: string; shares: number; priceLocal: number; currency: string; exchangeRateToChf: number;
+        }>;
+        for (const holding of rawHoldings) {
+          const ticker = String(holding.ticker ?? '').trim();
+          const quote = quotes.get(ticker);
+          const priceLocal = Number(quote?.currentPrice ?? holding.currentPrice);
+          const currency = String(quote?.currency ?? holding.currency ?? 'CHF').toUpperCase();
+          if (!(priceLocal > 0)) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: `Position ${ticker} hat keinen gültigen Marktpreis.` });
+          }
+          const priceChf = currency === 'CHF' ? priceLocal : await tryConvertToCHF(priceLocal, currency, today);
+          if (!(priceChf && priceChf > 0)) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: `Position ${ticker} hat keinen gültigen CHF-Wechselkurs.` });
+          }
+          const exchangeRateToChf = priceChf / priceLocal;
+          canonicalHoldings.push({
+            ticker,
+            shares: resolveManualDemoHoldingShares({
+              shares: holding.shares,
+              weightPct: holding.weight,
+              capitalBaseChf: portfolio.investmentAmount,
+              priceLocal,
+              exchangeRateToChf,
+            }),
+            priceLocal,
+            currency,
+            exchangeRateToChf,
+          });
+        }
+        const after = canonicalHoldings
+          .map((holding) => holding.ticker.toUpperCase() === targetTicker ? { ...holding, shares: input.shares } : holding)
+          .filter((holding) => holding.shares > 0);
+        const { rebalanceManualDemoPortfolio } = await import('../lib/manualDemoPortfolioRebalance');
+        let rebalanced;
+        try {
+          rebalanced = rebalanceManualDemoPortfolio({
+            cashBalanceChf: Number(portfolio.cashBalance ?? 0),
+            before: canonicalHoldings,
+            after,
+          });
+        } catch (error) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: error instanceof Error ? error.message : 'Cash-Gegenbuchung fehlgeschlagen.' });
+        }
+        const totalCapital = rebalanced.totalValueAfterChf;
+        const afterByTicker = new Map(after.map((holding) => [holding.ticker, holding]));
+        const nextHoldings = rawHoldings.flatMap((holding) => {
+          const canonical = afterByTicker.get(String(holding.ticker ?? '').trim());
+          if (!canonical) return [];
+          const currentValueChf = canonical.shares * canonical.priceLocal * canonical.exchangeRateToChf;
+          return [{
+            ...holding,
+            shares: canonical.shares.toFixed(6),
+            currentPrice: canonical.priceLocal.toString(),
+            currency: canonical.currency,
+            exchangeRateToChf: canonical.exchangeRateToChf.toString(),
+            totalValue: currentValueChf.toFixed(2),
+            weight: ((currentValueChf / totalCapital) * 100).toFixed(6),
+          }];
+        });
+        const result = await updateSavedPortfolio(input.portfolioId, ctx.user.id, {
+          portfolioData: JSON.stringify({
+            ...parsed,
+            stocks: nextHoldings,
+            cashPercentage: (await import('../../shared/cashReservePct')).calculateCashReservePct({
+              cashBalanceChf: rebalanced.cashBalanceChf,
+              capitalBaseChf: Number(portfolio.investmentAmount),
+            }).toFixed(6),
+          }),
+          cashBalance: rebalanced.cashBalanceChf.toFixed(2),
+        });
+        if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Portfolio konnte nicht aktualisiert werden.' });
+        const { refreshPortfolioMutationMarketData } = await import('../lib/portfolioMutationMarketRefresh');
+        const marketDataRefresh = await refreshPortfolioMutationMarketData([
+          { ticker: targetTicker, currency: afterByTicker.get(targetTicker)?.currency ?? 'CHF' },
+        ]);
+        const { cacheDel } = await import('../redisClient');
+        const { invalidatePortfolioMutationCaches } = await import('../lib/portfolioMutationCache');
+        await invalidatePortfolioMutationCaches({
+          cacheDel,
+          invalidatePerformance: (key) => perfCache.invalidate(key),
+          portfolioId: input.portfolioId,
+          userId: ctx.user.id,
+        });
+        return {
+          success: true,
+          portfolioId: input.portfolioId,
+          cashBalanceChf: rebalanced.cashBalanceChf,
+          totalValueChf: rebalanced.totalValueAfterChf,
+          marketDataRefresh,
+          ledgerEntriesCreated: 0,
+          liveTrackingChanged: false,
+        };
+      }),
+
+    rebalanceDemoPortfolioWeights: protectedProcedure
+      .input(z.object({
+        portfolioId: z.number().int().positive(),
+        targetWeightsPct: z.array(z.object({
+          ticker: z.string().min(1),
+          weightPct: z.number().min(0).max(100),
+        })).min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        console.log('[portfolios.rebalanceDemoPortfolioWeights] ctx.user:', ctx.user);
+        if (!ctx.user?.id || ctx.user.id === 1) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+        const { getDb, getSavedPortfolioById, getStocksByTickers, updateSavedPortfolio } = await import('../db');
+        const { portfolioTransactions } = await import('../../drizzle/schema');
+        const { eq } = await import('drizzle-orm');
+        const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
+        if (!portfolio) throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio nicht gefunden.' });
+        if (portfolio.portfolioType !== 'demo' || portfolio.isLive) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Der Gewichtungseditor mit Cash-Gegenbuchung ist nur für nicht aktivierte Demoportfolios verfügbar.',
+          });
+        }
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Datenbank nicht verfügbar.' });
+        const ledgerEntries = await db.select({ id: portfolioTransactions.id })
+          .from(portfolioTransactions)
+          .where(eq(portfolioTransactions.portfolioId, input.portfolioId))
+          .limit(1);
+        if (ledgerEntries.length > 0) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Ein Portfolio mit Ledgerbuchungen muss über den Transaktionen-Tab bearbeitet werden.',
+          });
+        }
+        let parsed: { stocks?: any[]; cashPercentage?: string | number | null };
+        try {
+          parsed = JSON.parse(portfolio.portfolioData || '{}');
+        } catch {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Portfoliodaten sind ungültig.' });
+        }
+        const rawHoldings = parsed.stocks ?? [];
+        const targets = input.targetWeightsPct.map((target) => ({
+          ticker: target.ticker.trim().toUpperCase(),
+          weightPct: target.weightPct,
+        }));
+        const tickerSet = new Set([...rawHoldings.map((holding) => String(holding.ticker ?? '').trim()), ...targets.map((target) => target.ticker)]);
+        const tickers = [...tickerSet].filter(Boolean);
+        const quotes = await getStocksByTickers(tickers);
+        const { tryConvertToCHF } = await import('../fxHelper');
+        const { resolveManualDemoHoldingShares } = await import('../lib/manualDemoHoldingShares');
+        const today = new Date().toISOString().slice(0, 10);
+        const toCanonicalHolding = async (raw: any) => {
+          const ticker = String(raw.ticker ?? '').trim();
+          const quote = quotes.get(ticker);
+          const priceLocal = Number(quote?.currentPrice ?? raw.currentPrice);
+          const currency = String(quote?.currency ?? raw.currency ?? 'CHF').toUpperCase();
+          if (!(priceLocal > 0)) throw new TRPCError({ code: 'BAD_REQUEST', message: `Position ${ticker} hat keinen gültigen Marktpreis.` });
+          const priceChf = currency === 'CHF' ? priceLocal : await tryConvertToCHF(priceLocal, currency, today);
+          if (!(priceChf && priceChf > 0)) throw new TRPCError({ code: 'BAD_REQUEST', message: `Position ${ticker} hat keinen gültigen CHF-Wechselkurs.` });
+          const exchangeRateToChf = priceChf / priceLocal;
+          return {
+            ticker,
+            shares: resolveManualDemoHoldingShares({
+              shares: raw.shares,
+              weightPct: raw.weight,
+              capitalBaseChf: portfolio.investmentAmount,
+              priceLocal,
+              exchangeRateToChf,
+            }),
+            priceLocal,
+            currency,
+            exchangeRateToChf,
+          };
+        };
+        const before = await Promise.all(rawHoldings.map(toCanonicalHolding));
+        const targetQuotes = await Promise.all(targets.map(async (target) => {
+          const existing = rawHoldings.find((holding) => String(holding.ticker ?? '').trim().toUpperCase() === target.ticker);
+          const quote = quotes.get(target.ticker);
+          if (!existing && !quote) throw new TRPCError({ code: 'NOT_FOUND', message: `Titel ${target.ticker} ist nicht verfügbar.` });
+          return toCanonicalHolding(existing ?? { ticker: target.ticker, shares: 0, currentPrice: quote?.currentPrice, currency: quote?.currency });
+        }));
+        const quoteByTicker = new Map(targetQuotes.map((holding) => [holding.ticker, holding]));
+        const { rebalanceManualDemoPortfolioWeights } = await import('../lib/manualDemoPortfolioRebalance');
+        let rebalanced;
+        try {
+          rebalanced = rebalanceManualDemoPortfolioWeights({
+            cashBalanceChf: Number(portfolio.cashBalance ?? 0),
+            before,
+            targetWeightsPct: targets,
+          });
+        } catch (error) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: error instanceof Error ? error.message : 'Cash-Gegenbuchung fehlgeschlagen.' });
+        }
+        const rawByTicker = new Map(rawHoldings.map((holding) => [String(holding.ticker ?? '').trim().toUpperCase(), holding]));
+        const nextHoldings = rebalanced.positions.map((position) => {
+          const canonical = quoteByTicker.get(position.ticker)!;
+          const raw = rawByTicker.get(position.ticker);
+          const currentValueChf = canonical.priceLocal * canonical.exchangeRateToChf * position.shares;
+          const quote = quotes.get(position.ticker);
+          return {
+            ...(raw ?? {}),
+            ticker: position.ticker,
+            companyName: raw?.companyName ?? quote?.companyName ?? position.ticker,
+            shares: position.shares.toFixed(6),
+            weight: position.weightPct.toFixed(6),
+            currentPrice: canonical.priceLocal.toString(),
+            currency: canonical.currency,
+            exchangeRateToChf: canonical.exchangeRateToChf.toString(),
+            totalValue: currentValueChf.toFixed(2),
+            ...(raw ? {} : { avgBuyPrice: currentValueChf > 0 ? (currentValueChf / position.shares).toFixed(2) : undefined, avgBuyPriceCHF: currentValueChf > 0 ? (currentValueChf / position.shares).toFixed(2) : undefined }),
+          };
+        });
+        const result = await updateSavedPortfolio(input.portfolioId, ctx.user.id, {
+          portfolioData: JSON.stringify({
+            ...parsed,
+            stocks: nextHoldings,
+            cashPercentage: ((rebalanced.cashBalanceChf / rebalanced.totalValueAfterChf) * 100).toFixed(6),
+          }),
+          cashBalance: rebalanced.cashBalanceChf.toFixed(2),
+        });
+        if (!result) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Portfolio konnte nicht aktualisiert werden.' });
+        const { refreshPortfolioMutationMarketData } = await import('../lib/portfolioMutationMarketRefresh');
+        const beforeSharesByTicker = new Map<string, number>(
+          before.map((holding): [string, number] => [String(holding.ticker), Number(holding.shares)]),
+        );
+        const afterSharesByTicker = new Map<string, number>(
+          rebalanced.positions.map((holding): [string, number] => [String(holding.ticker), Number(holding.shares)]),
+        );
+        const changedTickers = new Set<string>([...beforeSharesByTicker.keys(), ...afterSharesByTicker.keys()]);
+        const marketDataRefresh = await refreshPortfolioMutationMarketData(
+          Array.from(changedTickers)
+            .filter((ticker) => Math.abs((beforeSharesByTicker.get(ticker) ?? 0) - (afterSharesByTicker.get(ticker) ?? 0)) > 0.000_001)
+            .map((ticker) => ({ ticker, currency: quoteByTicker.get(ticker)?.currency ?? 'CHF' })),
+        );
+        const { cacheDel } = await import('../redisClient');
+        const { invalidatePortfolioMutationCaches } = await import('../lib/portfolioMutationCache');
+        await invalidatePortfolioMutationCaches({
+          cacheDel,
+          invalidatePerformance: (key) => perfCache.invalidate(key),
+          portfolioId: input.portfolioId,
+          userId: ctx.user.id,
+        });
+        return {
+          success: true,
+          portfolioId: input.portfolioId,
+          cashBalanceChf: rebalanced.cashBalanceChf,
+          securitiesValueChf: rebalanced.securitiesValueAfterChf,
+          totalValueChf: rebalanced.totalValueAfterChf,
+          marketDataRefresh,
           ledgerEntriesCreated: 0,
           liveTrackingChanged: false,
         };
@@ -1357,6 +1672,16 @@ export const portfoliosRouter = router({
           liveStartDate: input.liveStartDate ? new Date(input.liveStartDate) : undefined,
           inceptionDate: input.inceptionDate !== undefined ? (input.inceptionDate ? new Date(input.inceptionDate) : null) : undefined,
         });
+        if (result) {
+          const { cacheDel } = await import('../redisClient');
+          const { invalidatePortfolioMutationCaches } = await import('../lib/portfolioMutationCache');
+          await invalidatePortfolioMutationCaches({
+            cacheDel,
+            invalidatePerformance: (key) => perfCache.invalidate(key),
+            portfolioId: input.id,
+            userId: ctx.user.id,
+          });
+        }
         return result;
       }),
 

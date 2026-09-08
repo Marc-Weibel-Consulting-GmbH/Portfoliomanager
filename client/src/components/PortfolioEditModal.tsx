@@ -64,24 +64,25 @@ export function PortfolioEditModal({
       .slice(0, 10);
   }, [searchQuery, allStocks, stocks]);
 
-  // Update portfolio mutation
-  const updatePortfolio = trpc.portfolios.update.useMutation({
-    onSuccess: () => {
-      toast.success("Portfolio erfolgreich aktualisiert");
+  const rebalanceDemoPortfolioWeights = trpc.portfolios.rebalanceDemoPortfolioWeights.useMutation({
+    onSuccess: (result) => {
+      toast.success(`Portfolio und Cash-Reserve aktualisiert (Cash: CHF ${result.cashBalanceChf.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
       utils.portfolios.list.invalidate();
-      utils.portfolios.getWithCurrency.invalidate();
+      utils.portfolios.getWithCurrency.invalidate(portfolioId);
       onSuccess?.();
       onClose();
     },
-    onError: (error) => {
-      toast.error(`Fehler beim Speichern: ${error.message}`);
-    },
+    onError: (error) => toast.error(`Änderung nicht gespeichert: ${error.message}`),
   });
 
   // Calculate total weight
   const totalWeight = useMemo(() => {
     return stocks.reduce((sum, s) => sum + (s.weight || 0), 0);
   }, [stocks]);
+  const originalSecuritiesWeight = useMemo(
+    () => initialStocks.reduce((sum, stock) => sum + (stock.weight || 0), 0),
+    [initialStocks],
+  );
 
   // Handle weight change
   const handleWeightChange = (ticker: string, newWeight: string) => {
@@ -113,15 +114,15 @@ export function PortfolioEditModal({
     setHasChanges(true);
   };
 
-  // Normalize weights to 100%
+  // Bewahrt beim Normalisieren die bestehende Cash-Quote eines Demoportfolios.
   const handleNormalizeWeights = () => {
     if (totalWeight === 0) {
       // Distribute equally
-      const equalWeight = 100 / stocks.length;
+      const equalWeight = originalSecuritiesWeight / stocks.length;
       setStocks(prev => prev.map(s => ({ ...s, weight: parseFloat(equalWeight.toFixed(2)) })));
     } else {
       // Normalize proportionally
-      const factor = 100 / totalWeight;
+      const factor = originalSecuritiesWeight / totalWeight;
       setStocks(prev => prev.map(s => ({ ...s, weight: parseFloat((s.weight * factor).toFixed(2)) })));
     }
     setHasChanges(true);
@@ -134,20 +135,13 @@ export function PortfolioEditModal({
       return;
     }
 
-    // Prepare portfolio data
-    const portfolioData = JSON.stringify({
-      stocks: stocks.map(s => ({
-        ticker: s.ticker,
-        companyName: s.companyName,
-        weight: s.weight.toString(),
-        currentPrice: s.currentPrice?.toString() || '0',
-        currency: s.currency || 'CHF'
-      }))
-    });
-
-    updatePortfolio.mutate({
-      id: portfolioId,
-      portfolioData
+    if (isLive) {
+      toast.error("Aktivierte Portfolios müssen über den Transaktionen-Tab bearbeitet werden, damit Cash und Ledger korrekt bleiben.");
+      return;
+    }
+    rebalanceDemoPortfolioWeights.mutate({
+      portfolioId,
+      targetWeightsPct: stocks.map((stock) => ({ ticker: stock.ticker, weightPct: stock.weight })),
     });
   };
 
@@ -162,13 +156,15 @@ export function PortfolioEditModal({
             </Badge>
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Positionen hinzufügen, entfernen oder Gewichtungen anpassen
+            {isLive
+              ? "Aktiviertes Portfolio: Änderungen über den Transaktionen-Tab erfassen"
+              : "Positionen hinzufügen, entfernen oder Gewichtungen anpassen — frei werdender Wert bleibt als Cash-Reserve erhalten"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 py-4">
           {/* Search for new stocks */}
-          <div className="space-y-2">
+          <div className={`space-y-2 ${isLive ? 'opacity-50 pointer-events-none' : ''}`}>
             <Label className="text-sm text-muted-foreground">Neue Position hinzufügen</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -204,25 +200,30 @@ export function PortfolioEditModal({
           {/* Weight summary */}
           <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
             <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">Gesamtgewicht:</span>
-              <span className={`font-bold ${Math.abs(totalWeight - 100) < 0.1 ? 'text-green-400' : 'text-yellow-400'}`}>
+              <span className="text-sm text-muted-foreground">Wertpapiergewicht:</span>
+              <span className={`font-bold ${totalWeight <= 100.005 ? 'text-green-400' : 'text-red-400'}`}>
                 {totalWeight.toFixed(2)}%
               </span>
             </div>
-            {Math.abs(totalWeight - 100) > 0.1 && (
+            {!isLive && Math.abs(totalWeight - originalSecuritiesWeight) > 0.1 && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleNormalizeWeights}
                 className="text-cyan-400 border-cyan-400/50 hover:bg-cyan-400/10"
               >
-                Auf 100% normalisieren
+                An bisherige Wertpapierquote anpassen
               </Button>
             )}
           </div>
+          {!isLive && (
+            <p className="text-xs text-muted-foreground">
+              Nicht zugeordnete Prozentpunkte bleiben als Cash-Reserve bestehen. Zielgewichte über 100 % werden vor dem Speichern abgewiesen.
+            </p>
+          )}
 
           {/* Positions list */}
-          <div className="space-y-2">
+          <div className={`space-y-2 ${isLive ? 'opacity-50 pointer-events-none' : ''}`}>
             <Label className="text-sm text-muted-foreground">Positionen ({stocks.length})</Label>
             
             {stocks.length === 0 ? (
@@ -284,10 +285,10 @@ export function PortfolioEditModal({
             
             <Button
               onClick={handleSave}
-              disabled={!hasChanges || updatePortfolio.isPending}
+              disabled={!hasChanges || rebalanceDemoPortfolioWeights.isPending}
               className="bg-cyan-600 hover:bg-cyan-700 text-white"
             >
-              {updatePortfolio.isPending ? (
+              {rebalanceDemoPortfolioWeights.isPending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Speichern...

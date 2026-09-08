@@ -18,6 +18,7 @@ import mysql from 'mysql2/promise';
 import { stocks } from '../../drizzle/schema';
 import { fetchCompleteStockData } from './multiApiDataMerger';
 import { recordMetricsSnapshot } from './historicalMetricsRecorder';
+import { assessPortfolioMutationMarketRefresh } from '../lib/portfolioMutationMarketRefresh';
 
 import { ENV } from "./env";
 const RATE_LIMIT_MS = 500; // 500ms between API calls
@@ -71,6 +72,18 @@ export async function refreshAllStocks(options: { force?: boolean } = {}): Promi
         // Skip if recently updated (unless forced, e.g. one-time backfill)
         if (!options.force && stock.lastDataRefresh && stock.lastDataRefresh > cutoffTime) {
           console.log(`[${stock.ticker}] Skipped (updated ${Math.round((Date.now() - stock.lastDataRefresh.getTime()) / 1000 / 60)} min ago)`);
+          result.skipped++;
+          continue;
+        }
+
+        const priceBasis = assessPortfolioMutationMarketRefresh(stock.ticker, stock.currency || 'CHF');
+        if (priceBasis.status === 'data_gap') {
+          await db.update(stocks).set({
+            dataQualityStatus: 'data_gap',
+            dataQualityNotes: priceBasis.reason,
+            dataQualityUpdatedAt: new Date(),
+          }).where(eq(stocks.ticker, stock.ticker));
+          console.warn(`[${stock.ticker}] Preisaktualisierung übersprungen: ${priceBasis.reason}`);
           result.skipped++;
           continue;
         }

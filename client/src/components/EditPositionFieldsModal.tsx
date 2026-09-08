@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
+import { isShareOnlyDemoPositionEdit } from "@/lib/manualDemoPositionEdit";
 import { toast } from "sonner";
 
 const CURRENCIES = ["CHF", "EUR", "USD", "GBP", "JPY"];
@@ -62,6 +63,16 @@ export function EditPositionFieldsModal({
     },
     onError: (e) => toast.error(`Fehler: ${e.message}`),
   });
+  const updateDemoPositionShares = trpc.portfolios.updateDemoPositionShares.useMutation({
+    onSuccess: (result) => {
+      toast.success(`Position und Cash-Reserve aktualisiert (Cash: CHF ${result.cashBalanceChf.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
+      utils.portfolios.getWithCurrency.invalidate(portfolioId);
+      utils.portfolios.list.invalidate();
+      onSuccess?.();
+      onClose();
+    },
+    onError: (e) => toast.error(`Fehler: ${e.message}`),
+  });
 
   const handleSave = () => {
     const ticker = form.ticker.trim().toUpperCase();
@@ -83,12 +94,28 @@ export function EditPositionFieldsModal({
       toast.error("Position nicht in den Portfolio-Daten gefunden");
       return;
     }
+    const original = stocks[idx];
+    const nextShares = form.shares.trim() !== "" ? Number(form.shares) : Number(original.shares);
+    if (!Number.isFinite(nextShares) || nextShares < 0) {
+      toast.error("Stückzahl muss mindestens 0 sein");
+      return;
+    }
+    const isShareOnlyChange = isShareOnlyDemoPositionEdit({
+      originalTicker,
+      displayedHolding: holding,
+      form,
+    });
+    const displayedShares = Number(holding.shares);
+    if (isShareOnlyChange && Number.isFinite(displayedShares) && nextShares !== displayedShares) {
+      updateDemoPositionShares.mutate({ portfolioId, ticker, shares: nextShares });
+      return;
+    }
     stocks[idx] = {
       ...stocks[idx],
       ticker,
       isin: form.isin.trim() || undefined,
-      shares: form.shares.trim() !== "" ? form.shares.trim() : stocks[idx].shares,
-      avgBuyPrice: form.avgBuyPrice.trim() !== "" ? form.avgBuyPrice.trim() : stocks[idx].avgBuyPrice,
+      shares: form.shares.trim() !== "" ? form.shares.trim() : original.shares,
+      avgBuyPrice: form.avgBuyPrice.trim() !== "" ? form.avgBuyPrice.trim() : original.avgBuyPrice,
       currency: form.currency,
     };
     const newData = isArray ? stocks : { ...parsed, stocks };
@@ -163,7 +190,7 @@ export function EditPositionFieldsModal({
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            ISIN korrigieren ist v.a. für nicht mehr gültige Ticker hilfreich. Kurse/Kennzahlen werden nach dem Speichern neu geladen.
+            Bei einer reinen Stückzahländerung in einem nicht aktivierten Demoportfolio wird der Gegenwert zum aktuellen CHF-Kurs automatisch der Cash-Reserve gutgeschrieben oder aus ihr belastet. ISIN, Ticker, Einstand und Währung können weiterhin separat korrigiert werden.
           </p>
         </div>
 
@@ -171,8 +198,8 @@ export function EditPositionFieldsModal({
           <Button variant="outline" onClick={onClose} className="border-slate-600 text-white hover:bg-slate-700">
             Abbrechen
           </Button>
-          <Button onClick={handleSave} disabled={update.isPending} className="bg-cyan-600 hover:bg-cyan-700">
-            {update.isPending ? "Speichern…" : "Speichern"}
+          <Button onClick={handleSave} disabled={update.isPending || updateDemoPositionShares.isPending} className="bg-cyan-600 hover:bg-cyan-700">
+            {update.isPending || updateDemoPositionShares.isPending ? "Speichern…" : "Speichern"}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -798,6 +798,11 @@
 - [x] Portfolio-Excel- und PDF-Export um Dividendenrendite, YTD-Performance, Sharpe Ratio, Volatilität und historischen Drawdown aus belegten Datenquellen erweitern; bei vorhandener Drawdown-Basis muss diese Kennzahl gleichrangig auf der PDF-Kennzahlenübersicht erscheinen
 - [x] Eine druckbare Watchlist-PDF mit Titeln, relevanten Kennzahlen, Datenstand und Datenqualitätsstatus bereitstellen
 - [x] Den im realen Excel-Export belegten Faktor-100-Fehler der Prozent-Kennzahlen (Liquiditätsanteil, Dividendenrendite, Volatilität und Drawdown) testgetrieben korrigieren; Werte sollen mit derselben Prozentbasis wie Dashboard und PDF ausgegeben werden
+- [x] Mengenänderung einer manuell bearbeiteten Position (z. B. Nestlé von 260 auf 200 Stück) zuverlässig persistieren, Detailcache invalidieren und in Positionstabelle sowie Depotkennzahlen ohne zusätzliche Transaktionsbuchung sichtbar aktualisieren
+- [x] Manuelle Positionsreduktionen und -löschungen eines Demoportfolios als explizite CHF-Cash-Zuflüsse und manuelle Zugänge als nur bei ausreichendem Cash zulässige Cash-Abflüsse behandeln; Kapitalbasis, Positionstabelle und Kennzahlen müssen danach konsistent bleiben
+- [x] Kritischen Altpositionsschutz ergänzen: Der Demo-Stückzahlpfad muss bei ursprünglich nur gewichtsbasiert gespeicherten Positionen Ausgangsstückzahlen aus Gewicht und aktuellem CHF-Kurs rekonstruieren; er darf niemals andere Positionen als den bearbeiteten Titel auf null setzen oder löschen
+- [x] Den unplausiblen DBS-Group-Tagesverlust von rund −68 % bis zu lokaler Kursbasis, Corporate Action, Währung/FX oder Tagesrenditepfad reproduzieren und testgetrieben korrigieren
+- [x] Nach jeder erfolgreichen manuellen Demo-Portfolioänderung betroffene Marktstammdaten gezielt auffrischen, abgeleitete Kennzahlen und Caches aktualisieren sowie nicht verfügbare Daten transparent ausweisen statt alte Werte fortzuschreiben
 
 ## EODHD-Zehnjahres-Backfill für Dividenden-Qualitätsprüfung (2026-09-07)
 - [x] Fehlende Langfristreihen der kuratierten Dividendenkandidaten gegen vorhandene EODHD-Symbole und bereits persistierte Kurse abgrenzen
@@ -817,3 +822,10 @@
 
 ## Deterministischer Vorschlagsabschluss bei optionalem KI-Ausfall (2026-09-07)
 - [x] Sicherstellen, dass ein bereits berechneter Portfolioentwurf bei nicht verfügbarem Challenger/Synthesizer zeitbegrenzt als gekennzeichneter deterministischer Entwurf abgeschlossen wird statt im Wizard zu warten
+
+## DBS-Datenintegrität und manuelle Demo-Aktualisierung (2026-09-08)
+- [x] DBS: Eine historische USD-ADR-Proxyreihe (DBSDY.US) darf niemals als native SGD-Tagesrendite der Position D05.SI verwendet werden; bei fehlender kompatibler Basis ist eine Datenlücke auszuweisen.
+- [x] DBS: Dashboard und Positionsansicht müssen denselben Instrument- und Preisreihenwährungs-Guard verwenden, damit kein widersprüchlicher Tagesverlust angezeigt wird.
+- [x] Nach manuellen Demo-Portfolioänderungen nur die betroffenen Ticker datenqualitätsbewusst nachladen; Detail- und Performancecaches stets verwerfen sowie fehlende oder inkompatible Kursbasen transparent zurückmelden.
+- [x] DBS-Regressionen sowie den uncheckpointed manuellen Demo-Rebalancing-Strang mit fokussierten Tests, vollständiger Test-Suite, Typprüfung und Live-Ansicht ohne Portfolio- oder Handelsmutation abnehmen.
+- [ ] Freiwilliger Nutzer-Akzeptanztest: Eine eigene Nestlé-Stückzahländerung ausführen und anschliessend sichtbare Stückzahl, CHF-Cashgegenbuchung und Kennzahlen prüfen; das System löst diese Mutation nicht selbst aus.

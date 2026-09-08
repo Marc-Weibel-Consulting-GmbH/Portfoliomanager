@@ -1,0 +1,7 @@
+# DBS Live-Check — 08.09.2026
+
+Die Entwicklungsansicht `/portfolios/4020001` wurde ausschliesslich lesend im authentifizierten Vorschaukontext geöffnet. Nach dem initialen Laden war die Anwendungsshell sichtbar, die Detailansicht zeigte jedoch noch `Portfolio wird geladen…`. Es wurden keine Position, Cash-Reserve, Einstellung, Buchung oder Handelsfunktion betätigt. Die Detailprüfung wird nach Abschluss der Abfrage fortgesetzt.
+
+Nach Abschluss der Abfrage wurde der Tab `Positionen` ausschliesslich lesend geöffnet. Die Zeile `D05.SI — DBS Group` zeigt in der Spalte **Heute** `—` statt eines Tagesverlusts von rund −68 %. Der direkt aus der gerenderten Ansicht gelesene Hinweis lautet: `Tagesrendite nicht verfügbar: historische USD-Proxyreihe ist nicht mit dem nativen SGD-Kurs vergleichbar.` Die weiterhin sichtbare YTD-Kennzahl gehört nicht zum Scope dieses Tagesrenditefixes und wird hier nicht als validiert bewertet. Es wurden keine Portfolio-, Cash-, Buchungs- oder Handelsaktionen ausgelöst.
+
+Nach der finalen TypeScript-Prüfung und vollständigen Regression-Suite wurde dieselbe URL erneut geladen. Die Positionszeile `D05.SI` zeigte weiterhin **Heute: `—`**; damit reproduziert die laufende Ansicht keinen falschen Tagesverlust. Die Detailansicht zeigt 35 Positionen, den unveränderten Cash-Eintrag und keine zusätzlichen Ledgeraktivitäten. Keine Taste für Position, Einzahlung, Aktivierung, Optimierung oder Handel wurde ausgelöst.

@@ -29,6 +29,12 @@ export interface Tagesveraenderung {
   basisDate: string | null;
 }
 
+/** Optionale Herkunft der verglichenen Preisreihen. */
+export interface TagesveraenderungPreisBasis {
+  currentPriceCurrency?: string;
+  historicalPriceCurrency?: string;
+}
+
 /**
  * Letzter Schlusskurs strikt VOR `heute`.
  *
@@ -57,9 +63,21 @@ export function berechneTagesveraenderung(
   aktuellerKurs: number | null | undefined,
   kurse: Schlusskurs[],
   heute: string,
+  preisBasis: TagesveraenderungPreisBasis = {},
 ): Tagesveraenderung {
   const kurs = typeof aktuellerKurs === "number" ? aktuellerKurs : NaN;
   if (!Number.isFinite(kurs) || kurs <= 0) return { percent: null, basisDate: null };
+
+  // Ein nativer Kurs und eine historische ADR-/Proxyreihe in abweichender
+  // Währung sind ohne dokumentierte Ratio nicht vergleichbar. `null` ist
+  // bewusst eine Datenlücke, niemals eine scheinbar neutrale Rendite.
+  if (
+    preisBasis.currentPriceCurrency &&
+    preisBasis.historicalPriceCurrency &&
+    preisBasis.currentPriceCurrency !== preisBasis.historicalPriceCurrency
+  ) {
+    return { percent: null, basisDate: null };
+  }
 
   const basis = letzterSchlussVor(kurse ?? [], heute);
   if (!basis) return { percent: null, basisDate: null };

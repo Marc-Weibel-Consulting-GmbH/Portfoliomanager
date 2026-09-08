@@ -6,6 +6,7 @@ import { ENV } from "../_core/env";
 // replaces the previously inline re-implemented per-router replay loops.
 import { buildHoldings } from "../lib/holdings";
 import { DEFAULT_RISK_FREE_RATE } from "../analytics/riskStats";
+import { getHistoricalPriceCurrency } from "../lib/eodhdSymbol";
 
 // Helper to safely parse float values - handles 'NA', null, undefined
 function safeParseFloat(value: string | null | undefined, fallback = 0): number {
@@ -45,7 +46,7 @@ export const dashboardRouter = router({
     // Optionally collects the resolved positions (for the day-change calculation, R-29).
     const calculatePortfolioValueFromData = async (
       portfolio: any,
-      holdingsOut?: Array<{ ticker: string; shares: number; currency: string }>
+      holdingsOut?: Array<{ ticker: string; shares: number; currency: string; historicalPriceCurrency: string }>
     ): Promise<number> => {
       try {
         const portfolioData = JSON.parse(portfolio.portfolioData || '{}');
@@ -79,7 +80,12 @@ export const dashboardRouter = router({
           const priceCHF = await convertToCHF(currentPrice, currency, todayStr);
           const positionValue = (shares * priceCHF) || 0;
           totalValueCHF += positionValue;
-          holdingsOut?.push({ ticker, shares, currency });
+          holdingsOut?.push({
+            ticker,
+            shares,
+            currency,
+            historicalPriceCurrency: getHistoricalPriceCurrency(ticker, currency),
+          });
         }
         
         const cashBalance = parseFloat(portfolio.cashBalance || '0') || 0;
@@ -165,7 +171,7 @@ export const dashboardRouter = router({
     let totalDividendsCHF = 0;
     let totalInvestedCHF = 0;
     // Positions across all portfolios, for the day-change calculation (R-29)
-    const dayChangeHoldings: Array<{ ticker: string; shares: number; currency: string }> = [];
+    const dayChangeHoldings: Array<{ ticker: string; shares: number; currency: string; historicalPriceCurrency: string }> = [];
 
     // Helper: Calculate portfolio value at a specific date using historical prices
     // Uses FIXED shares (calculated from current price) to ensure consistent comparison

@@ -22,6 +22,8 @@ export interface DayChangeHolding {
   ticker: string;
   shares: number;
   currency: string;
+  /** Währung der historischen Reihe; abweichende ADR-/Proxyreihen werden ausgeschlossen. */
+  historicalPriceCurrency?: string;
 }
 
 export interface DayChangePriceRow {
@@ -58,6 +60,9 @@ export function computeDayChange(
 
   for (const holding of holdings) {
     if (!holding.ticker || !(holding.shares > 0)) continue;
+    // Ohne dokumentiertes Verhältnis ist eine ADR-/Proxyreihe in anderer
+    // Währung keine zulässige Bewertungsbasis für die native Position.
+    if (holding.historicalPriceCurrency && holding.historicalPriceCurrency !== holding.currency) continue;
 
     const rows = priceRowsByTicker.get(holding.ticker);
     if (!rows || rows.length === 0) continue;

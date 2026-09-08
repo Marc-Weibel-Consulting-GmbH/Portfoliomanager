@@ -232,7 +232,11 @@ async function hasHistoricalPrices(ticker: string, fromDate: string, toDate: str
 /**
  * Store historical prices in the database
  */
-async function storeHistoricalPrices(ticker: string, prices: EODHDHistoricalPrice[]): Promise<number> {
+async function storeHistoricalPrices(
+  ticker: string,
+  prices: EODHDHistoricalPrice[],
+  options: { overwriteExisting?: boolean } = {},
+): Promise<number> {
   const db = await getDb();
   if (!db) {
     throw new Error("Database not available");
@@ -251,9 +255,13 @@ async function storeHistoricalPrices(ticker: string, prices: EODHDHistoricalPric
   }));
 
   try {
-    // Use INSERT IGNORE to skip duplicates
+    // Historische Preisreihen sind standardmässig additiv. Ein bestehender
+    // Tageskurs wird nicht aus einem späteren Abruf ersetzt; ein expliziter
+    // Korrekturpfad muss das bewusst via `overwriteExisting` anfordern.
     await db.insert(historicalPrices).values(insertData).onDuplicateKeyUpdate({
-      set: { close: sql`VALUES(close)`, updatedAt: sql`CURRENT_TIMESTAMP` },
+      set: options.overwriteExisting
+        ? { close: sql`VALUES(close)`, updatedAt: sql`CURRENT_TIMESTAMP` }
+        : { updatedAt: sql`${historicalPrices.updatedAt}` },
     });
 
     console.log(`[importHistoricalPrices] Stored ${insertData.length} prices for ${ticker}`);
@@ -366,7 +374,8 @@ export async function importHistoricalPrices(
 export async function importHistoricalPricesForTicker(
   ticker: string,
   fromDate?: string,
-  toDate?: string
+  toDate?: string,
+  options: { overwriteExisting?: boolean } = {},
 ): Promise<{ success: boolean; pricesImported: number }> {
   console.log(`[importHistoricalPrices] Importing prices for ${ticker}...`);
 
@@ -392,7 +401,7 @@ export async function importHistoricalPricesForTicker(
     }
 
     // Store prices using the original DB ticker (not the EODHD ticker)
-    const imported = await storeHistoricalPrices(ticker, prices);
+    const imported = await storeHistoricalPrices(ticker, prices, options);
     console.log(`[importHistoricalPrices] Stored ${imported} prices for ${ticker}`);
     return { success: true, pricesImported: imported };
   } catch (error) {

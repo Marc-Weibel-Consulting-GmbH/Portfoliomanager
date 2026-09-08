@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toEodhdSymbol } from "./eodhdSymbol";
+import { getHistoricalPriceCurrency, isHistoricalPriceSeriesCompatible, toEodhdSymbol } from "./eodhdSymbol";
 
 describe("toEodhdSymbol", () => {
   it("übersetzt die DB-Suffixe .DE und .L generisch in EODHD-Exchange-Codes", () => {
@@ -29,5 +29,11 @@ describe("toEodhdSymbol", () => {
     expect(toEodhdSymbol("HEIA.AS")).toBe("HEIA.AS");
     expect(toEodhdSymbol("NESN.SW")).toBe("NESN.SW");
     expect(toEodhdSymbol("")).toBe("");
+  });
+
+  it("kennzeichnet die USD-ADR-Reihe von DBS als inkompatibel zur nativen SGD-Position", () => {
+    expect(toEodhdSymbol("D05.SI")).toBe("DBSDY.US");
+    expect(getHistoricalPriceCurrency("D05.SI", "SGD")).toBe("USD");
+    expect(isHistoricalPriceSeriesCompatible("D05.SI", "SGD")).toBe(false);
   });
 });
