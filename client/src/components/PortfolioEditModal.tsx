@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { StockLogo } from "@/components/StockLogo";
 import { Plus, Trash2, Save, X, Search, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { classifyPortfolioStockSearch } from "@/lib/portfolioAddableStockSearch";
 
 interface PortfolioStock {
   ticker: string;
@@ -50,19 +51,15 @@ export function PortfolioEditModal({
   // Search for stocks
   const { data: allStocks } = trpc.stocks.getAll.useQuery();
 
-  const filteredStocks = useMemo(() => {
-    if (!searchQuery || searchQuery.length < 2) return [];
-    if (!allStocks) return [];
-
-    const query = searchQuery.toLowerCase();
-    return allStocks
-      .filter((s: any) => 
-        (s.ticker?.toLowerCase().includes(query) || 
-         s.companyName?.toLowerCase().includes(query)) &&
-        !stocks.some(existing => existing.ticker === s.ticker)
-      )
-      .slice(0, 10);
+  const stockSearch = useMemo(() => {
+    return classifyPortfolioStockSearch({
+      query: searchQuery,
+      allStocks,
+      portfolioTickers: stocks.map((stock) => stock.ticker),
+    });
   }, [searchQuery, allStocks, stocks]);
+  const filteredStocks = stockSearch.addable;
+  const alreadyIncludedStocks = stockSearch.alreadyIncluded;
 
   const rebalanceDemoPortfolioWeights = trpc.portfolios.rebalanceDemoPortfolioWeights.useMutation({
     onSuccess: (result) => {
@@ -176,7 +173,8 @@ export function PortfolioEditModal({
               />
             </div>
             
-            {/* Search results */}
+            {/* Neue Titel bleiben auswählbar; vorhandene Titel werden erklärt,
+                um doppelte Positionen und inkonsistente Cash-Gegenbuchungen zu verhindern. */}
             {filteredStocks.length > 0 && (
               <div className="bg-slate-700 rounded-lg border border-slate-600 max-h-48 overflow-y-auto">
                 {filteredStocks.map((stock: any) => (
@@ -194,6 +192,18 @@ export function PortfolioEditModal({
                   </button>
                 ))}
               </div>
+            )}
+            {alreadyIncludedStocks.length > 0 && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+                {alreadyIncludedStocks.map((stock: any) => (
+                  <p key={stock.ticker}>
+                    <span className="font-medium">{stock.ticker}</span> · {stock.companyName || stock.ticker} ist bereits im Portfolio. Passen Sie unten das Gewicht der bestehenden Position an.
+                  </p>
+                ))}
+              </div>
+            )}
+            {searchQuery.trim().length >= 2 && allStocks && filteredStocks.length === 0 && alreadyIncludedStocks.length === 0 && (
+              <p className="px-1 text-sm text-muted-foreground">Kein passender Titel im verfügbaren Aktienuniversum gefunden.</p>
             )}
           </div>
 

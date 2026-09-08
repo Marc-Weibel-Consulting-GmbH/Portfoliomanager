@@ -829,3 +829,6 @@
 - [x] Nach manuellen Demo-Portfolioänderungen nur die betroffenen Ticker datenqualitätsbewusst nachladen; Detail- und Performancecaches stets verwerfen sowie fehlende oder inkompatible Kursbasen transparent zurückmelden.
 - [x] DBS-Regressionen sowie den uncheckpointed manuellen Demo-Rebalancing-Strang mit fokussierten Tests, vollständiger Test-Suite, Typprüfung und Live-Ansicht ohne Portfolio- oder Handelsmutation abnehmen.
 - [ ] Freiwilliger Nutzer-Akzeptanztest: Eine eigene Nestlé-Stückzahländerung ausführen und anschliessend sichtbare Stückzahl, CHF-Cashgegenbuchung und Kennzahlen prüfen; das System löst diese Mutation nicht selbst aus.
+
+## Watchlisttitel im Position-Hinzufügen-Dialog (2026-09-08)
+- [x] Beheben, dass ein bereits in der Watchliste enthaltener Titel wie Swiss Life (`SLHN.SW`) im Dialog zum Hinzufügen einer Position nach Name oder Ticker zuverlässig gefunden und auswählbar ist, ohne automatisch eine Position, Cash-Reserve oder Handelsaktion zu erzeugen.
