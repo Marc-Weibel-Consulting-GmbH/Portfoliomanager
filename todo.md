@@ -845,3 +845,7 @@
 ## Instrumentidentität und ETF-Durchschau (2026-09-08)
 - [x] Den Instrumentdatenvertrag für Watchlist- und Portfolioanzeige um klar ausgewiesene ISIN-, Börsenplatz- und Handelswährungsmetadaten ergänzen, sofern belegt; fehlende Werte transparent als Datenlücke ausweisen und keine Stammdaten erfinden oder überschreiben.
 - [x] Für Fonds/ETFs mit belegten Bestanddaten eine klar abgegrenzte, optionale wirtschaftliche Durchschau (Look-through) darstellen, die direkte Instrumentgewichtung und Fondsanteil nicht verwechselt; bei fehlenden oder nicht aktuellen Bestanddaten nur die Datenlücke zeigen.
+
+## Research-Triage-Loop (2026-09-08)
+- [x] Alle offenen GitHub-Issues mit `research`, Titelpräfix `[Research]` und ohne Fortschrittslabel nach der Konfidenz im Issue-Body priorisieren; maximal zwei Issues nach dem verbindlichen OOS-/Kosten-/Regime-/Sensitivitätsprotokoll triagieren.
+- [x] Für umsetzbare Kandidaten ausschliesslich deaktivierte Feature-Flag-Prototypen, OOS-Backtest-Skripte und Draft-Pull-Requests erzeugen; für nicht umsetzbare Kandidaten einen nachvollziehbaren SKIPPED-Kommentar und `research:rejected` setzen; niemals ein Feature-Flag aktivieren oder Portfolio-/Handelsdaten ändern.
