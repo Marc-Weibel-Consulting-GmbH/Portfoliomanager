@@ -849,3 +849,6 @@
 ## Research-Triage-Loop (2026-09-08)
 - [x] Alle offenen GitHub-Issues mit `research`, Titelpräfix `[Research]` und ohne Fortschrittslabel nach der Konfidenz im Issue-Body priorisieren; maximal zwei Issues nach dem verbindlichen OOS-/Kosten-/Regime-/Sensitivitätsprotokoll triagieren.
 - [x] Für umsetzbare Kandidaten ausschliesslich deaktivierte Feature-Flag-Prototypen, OOS-Backtest-Skripte und Draft-Pull-Requests erzeugen; für nicht umsetzbare Kandidaten einen nachvollziehbaren SKIPPED-Kommentar und `research:rejected` setzen; niemals ein Feature-Flag aktivieren oder Portfolio-/Handelsdaten ändern.
+
+## Research-Triage-Loop Wiederholung (2026-09-14)
+- [x] Den aktuellen GitHub-Bestand offener `[Research]`-Issues ohne Fortschrittslabel erneut gegen den vollständigen Filter prüfen und höchstens zwei neu zulässige Kandidaten nach Konfidenz, Umsetzbarkeit, DB-Abdeckung und OOS-Protokoll bearbeiten.

@@ -22,3 +22,7 @@ Die vollständige read-only-Abfrage der offenen `research`-Issues ergab sechs `[
 Es wurden **keine** Issue-Kommentare oder Labels erstellt bzw. geändert. Ebenso wurden keine Research-Branches, Prototypmodule, Backtest-Skripte, Feature-Flags, Commits, Pushes oder Draft-Pull-Requests erzeugt. Dadurch wird kein bereits laufender oder bereits entschiedener Forschungsstrang verfälscht.
 
 Ein künftiger Lauf darf erst bei einem tatsächlich neuen, offenen `[Research]`-Issue ohne Fortschrittslabel ansetzen. Dann gelten die im Auftrag festgelegten Schranken: höchstens zwei priorisierte Kandidaten, OOS-Zeitraum 2020-01-01 bis 2024-12-31, monatliches Rebalancing, 10 Basispunkte Kosten pro Trade, dokumentierter Informations-Cutoff sowie Regime- und Sensitivitätsprüfung. Ein Feature-Flag bliebe dabei defaultmässig deaktiviert.
+
+## Wiederholungsabgleich vom 21. September 2026
+
+Die erneute vollständige GitHub-Abfrage ergab denselben Bestand und dieselbe Labelmatrix. Damit existiert weiterhin kein zulässiger Kandidat ohne Fortschrittslabel. Es wurden erneut keine Kommentare, Labeländerungen, Branches, Prototypen, Backtests, Commits, Pushes oder Draft-Pull-Requests ausgeführt.
