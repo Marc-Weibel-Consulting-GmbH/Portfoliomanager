@@ -1017,7 +1017,7 @@ export default function PortfolioDetailsPage() {
   // per Klick auf einen Kreis oder die Signal-Skala in der aufgeklappten Zeile.
   const [scoreDialog, setScoreDialog] = useState<{ ticker: string; art: "qualitaet" | "bewertung" | "timing" | "signal" } | null>(null);
   // Sort state for Positionen table
-  type SortKey = 'weight' | 'ytd' | 'today' | 'qualitaet' | 'bewertung' | 'timing' | 'signalScore';
+  type SortKey = 'weight' | 'ytd' | 'today' | 'dividendYield' | 'volatility5y' | 'qualitaet' | 'bewertung' | 'timing' | 'signalScore';
   const [sortKey, setSortKey] = useState<SortKey>('weight');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const handleSort = (key: SortKey) => {
@@ -2253,14 +2253,14 @@ export default function PortfolioDetailsPage() {
             </div>
           )}
           </TabsContent>
-          {/* POSITIONS TAB — matches design: TICKER | NAME | SEKTOR | GEWICHT | WERT | HEUTE | YTD */}
+          {/* POSITIONS TAB — TICKER | NAME | SEKTOR | GEWICHT | WERT | HEUTE | YTD | Ertrag | Risiko */}
           <TabsContent value="positionen" className="mt-6">
             <div className={posView === 'tabelle' ? "bg-[#0f1420] border border-white/10 rounded-lg" : ""}>
               <div className={`flex items-center justify-between ${posView === 'tabelle' ? 'px-5 py-4 border-b border-white/10' : 'mb-3'}`}>
                 {posView === 'konstellation' ? <div /> : (
                   <div>
                     <h3 className="text-sm font-semibold text-white">{holdings.length} Positionen</h3>
-                    {posView === 'tabelle' && <p className="text-xs text-gray-400">sortiert nach {sortKey === 'weight' ? 'Gewicht' : sortKey === 'ytd' ? 'YTD' : sortKey === 'today' ? 'Heute' : sortKey === 'qualitaet' ? 'Qualität' : sortKey === 'bewertung' ? 'Bewertung' : sortKey === 'timing' ? 'Timing' : 'Signal'} {sortDir === 'desc' ? '↓' : '↑'}</p>}
+                    {posView === 'tabelle' && <p className="text-xs text-gray-400">sortiert nach {sortKey === 'weight' ? 'Gewicht' : sortKey === 'ytd' ? 'YTD' : sortKey === 'today' ? 'Heute' : sortKey === 'dividendYield' ? 'Div.-Rendite' : sortKey === 'volatility5y' ? 'Volatilität 5J' : sortKey === 'qualitaet' ? 'Qualität' : sortKey === 'bewertung' ? 'Bewertung' : sortKey === 'timing' ? 'Timing' : 'Signal'} {sortDir === 'desc' ? '↓' : '↑'}</p>}
                   </div>
                 )}
                 <div className="flex items-center gap-2">
@@ -2335,6 +2335,12 @@ export default function PortfolioDetailsPage() {
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="YTD = seit Jahresbeginn" onClick={() => handleSort('ytd')}>
                         <span className={sortKey === 'ytd' ? 'text-[#00CFC1]' : 'text-gray-400'}>YTD {sortKey === 'ytd' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Brutto-Dividendenrendite gemäss aktuellem Instrumentdatensatz. «—» bedeutet: keine verlässliche Ausschüttungsrendite vorhanden. Klicken zum Sortieren." onClick={() => handleSort('dividendYield')}>
+                        <span className={sortKey === 'dividendYield' ? 'text-[#00CFC1]' : 'text-gray-400'}>DIV. RENDITE {sortKey === 'dividendYield' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
+                      </th>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Annualisierte Volatilität aus täglichen splitbereinigten Schlusskursen über ein vollständiges 5-Jahres-Fenster (252 Handelstage p.a.). «—» bedeutet: unvollständige oder inkompatible Historie. Klicken zum Sortieren." onClick={() => handleSort('volatility5y')}>
+                        <span className={sortKey === 'volatility5y' ? 'text-[#00CFC1]' : 'text-gray-400'}>VOL. 5J {sortKey === 'volatility5y' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
+                      </th>
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Qualitäts-Score 0–100 aus dem Drei-Score-Konzept — wie gut das Unternehmen ist (Niveau + Richtung); seit der Reform die Leitgrösse. Nur für Aktien. Klicken zum Sortieren." onClick={() => handleSort('qualitaet')}>
                         <span className={sortKey === 'qualitaet' ? 'text-[#00CFC1]' : 'text-gray-400'}>Qualität {sortKey === 'qualitaet' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
@@ -2378,6 +2384,16 @@ export default function PortfolioDetailsPage() {
                           // Ohne Basis (null) ans Ende sortieren statt als 0 dazwischen.
                           aVal = parseFloat(a.dailyChangePercent ?? a.changePercent ?? 'NaN');
                           bVal = parseFloat(b.dailyChangePercent ?? b.changePercent ?? 'NaN');
+                          if (!Number.isFinite(aVal)) aVal = sortDir === 'desc' ? -Infinity : Infinity;
+                          if (!Number.isFinite(bVal)) bVal = sortDir === 'desc' ? -Infinity : Infinity;
+                        } else if (sortKey === 'dividendYield') {
+                          aVal = parseFloat(a.dividendYield ?? 'NaN');
+                          bVal = parseFloat(b.dividendYield ?? 'NaN');
+                          if (!Number.isFinite(aVal)) aVal = sortDir === 'desc' ? -Infinity : Infinity;
+                          if (!Number.isFinite(bVal)) bVal = sortDir === 'desc' ? -Infinity : Infinity;
+                        } else if (sortKey === 'volatility5y') {
+                          aVal = parseFloat(a.volatility5y ?? 'NaN');
+                          bVal = parseFloat(b.volatility5y ?? 'NaN');
                           if (!Number.isFinite(aVal)) aVal = sortDir === 'desc' ? -Infinity : Infinity;
                           if (!Number.isFinite(bVal)) bVal = sortDir === 'desc' ? -Infinity : Infinity;
                         } else if (sortKey === 'qualitaet') {
@@ -2431,6 +2447,13 @@ export default function PortfolioDetailsPage() {
                         const todayRaw = h.dailyChangePercent ?? h.changePercent ?? null;
                         const todayNum = todayRaw != null ? parseFloat(String(todayRaw)) : NaN;
                         const today = Number.isFinite(todayNum) ? todayNum : null;
+                        const dividendYieldRaw = h.dividendYield != null ? parseFloat(String(h.dividendYield)) : NaN;
+                        const dividendYield = Number.isFinite(dividendYieldRaw) && dividendYieldRaw >= 0 ? dividendYieldRaw : null;
+                        const volatility5yRaw = h.volatility5y != null ? parseFloat(String(h.volatility5y)) : NaN;
+                        const volatility5y = Number.isFinite(volatility5yRaw) && volatility5yRaw >= 0 ? volatility5yRaw : null;
+                        const volatility5yTitle = h.volatility5yDataQuality === 'incompatible_price_basis'
+                          ? '5-Jahres-Volatilität nicht verfügbar: historische Proxyreihe hat eine inkompatible Preisbasis.'
+                          : '5-Jahres-Volatilität nicht verfügbar: vollständige, aktuelle fünfjährige Historie fehlt.';
                         const weight = parseFloat(h.weight || '0');
                         // Bonds: value = nominalValue × pricePercent / 100 (already computed server-side as valueCHF)
                         const value = isBond
@@ -2583,6 +2606,16 @@ export default function PortfolioDetailsPage() {
                               </span>
                             </td>
                             <td className="px-3 py-3.5 text-right">
+                              <span className={`text-sm font-mono ${dividendYield === null ? 'text-gray-500' : 'text-emerald-400'}`} title={dividendYield === null ? 'Keine verlässliche Ausschüttungsrendite verfügbar.' : 'Brutto-Dividendenrendite gemäss aktuellem Instrumentdatensatz.'}>
+                                {dividendYield === null ? '—' : `${dividendYield.toFixed(2)}%`}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3.5 text-right">
+                              <span className={`text-sm font-mono ${volatility5y === null ? 'text-gray-500' : 'text-violet-300'}`} title={volatility5y === null ? volatility5yTitle : 'Annualisierte 5-Jahres-Volatilität (splitbereinigte Schlusskurse, 252 Handelstage p.a.).'}>
+                                {volatility5y === null ? '—' : `${volatility5y.toFixed(1)}%`}
+                              </span>
+                            </td>
+                            <td className="px-3 py-3.5 text-right">
                               <span className={`text-sm font-mono font-semibold ${scoreFarbe(qualitaetScore)}`}>
                                 {qualitaetScore !== null ? Math.round(qualitaetScore) : '—'}
                               </span>
@@ -2631,7 +2664,7 @@ export default function PortfolioDetailsPage() {
                           </tr>
                           {isExpanded && (
                             <tr key={`${h.ticker}-detail`} className="bg-[#0a0f1a] border-b border-white/10">
-                              <td colSpan={12} className="px-5 py-4">
+                              <td colSpan={showDetailCols ? 18 : 14} className="px-5 py-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {/* Scores Panel — transparent, erklärend */}
                                   <div className="bg-[#0f1420] border border-white/10 rounded-lg p-4">

@@ -855,3 +855,6 @@
 
 ## Portfoliofreigabe «Mami» (2026-09-23)
 - [x] Lesenden, eigentümergebundenen Zugriff auf Portfolio 4020001 für Nicole Weibel Manser und Jürg Weibel implementiert, getestet und freigegeben (2026-09-23)
+
+## Positionsliste: Dividendenrendite und 5-Jahres-Volatilität (2026-09-23)
+- [x] Dividendenrendite und annualisierte 5-Jahres-Volatilität als transparente, sortierbare Positionsspalten ergänzt; bei unvollständiger Historie eine Datenlücke statt einer Schätzung angezeigt (2026-09-23)

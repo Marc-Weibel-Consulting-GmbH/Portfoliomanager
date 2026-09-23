@@ -455,6 +455,68 @@ export const portfoliosRouter = router({
           console.warn('[portfolios] Drei-Scores nicht lesbar:', (e as Error).message);
         }
 
+        // Volatilität über ein vollständiges Fünfjahresfenster: die Historie
+        // wird einmal für alle Positionen geladen. `adjustedClose` hat Vorrang,
+        // damit Splits die Kennzahl nicht künstlich erhöhen. Ein lückenhaftes
+        // Fenster bleibt bewusst null und wird im Client als Datenlücke gezeigt.
+        const fiveYearVolatilityByTicker = new Map<string, { value: number | null; status: string }>();
+        try {
+          const { historicalPrices } = await import("../../drizzle/schema");
+          const { inArray, and: andOp, gte } = await import("drizzle-orm");
+          const { getDb } = await import("../db");
+          const { calculateFiveYearAnnualizedVolatility } = await import("../lib/fiveYearVolatility");
+          const { isHistoricalPriceSeriesCompatible } = await import("../lib/eodhdSymbol");
+          const dbConn = await getDb();
+          if (!dbConn) throw new Error("Datenbank nicht verfuegbar");
+
+          const asOf = new Date();
+          const queryStart = new Date(asOf);
+          queryStart.setUTCFullYear(queryStart.getUTCFullYear() - 5);
+          queryStart.setUTCDate(queryStart.getUTCDate() - 10);
+          const historyStart = queryStart.toISOString().slice(0, 10);
+          const variants = new Set<string>();
+          for (const ticker of allTickers) {
+            variants.add(ticker);
+            if (String(ticker).endsWith('.US')) variants.add(String(ticker).slice(0, -3));
+            else variants.add(`${ticker}.US`);
+          }
+
+          const rows = await dbConn
+            .select({
+              ticker: historicalPrices.ticker,
+              date: historicalPrices.date,
+              close: historicalPrices.close,
+              adjustedClose: historicalPrices.adjustedClose,
+            })
+            .from(historicalPrices)
+            .where(andOp(inArray(historicalPrices.ticker, Array.from(variants)), gte(historicalPrices.date, historyStart)));
+
+          const rowsByTicker = new Map<string, Array<{ date: string; close: string | number | null; adjustedClose: string | number | null }>>();
+          for (const row of rows) {
+            const baseTicker = String(row.ticker).endsWith('.US') ? String(row.ticker).slice(0, -3) : String(row.ticker);
+            for (const key of [String(row.ticker), baseTicker, `${baseTicker}.US`]) {
+              const entries = rowsByTicker.get(key) ?? [];
+              entries.push({ date: String(row.date), close: row.close, adjustedClose: row.adjustedClose });
+              rowsByTicker.set(key, entries);
+            }
+          }
+
+          for (const ticker of allTickers) {
+            const nativeCurrency = dbStockMap.get(ticker)?.currency;
+            if (nativeCurrency && !isHistoricalPriceSeriesCompatible(ticker, nativeCurrency)) {
+              fiveYearVolatilityByTicker.set(ticker, { value: null, status: 'incompatible_price_basis' });
+              continue;
+            }
+            const result = calculateFiveYearAnnualizedVolatility(rowsByTicker.get(ticker) ?? [], asOf);
+            fiveYearVolatilityByTicker.set(ticker, {
+              value: result.annualizedVolatilityPct,
+              status: result.status,
+            });
+          }
+        } catch (e) {
+          console.warn('[portfolios] Fuenfjahresvolatilitaet nicht berechenbar:', (e as Error).message);
+        }
+
         // Enrich stocks with currency and FX data
         const enrichedStocks = await Promise.all(
           stocksWithoutCash.map(async (stock: any) => {
@@ -499,7 +561,7 @@ export const portfoliosRouter = router({
                 priceReturnPct: totalReturn,
                 fxReturnPct: '0',
                 avgBuyPriceLocal: avgBuyPercent.toFixed(4),
-                dividendYield: stock.dividendYield || '0',
+                dividendYield: stock.dividendYield ?? null,
                 companyName: stock.companyName || stock.name || ticker,
                 category: 'Obligationen',
                 peRatio: null,
@@ -696,7 +758,7 @@ export const portfoliosRouter = router({
                   avgBuyPriceLocal: hasBuyPrice && buyPriceLocal > 0 ? buyPriceLocal.toFixed(4) : null,
                 };
               })(),
-              dividendYield: dbStock?.dividendYield || stock.dividendYield || '0',
+              dividendYield: dbStock?.dividendYield ?? stock.dividendYield ?? null,
               companyName: dbStock?.companyName || stock.companyName || ticker,
               category: dbStock?.category || stock.category || 'Aktien',
               // Fundamentals + composite score — drive the Konstellation view.
@@ -706,6 +768,8 @@ export const portfoliosRouter = router({
               marketCap: dbStock?.marketCap ?? stock.marketCap ?? null,
               beta: dbStock?.beta ?? stock.beta ?? null,
               volatility: dbStock?.volatility ?? stock.volatility ?? null,
+              volatility5y: fiveYearVolatilityByTicker.get(ticker)?.value ?? null,
+              volatility5yDataQuality: fiveYearVolatilityByTicker.get(ticker)?.status ?? 'insufficient_history',
               sharpeRatio: dbStock?.sharpeRatio ?? stock.sharpeRatio ?? null,
               // Der neue Qualitaets-Score. Fehlt er (Titel noch nicht vom
               // Signal-Cron erfasst, oder Fundamentaldaten unter der
