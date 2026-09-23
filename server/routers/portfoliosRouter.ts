@@ -335,11 +335,12 @@ export const portfoliosRouter = router({
           if (cached) return cached;
         } catch { /* non-critical — fall through to compute */ }
 
-        const { getSavedPortfolioById, getStockByTicker, getStocksByTickers, getPortfolioTransactions } = await import("../db");
+        const { getPortfolioReadAccess, getStockByTicker, getStocksByTickers, getPortfolioTransactions } = await import("../db");
         const { getStockCurrency, tryConvertToCHF, getHistoricalPrice } = await import("../fxHelper");
 
-        const portfolio = await getSavedPortfolioById(input, ctx.user.id);
-        if (!portfolio) return null;
+        const readAccess = await getPortfolioReadAccess(input, ctx.user.id);
+        if (!readAccess) return null;
+        const { portfolio, accessLevel } = readAccess;
 
         // Get earliest buy/entry transaction date for display
         let earliestBuyDate: Date | null = null;
@@ -792,6 +793,7 @@ export const portfoliosRouter = router({
         
         const result = {
           ...portfolio,
+          accessLevel,
           portfolioData: JSON.stringify({ ...portfolioData, stocks: finalEnrichedStocks }),
           enrichedStocks: finalEnrichedStocks,
           totalValueCHF: Number(totalValueCHF), // Ensure it's a primitive number, not Decimal
@@ -2153,7 +2155,7 @@ export const portfoliosRouter = router({
             top: [],
           }
         } : null;
-        const { getSavedPortfolioById, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
+        const { getPortfolioReadAccess, getPortfolioTransactions, getStockByTicker, getDb } = await import("../db");
         const { convertToCHF, getFxRate } = await import("../fxHelper");
 
         // Reporting currency is CHF: convert local-currency price maps to CHF (per-date
@@ -2162,10 +2164,11 @@ export const portfoliosRouter = router({
         const toChfChartMap = (priceMap: Record<string, number>, currency: string) =>
           toChfPriceMapCore(priceMap, currency, getFxRate);
 
-        const portfolio = await getSavedPortfolioById(portfolioId, ctx.user.id);
-        if (!portfolio) {
+        const readAccess = await getPortfolioReadAccess(portfolioId, ctx.user.id);
+        if (!readAccess) {
           return { chartData: [], totalValueHistory: [] };
         }
+        const { portfolio } = readAccess;
         
         const isLivePortfolio = portfolio.isLive;
         let transactions: any[] = [];
@@ -3824,12 +3827,12 @@ export const portfoliosRouter = router({
       }))
       .query(async ({ ctx, input }) => {
         const { portfolioId, range } = input;
-        const { getSavedPortfolioById } = await import('../db');
+        const { getPortfolioReadAccess } = await import('../db');
         const { calculatePortfolioPerformance } = await import('../lib/performanceService');
 
-        // Verify portfolio belongs to user
-        const portfolio = await getSavedPortfolioById(portfolioId, ctx.user.id);
-        if (!portfolio) {
+        // Viewers may read performance; every write path remains owner-only.
+        const readAccess = await getPortfolioReadAccess(portfolioId, ctx.user.id);
+        if (!readAccess) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio not found' });
         }
 

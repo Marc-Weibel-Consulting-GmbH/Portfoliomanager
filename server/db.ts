@@ -1,8 +1,9 @@
-import { eq, sql, isNotNull, ne, desc, lt, and, asc, gte, lte, inArray } from "drizzle-orm";
+import { eq, sql, isNotNull, isNull, ne, desc, lt, and, asc, gte, lte, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertStock, InsertUser, InsertNews, InsertTransaction, InsertSavedPortfolio, InsertCategory, InsertLogoCache, LogoCache, stocks, users, news, transactions, savedPortfolios, categories, logoCache } from "../drizzle/schema";
+import { InsertStock, InsertUser, InsertNews, InsertTransaction, InsertSavedPortfolio, InsertCategory, InsertLogoCache, LogoCache, stocks, users, news, transactions, savedPortfolios, portfolioShares, categories, logoCache } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { roundRappen } from './lib/rounding';
+import { resolvePortfolioReadAccess, type PortfolioReadAccess } from "./lib/portfolioAccessPolicy";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 // A-07: memoize the first connection error so it is logged LOUDLY exactly
@@ -487,6 +488,56 @@ export async function getSavedPortfolioById(id: number, userId: number) {
     return result[0];
   } catch (error) {
     console.error("[Database] Failed to get saved portfolio:", error);
+    return null;
+  }
+}
+
+/**
+ * Finds a portfolio that the requesting user is entitled to read. This helper
+ * deliberately does not replace `getSavedPortfolioById`: every existing write
+ * path keeps its strict owner-only guard.
+ */
+export async function getPortfolioReadAccess(id: number, userId: number): Promise<{
+  portfolio: typeof savedPortfolios.$inferSelect;
+  accessLevel: PortfolioReadAccess;
+} | null> {
+  const db = await getDb();
+  if (!db) return null;
+
+  try {
+    const [portfolio] = await db
+      .select()
+      .from(savedPortfolios)
+      .where(eq(savedPortfolios.id, id))
+      .limit(1);
+
+    if (!portfolio) return null;
+
+    const [share] = await db
+      .select({
+        portfolioId: portfolioShares.portfolioId,
+        userId: portfolioShares.userId,
+        permission: portfolioShares.permission,
+        revokedAt: portfolioShares.revokedAt,
+      })
+      .from(portfolioShares)
+      .where(and(
+        eq(portfolioShares.portfolioId, id),
+        eq(portfolioShares.userId, userId),
+        isNull(portfolioShares.revokedAt),
+      ))
+      .limit(1);
+
+    const accessLevel = resolvePortfolioReadAccess({
+      portfolioId: id,
+      ownerUserId: portfolio.userId,
+      requestingUserId: userId,
+      share: share ?? null,
+    });
+
+    return accessLevel ? { portfolio, accessLevel } : null;
+  } catch (error) {
+    console.error("[Database] Failed to resolve portfolio read access:", error);
     return null;
   }
 }

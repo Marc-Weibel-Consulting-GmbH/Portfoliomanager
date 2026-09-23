@@ -277,6 +277,28 @@ export const savedPortfolios = mysqlTable("savedPortfolios", {
 export type SavedPortfolio = typeof savedPortfolios.$inferSelect;
 export type InsertSavedPortfolio = typeof savedPortfolios.$inferInsert;
 
+/**
+ * Explicit, revocable, read-only access for a single saved portfolio.
+ * Ownership remains exclusively in `savedPortfolios.userId`; no share can
+ * create, edit, delete, activate, trade, import, or fund a portfolio.
+ */
+export const portfolioShares = mysqlTable("portfolioShares", {
+  id: int("id").autoincrement().primaryKey(),
+  portfolioId: int("portfolioId").notNull(),
+  userId: int("userId").notNull(),
+  permission: mysqlEnum("permission", ["view"]).notNull().default("view"),
+  grantedByUserId: int("grantedByUserId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  revokedAt: timestamp("revokedAt"),
+}, (t) => ({
+  portfolioUserUnique: unique("uq_portfolio_shares_portfolio_user").on(t.portfolioId, t.userId),
+  portfolioIdx: index("ix_portfolio_shares_portfolio").on(t.portfolioId),
+  userIdx: index("ix_portfolio_shares_user").on(t.userId),
+}));
+
+export type PortfolioShare = typeof portfolioShares.$inferSelect;
+export type InsertPortfolioShare = typeof portfolioShares.$inferInsert;
+
 // Portfolio transactions table - tracks buys, sells, dividends for live portfolios
 export const portfolioTransactions = mysqlTable("portfolioTransactions", {
   id: int("id").autoincrement().primaryKey(),

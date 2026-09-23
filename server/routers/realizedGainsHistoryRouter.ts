@@ -31,7 +31,11 @@ export const realizedGainsHistoryRouter = router({
   getAll: protectedProcedure
     .input(z.object({ portfolioId: z.number() }))
     .query(async ({ input, ctx }) => {
-      const { getDb } = await import("../db");
+      const { getDb, getPortfolioReadAccess } = await import("../db");
+      const readAccess = await getPortfolioReadAccess(input.portfolioId, ctx.user.id);
+      if (!readAccess) {
+        throw new Error("Portfolio not found");
+      }
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 

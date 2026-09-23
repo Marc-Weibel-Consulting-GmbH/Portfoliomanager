@@ -20,11 +20,12 @@ export const reportRouter = router({
         });
       }
 
-      const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
-      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
-      if (!portfolio) {
+      const { getPortfolioReadAccess, getPortfolioTransactions } = await import("../db");
+      const readAccess = await getPortfolioReadAccess(input.portfolioId, ctx.user.id);
+      if (!readAccess) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Portfolio nicht gefunden." });
       }
+      const { portfolio } = readAccess;
 
       const transactions = await getPortfolioTransactions(input.portfolioId);
       const txDates = transactions.map((t: any) => t.date).filter(Boolean).sort();

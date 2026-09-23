@@ -73,14 +73,14 @@ export const dividendCalendarRouter = router({
       const { requireFeature } = await import("../lib/entitlements");
       await requireFeature(ctx.user, "dividend_tracking");
 
-      const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
+      const { getPortfolioReadAccess, getPortfolioTransactions } = await import("../db");
       const { getPortfolioDividends } = await import("../dividendCalendar");
 
-      // Get portfolio
-      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
-      if (!portfolio) {
+      const readAccess = await getPortfolioReadAccess(input.portfolioId, ctx.user.id);
+      if (!readAccess) {
         throw new Error("Portfolio not found");
       }
+      const { portfolio } = readAccess;
 
       // Parse portfolio data to handle both array and {stocks:[]} format
       const rawData = JSON.parse(portfolio.portfolioData);
@@ -141,13 +141,14 @@ export const dividendCalendarRouter = router({
   allDividends: protectedProcedure
     .input(z.object({ portfolioId: z.number() }))
     .query(async ({ input, ctx }) => {
-      const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
+      const { getPortfolioReadAccess, getPortfolioTransactions } = await import("../db");
       const { getAllPortfolioDividends } = await import("../dividendCalendar");
 
-      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
-      if (!portfolio) {
+      const readAccess = await getPortfolioReadAccess(input.portfolioId, ctx.user.id);
+      if (!readAccess) {
         throw new Error("Portfolio not found");
       }
+      const { portfolio } = readAccess;
 
       const rawData2 = JSON.parse(portfolio.portfolioData);
       const portfolioData2: any[] = Array.isArray(rawData2) ? rawData2 : (rawData2.stocks || []);
@@ -202,13 +203,14 @@ export const dividendCalendarRouter = router({
       daysAhead: z.number().optional(),
     }))
     .query(async ({ input, ctx }) => {
-      const { getSavedPortfolioById, getPortfolioTransactions } = await import("../db");
+      const { getPortfolioReadAccess, getPortfolioTransactions } = await import("../db");
       const { getNextDividendPerTicker } = await import("../dividendCalendar");
 
-      const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
-      if (!portfolio) {
+      const readAccess = await getPortfolioReadAccess(input.portfolioId, ctx.user.id);
+      if (!readAccess) {
         throw new Error("Portfolio not found");
       }
+      const { portfolio } = readAccess;
 
       const rawData3 = JSON.parse(portfolio.portfolioData);
       const portfolioData3: any[] = Array.isArray(rawData3) ? rawData3 : (rawData3.stocks || []);

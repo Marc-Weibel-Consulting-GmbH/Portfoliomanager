@@ -584,16 +584,14 @@ export const signalsRouter = router({
         throw new Error("Database not available");
       }
 
-      // Fetch portfolio
-      const [portfolio] = await db
-        .select()
-        .from(savedPortfolios)
-        .where(eq(savedPortfolios.id, input.portfolioId))
-        .limit(1);
-
-      if (!portfolio) {
+      // The signals are part of the read-only portfolio view. Cache clearing
+      // below remains strictly owner-only.
+      const { getPortfolioReadAccess } = await import("../db");
+      const readAccess = await getPortfolioReadAccess(input.portfolioId, ctx.user.id);
+      if (!readAccess) {
         throw new Error("Portfolio not found");
       }
+      const { portfolio } = readAccess;
 
       // Parse portfolio data to get ticker list
       const portfolioData = JSON.parse(portfolio.portfolioData);

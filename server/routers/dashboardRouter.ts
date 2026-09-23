@@ -1865,7 +1865,7 @@ export const dashboardRouter = router({
   getRiskMetrics: protectedProcedure
     .input(z.object({ scope: z.union([z.literal("aggregate"), z.number()]).default("aggregate") }))
     .query(async ({ ctx, input }) => {
-      const { getSavedPortfolios, getPortfolioTransactions, getBenchmarkData } = await import("../db");
+      const { getSavedPortfolios, getPortfolioReadAccess, getPortfolioTransactions, getBenchmarkData } = await import("../db");
       const { batchGetStocks } = await import("../db-optimized");
       const { convertToCHF, convertToCHFSync, getFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
@@ -1875,14 +1875,15 @@ export const dashboardRouter = router({
       const db = await getDb();
       if (!db) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
-      const portfolios = await getSavedPortfolios(ctx.user.id);
-      // Live UND Demo — in beiden Fassungen.
+      const ownedPortfolios = await getSavedPortfolios(ctx.user.id);
+      // The personal aggregate intentionally remains owner-only. A numerical
+      // scope may additionally be a specifically shared read-only portfolio.
       let targetPortfolios: any[];
       if (input.scope === "aggregate") {
-        // Include ALL portfolios (live + demo) for risk metrics — same as getAggregatedMetrics
-        targetPortfolios = portfolios;
+        targetPortfolios = ownedPortfolios;
       } else {
-        targetPortfolios = portfolios.filter(p => p.id === input.scope);
+        const readAccess = await getPortfolioReadAccess(input.scope, ctx.user.id);
+        targetPortfolios = readAccess ? [readAccess.portfolio] : [];
       }
       if (targetPortfolios.length === 0) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
@@ -3443,19 +3444,14 @@ WICHTIG: Signal-Score-Regeln:
       period: z.enum(['1M', '3M', '6M', '1Y', 'MAX']).default('1Y'),
     }))
     .query(async ({ ctx, input }) => {
-      const { getDb } = await import('../db');
-      const { portfolioMetricsSnapshot, portfolioTransactions, savedPortfolios } = await import('../../drizzle/schema');
+      const { getDb, getPortfolioReadAccess } = await import('../db');
+      const { portfolioMetricsSnapshot, portfolioTransactions } = await import('../../drizzle/schema');
       const { eq, and, gte } = await import('drizzle-orm');
       const db = await getDb();
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB not available' });
 
-      // Verify ownership
-      const portfolio = await db.select({ id: savedPortfolios.id, userId: savedPortfolios.userId })
-        .from(savedPortfolios)
-        .where(eq(savedPortfolios.id, input.portfolioId))
-        .limit(1);
-      if (portfolio.length === 0) throw new TRPCError({ code: 'NOT_FOUND', message: 'Portfolio nicht gefunden' });
-      if (portfolio[0].userId !== ctx.user.id) throw new TRPCError({ code: 'FORBIDDEN', message: 'Kein Zugriff' });
+      const readAccess = await getPortfolioReadAccess(input.portfolioId, ctx.user.id);
+      if (!readAccess) throw new TRPCError({ code: 'FORBIDDEN', message: 'Kein Zugriff' });
 
       // Calculate cutoff date based on period
       const now = new Date();

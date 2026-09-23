@@ -14,6 +14,18 @@ async function assertPortfolioOwnership(portfolioId: number, userId: number) {
   return portfolio;
 }
 
+async function assertPortfolioReadAccess(portfolioId: number, userId: number) {
+  const { getPortfolioReadAccess } = await import("../db");
+  const access = await getPortfolioReadAccess(portfolioId, userId);
+  if (!access) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Portfolio nicht gefunden oder keine Berechtigung",
+    });
+  }
+  return access;
+}
+
 async function assertTransactionOwnership(transactionIds: number[], userId: number) {
   if (transactionIds.length === 0) return;
   const { getDb } = await import("../db");
@@ -88,7 +100,7 @@ export const portfolioTransactionsRouter = router({
   list: protectedProcedure
     .input(z.object({ portfolioId: z.number() }))
     .query(async ({ input, ctx }) => {
-      await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
+      await assertPortfolioReadAccess(input.portfolioId, ctx.user.id);
       const { getPortfolioTransactions } = await import("../db");
       return await getPortfolioTransactions(input.portfolioId);
     }),
@@ -102,7 +114,7 @@ export const portfolioTransactionsRouter = router({
       endDate: z.string().nullish(),
     }))
     .query(async ({ input, ctx }) => {
-      await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
+      await assertPortfolioReadAccess(input.portfolioId, ctx.user.id);
       const { getDb } = await import("../db");
       const { portfolioTransactions } = await import("../../drizzle/schema");
       const { eq, and, gte, lte, desc } = await import("drizzle-orm");
@@ -143,7 +155,7 @@ export const portfolioTransactionsRouter = router({
   exportToCsv: protectedProcedure
     .input(z.object({ portfolioId: z.number() }))
     .query(async ({ input, ctx }) => {
-      await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
+      await assertPortfolioReadAccess(input.portfolioId, ctx.user.id);
       const { getPortfolioTransactions } = await import("../db");
       const transactions = await getPortfolioTransactions(input.portfolioId);
       
@@ -557,7 +569,7 @@ export const portfolioTransactionsRouter = router({
   getOptimizationHistory: protectedProcedure
     .input(z.object({ portfolioId: z.number() }))
     .query(async ({ input, ctx }) => {
-      await assertPortfolioOwnership(input.portfolioId, ctx.user.id);
+      await assertPortfolioReadAccess(input.portfolioId, ctx.user.id);
       const { getDb } = await import('../db');
       const { portfolioTransactions } = await import('../../drizzle/schema');
       const { eq, and, desc } = await import('drizzle-orm');

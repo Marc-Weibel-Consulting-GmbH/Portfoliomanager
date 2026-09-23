@@ -882,7 +882,7 @@ function DeleteTransactionButton({ transactionId, portfolioId }: { transactionId
 }
 
 // ─── Portfolio Quality History with Snapshot Trigger ───
-function PortfolioQualityHistoryWithTrigger({ portfolioId }: { portfolioId: number }) {
+function PortfolioQualityHistoryWithTrigger({ portfolioId, readOnly = false }: { portfolioId: number; readOnly?: boolean }) {
   const utils = trpc.useUtils();
   const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
   const triggerSnapshot = trpc.dashboard.triggerPortfolioSnapshot.useMutation({
@@ -902,7 +902,7 @@ function PortfolioQualityHistoryWithTrigger({ portfolioId }: { portfolioId: numb
     <div>
       <PortfolioQualityHistory portfolioId={portfolioId} />
       {/* Show trigger button only when no snapshot data is available */}
-      <div className="mt-2 flex items-center justify-end gap-2">
+      {!readOnly && <div className="mt-2 flex items-center justify-end gap-2">
         {snapshotStatus && (
           <span className="text-xs text-[#00CFC1] animate-pulse">{snapshotStatus}</span>
         )}
@@ -916,6 +916,7 @@ function PortfolioQualityHistoryWithTrigger({ portfolioId }: { portfolioId: numb
           Qualitäts-Historie berechnen
         </button>
       </div>
+      }
     </div>
   );
 }
@@ -1163,7 +1164,8 @@ export default function PortfolioDetailsPage() {
   const { data: multiPeriod } = trpc.portfolios.getMultiPeriodPerformanceV2.useQuery();
   // Investor profile for reference currency and FX limit
   const { data: profile } = trpc.investmentProfile.get.useQuery();
-    const deletePortfolio = trpc.portfolios.delete.useMutation();
+  const isReadOnly = portfolio?.accessLevel === "viewer";
+  const deletePortfolio = trpc.portfolios.delete.useMutation();
   const utils = trpc.useUtils();
 
   // Einzahlung-Mutation für Demo-Portfolios
@@ -1675,12 +1677,18 @@ export default function PortfolioDetailsPage() {
                   return displayDate ? ` · seit ${displayDate.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' })}` : '';
                 })()}
               </p>
+              {isReadOnly && (
+                <div className="mt-3 inline-flex items-center gap-2 rounded-md border border-sky-400/30 bg-sky-400/10 px-3 py-1.5 text-xs text-sky-200">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Geteilt mit Ihnen · Nur lesen · Änderungen, Buchungen und Aktivierungen sind gesperrt
+                </div>
+              )}
             </div>
 
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center justify-end gap-2 flex-shrink-0">
               <ViewDensityToggle className="mr-1" />
-              {isDemo && (
+              {!isReadOnly && isDemo && (
                 <>
                   <Button
                     variant="outline"
@@ -1703,7 +1711,7 @@ export default function PortfolioDetailsPage() {
                 </>
               )}
               {/* U-19: Live-Tracking deaktivieren (mit Warnhinweis) */}
-              {!isDemo && (
+              {!isReadOnly && !isDemo && (
                 <>
                   <Button
                     variant="outline"
@@ -1725,23 +1733,25 @@ export default function PortfolioDetailsPage() {
                   </Button>
                 </>
               )}
-              <Button variant="outline" size="sm" onClick={openEditModal}>
-                + Position
-              </Button>
-              <Button variant="outline" size="sm" onClick={openSettingsModal}>
-                <Edit className="h-4 w-4 mr-1" />
-                Bearbeiten
-              </Button>
-              {/* U-09/W6: Share-Dialog war fertig gebaut, aber nie öffenbar */}
-              <Button
-                variant="outline"
-                size="sm"
-                aria-label="Portfolio teilen"
-                title="Portfolio teilen"
-                onClick={() => setIsShareDialogOpen(true)}
-              >
-                <Share2 className="h-4 w-4" />
-              </Button>
+              {!isReadOnly && <>
+                <Button variant="outline" size="sm" onClick={openEditModal}>
+                  + Position
+                </Button>
+                <Button variant="outline" size="sm" onClick={openSettingsModal}>
+                  <Edit className="h-4 w-4 mr-1" />
+                  Bearbeiten
+                </Button>
+                {/* U-09/W6: Share-Dialog war fertig gebaut, aber nie öffenbar */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  aria-label="Portfolio teilen"
+                  title="Portfolio teilen"
+                  onClick={() => setIsShareDialogOpen(true)}
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              </>}
               <Button
                 variant="outline"
                 size="sm"
@@ -1764,9 +1774,9 @@ export default function PortfolioDetailsPage() {
                 <FileDown className="h-4 w-4 mr-1" />
                 <span className="hidden sm:inline">{exportingFormat === "pdf" ? "Erstellt…" : "PDF-Report"}</span>
               </Button>
-              <Button size="sm" onClick={() => handleTabChange('optimierung')} className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
+              {!isReadOnly && <Button size="sm" onClick={() => handleTabChange('optimierung')} className="bg-[#00CFC1] hover:bg-[#00CFC1]/80 text-black">
                 Optimieren
-              </Button>
+              </Button>}
             </div>
           </div>
         </div>
@@ -1965,7 +1975,10 @@ export default function PortfolioDetailsPage() {
               { value: 'performance', label: 'Performance' },
               { value: 'risiko', label: 'Risiko' },
               { value: 'optimierung', label: 'Optimierung & Empfehlungen', aiBadge: true },
-            ].filter(tab => detailed || !ADVANCED_TABS.includes(tab.value)).map(tab => (
+            ].filter(tab =>
+              (detailed || !ADVANCED_TABS.includes(tab.value))
+              && (!isReadOnly || !['deepdive', 'optimierung'].includes(tab.value))
+            ).map(tab => (
               <TabsTrigger
                 key={tab.value}
                 value={tab.value}
@@ -2189,7 +2202,7 @@ export default function PortfolioDetailsPage() {
             )}
 
             {/* QUALITY HISTORY CHARTS */}
-          <PortfolioQualityHistoryWithTrigger portfolioId={portfolioId} />
+          <PortfolioQualityHistoryWithTrigger portfolioId={portfolioId} readOnly={isReadOnly} />
 
           {/* SNAPSHOTS SECTION — Kopien dieses Portfolios */}
           {allPortfolios && (allPortfolios as any[]).filter((p: any) => p.snapshotOfPortfolioId === portfolioId).length > 0 && (
@@ -2276,7 +2289,7 @@ export default function PortfolioDetailsPage() {
                       {showDetailCols ? 'Kurs-Details ausblenden' : 'Kurs-Details'}
                     </button>
                   )}
-                  {posView === 'tabelle' && (
+                  {!isReadOnly && posView === 'tabelle' && (
                     <button
                       onClick={() => refreshSignalsMutation.mutate({ portfolioId })}
                       disabled={refreshSignalsMutation.isPending || isSignalsFetching}
@@ -2291,9 +2304,9 @@ export default function PortfolioDetailsPage() {
                       Scores neu berechnen
                     </button>
                   )}
-                  <Button variant="outline" size="sm" onClick={openEditModal} className="border-white/20 text-white hover:bg-white/5 text-xs h-8 gap-1">
+                  {!isReadOnly && <Button variant="outline" size="sm" onClick={openEditModal} className="border-white/20 text-white hover:bg-white/5 text-xs h-8 gap-1">
                     + Position
-                  </Button>
+                  </Button>}
                 </div>
               </div>
               {posView === 'tabelle' && (
@@ -2591,7 +2604,7 @@ export default function PortfolioDetailsPage() {
                             </td>
                             <td className="pr-2 text-right">
                               <div className="flex items-center justify-end gap-1">
-                                <button
+                                {!isReadOnly && <button
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -2603,7 +2616,7 @@ export default function PortfolioDetailsPage() {
                                   className="text-gray-500 hover:text-[#00CFC1] transition-colors p-1"
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
-                                </button>
+                                </button>}
                                 <button
                                   type="button"
                                   onClick={(e) => { e.stopPropagation(); setExpandedTicker(isExpanded ? null : h.ticker); }}
@@ -3005,7 +3018,7 @@ export default function PortfolioDetailsPage() {
               </div>
             )}
             {/* U-03: Transaktion erfassen + PDF-Import — nur für Live-Portfolios */}
-            {!isDemo && (
+            {!isReadOnly && !isDemo && (
               <div className="flex justify-end gap-2 mb-4">
                 <Button
                   variant="outline"
@@ -3120,7 +3133,7 @@ export default function PortfolioDetailsPage() {
                             >{label}</button>
                           ))}
                           <span className="ml-auto text-xs text-gray-400">{isRealized ? realizedGains.length : filteredTx.length} Einträge</span>
-                          {!isDemo && !isRealized && selectedTxIds.size > 0 && (
+                          {!isReadOnly && !isDemo && !isRealized && selectedTxIds.size > 0 && (
                             <button
                               onClick={() => setIsBulkDeleteDialogOpen(true)}
                               disabled={bulkDeleteMutation.isPending}
@@ -3150,7 +3163,7 @@ export default function PortfolioDetailsPage() {
                             <table className="w-full">
                               <thead>
                                 <tr className="border-b border-white/10">
-                                  {!isDemo && (
+                                  {!isReadOnly && !isDemo && (
                                     <th className="px-3 py-3 w-8">
                                       <input type="checkbox" checked={allSelected} onChange={toggleAll} className="accent-[#00CFC1] cursor-pointer" />
                                     </th>
@@ -3195,7 +3208,7 @@ export default function PortfolioDetailsPage() {
                                   const displayCurrency = t.currency || 'CHF';
                                   return (
                                     <tr key={t.id} className={`border-b border-white/5 hover:bg-white/[0.03] ${selectedTxIds.has(t.id) ? 'bg-red-500/5' : ''}`}>
-                                      {!isDemo && (
+                                      {!isReadOnly && !isDemo && (
                                         <td className="px-3 py-3">
                                           <input type="checkbox" checked={selectedTxIds.has(t.id)} onChange={() => toggleOne(t.id)} className="accent-[#00CFC1] cursor-pointer" />
                                         </td>
@@ -3221,7 +3234,7 @@ export default function PortfolioDetailsPage() {
                                       <td className="px-3 py-3 text-right text-sm text-white">{isCashTx ? '—' : (t.shares || t.quantity || '—')}</td>
                                       <td className="px-3 py-3 text-right text-sm text-gray-300">{displayPrice != null && displayPrice > 0 ? formatCurrency(displayPrice, displayCurrency) : '—'}</td>
                                       <td className="px-5 py-3 text-right text-sm text-white font-semibold">{formatCurrency(displayTotal, 'CHF')}</td>
-                                      {!isDemo && (
+                                      {!isReadOnly && !isDemo && (
                                         <td className="px-2 py-3">
                                           <DeleteTransactionButton transactionId={t.id} portfolioId={portfolioId} />
                                         </td>
@@ -3267,7 +3280,7 @@ export default function PortfolioDetailsPage() {
 
           {/* OPTIMIERUNG & EMPFEHLUNGEN — F3: konsolidiert (Optimieren KI + Empfehlungen KI) */}
           {/* Premium-Feature «optimizer» (Basic/Pro) — im Soft-Launch ohne Wirkung. */}
-          <TabsContent value="optimierung" className="mt-6">
+          {!isReadOnly && <TabsContent value="optimierung" className="mt-6">
             <FeatureGate
               feature="optimizer"
               title="Portfolio-Optimierung & KI-Empfehlungen"
@@ -3275,16 +3288,16 @@ export default function PortfolioDetailsPage() {
             >
               <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} onNavigateToPositions={() => handleTabChange('positionen')} portfolioCreatedAt={portfolio.createdAt ? String(portfolio.createdAt) : null} portfolioType={portfolio.portfolioType ?? null} allocationScope={getPortfolioAllocationScope((portfolio as any).portfolioData)} />
             </FeatureGate>
-          </TabsContent>
+          </TabsContent>}
 
           {/* DEEP-DIVE TAB — Fundamentaldaten + KI-Analyse (F-12: aus Copilot hierher verschoben) */}
-          <TabsContent value="deepdive" className="mt-6">
+          {!isReadOnly && <TabsContent value="deepdive" className="mt-6">
             <PortfolioDeepDive portfolioId={portfolioId} />
-          </TabsContent>
+          </TabsContent>}
         </Tabs>
 
         {/* Quick Actions */}
-        <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
+        {!isReadOnly && <Card className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border-[#00CFC1]/30">
           <CardHeader>
             <CardTitle className="text-white">Schnellaktionen</CardTitle>
           </CardHeader>
@@ -3318,7 +3331,7 @@ export default function PortfolioDetailsPage() {
               </Button>
             </div>
           </CardContent>
-        </Card>
+        </Card>}
       </div>
       
       {/* Settings Modal */}

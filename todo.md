@@ -852,3 +852,6 @@
 
 ## Research-Triage-Loop Wiederholung (2026-09-14)
 - [x] Den aktuellen GitHub-Bestand offener `[Research]`-Issues ohne Fortschrittslabel erneut gegen den vollständigen Filter prüfen und höchstens zwei neu zulässige Kandidaten nach Konfidenz, Umsetzbarkeit, DB-Abdeckung und OOS-Protokoll bearbeiten.
+
+## Portfoliofreigabe «Mami» (2026-09-23)
+- [x] Lesenden, eigentümergebundenen Zugriff auf Portfolio 4020001 für Nicole Weibel Manser und Jürg Weibel implementiert, getestet und freigegeben (2026-09-23)
