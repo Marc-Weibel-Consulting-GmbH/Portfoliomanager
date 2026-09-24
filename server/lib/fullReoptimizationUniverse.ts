@@ -8,6 +8,8 @@ export type FullReoptimizationMethod =
 
 export interface FullReoptimizationCandidate {
   ticker: string;
+  /** Lesbarer Unternehmensname für eine prüfbare Vorschau; kein geschätzter Ersatzwert. */
+  companyName?: string | null;
   currency: string | null;
   currentPrice: number | null;
   sharpeRatio?: number | null;
@@ -56,7 +58,7 @@ function candidateScore(candidate: FullReoptimizationCandidate, method: FullReop
  */
 export function selectFullReoptimizationUniverse(
   input: FullReoptimizationUniverseInput,
-): { tickers: string[]; requiredChfCandidateCount: number; excluded: CandidateExclusion[]; commonHistoryDateCount: number | null } {
+): { tickers: string[]; candidates: FullReoptimizationCandidate[]; requiredChfCandidateCount: number; excluded: CandidateExclusion[]; commonHistoryDateCount: number | null } {
   if (!Number.isInteger(input.candidateLimit) || input.candidateLimit < 2) {
     throw new Error("Die Kandidatenobergrenze muss mindestens zwei Titel erlauben.");
   }
@@ -141,6 +143,7 @@ export function selectFullReoptimizationUniverse(
 
   return {
     tickers: selected.map((candidate) => candidate.ticker),
+    candidates: selected,
     requiredChfCandidateCount,
     excluded,
     commonHistoryDateCount: commonHistoryDates?.size ?? null,

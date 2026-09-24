@@ -11,6 +11,7 @@ import { InsightExpandable } from "@/components/InsightPanel";
 import { toast } from "sonner";
 import { getUserErrorMessage } from "@/lib/errorMessages";
 import { SLEEVE_TICKER_LABEL } from "@shared/const";
+import { FullReoptimizationCandidateDetailDialog } from "@/components/FullReoptimizationCandidateDetailDialog";
 import { THEME_LABELS, themeOfTicker } from "@shared/themes";
 import { DEFAULT_DIVERSIFICATION_RULES } from "@shared/diversificationRules";
 import {
@@ -477,6 +478,7 @@ export default function OptimierenTab({
   const [showFullReoptimization, setShowFullReoptimization] = useState(false);
   const [fullCandidateLimit, setFullCandidateLimit] = useState(20);
   const [fullLookbackDays, setFullLookbackDays] = useState<756 | 1260 | 2520>(756);
+  const [fullReoptimizationDetailTicker, setFullReoptimizationDetailTicker] = useState<string | null>(null);
 
   // Parsed constraints (nur wenn gültige Zahlen eingegeben)
   const userConstraints = useMemo(() => {
@@ -596,6 +598,14 @@ export default function OptimierenTab({
         retry: false,
       },
     );
+
+  const fullReoptimizationCandidateByTicker = useMemo(
+    () => new Map(
+      ((fullReoptimizationPreview?.candidateUniverse.candidates ?? []) as Array<{ ticker: string; companyName: string }>)
+        .map((candidate) => [candidate.ticker, candidate]),
+    ),
+    [fullReoptimizationPreview?.candidateUniverse.candidates],
+  );
 
   // ─── Backtest der optimierten Ziel-Allokation ───────────────────────────────
   const [showBacktest, setShowBacktest] = useState(false);
@@ -1060,13 +1070,27 @@ export default function OptimierenTab({
                   return rows.length > 0 ? <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Zielerreichung · Soft-Constraints der Aktienkomponente</p><div className="mt-2 grid sm:grid-cols-2 gap-x-5 gap-y-2">{rows.map((row) => <div key={row.label} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs"><span className="text-gray-400">{row.label}: <span className="text-gray-300">Ziel {row.target}</span></span><span className={row.met ? "text-emerald-300 font-medium" : "text-amber-300 font-medium"}>Ergebnis {row.achieved} · {row.met ? "erreicht" : "nicht erreicht"}</span></div>)}</div></div> : null;
                 })()}
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {fullReoptimizationPreview.allocation.positions.filter((position: any) => position.assetKind === 'equity').map((position: any) => (
-                    <div key={position.ticker} className="flex items-center justify-between bg-white/[0.03] border border-white/10 rounded px-3 py-2 text-xs">
-                      <span className="font-mono text-gray-200">{position.ticker}</span>
-                      <span className="font-mono text-indigo-200">{position.weightPct.toFixed(2)}%</span>
-                    </div>
-                  ))}
+                  {fullReoptimizationPreview.allocation.positions.filter((position: any) => position.assetKind === 'equity').map((position: any) => {
+                    const candidate = fullReoptimizationCandidateByTicker.get(position.ticker);
+                    const companyName = candidate?.companyName ?? "Unternehmensname nicht verfügbar";
+                    return (
+                      <button
+                        key={position.ticker}
+                        type="button"
+                        onClick={() => setFullReoptimizationDetailTicker(position.ticker)}
+                        className="flex min-w-0 items-center justify-between gap-3 rounded border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-xs transition-colors hover:border-indigo-300/50 hover:bg-indigo-500/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+                        title={`${position.ticker} · ${companyName} – Details öffnen`}
+                      >
+                        <span className="min-w-0">
+                          <span className="block font-mono font-semibold text-indigo-200">{position.ticker}</span>
+                          <span className="mt-0.5 block truncate text-[11px] text-gray-400">{companyName}</span>
+                        </span>
+                        <span className="shrink-0 font-mono text-indigo-200">{position.weightPct.toFixed(2)}%</span>
+                      </button>
+                    );
+                  })}
                 </div>
+                <p className="text-[11px] text-gray-500">Titel anklicken für Kurschart, Kennzahlen und Drei-Score-Details.</p>
                 <p className="text-[11px] text-gray-500">Die vollständige Vorschau ist absichtlich nicht direkt umsetzbar. Prüfen und übernehmen Sie sie später nur über einen separaten, ausdrücklich bestätigten Portfolio-Schritt.</p>
               </div>
             ) : null}
@@ -2547,6 +2571,14 @@ export default function OptimierenTab({
         </>
       )}
 
+      <FullReoptimizationCandidateDetailDialog
+        open={Boolean(fullReoptimizationDetailTicker)}
+        onOpenChange={(open) => {
+          if (!open) setFullReoptimizationDetailTicker(null);
+        }}
+        portfolioId={portfolioId}
+        ticker={fullReoptimizationDetailTicker}
+      />
       {/* ─── Optimierungs-Verlauf ─── */}
       <OptimierungsVerlauf portfolioId={portfolioId} />
     </div>

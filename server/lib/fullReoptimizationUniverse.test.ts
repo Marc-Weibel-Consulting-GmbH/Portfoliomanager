@@ -9,10 +9,10 @@ describe("selectFullReoptimizationUniverse", () => {
       minChfWeight: 0.5,
       maxEquityPositionWeight: 0.25,
       candidates: [
-        { ticker: "USD1.US", currency: "USD", currentPrice: 100, sharpeRatio: 2.0, signalScore: 80, isActive: true },
-        { ticker: "USD2.US", currency: "USD", currentPrice: 100, sharpeRatio: 1.8, signalScore: 78, isActive: true },
-        { ticker: "CHF1.SW", currency: "CHF", currentPrice: 100, sharpeRatio: 1.2, signalScore: 70, isActive: true },
-        { ticker: "CHF2.SW", currency: "CHF", currentPrice: 100, sharpeRatio: 1.1, signalScore: 69, isActive: true },
+        { ticker: "USD1.US", companyName: "US One Inc", currency: "USD", currentPrice: 100, sharpeRatio: 2.0, signalScore: 80, isActive: true },
+        { ticker: "USD2.US", companyName: "US Two Inc", currency: "USD", currentPrice: 100, sharpeRatio: 1.8, signalScore: 78, isActive: true },
+        { ticker: "CHF1.SW", companyName: "Swiss One AG", currency: "CHF", currentPrice: 100, sharpeRatio: 1.2, signalScore: 70, isActive: true },
+        { ticker: "CHF2.SW", companyName: "Swiss Two AG", currency: "CHF", currentPrice: 100, sharpeRatio: 1.1, signalScore: 69, isActive: true },
         { ticker: "BOND.SW", currency: "CHF", currentPrice: 100, sharpeRatio: 3.0, signalScore: 99, isActive: true, isSleeve: true },
         { ticker: "SELL.US", currency: "USD", currentPrice: 100, sharpeRatio: 4.0, signalScore: 99, isActive: true, signalType: "sell" },
         { ticker: "GAP.US", currency: "USD", currentPrice: 100, sharpeRatio: 4.0, signalScore: 99, isActive: true, dataQualityStatus: "Datenlücke" },
@@ -22,6 +22,10 @@ describe("selectFullReoptimizationUniverse", () => {
     expect(selection.tickers).toHaveLength(4);
     expect(selection.tickers).toEqual(expect.arrayContaining(["USD1.US", "USD2.US", "CHF1.SW", "CHF2.SW"]));
     expect(selection.requiredChfCandidateCount).toBe(2);
+    expect(selection.candidates).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ticker: "CHF1.SW", companyName: "Swiss One AG" }),
+      expect.objectContaining({ ticker: "USD1.US", companyName: "US One Inc" }),
+    ]));
     expect(selection.excluded).toEqual(expect.arrayContaining([
       expect.objectContaining({ ticker: "BOND.SW", reason: "sleeve" }),
       expect.objectContaining({ ticker: "SELL.US", reason: "sell_signal" }),

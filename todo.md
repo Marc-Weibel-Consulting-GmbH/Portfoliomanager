@@ -891,3 +891,6 @@
 
 ## Positionsalternativen: Alphabet-Emittentenklassen (2026-09-24)
 - [x] Alphabet-/Google-Klassen und länderübergreifende Sekundärlistings konsequent als denselben Emittenten ausgeschlossen; die Branchenklassifikation für globale Kommunikationspeers gegen die EODHD-Details verifiziert (2026-09-24)
+
+## Vollständige Aktien-Neuoptimierung: Namen und Details (2026-09-24)
+- [x] In der Vorschau alle selektierten Aktien mit Ticker und Unternehmensnamen dargestellt und einen lesenden Detaildialog mit Kurschart und Kennzahlen wie bei Aktiendetails/Alternativen bereitgestellt; die Ansicht verwendet gespeicherte EODHD-Daten mit begründeter Datenlücke statt auf Live-Provider zu warten und verändert keine Positionen, Cash, Transaktionen oder Orders (2026-09-24)

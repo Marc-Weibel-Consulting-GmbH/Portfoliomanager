@@ -14,13 +14,15 @@ import { invokeLLM, invokeKimi } from "../_core/llm";
 import { getDiversificationRules as _getDiversificationRules } from "../lib/diversificationRules";
 import { getDb } from "../db";
 import { historicalPrices, stocks as stocksTable, portfolioTransactions, savedPortfolios } from "../../drizzle/schema";
-import { and, eq, gte, inArray } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { getMarktHubSignals } from "../lib/marktHubSignals";
 import { SLEEVE_TICKER_LABEL } from "../../shared/const";
 import { buildAssetAllocationPreservingEquityProposal } from "../lib/fullReoptimizationProposal";
 import { selectFullReoptimizationUniverse } from "../lib/fullReoptimizationUniverse";
 import { historicalPriceLookupKeys } from "../lib/historicalPriceLookupKeys";
 import { assessHistoricalWindowCoverage } from "../lib/historicalWindowCoverage";
+import { isHistoricalPriceSeriesCompatible } from "../lib/eodhdSymbol";
+import { calculateAlternativePeriodReturn, toAlternativeDetailChartFromStoredRows } from "../lib/alternativeDetailPresentation";
 
 const HoldingSchema = z.object({
   ticker: z.string(),
@@ -263,6 +265,7 @@ export const analyticsRouter = router({
       const rules = await _getDiversificationRules();
       const allCandidates = await db.select({
         ticker: stocksTable.ticker,
+        companyName: stocksTable.companyName,
         currency: stocksTable.currency,
         currentPrice: stocksTable.currentPrice,
         sharpeRatio: stocksTable.sharpeRatio,
@@ -322,6 +325,7 @@ export const analyticsRouter = router({
           fullWindowCoverageByTicker.set(candidate.ticker, coverage.hasFullRequestedWindow);
           return {
             ticker: candidate.ticker,
+            companyName: candidate.companyName,
             currency: candidate.currency,
             currentPrice: candidate.currentPrice == null ? null : Number(candidate.currentPrice),
             sharpeRatio: candidate.sharpeRatio == null ? null : Number(candidate.sharpeRatio),
@@ -371,6 +375,11 @@ export const analyticsRouter = router({
         optimizer,
         candidateUniverse: {
           tickers: universe.tickers,
+          candidates: universe.candidates.map((candidate) => ({
+            ticker: candidate.ticker,
+            companyName: candidate.companyName ?? candidate.ticker,
+            currency: candidate.currency,
+          })),
           excluded: universe.excluded,
           requiredChfCandidateCount: universe.requiredChfCandidateCount,
           historyStartDate,
@@ -379,6 +388,110 @@ export const analyticsRouter = router({
             && universe.tickers.every((ticker) => fullWindowCoverageByTicker.get(ticker) === true),
           commonHistoryDateCount: universe.commonHistoryDateCount,
         },
+      };
+    }),
+
+  /**
+   * Rein lesende Detailansicht für einen Titel der vollständigen Neuoptimierung.
+   * Die Abfrage schreibt weder Kursreihen noch Kennzahlen noch Portfolio-Daten.
+   */
+  getFullReoptimizationCandidateDetail: protectedProcedure
+    .input(z.object({
+      portfolioId: z.number().int().positive(),
+      ticker: z.string().trim().min(1).max(50),
+    }))
+    .query(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Datenbank nicht verfügbar." });
+      const [portfolio] = await db
+        .select({ id: savedPortfolios.id })
+        .from(savedPortfolios)
+        .where(and(eq(savedPortfolios.id, input.portfolioId), eq(savedPortfolios.userId, ctx.user.id)))
+        .limit(1);
+      if (!portfolio) throw new TRPCError({ code: "NOT_FOUND", message: "Portfolio nicht gefunden." });
+
+      const ticker = input.ticker.toUpperCase();
+      const [stock] = await db
+        .select({
+          ticker: stocksTable.ticker,
+          companyName: stocksTable.companyName,
+          currentPrice: stocksTable.currentPrice,
+          currency: stocksTable.currency,
+          peRatio: stocksTable.peRatio,
+          pegRatio: stocksTable.pegRatio,
+          dividendYield: stocksTable.dividendYield,
+          beta: stocksTable.beta,
+          marketCap: stocksTable.marketCap,
+          sharpeRatio: stocksTable.sharpeRatio,
+          signalScore: stocksTable.signalScore,
+          signalType: stocksTable.signalType,
+          sector: stocksTable.sector,
+          industry: stocksTable.industry,
+          isActive: stocksTable.isActive,
+        })
+        .from(stocksTable)
+        .where(eq(stocksTable.ticker, ticker))
+        .limit(1);
+      if (!stock || stock.isActive !== 1) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Der Titel ist im prüfbaren Aktienuniversum nicht verfügbar." });
+      }
+
+      const asNumber = (value: unknown): number | null => {
+        const number = Number(value);
+        return Number.isFinite(number) ? number : null;
+      };
+      const fromDate = new Date(Date.now() - 365.25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const historicalKeys = historicalPriceLookupKeys(ticker);
+      const priceSeriesIsCompatible = isHistoricalPriceSeriesCompatible(ticker, stock.currency ?? "");
+      const [storedPrices, storedScoreResult] = await Promise.all([
+        priceSeriesIsCompatible
+          ? db
+            .select({
+              date: historicalPrices.date,
+              adjustedClose: historicalPrices.adjustedClose,
+              close: historicalPrices.close,
+            })
+            .from(historicalPrices)
+            .where(and(inArray(historicalPrices.ticker, historicalKeys), gte(historicalPrices.date, fromDate)))
+          : Promise.resolve([]),
+        db.execute(sql`
+          SELECT qualitaet, bewertung, timing, signalScore, signalLabel
+          FROM stock_scores
+          WHERE ticker = ${ticker}
+          LIMIT 1
+        `),
+      ]);
+      const rawScoreRows: any[] = Array.isArray(storedScoreResult)
+        ? (storedScoreResult[0] ?? storedScoreResult)
+        : ((storedScoreResult as any)?.rows ?? []);
+      const storedScores = rawScoreRows[0] ?? null;
+      const chart = toAlternativeDetailChartFromStoredRows(storedPrices);
+
+      return {
+        ticker: stock.ticker,
+        companyName: stock.companyName,
+        sector: stock.sector,
+        industry: stock.industry,
+        currency: stock.currency,
+        currentPrice: asNumber(stock.currentPrice),
+        dividendYield: asNumber(stock.dividendYield),
+        peRatio: asNumber(stock.peRatio),
+        pegRatio: asNumber(stock.pegRatio),
+        beta: asNumber(stock.beta),
+        marketCap: asNumber(stock.marketCap),
+        sharpeRatio: asNumber(stock.sharpeRatio),
+        quality: asNumber(storedScores?.qualitaet),
+        valuation: asNumber(storedScores?.bewertung),
+        timing: asNumber(storedScores?.timing),
+        signalScore: asNumber(storedScores?.signalScore) ?? asNumber(stock.signalScore),
+        signalLabel: storedScores?.signalLabel ?? stock.signalType,
+        chart,
+        chartPeriod: "1Y" as const,
+        periodReturnPct: calculateAlternativePeriodReturn(chart),
+        chartDataStatus: chart.length >= 2 ? "available" as const : "unavailable" as const,
+        chartDataReason: priceSeriesIsCompatible ? null : "Historische Proxyreihe hat eine abweichende Kurswährung.",
+        source: "Gespeicherte EODHD-Daten" as const,
+        generatedAt: new Date().toISOString(),
       };
     }),
 
