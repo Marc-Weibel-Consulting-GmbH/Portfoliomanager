@@ -858,3 +858,6 @@
 
 ## Positionsliste: Dividendenrendite und 5-Jahres-Volatilität (2026-09-23)
 - [x] Dividendenrendite und annualisierte 5-Jahres-Volatilität als transparente, sortierbare Positionsspalten ergänzt; bei unvollständiger Historie eine Datenlücke statt einer Schätzung angezeigt (2026-09-23)
+
+## ETF-Look-through für Drei-Scores (2026-09-24)
+- [x] Lizenz- und quellengestützten, gewichteten CHDVD-Look-through für Qualität, Bewertung und Timing gegen iShares-Kennzahlen abgeglichen und mit einem 90-%-Abdeckungsgate in die Portfolioanzeige übernommen (2026-09-24). Qualität/Bewertung bleiben beim geprüften Stand eine ausgewiesene Datenlücke; Timing 56,2/100 ist vollständig abgedeckt. Kein ETF-Bestandsteil oder Einzelgewicht wird angezeigt oder gespeichert.

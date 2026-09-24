@@ -29,6 +29,7 @@ import { regimeMitTotband } from '../lib/signals/regimeMitTotband';
 // signalCacheCron genutzt — vorher hatte der Cron eine ungewichtete Kopie).
 import { generateSignal, type BaseSignal, type SignalType, type SignalStrength } from '../lib/baseSignal';
 import { rsiWilder } from '../lib/rsi';
+import type { EtfLookThroughScores } from '../lib/etfLookThrough';
 
 interface Signal extends BaseSignal {
   rfSignal?: string;
@@ -52,6 +53,11 @@ interface Signal extends BaseSignal {
   qualitaet?: number | null;
   bewertung?: number | null;
   timing?: number | null;
+  /**
+   * Nur für explizit freigegebene Equity-ETFs: gewichtete Komponenten der
+   * aktuellen Fondsbestandteile. Kein ETF-Signal, keine Bestandsliste.
+   */
+  lookThrough?: EtfLookThroughScores;
   // Regime-based signal from the new signal framework
   regimeSignal?: PortfolioAction;
   // B5: Wikifolio-Konsens-Signal
@@ -726,6 +732,27 @@ export const signalsRouter = router({
           if (s.timing === undefined) s.timing = a.timing;
         }
       } catch { /* ohne Ablage bleiben die Felder leer — Anzeige zeigt «—» */ }
+
+      // Equity-ETF-Look-through: Komponenten der aktuellen Bestandteile werden
+      // nur mit ausreichender Gewichtungsabdeckung ergänzt. Das Signal bleibt
+      // absichtlich leer: Ein gewichteter ETF-Signalwert wäre wegen Regime- und
+      // Bewertungswächter-Logik nicht dieselbe, lineare Grösse.
+      try {
+        const { getEtfLookThroughScores } = await import('../lib/etfLookThrough');
+        const lookThroughByTicker = await getEtfLookThroughScores(signals.map((s) => s.ticker));
+        for (const signal of signals) {
+          const lookThrough = lookThroughByTicker.get(signal.ticker.toUpperCase());
+          if (!lookThrough) continue;
+          signal.qualitaet = lookThrough.quality.score;
+          signal.bewertung = lookThrough.valuation.score;
+          signal.timing = lookThrough.timing.score;
+          signal.combinedScore = undefined;
+          signal.combinedSignal = undefined;
+          signal.lookThrough = lookThrough;
+        }
+      } catch (error) {
+        console.warn('[Signals] ETF-Look-through nicht verfügbar:', (error as Error).message);
+      }
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
       console.log(`[Signals] Completed ${signals.length}/${stocks.length} stocks in ${elapsed}s`);
 

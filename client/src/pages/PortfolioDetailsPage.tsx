@@ -2397,16 +2397,22 @@ export default function PortfolioDetailsPage() {
                           if (!Number.isFinite(aVal)) aVal = sortDir === 'desc' ? -Infinity : Infinity;
                           if (!Number.isFinite(bVal)) bVal = sortDir === 'desc' ? -Infinity : Infinity;
                         } else if (sortKey === 'qualitaet') {
-                          aVal = signalMap.get(a.ticker)?.qualitaet ?? -1;
-                          bVal = signalMap.get(b.ticker)?.qualitaet ?? -1;
+                          aVal = signalMap.get(a.ticker)?.lookThrough?.quality?.score
+                            ?? signalMap.get(a.ticker)?.qualitaet ?? -1;
+                          bVal = signalMap.get(b.ticker)?.lookThrough?.quality?.score
+                            ?? signalMap.get(b.ticker)?.qualitaet ?? -1;
                         } else if (sortKey === 'timing') {
-                          aVal = signalMap.get(a.ticker)?.timing ?? -1;
-                          bVal = signalMap.get(b.ticker)?.timing ?? -1;
+                          aVal = signalMap.get(a.ticker)?.lookThrough?.timing?.score
+                            ?? signalMap.get(a.ticker)?.timing ?? -1;
+                          bVal = signalMap.get(b.ticker)?.lookThrough?.timing?.score
+                            ?? signalMap.get(b.ticker)?.timing ?? -1;
                         } else if (sortKey === 'bewertung') {
                           // Bewertungs-Score; alter Einzelscore nur als
                           // Rückfall für Titel ohne drei Scores (Nicht-Aktien).
-                          aVal = signalMap.get(a.ticker)?.bewertung ?? a.qualityScore ?? -1;
-                          bVal = signalMap.get(b.ticker)?.bewertung ?? b.qualityScore ?? -1;
+                          aVal = signalMap.get(a.ticker)?.lookThrough?.valuation?.score
+                            ?? signalMap.get(a.ticker)?.bewertung ?? a.qualityScore ?? -1;
+                          bVal = signalMap.get(b.ticker)?.lookThrough?.valuation?.score
+                            ?? signalMap.get(b.ticker)?.bewertung ?? b.qualityScore ?? -1;
                         } else if (sortKey === 'signalScore') {
                           aVal = signalMap.get(a.ticker)?.combinedScore ?? -1;
                           bVal = signalMap.get(b.ticker)?.combinedScore ?? -1;
@@ -2461,15 +2467,26 @@ export default function PortfolioDetailsPage() {
                           : (parseFloat(h.shares || '0') * (h.currentPriceCHF || 0));
                         const isExpanded = expandedTicker === h.ticker;
                         const sig = signalMap.get(h.ticker);
+                        const etfLookThrough = sig?.lookThrough ?? null;
+                        const isConstituentLookThrough = etfLookThrough?.method === 'constituent_weighted';
+                        const lookThroughTitle = isConstituentLookThrough
+                          ? `Gewichteter ETF-Look-through aus ${etfLookThrough.holdingCount} Bestandteilen (EODHD-Datenstand ${etfLookThrough.dataAsOf}); die jeweilige Score-Abdeckung steht im Detail.`
+                          : undefined;
                         // Spalte «Bewertung»: für Aktien der Bewertungs-Score aus dem
                         // Drei-Score-Konzept (wie auf der Titelseite); für Nicht-Aktien
                         // weiterhin der technische Einzelscore — dafür gibt es keine
                         // drei Scores.
-                        const qualScore = isNonEquity ? (h.qualityScore ?? null) : (sig?.bewertung ?? null);
-                        const signalScore = sig?.combinedScore ?? null;
+                        const qualScore = isConstituentLookThrough
+                          ? (etfLookThrough.valuation.score ?? null)
+                          : isNonEquity ? (h.qualityScore ?? null) : (sig?.bewertung ?? null);
+                        const signalScore = isConstituentLookThrough ? null : (sig?.combinedScore ?? null);
                         // Qualität und Timing gibt es nur für Aktien (Drei-Score-Konzept).
-                        const qualitaetScore = isNonEquity ? null : (sig?.qualitaet ?? null);
-                        const timingScore = isNonEquity ? null : (sig?.timing ?? null);
+                        const qualitaetScore = isConstituentLookThrough
+                          ? (etfLookThrough.quality.score ?? null)
+                          : isNonEquity ? null : (sig?.qualitaet ?? null);
+                        const timingScore = isConstituentLookThrough
+                          ? (etfLookThrough.timing.score ?? null)
+                          : isNonEquity ? null : (sig?.timing ?? null);
                         const scoreFarbe = (v: number | null) => v === null ? 'text-gray-500' : v >= 70 ? 'text-emerald-400' : v >= 50 ? 'text-[#00CFC1]' : v >= 35 ? 'text-yellow-400' : 'text-red-400';
                         const qualColor = scoreFarbe(qualScore);
                         const sigColor = signalScore === null ? 'text-gray-500' : signalScore >= 70 ? 'text-emerald-400' : signalScore >= 55 ? 'text-[#00CFC1]' : signalScore >= 45 ? 'text-yellow-400' : 'text-red-400';
@@ -2500,6 +2517,21 @@ export default function PortfolioDetailsPage() {
                             <td className="px-3 py-3.5 text-sm text-white">
                               <div className="flex items-center gap-2">
                                 <span>{h.companyName}</span>
+                                {isConstituentLookThrough && (
+                                  <UiTooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded border border-cyan-400/30 bg-cyan-400/10 text-cyan-300 cursor-help shrink-0">
+                                        ETF-LT
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="bg-[#1a1f2e] border-white/20 text-white max-w-[300px] p-3">
+                                      <p className="text-xs font-semibold mb-1">Gewichteter ETF-Look-through</p>
+                                      <p className="text-xs text-gray-300">
+                                        {lookThroughTitle} Es werden keine Bestandstitel oder Einzelgewichte angezeigt.
+                                      </p>
+                                    </TooltipContent>
+                                  </UiTooltip>
+                                )}
                                 {isBond && (
                                   <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30 shrink-0">Obligation</span>
                                 )}
@@ -2616,17 +2648,17 @@ export default function PortfolioDetailsPage() {
                               </span>
                             </td>
                             <td className="px-3 py-3.5 text-right">
-                              <span className={`text-sm font-mono font-semibold ${scoreFarbe(qualitaetScore)}`}>
+                              <span className={`text-sm font-mono font-semibold ${scoreFarbe(qualitaetScore)}`} title={lookThroughTitle}>
                                 {qualitaetScore !== null ? Math.round(qualitaetScore) : '—'}
                               </span>
                             </td>
                             <td className="px-3 py-3.5 text-right">
-                              <span className={`text-sm font-mono font-semibold ${qualColor}`}>
+                              <span className={`text-sm font-mono font-semibold ${qualColor}`} title={lookThroughTitle}>
                                 {qualScore !== null ? qualScore : '—'}
                               </span>
                             </td>
                             <td className="px-3 py-3.5 text-right">
-                              <span className={`text-sm font-mono font-semibold ${scoreFarbe(timingScore)}`}>
+                              <span className={`text-sm font-mono font-semibold ${scoreFarbe(timingScore)}`} title={lookThroughTitle}>
                                 {timingScore !== null ? Math.round(timingScore) : '—'}
                               </span>
                             </td>
@@ -2685,13 +2717,28 @@ export default function PortfolioDetailsPage() {
                                           ] as [string, number | null | undefined, "qualitaet" | "bewertung" | "timing"][]).map(([name, wert, art]) => (
                                             <div key={name} className="flex flex-col items-center gap-1">
                                               <ScoreCircle score={wert ?? null} size="sm"
-                                                onClick={() => setScoreDialog({ ticker: h.ticker, art })} />
+                                                onClick={isConstituentLookThrough ? undefined : () => setScoreDialog({ ticker: h.ticker, art })} />
                                               <span className="text-[10px] text-gray-400">{name}</span>
                                             </div>
                                           ))}
                                         </div>
-                                        <SignalSkala score={sig?.combinedScore ?? null} label={sig?.combinedSignal ?? null}
-                                          onClick={() => setScoreDialog({ ticker: h.ticker, art: 'signal' })} />
+                                        <SignalSkala score={signalScore} label={isConstituentLookThrough ? null : (sig?.combinedSignal ?? null)}
+                                          onClick={isConstituentLookThrough ? undefined : () => setScoreDialog({ ticker: h.ticker, art: 'signal' })} />
+                                        {isConstituentLookThrough && (
+                                          <div className="mt-3 rounded-md border border-cyan-400/20 bg-cyan-400/[0.06] p-2.5 text-[10px] text-gray-300 leading-relaxed">
+                                            <p className="font-semibold text-cyan-300">Gewichteter ETF-Look-through</p>
+                                            <p className="mt-1">
+                                              {etfLookThrough.holdingCount} Bestandteile · EODHD-Datenstand {etfLookThrough.dataAsOf} ·
+                                              Abdeckung: Qualität {etfLookThrough.quality.coveragePct.toFixed(1)} %, Bewertung {etfLookThrough.valuation.coveragePct.toFixed(1)} %, Timing {etfLookThrough.timing.coveragePct.toFixed(1)} %.
+                                            </p>
+                                            {(etfLookThrough.quality.score === null || etfLookThrough.valuation.score === null || etfLookThrough.timing.score === null) && (
+                                              <p className="mt-1 text-amber-300">
+                                                Mindestens 90 % belegtes ETF-Gewicht sind je Komponente nötig. Fehlende Komponenten bleiben bewusst «—»; es erfolgt keine Hochrechnung.
+                                              </p>
+                                            )}
+                                            <p className="mt-1 text-gray-400">Das Gesamtsignal bleibt leer, weil Regime- und Bewertungswächter nicht linear mittelt werden dürfen.</p>
+                                          </div>
+                                        )}
                                         {sig && sig.qualitaet == null && sig.bewertung == null && (
                                           <p className="text-[10px] text-gray-500 mt-2">
                                             Scores noch nicht berechnet — der stündliche Lauf trägt sie nach.
