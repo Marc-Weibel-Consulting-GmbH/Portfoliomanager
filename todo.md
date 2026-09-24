@@ -876,3 +876,6 @@
 
 ## Positionsalternativen: Kennzahlen und Regionalpriorität (2026-09-24)
 - [x] Globale Peers mit verfügbaren Qualitäts-, Bewertungs-, Timing- und Sharpe-Kennzahlen angereichert; gleiche Region und Handelswährung vor ausländischen Peers priorisiert (2026-09-24)
+
+## Positionsalternativen: Roche-Emittentenausschluss (2026-09-24)
+- [x] RHHVF als alternative Handelslinie derselben Roche-Holding-Gesellschaft wie RO.SW sicher erkannt und aus der Alternativenliste ausgeschlossen; Regression und schreibgeschützte Vorschau verifiziert (2026-09-24)

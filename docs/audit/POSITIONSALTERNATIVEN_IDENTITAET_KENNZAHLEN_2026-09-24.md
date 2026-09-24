@@ -29,9 +29,15 @@ Die schreibgeschützte Prüfung für `SREN.SW` im Portfolio 4020001 ergab vier g
 
 Die alternative SCOR-Handelslinie `SCRYY` wurde als derselbe Emittent erkannt und nicht zusätzlich dargestellt. Die vorher ebenfalls sichtbare zweite Münchener-Rück-Handelslinie `MURGY` wird ebenfalls ausgeschlossen.
 
+## Roche-Sonderfall
+
+Die vom Nutzer beobachtete OTC-Handelslinie `RHHVF` führte die Anbieterbezeichnung **Roche Holding AG Participation**. Der bestehende Titel `RO.SW` wird dagegen als **Roche Holding AG** geführt. Roche bestätigt, dass sowohl ihre Namenaktien `RO` als auch die Participation Certificates unter derselben Roche Holding an der SIX kotiert sind. Die Participation-Linie ist deshalb kein eigenständiger Emittent und darf nicht als Alternative erscheinen. [2]
+
+Die Emittentenidentität vereinheitlicht diese Bezeichnungsvariante nun auf `roche holding`. Der reproduzierbare Test schlug vor der Korrektur fehl und besteht danach. Die anschliessende schreibgeschützte Vorschau für `RO.SW` enthielt `RHHVF` nicht mehr; auch kein anderer Vorschlag trug dieselbe Emittentenidentität.
+
 ## Prüfungen
 
-Die fokussierte Regression umfasst 21 Tests. Sie deckt die exakte Branchenbindung, die Renditebandbreite, den Ausschluss vorhandener Positionen, die Erkennung von Mehrfachlistings, die Regional- und Währungspriorität, die globale Kennzahlenberechnung und die Cashneutralität eines bestätigten Demo-Tauschs ab. Die vollständige Projektsuite war ebenfalls grün: **221 Testdateien und 1'593 Tests bestanden**, fünf Testdateien und elf Tests waren bewusst übersprungen. TypeScript kompiliert ohne Fehler. Die Entwicklungsroute `/portfolios/4020001` antwortete mit HTTP 200. Die Liveprüfung war rein lesend; Portfolio 4020001, Cashbestand, Ledger und Positionen blieben unverändert.
+Die fokussierte Regression umfasst 22 Tests. Sie deckt die exakte Branchenbindung, die Renditebandbreite, den Ausschluss vorhandener Positionen, die Erkennung von Mehrfachlistings und Beteiligungszertifikaten, die Regional- und Währungspriorität, die globale Kennzahlenberechnung und die Cashneutralität eines bestätigten Demo-Tauschs ab. Die vollständige Projektsuite war ebenfalls grün: **221 Testdateien und 1'594 Tests bestanden**, fünf Testdateien und elf Tests waren bewusst übersprungen. TypeScript kompiliert ohne Fehler. Die Entwicklungsroute `/portfolios/4020001` antwortete mit HTTP 200. Die Liveprüfung war rein lesend; Portfolio 4020001, Cashbestand, Ledger und Positionen blieben unverändert.
 
 ## Grenzen
 
@@ -40,3 +46,4 @@ Die Reihenfolge ist ein transparenter Datenvergleich und keine Kaufempfehlung. F
 ## References
 
 [1]: https://eodhd.com/financial-apis/stock-etfs-fundamental-data-feeds "EODHD Stock ETFs Fundamental Data Feeds"
+[2]: https://www.roche.com/investors/bonds "Roche Share and Bond Information"

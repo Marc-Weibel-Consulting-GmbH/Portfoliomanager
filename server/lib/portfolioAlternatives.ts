@@ -57,11 +57,15 @@ export function canonicalIssuerIdentity(value: string | null | undefined): strin
     .replace(/\bmuenchener\b/g, "munchener")
     .replace(/\b(rueck|ruck)(ver(?:sicherung|sicherungs)?|versicherung|versicherungs)?\b/g, "re")
     .replace(/\breinsurance\b/g, "re")
+    // Roche's OTC participation line is sometimes supplied as “Roche Holding
+    // AG Participation”. It belongs to the same Roche Holding issuer as the
+    // SIX bearer share RO, so it cannot be an independent alternative.
+    .replace(/\broche holdings? (?:ag )?participation(?: certificate)?s?\b/g, "roche holding")
     // EODHD lists the US preference/ADR line as “SCOR PK”; it is the same
     // economic issuer as the ordinary “SCOR SE” line and must not be offered
     // twice as independent alternatives.
     .replace(/\bscor pk\b/g, "scor")
-    .replace(/\b(international|group|company|co|ges|ag|incorporated|inc|corp|corporation|plc|ltd|limited|sa|nv|se|spa|s\.a\.|a\/s)\b/g, " ")
+    .replace(/\b(international|group|company|co|ges|ag|incorporated|inc|corp|corporation|plc|ltd|limited|sa|nv|se|spa|s\.a\.|a\/s|participation|certificate|certificates|adr)\b/g, " ")
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
     .replace(/\s+/g, " ");

@@ -110,6 +110,49 @@ describe("selectComparableAlternatives", () => {
     expect(result.map((item) => item.ticker)).toEqual(["VALID.SW"]);
   });
 
+  it("excludes a Roche participation line when the Roche bearer share is already held", () => {
+    const source = {
+      ticker: "RO.SW",
+      companyName: "Roche Holding AG",
+      sector: "Healthcare",
+      industry: "Drug Manufacturers - General",
+      category: "Value",
+      currency: "CHF",
+      dividendYield: 2.5,
+      isCantonalBank: false,
+    };
+    const result = selectComparableAlternatives({
+      source,
+      heldTickers: ["RO.SW"],
+      heldCompanyNames: ["Roche Holding AG"],
+      candidates: [
+        candidate("RHHVF", {
+          companyName: "Roche Holding AG Participation",
+          sector: source.sector,
+          industry: source.industry,
+          dividendYield: 2.2,
+          currency: "USD",
+        }),
+        candidate("RHHBY", {
+          companyName: "Roche Holding Ltd Participation Certificate",
+          sector: source.sector,
+          industry: source.industry,
+          dividendYield: 2.2,
+          currency: "USD",
+        }),
+        candidate("NOVN.SW", {
+          companyName: "Novartis AG",
+          sector: source.sector,
+          industry: source.industry,
+          dividendYield: 3.1,
+          currency: "CHF",
+        }),
+      ],
+    });
+
+    expect(result.map((item) => item.ticker)).toEqual(["NOVN.SW"]);
+  });
+
   it("keeps one preferred listing per issuer and excludes an issuer already held under another listing", () => {
     const source = {
       ticker: "SREN.SW",
