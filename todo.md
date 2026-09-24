@@ -888,3 +888,6 @@
 
 ## Positionsdialog: bestätigungspflichtige Löschung (2026-09-24)
 - [x] Löschen-Button im Positionsdialog für nicht aktivierte, ledgerfreie Demoportfolios ergänzt; vor Ausführung bestätigen, die vorhandene Cash-Gegenbuchung nutzen und Live-/Ledger-/Leserkonten sperren (2026-09-24)
+
+## Positionsalternativen: Alphabet-Emittentenklassen (2026-09-24)
+- [x] Alphabet-/Google-Klassen und länderübergreifende Sekundärlistings konsequent als denselben Emittenten ausgeschlossen; die Branchenklassifikation für globale Kommunikationspeers gegen die EODHD-Details verifiziert (2026-09-24)

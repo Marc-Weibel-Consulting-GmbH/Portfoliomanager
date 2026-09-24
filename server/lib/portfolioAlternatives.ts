@@ -67,15 +67,25 @@ export function comparableIndustrySearchTerms(industry: string | null | undefine
 
 /**
  * Normalizes issuer labels for a conservative cross-listing guard. It removes
- * legal forms and only a narrow set of well-known insurance-language variants;
- * symbols remain the primary tradeable identity. This prevents a local primary
- * listing and a global ADR/OTC listing of the same issuer appearing twice.
+ * legal forms and contains narrow, verified aliases for known issuer share
+ * classes/cross-listings; symbols remain the primary tradeable identity. This
+ * prevents a local primary listing and a global ADR/OTC or share-class listing
+ * of the same issuer appearing twice.
  */
 export function canonicalIssuerIdentity(value: string | null | undefined): string {
-  return String(value ?? "")
+  const raw = String(value ?? "")
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
+    .toLowerCase();
+
+  // Alphabet's Class A and Class C shares trade separately as GOOGL and GOOG,
+  // while secondary European listings can be labelled "N Akt Alphabet Inc".
+  // These are share classes/listings of one issuer, not independent companies.
+  if (/\balphabet\b/.test(raw) && /\b(?:inc(?:orporated)?|class|google|n\s+akt)\b/.test(raw)) {
+    return "alphabet";
+  }
+
+  return raw
     .replace(/[&+]/g, " ")
     .replace(/\bmuenchener\b/g, "munchener")
     .replace(/\b(rueck|ruck)(ver(?:sicherung|sicherungs)?|versicherung|versicherungs)?\b/g, "re")
@@ -91,10 +101,27 @@ export function canonicalIssuerIdentity(value: string | null | undefined): strin
     // economic issuer as the ordinary “SCOR SE” line and must not be offered
     // twice as independent alternatives.
     .replace(/\bscor pk\b/g, "scor")
-    .replace(/\b(international|group|company|co|ges|ag|incorporated|inc|corp|corporation|plc|ltd|limited|sa|nv|se|spa|s\.a\.|a\/s|participation|certificate|certificates|adr)\b/g, " ")
+    .replace(/\b(international|group|company|co|ges|ag|incorporated|inc|corp|corporation|plc|ltd|limited|sa|nv|se|spa|s\.a\.|a\/s|participation|certificate|certificates|adr|class|ordinary|common|share|shares|stock|n|akt|usd|eur|gbp|chf)\b/g, " ")
+    .replace(/\b\d+(?:\.\d+)?\b/g, " ")
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
     .replace(/\s+/g, " ");
+}
+
+/**
+ * Conservative issuer-equivalence test for cross-listings and share classes.
+ * An exact normalized identity always matches. Otherwise a meaningful full
+ * issuer phrase can match a longer class/listing label, e.g. "alphabet" in
+ * "alphabet google". This is deliberately a whole-phrase test: ticker-only
+ * similarity or arbitrary partial words never make two companies equivalent.
+ */
+export function isSameIssuer(left: string | null | undefined, right: string | null | undefined): boolean {
+  const first = canonicalIssuerIdentity(left);
+  const second = canonicalIssuerIdentity(right);
+  if (!first || !second) return false;
+  if (first === second) return true;
+  const [shorter, longer] = first.length <= second.length ? [first, second] : [second, first];
+  return shorter.length >= 5 && ` ${longer} `.includes(` ${shorter} `);
 }
 
 /** Identifies the primary regional trading venue from the canonical ticker. */
@@ -141,10 +168,10 @@ export function selectComparableAlternatives(input: {
   const sourceIndustry = normalized(input.source.industry);
   const sourceDividendYield = input.source.dividendYield;
   const held = new Set([...input.heldTickers].map(canonicalTickerIdentity));
-  const heldIssuers = new Set([
+  const heldIssuers = [
     input.source.companyName,
     ...(input.heldCompanyNames ?? []),
-  ].map(canonicalIssuerIdentity).filter(Boolean));
+  ].map(canonicalIssuerIdentity).filter(Boolean);
   const limit = Math.max(1, Math.min(input.limit ?? 5, 5));
 
   if (!sourceTicker || !sourceSector || !sourceIndustry || !sourceCurrency || !finite(sourceDividendYield)) return [];
@@ -203,13 +230,15 @@ export function selectComparableAlternatives(input: {
 
   const selected: RankedAlternative[] = [];
   const seenTickers = new Set<string>();
-  const seenIssuers = new Set<string>();
+  const seenIssuers: string[] = [];
   for (const candidate of ranked) {
     const ticker = canonicalTickerIdentity(candidate.ticker);
     const issuer = canonicalIssuerIdentity(candidate.companyName);
-    if (!ticker || seenTickers.has(ticker) || (issuer && (heldIssuers.has(issuer) || seenIssuers.has(issuer)))) continue;
+    const issuerAlreadyKnown = issuer && [...heldIssuers, ...seenIssuers]
+      .some((knownIssuer) => isSameIssuer(issuer, knownIssuer));
+    if (!ticker || seenTickers.has(ticker) || issuerAlreadyKnown) continue;
     seenTickers.add(ticker);
-    if (issuer) seenIssuers.add(issuer);
+    if (issuer) seenIssuers.push(issuer);
     selected.push(candidate);
     if (selected.length === limit) break;
   }

@@ -211,6 +211,49 @@ describe("selectComparableAlternatives", () => {
     expect(result.every((item) => item.similarity === "insurance_family")).toBe(true);
   });
 
+  it("excludes every Alphabet share class and foreign secondary listing of a held Alphabet position", () => {
+    const source = {
+      ticker: "GOOGL",
+      companyName: "Alphabet Inc",
+      sector: "Communication Services",
+      industry: "Internet Content & Information",
+      category: "Wachstumsaktien",
+      currency: "USD",
+      dividendYield: 0.3,
+      isCantonalBank: false,
+    };
+    const result = selectComparableAlternatives({
+      source,
+      heldTickers: ["GOOGL"],
+      heldCompanyNames: ["Alphabet Inc"],
+      candidates: [
+        candidate("GOOG", {
+          companyName: "Alphabet C (Google)",
+          sector: source.sector,
+          industry: source.industry,
+          currency: "USD",
+          dividendYield: 0.3,
+        }),
+        candidate("1GOOGL.MI", {
+          companyName: "N Akt Alphabet Inc USD 0.001",
+          sector: source.sector,
+          industry: source.industry,
+          currency: "EUR",
+          dividendYield: 0.3,
+        }),
+        candidate("META", {
+          companyName: "Meta Platforms Inc",
+          sector: source.sector,
+          industry: source.industry,
+          currency: "USD",
+          dividendYield: 0.3,
+        }),
+      ],
+    });
+
+    expect(result.map((item) => item.ticker)).toEqual(["META"]);
+  });
+
   it("keeps one preferred listing per issuer and excludes an issuer already held under another listing", () => {
     const source = {
       ticker: "SREN.SW",

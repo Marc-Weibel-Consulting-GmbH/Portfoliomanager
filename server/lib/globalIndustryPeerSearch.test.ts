@@ -57,6 +57,25 @@ describe("filterExactIndustryScreenerPeers", () => {
     expect(result).toEqual([]);
   });
 
+  it("rejects an Alphabet share class at the screener boundary before remote enrichment", () => {
+    const result = filterExactIndustryScreenerPeers({
+      items: [item({
+        code: "GOOG",
+        exchange: "US",
+        name: "Alphabet C (Google)",
+        sector: "Communication Services",
+        industry: "Internet Content & Information",
+        currency: "USD",
+      })],
+      requestedExchange: "us",
+      industry: "Internet Content & Information",
+      knownTickerIdentities: ["GOOGL"],
+      knownCompanyNames: ["Alphabet Inc"],
+    });
+
+    expect(result).toEqual([]);
+  });
+
   it("rejects missing dividend yield and insufficient market capitalization", () => {
     const result = filterExactIndustryScreenerPeers({
       items: [item({ dividendYield: null }), item({ marketCap: 999_999_999 })],

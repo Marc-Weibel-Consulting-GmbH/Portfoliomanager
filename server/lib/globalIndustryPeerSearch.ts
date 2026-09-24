@@ -3,7 +3,12 @@ import { apiCache, CACHE_TTL } from "../_core/apiCache";
 import { fetchEODHDFundamentals, fetchEODHDRealTime } from "../_core/eodhdApi";
 import { retryFetch } from "../_core/retryUtil";
 import { ERLAUBTE_EXCHANGE_CODES, SCREENER_BOERSEN } from "./screenerLauf";
-import { canonicalTickerIdentity, type AlternativeStock } from "./portfolioAlternatives";
+import {
+  canonicalIssuerIdentity,
+  canonicalTickerIdentity,
+  isSameIssuer,
+  type AlternativeStock,
+} from "./portfolioAlternatives";
 import { tickerAusScreenerCode } from "./universeExpansion";
 
 const EODHD_BASE_URL = "https://eodhd.com/api";
@@ -34,12 +39,7 @@ const fxCurrency = (currency: string) => currency.toUpperCase() === "GBP" ? "GBP
  * identifiers elsewhere.
  */
 export function canonicalCompanyIdentity(value: unknown): string {
-  return normalized(value)
-    .replace(/[&+]/g, " ")
-    .replace(/\b(international|ag|incorporated|inc|corp|corporation|plc|ltd|limited|sa|nv|se|spa|s\.a\.|a\/s)\b/g, " ")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim()
-    .replace(/\s+/g, " ");
+  return canonicalIssuerIdentity(String(value ?? ""));
 }
 
 /** Returns a current, source-backed CHF FX quote without using a stale DB fallback. */
@@ -64,7 +64,7 @@ export function filterExactIndustryScreenerPeers(input: {
 }): ScreenerIndustryPeer[] {
   const allowedExchanges = ERLAUBTE_EXCHANGE_CODES[input.requestedExchange] ?? [input.requestedExchange.toUpperCase()];
   const seenIdentities = new Set([...input.knownTickerIdentities].map(canonicalTickerIdentity));
-  const seenNames = new Set([...input.knownCompanyNames ?? []].map(canonicalCompanyIdentity));
+  const knownIssuerNames = [...input.knownCompanyNames ?? []].map(canonicalCompanyIdentity).filter(Boolean);
   const expectedIndustry = normalized(input.industry);
 
   return input.items.filter((item) => {
@@ -80,7 +80,7 @@ export function filterExactIndustryScreenerPeers(input: {
     const ticker = tickerAusScreenerCode(item.code, item.exchange);
     const identity = canonicalTickerIdentity(ticker);
     const companyName = canonicalCompanyIdentity(item.name);
-    if (!identity || seenIdentities.has(identity) || seenNames.has(companyName)) return false;
+    if (!identity || seenIdentities.has(identity) || knownIssuerNames.some((known) => isSameIssuer(companyName, known))) return false;
     return true;
   });
 }
