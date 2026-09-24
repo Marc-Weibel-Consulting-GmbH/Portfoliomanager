@@ -1,3 +1,5 @@
+import { normalizeTickerForDb, resolveCanonicalTicker } from "../tickerNormalization";
+
 export type AlternativeStock = {
   ticker: string;
   companyName: string;
@@ -16,22 +18,38 @@ export type AlternativeStock = {
   signalLabel: string | null;
   dataQualityStatus: string | null;
   isActive: boolean;
+  isCantonalBank: boolean;
 };
 
-export type AlternativeSource = Pick<AlternativeStock, "ticker" | "sector" | "industry" | "category" | "currency">;
+export type AlternativeSource = Pick<AlternativeStock,
+  "ticker" | "sector" | "industry" | "category" | "currency" | "dividendYield" | "isCantonalBank"
+>;
 
 export type RankedAlternative = AlternativeStock & {
   similarity: "same_industry" | "same_sector";
   scoreCoverage: number;
 };
 
+export const ALTERNATIVE_DIVIDEND_YIELD_TOLERANCE_PCT = 1;
+
 const normalized = (value: string | null | undefined) => String(value ?? "").trim().toLowerCase();
 const finite = (value: number | null | undefined) => value !== null && value !== undefined && Number.isFinite(value);
 
 /**
+ * Converts format and known company aliases to one identity. A holding stored
+ * as `ABB.SW`, for instance, must exclude the universe entry `ABBN.SW`; an
+ * unsuffixed US holding must likewise exclude its `.US` universe entry.
+ */
+export function canonicalTickerIdentity(ticker: string): string {
+  return resolveCanonicalTicker(normalizeTickerForDb(ticker)).trim().toUpperCase();
+}
+
+/**
  * Ranks only currently priced, same-currency equity candidates from the same
- * sector. The selected portfolio's own holdings are always excluded. It is a
- * research list, not a recommendation or an instruction to trade.
+ * sector. The selected portfolio's own holdings (including known aliases) are
+ * always excluded. Candidates must also have a verified dividend yield within
+ * +/- one percentage point of the source position. It is a comparison list,
+ * not a recommendation or an instruction to trade.
  */
 export function selectComparableAlternatives(input: {
   source: AlternativeSource;
@@ -39,24 +57,26 @@ export function selectComparableAlternatives(input: {
   heldTickers: Iterable<string>;
   limit?: number;
 }): RankedAlternative[] {
-  const sourceTicker = input.source.ticker.trim().toUpperCase();
+  const sourceTicker = canonicalTickerIdentity(input.source.ticker);
   const sourceSector = normalized(input.source.sector);
   const sourceCurrency = normalized(input.source.currency);
   const sourceIndustry = normalized(input.source.industry);
-  const sourceCategory = normalized(input.source.category);
-  const held = new Set([...input.heldTickers].map((ticker) => ticker.trim().toUpperCase()));
+  const sourceDividendYield = input.source.dividendYield;
+  const held = new Set([...input.heldTickers].map(canonicalTickerIdentity));
   const limit = Math.max(1, Math.min(input.limit ?? 5, 5));
 
-  if (!sourceTicker || !sourceSector || !sourceCurrency) return [];
+  if (!sourceTicker || !sourceSector || !sourceCurrency || !finite(sourceDividendYield)) return [];
 
   return input.candidates
     .filter((candidate) => {
-      const ticker = candidate.ticker.trim().toUpperCase();
+      const ticker = canonicalTickerIdentity(candidate.ticker);
       if (!ticker || ticker === sourceTicker || held.has(ticker)) return false;
       if (!candidate.isActive) return false;
       if (normalized(candidate.sector) !== sourceSector) return false;
       if (normalized(candidate.currency) !== sourceCurrency) return false;
       if (!finite(candidate.currentPrice) || candidate.currentPrice! <= 0) return false;
+      if (!finite(candidate.dividendYield)) return false;
+      if (Math.abs(candidate.dividendYield! - sourceDividendYield!) > ALTERNATIVE_DIVIDEND_YIELD_TOLERANCE_PCT) return false;
       if (normalized(candidate.category) === "etf") return false;
       if (normalized(candidate.dataQualityStatus) === "data_gap") return false;
       return true;
@@ -71,8 +91,13 @@ export function selectComparableAlternatives(input: {
       return { ...candidate, similarity, scoreCoverage };
     })
     .sort((a, b) => {
-      // Stricter peer match before model metrics, then data completeness. This
-      // prevents a partial score record from looking better merely by omission.
+      // For a Kantonalbank, first fill the list with genuine cantonal peers.
+      // Other financial-services names remain valid backfills when fewer than
+      // five data-complete cantonal peers meet the same dividend-yield band.
+      if (input.source.isCantonalBank) {
+        const cantonalBankOrder = Number(b.isCantonalBank) - Number(a.isCantonalBank);
+        if (cantonalBankOrder !== 0) return cantonalBankOrder;
+      }
       const industryOrder = Number(b.similarity === "same_industry") - Number(a.similarity === "same_industry");
       if (industryOrder !== 0) return industryOrder;
       if (b.scoreCoverage !== a.scoreCoverage) return b.scoreCoverage - a.scoreCoverage;

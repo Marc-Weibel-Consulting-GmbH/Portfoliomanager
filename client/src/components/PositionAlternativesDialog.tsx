@@ -104,7 +104,7 @@ export function PositionAlternativesDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={(nextOpen) => { if (!nextOpen) handleClose(); }}>
-        <DialogContent className="bg-[#111827] border-white/15 text-white max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[#111827] border-white/15 text-white w-[calc(100vw-1.5rem)] max-w-5xl sm:max-w-5xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-white">
               <GitCompareArrows className="h-5 w-5 text-[#00CFC1]" />
@@ -167,12 +167,14 @@ export function PositionAlternativesDialog({
                                 {alternative.similarity === "same_industry" ? "gleiche Branche" : "gleicher Sektor"}
                               </span>
                             </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-x-3 gap-y-1.5 mt-2 text-xs">
-                              <span className="text-gray-400">Div. Rendite <b className="text-gray-200 font-mono ml-1">{formatPct(alternative.dividendYield)}</b></span>
-                              <span className="text-gray-400">Sharpe <b className="text-gray-200 font-mono ml-1">{alternative.sharpeRatio?.toFixed(2) ?? "—"}</b></span>
-                              <span className="text-gray-400">Qualität <b className={`font-mono ml-1 ${scoreTone(alternative.quality)}`}>{alternative.quality?.toFixed(0) ?? "—"}</b></span>
-                              <span className="text-gray-400">Bewertung <b className={`font-mono ml-1 ${scoreTone(alternative.valuation)}`}>{alternative.valuation?.toFixed(0) ?? "—"}</b></span>
-                              <span className="text-gray-400">Timing <b className={`font-mono ml-1 ${scoreTone(alternative.timing)}`}>{alternative.timing?.toFixed(0) ?? "—"}</b></span>
+                            <div className="overflow-x-auto mt-2">
+                              <div className="grid grid-cols-5 min-w-[500px] gap-x-3 text-xs">
+                                <span className="text-gray-400 whitespace-nowrap">Div.-Rendite <b className="text-gray-200 font-mono ml-1">{formatPct(alternative.dividendYield)}</b></span>
+                                <span className="text-gray-400 whitespace-nowrap">Sharpe <b className="text-gray-200 font-mono ml-1">{alternative.sharpeRatio?.toFixed(2) ?? "—"}</b></span>
+                                <span className="text-gray-400 whitespace-nowrap">Qualität <b className={`font-mono ml-1 ${scoreTone(alternative.quality)}`}>{alternative.quality?.toFixed(0) ?? "—"}</b></span>
+                                <span className="text-gray-400 whitespace-nowrap">Bewertung <b className={`font-mono ml-1 ${scoreTone(alternative.valuation)}`}>{alternative.valuation?.toFixed(0) ?? "—"}</b></span>
+                                <span className="text-gray-400 whitespace-nowrap">Timing <b className={`font-mono ml-1 ${scoreTone(alternative.timing)}`}>{alternative.timing?.toFixed(0) ?? "—"}</b></span>
+                              </div>
                             </div>
                             <p className="mt-2 text-[11px] text-gray-500">
                               Tauschvorschau: {alternative.targetShares.toLocaleString("de-CH", { maximumFractionDigits: 6 })} Stück · {formatChf(alternative.targetValueChf, 2)} · Cash-Rest {formatChf(alternative.cashResidualChf, 2)}

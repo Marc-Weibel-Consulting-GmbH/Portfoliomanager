@@ -864,3 +864,6 @@
 
 ## Positionsalternativen mit 1:1-Tauschvorschau (2026-09-24)
 - [x] Fünf vergleichbare, datenbelegte Alternativen je Aktienposition anzeigen und einen eigentümergebundenen, bestätigungspflichtigen 1:1-Tausch mit unveränderter absoluter CHF-Positionsgrösse vorbereitet; ohne Bestätigung keine Portfolio-, Cash-, Transaktions- oder Handelsmutation ausgelöst (2026-09-24)
+
+## Alternativen-Dialog: Layout und Peer-Diversität (2026-09-24)
+- [x] Breiteres Kennzahlenlayout, bevorzugte Kantonalbank-Peers, Dividendenrendite innerhalb von ±1 Prozentpunkt und alias-sicherer Ausschluss bereits gehaltener Positionen implementiert und geprüft (2026-09-24)

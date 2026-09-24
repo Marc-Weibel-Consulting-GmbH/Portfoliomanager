@@ -5,11 +5,11 @@ const candidate = (ticker: string, patch: Partial<AlternativeStock> = {}): Alter
   ticker,
   companyName: ticker,
   sector: "Financial Services",
-  industry: "Banks",
+  industry: "Banks - Regional",
   category: "Value",
   currency: "CHF",
   currentPrice: 100,
-  dividendYield: 3,
+  dividendYield: 2.31,
   sharpeRatio: 1,
   beta: 0.5,
   quality: 60,
@@ -19,44 +19,80 @@ const candidate = (ticker: string, patch: Partial<AlternativeStock> = {}): Alter
   signalLabel: "HOLD",
   dataQualityStatus: "verified",
   isActive: true,
+  isCantonalBank: false,
   ...patch,
 });
 
+const lukn = {
+  ticker: "LUKN.SW",
+  sector: "Financial Services",
+  industry: "Banks - Regional",
+  category: "Value",
+  currency: "CHF",
+  dividendYield: 2.31,
+  isCantonalBank: true,
+};
+
 describe("selectComparableAlternatives", () => {
-  it("selects at most five priced, same-sector and same-currency alternatives", () => {
+  it("selects at most five priced, same-sector, same-currency and dividend-similar alternatives", () => {
     const result = selectComparableAlternatives({
-      source: { ticker: "LUKN.SW", sector: "Financial Services", industry: "Banks", category: "Value", currency: "CHF" },
+      source: lukn,
       heldTickers: ["LUKN.SW", "HELD.SW"],
       candidates: [
         candidate("HELD.SW", { signalScore: 99 }),
-        candidate("SGKN.SW", { signalScore: 70 }),
-        candidate("VATN.SW", { signalScore: 65 }),
-        candidate("VONN.SW", { signalScore: 55, industry: "Capital Markets" }),
-        candidate("CMBN.SW", { signalScore: 75 }),
-        candidate("A.SW", { signalScore: 50 }),
-        candidate("B.SW", { signalScore: 45 }),
-        candidate("USD.BANK", { currency: "USD", signalScore: 99 }),
-        candidate("TECH.SW", { sector: "Technology", signalScore: 99 }),
-        candidate("GAP.SW", { dataQualityStatus: "data_gap", signalScore: 99 }),
+        candidate("SGKN.SW", { companyName: "St Galler Kantonalbank", dividendYield: 2.95, isCantonalBank: true, signalScore: 55 }),
+        candidate("TKBP.SW", { companyName: "Thurgauer Kantonalbank", dividendYield: 2.25, isCantonalBank: true, signalScore: 50 }),
+        candidate("BLKB.SW", { companyName: "Basellandschaftliche Kantonalbank", dividendYield: 3.59, isCantonalBank: true, signalScore: 99 }),
+        candidate("OTHER.SW", { dividendYield: 2.8, signalScore: 75 }),
+        candidate("TOO_HIGH.SW", { dividendYield: 3.32, signalScore: 99 }),
+        candidate("TOO_LOW.SW", { dividendYield: 1.3, signalScore: 99 }),
+        candidate("USD.BANK", { currency: "USD", dividendYield: 2.3, signalScore: 99 }),
+        candidate("TECH.SW", { sector: "Technology", dividendYield: 2.3, signalScore: 99 }),
+        candidate("GAP.SW", { dataQualityStatus: "data_gap", dividendYield: 2.3, signalScore: 99 }),
       ],
     });
 
-    expect(result).toHaveLength(5);
-    expect(result.map((item) => item.ticker)).toEqual(["CMBN.SW", "SGKN.SW", "VATN.SW", "A.SW", "B.SW"]);
+    expect(result.map((item) => item.ticker)).toEqual(["SGKN.SW", "TKBP.SW", "OTHER.SW"]);
     expect(result.every((item) => item.currency === "CHF" && item.sector === "Financial Services")).toBe(true);
+    expect(result.every((item) => Math.abs((item.dividendYield ?? 0) - 2.31) <= 1)).toBe(true);
   });
 
-  it("never substitutes an ETF, a held stock, or a candidate with no usable price", () => {
+  it("prioritizes cantonal-bank peers when the selected company is a cantonal bank", () => {
     const result = selectComparableAlternatives({
-      source: { ticker: "LUKN.SW", sector: "Financial Services", industry: null, category: "Value", currency: "CHF" },
+      source: lukn,
       heldTickers: [],
+      candidates: [
+        candidate("BAER.SW", { industry: "Capital Markets", dividendYield: 2.2, signalScore: 99 }),
+        candidate("SGKN.SW", { companyName: "St Galler Kantonalbank", dividendYield: 2.4, isCantonalBank: true, signalScore: 1 }),
+        candidate("TKBP.SW", { companyName: "Thurgauer Kantonalbank", dividendYield: 2.5, isCantonalBank: true, signalScore: 1 }),
+      ],
+    });
+    expect(result.map((item) => item.ticker)).toEqual(["SGKN.SW", "TKBP.SW", "BAER.SW"]);
+    expect(result.slice(0, 2).every((item) => item.isCantonalBank)).toBe(true);
+  });
+
+  it("never substitutes an ETF, a held stock, or a ticker alias of a held stock", () => {
+    const result = selectComparableAlternatives({
+      source: { ...lukn, ticker: "LUKN.SW" },
+      heldTickers: ["ABB.SW", "NVDA"],
       candidates: [
         candidate("ETF.SW", { category: "ETF" }),
         candidate("NOPRICE.SW", { currentPrice: null }),
-        candidate("VALID.SW"),
+        candidate("ABBN.SW", { dividendYield: 2.3 }),
+        candidate("NVDA.US", { dividendYield: 2.3 }),
+        candidate("VALID.SW", { dividendYield: 2.3 }),
       ],
     });
     expect(result.map((item) => item.ticker)).toEqual(["VALID.SW"]);
+  });
+
+  it("returns no candidate if the source dividend yield is not verified", () => {
+    const result = selectComparableAlternatives({
+      source: { ...lukn, dividendYield: null },
+      heldTickers: [],
+      candidates: [candidate("VALID.SW")],
+    });
+    expect(result).toEqual([]);
   });
 });
 

@@ -152,6 +152,7 @@ function toAlternativeStock(stock: any, scores: Map<string, ReadOnlyScore>): Alt
     signalLabel: score?.signalLabel ?? stock.signalType ?? null,
     dataQualityStatus: stock.dataQualityStatus ?? null,
     isActive: Number(stock.isActive ?? 0) === 1,
+    isCantonalBank: /kantonalbank|banque\s+cantonale/i.test(String(stock.companyName ?? "")),
   };
 }
 
