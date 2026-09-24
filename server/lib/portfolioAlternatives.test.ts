@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateEquivalentValueSwap, selectComparableAlternatives, type AlternativeStock } from "./portfolioAlternatives";
+import { calculateEquivalentValueSwap, comparableIndustrySearchTerms, selectComparableAlternatives, type AlternativeStock } from "./portfolioAlternatives";
 
 const candidate = (ticker: string, patch: Partial<AlternativeStock> = {}): AlternativeStock => ({
   ticker,
@@ -34,6 +34,17 @@ const lukn = {
 };
 
 describe("selectComparableAlternatives", () => {
+  it("expands only the verified insurer sub-industry family", () => {
+    expect(comparableIndustrySearchTerms("Insurance - Diversified")).toEqual([
+      "Insurance - Diversified",
+      "Insurance - Life",
+      "Insurance - Reinsurance",
+    ]);
+    expect(comparableIndustrySearchTerms("Integrated Freight & Logistics")).toEqual([
+      "Integrated Freight & Logistics",
+    ]);
+  });
+
   it("selects at most five priced, exact-industry and dividend-similar alternatives", () => {
     const result = selectComparableAlternatives({
       source: lukn,
@@ -151,6 +162,53 @@ describe("selectComparableAlternatives", () => {
     });
 
     expect(result.map((item) => item.ticker)).toEqual(["NOVN.SW"]);
+  });
+
+  it("excludes a Zurich cross-listing and retains Swiss insurance peers", () => {
+    const source = {
+      ticker: "ZURN.SW",
+      companyName: "Zurich Insurance G",
+      sector: "Financial Services",
+      industry: "Insurance - Diversified",
+      category: "Dividendenaktien",
+      currency: "CHF",
+      dividendYield: 5.14,
+      isCantonalBank: false,
+    };
+    const result = selectComparableAlternatives({
+      source,
+      heldTickers: ["ZURN.SW"],
+      heldCompanyNames: ["Zurich Insurance G"],
+      candidates: [
+        candidate("ZFIN.DE", {
+          companyName: "Zurich Insurance Group AG",
+          industry: "Insurance - Diversified",
+          dividendYield: 5.9,
+          currency: "EUR",
+        }),
+        candidate("SREN.SW", {
+          companyName: "Swiss Re AG",
+          industry: "Insurance - Reinsurance",
+          dividendYield: 4.47,
+          currency: "CHF",
+        }),
+        candidate("SLHN.SW", {
+          companyName: "Swiss Life Holding",
+          industry: "Insurance - Life",
+          dividendYield: 4.2,
+          currency: "CHF",
+        }),
+        candidate("UBSG.SW", {
+          companyName: "UBS Group AG",
+          industry: "Capital Markets",
+          dividendYield: 5.1,
+          currency: "CHF",
+        }),
+      ],
+    });
+
+    expect(result.map((item) => item.ticker)).toEqual(expect.arrayContaining(["SREN.SW", "SLHN.SW"]));
+    expect(result.every((item) => item.similarity === "insurance_family")).toBe(true);
   });
 
   it("keeps one preferred listing per issuer and excludes an issuer already held under another listing", () => {

@@ -33,7 +33,7 @@ export type AlternativeSource = Pick<AlternativeStock,
 };
 
 export type RankedAlternative = AlternativeStock & {
-  similarity: "exact_industry";
+  similarity: "exact_industry" | "insurance_family";
   scoreCoverage: number;
 };
 
@@ -41,6 +41,29 @@ export const ALTERNATIVE_DIVIDEND_YIELD_TOLERANCE_PCT = 1;
 
 const normalized = (value: string | null | undefined) => String(value ?? "").trim().toLowerCase();
 const finite = (value: number | null | undefined) => value !== null && value !== undefined && Number.isFinite(value);
+
+/**
+ * Insurance is a deliberately narrow peer family: an insurer can be compared
+ * to another insurer even when its EODHD sub-industry differs between
+ * diversified insurance, life insurance and reinsurance. This exception never
+ * applies to another Financial Services industry (for example banks or asset
+ * managers), and therefore does not recreate the former sector-only fallback.
+ */
+export function isInsuranceIndustry(value: string | null | undefined): boolean {
+  return normalized(value).startsWith("insurance -");
+}
+
+/**
+ * EODHD splits comparable insurers into diversified, life and reinsurance
+ * sub-industries. Search all three verified insurer classifications, then let
+ * the selector retain only priced candidates within the dividend-yield band.
+ * No other sector receives an expanded industry family.
+ */
+export function comparableIndustrySearchTerms(industry: string | null | undefined): string[] {
+  const current = String(industry ?? "").trim();
+  if (!isInsuranceIndustry(current)) return current ? [current] : [];
+  return ["Insurance - Diversified", "Insurance - Life", "Insurance - Reinsurance"];
+}
 
 /**
  * Normalizes issuer labels for a conservative cross-listing guard. It removes
@@ -57,6 +80,9 @@ export function canonicalIssuerIdentity(value: string | null | undefined): strin
     .replace(/\bmuenchener\b/g, "munchener")
     .replace(/\b(rueck|ruck)(ver(?:sicherung|sicherungs)?|versicherung|versicherungs)?\b/g, "re")
     .replace(/\breinsurance\b/g, "re")
+    // EODHD and the local universe vary between Zurich Insurance "G" and the
+    // legal issuer name "Zurich Insurance Group AG". Both are the same issuer.
+    .replace(/\bzurich insurance (?:group|g)(?: ag)?\b/g, "zurich insurance")
     // Roche's OTC participation line is sometimes supplied as “Roche Holding
     // AG Participation”. It belongs to the same Roche Holding issuer as the
     // SIX bearer share RO, so it cannot be an independent alternative.
@@ -93,9 +119,10 @@ export function canonicalTickerIdentity(ticker: string): string {
 
 /**
  * Ranks only currently priced equity candidates from the exact same EODHD
- * industry. The selected portfolio's own holdings (including known aliases)
- * are always excluded. Sector matching is intentionally prohibited: it made
- * Kuehne + Nagel appear comparable to sanitaryware and industrial machinery.
+ * industry, except for the deliberately narrow insurance family. The selected
+ * portfolio's own holdings (including known aliases) are always excluded.
+ * Sector matching is intentionally prohibited: it made Kuehne + Nagel appear
+ * comparable to sanitaryware and industrial machinery.
  * Candidates must have a verified dividend yield within +/- one percentage
  * point of the source position. It is a comparison list, not a recommendation
  * or an instruction to trade.
@@ -128,7 +155,9 @@ export function selectComparableAlternatives(input: {
       if (!ticker || ticker === sourceTicker || held.has(ticker)) return false;
       if (!candidate.isActive) return false;
       if (normalized(candidate.sector) !== sourceSector) return false;
-      if (normalized(candidate.industry) !== sourceIndustry) return false;
+      const exactIndustry = normalized(candidate.industry) === sourceIndustry;
+      const insuranceFamily = isInsuranceIndustry(sourceIndustry) && isInsuranceIndustry(candidate.industry);
+      if (!exactIndustry && !insuranceFamily) return false;
       if (!finite(candidate.currentPrice) || candidate.currentPrice! <= 0) return false;
       if (!finite(candidate.dividendYield)) return false;
       if (Math.abs(candidate.dividendYield! - sourceDividendYield!) > ALTERNATIVE_DIVIDEND_YIELD_TOLERANCE_PCT) return false;
@@ -139,7 +168,9 @@ export function selectComparableAlternatives(input: {
     .map((candidate) => {
       const scoreCoverage = [candidate.quality, candidate.valuation, candidate.timing]
         .filter((score) => finite(score)).length;
-      const similarity: RankedAlternative["similarity"] = "exact_industry";
+      const similarity: RankedAlternative["similarity"] = normalized(candidate.industry) === sourceIndustry
+        ? "exact_industry"
+        : "insurance_family";
       return { ...candidate, similarity, scoreCoverage };
     })
     .sort((a, b) => {

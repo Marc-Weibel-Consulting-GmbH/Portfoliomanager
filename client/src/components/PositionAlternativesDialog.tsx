@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StockLogo } from "@/components/StockLogo";
+import { PositionAlternativeDetailDialog } from "@/components/PositionAlternativeDetailDialog";
 import { trpc } from "@/lib/trpc";
-import { Check, GitCompareArrows, Loader2, ShieldCheck } from "lucide-react";
+import { Check, GitCompareArrows, Info, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export interface PositionAlternativeSource {
@@ -53,6 +54,7 @@ export function PositionAlternativesDialog({
 }: PositionAlternativesDialogProps) {
   const utils = trpc.useUtils();
   const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
+  const [detailTicker, setDetailTicker] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const sourceTicker = source?.ticker ?? "";
 
@@ -92,6 +94,7 @@ export function PositionAlternativesDialog({
   const handleClose = () => {
     if (swap.isPending) return;
     setSelectedTicker(null);
+    setDetailTicker(null);
     setConfirmOpen(false);
     onClose();
   };
@@ -111,7 +114,7 @@ export function PositionAlternativesDialog({
               Alternativen für {sourceTicker}
             </DialogTitle>
             <DialogDescription className="text-gray-400">
-              Bis zu fünf nicht bereits enthaltene Aktien aus derselben verifizierten Branche. Wenn lokal nicht genügend Peers vorliegen, wird das globale Screener-Universum geprüft. Die Reihenfolge ist ein Datenvergleich, keine Kaufempfehlung.
+              Bis zu fünf nicht bereits enthaltene Aktien aus derselben verifizierten Branche. Bei Versicherern zählen nur weitere Versicherer als enge Peers. Wenn lokal nicht genügend Peers vorliegen, wird das globale Screener-Universum geprüft. Die Reihenfolge ist ein Datenvergleich, keine Kaufempfehlung.
             </DialogDescription>
           </DialogHeader>
 
@@ -147,10 +150,17 @@ export function PositionAlternativesDialog({
                   {alternativesQuery.data.alternatives.map((alternative) => {
                     const isSelected = alternative.ticker === selectedTicker;
                     return (
-                      <button
+                      <div
                         key={alternative.ticker}
-                        type="button"
                         onClick={() => setSelectedTicker(alternative.ticker)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setSelectedTicker(alternative.ticker);
+                          }
+                        }}
+                        role="button"
+                        tabIndex={0}
                         className={`w-full text-left rounded-lg border p-3 transition-colors ${
                           isSelected
                             ? "border-[#00CFC1] bg-[#00CFC1]/10"
@@ -164,7 +174,7 @@ export function PositionAlternativesDialog({
                               <span className="font-semibold text-white font-mono">{alternative.ticker}</span>
                               <span className="text-sm text-gray-300">{alternative.companyName}</span>
                               <span className="text-[10px] px-1.5 py-0.5 rounded border border-white/15 text-gray-400">
-                                gleiche Branche
+                                {alternative.similarity === "insurance_family" ? "Versichererpeer" : "gleiche Branche"}
                               </span>
                               {alternative.origin === "global" && (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded border border-cyan-400/25 bg-cyan-400/10 text-cyan-200">
@@ -185,9 +195,22 @@ export function PositionAlternativesDialog({
                               Tauschvorschau: {alternative.targetShares.toLocaleString("de-CH", { maximumFractionDigits: 6 })} Stück · {formatChf(alternative.targetValueChf, 2)} · Cash-Rest {formatChf(alternative.cashResidualChf, 2)}
                             </p>
                           </div>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="shrink-0 border-white/15 bg-transparent text-xs text-gray-200 hover:bg-white/10 hover:text-white"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setDetailTicker(alternative.ticker);
+                            }}
+                            aria-label={`Details zu ${alternative.ticker} öffnen`}
+                          >
+                            <Info className="mr-1 h-3.5 w-3.5" /> Details
+                          </Button>
                           {isSelected && <Check className="h-5 w-5 shrink-0 text-[#00CFC1]" />}
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
@@ -212,6 +235,16 @@ export function PositionAlternativesDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PositionAlternativeDetailDialog
+        open={Boolean(detailTicker)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) setDetailTicker(null);
+        }}
+        portfolioId={portfolioId}
+        sourceTicker={sourceTicker}
+        targetTicker={detailTicker}
+      />
 
       <ConfirmDialog
         open={confirmOpen}

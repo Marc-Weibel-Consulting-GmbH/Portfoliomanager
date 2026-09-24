@@ -193,7 +193,10 @@ export async function findGlobalExactIndustryPeers(input: {
       seenTickerIdentities.add(tickerIdentity);
       return true;
     })
-    .slice(0, MAX_QUOTED_CANDIDATES);
+    // Do not enrich more remote quotes than the caller needs. The shortlist is
+    // rebuilt on every preview and must remain responsive; all unvalidated
+    // screener rows are intentionally kept out of the result.
+    .slice(0, maxCandidates);
   const fxQuoteByCurrency = new Map<string, Promise<number | null>>();
   const getCurrentFx = (currency: string) => {
     const key = fxCurrency(currency);

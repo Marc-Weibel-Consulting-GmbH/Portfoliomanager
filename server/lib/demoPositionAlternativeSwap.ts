@@ -10,18 +10,41 @@ import { refreshPortfolioMutationMarketData } from "./portfolioMutationMarketRef
 import { rebalanceManualDemoPortfolio, type ManualDemoHolding } from "./manualDemoPortfolioRebalance";
 import {
   calculateEquivalentValueSwap,
+  comparableIndustrySearchTerms,
+  isInsuranceIndustry,
   selectComparableAlternatives,
   type AlternativeStock,
   type RankedAlternative,
 } from "./portfolioAlternatives";
 import { findGlobalExactIndustryPeers } from "./globalIndustryPeerSearch";
 import { getGlobalPeerDisplayMetrics } from "./globalPeerMetrics";
+import { calculateAlternativePeriodReturn, toAlternativeDetailChartPoints } from "./alternativeDetailPresentation";
+import { fetchEodSeries } from "../jobs/importHistoricalPrices";
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 const numberOrNull = (value: unknown): number | null => {
   const number = typeof value === "number" ? value : Number.parseFloat(String(value ?? ""));
   return Number.isFinite(number) ? number : null;
 };
+
+/**
+ * A remote optional score must never keep the alternatives dialog loading.
+ * The candidate remains usable with an honest metric gap; no fallback number
+ * is generated. A late provider response can still warm its in-memory cache.
+ */
+async function withinOptionalMetricsBudget<T>(promise: Promise<T>, milliseconds = 12_000): Promise<T | null> {
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<null>((resolve) => {
+        timeout = setTimeout(() => resolve(null), milliseconds);
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
 
 export type DemoPositionSwapAlternative = RankedAlternative & {
   currentPriceChf: number;
@@ -47,7 +70,7 @@ export type DemoPositionSwapPreview = {
     portfolioType: "demo";
     liveTracking: false;
     ledgerEntries: 0;
-    exactIndustryOnly: true;
+    verifiedComparableIndustryOnly: true;
     foreignCurrencyWithFxOnly: true;
     maxAlternatives: 5;
   };
@@ -246,28 +269,66 @@ async function loadSwapContext(portfolioId: number, userId: number, sourceTicker
   // `industry` never degrades a logistics company to generic Industrials.
   const sourceFundamentals = await fetchEODHDFundamentals(sourceTicker);
   const sourceAlternative = toAlternativeStock(sourceStock, scoreMap, {
-    companyName: sourceStock.companyName,
+    companyName: sourceFundamentals.companyName ?? sourceStock.companyName,
     sector: sourceFundamentals.sector ?? sourceStock.sector ?? null,
     industry: sourceFundamentals.industry ?? null,
     dividendYield: sourceFundamentals.dividendYield ?? numberOrNull(sourceStock.dividendYield),
+    currency: sourceFundamentals.currency ?? sourceStock.currency ?? null,
   });
   const heldTickers = rawHoldings.map((holding) => normalizedTicker(holding.ticker));
   const knownCompanyNames = [
+    // Use the current issuer name confirmed by EODHD as well as the portfolio
+    // snapshot's historic display name. This blocks a foreign cross-listing
+    // when the local label is abbreviated (e.g. "Zurich Insurance G").
+    String(sourceAlternative.companyName ?? ""),
     ...rawHoldings.map((holding) => String(
       holding.companyName ?? stockByTicker.get(normalizedTicker(holding.ticker))?.companyName ?? "",
     )),
   ];
-  const localCandidates = allStocks.map((stock) => toAlternativeStock(stock, scoreMap));
-  const globalCandidates = sourceAlternative.industry
-    ? await findGlobalExactIndustryPeers({
-      industry: sourceAlternative.industry,
+  // Older local records commonly have sector but no EODHD sub-industry. For an
+  // insurer source, re-verify the deliberately narrow list of likely insurers
+  // instead of falling back to every Financial Services stock. This admits
+  // Swiss Re / Swiss Life / Helvetia when their current fundamentals confirm
+  // an insurance industry, but never banks or asset managers.
+  const localCandidateStocks = isInsuranceIndustry(sourceAlternative.industry)
+    ? allStocks.filter((stock) => /insurance|versicher|helvetia|baloise|vaudoise|swiss\s+(?:re|life)|allianz|axa|uniqa/i.test(String(stock.companyName ?? "")))
+    : allStocks;
+  const localCandidates = await Promise.all(localCandidateStocks.map(async (stock) => {
+    if (!isInsuranceIndustry(sourceAlternative.industry)) return toAlternativeStock(stock, scoreMap);
+    const fundamentals = await fetchEODHDFundamentals(stock.ticker);
+    return toAlternativeStock(stock, scoreMap, {
+      companyName: fundamentals.companyName ?? stock.companyName,
+      sector: fundamentals.sector ?? stock.sector ?? null,
+      industry: fundamentals.industry ?? stock.industry ?? null,
+      currency: fundamentals.currency ?? stock.currency ?? null,
+      dividendYield: fundamentals.dividendYield ?? numberOrNull(stock.dividendYield),
+    });
+  }));
+  const industrySearchTerms = comparableIndustrySearchTerms(sourceAlternative.industry);
+  const globalCandidates: AlternativeStock[] = [];
+  // Process the small, pre-registered insurer family serially. Each individual
+  // search already queries the supported exchanges in parallel; serial terms
+  // keep the on-demand preview within provider rate limits.
+  for (const industry of industrySearchTerms) {
+    const alreadySufficient = selectComparableAlternatives({
+      source: sourceAlternative,
+      candidates: [...localCandidates, ...globalCandidates],
+      heldTickers,
+      heldCompanyNames: knownCompanyNames,
+      limit: 5,
+    }).length >= 5;
+    if (alreadySufficient) break;
+    const peers = await findGlobalExactIndustryPeers({
+      industry,
       // Existing universe entries are comparison candidates, not exclusions.
       // Only actual portfolio holdings must never be proposed again.
       excludedTickers: heldTickers,
       knownCompanyNames,
       sourceDividendYieldPct: sourceAlternative.dividendYield,
-    })
-    : [];
+      maxCandidates: 5,
+    });
+    globalCandidates.push(...peers);
+  }
   for (const peer of globalCandidates) {
     stockByTicker.set(normalizedTicker(peer.ticker), peer as any);
   }
@@ -285,12 +346,12 @@ async function loadSwapContext(portfolioId: number, userId: number, sourceTicker
   await Promise.all(rankedAlternatives
     .filter((alternative) => alternative.origin === "global")
     .map(async (alternative) => {
-      const metrics = await getGlobalPeerDisplayMetrics({
+      const metrics = await withinOptionalMetricsBudget(getGlobalPeerDisplayMetrics({
         ticker: alternative.ticker,
         sector: alternative.sector,
         dividendYield: alternative.dividendYield,
-      });
-      globalMetrics.set(normalizedTicker(alternative.ticker), metrics);
+      }));
+      if (metrics) globalMetrics.set(normalizedTicker(alternative.ticker), metrics);
     }));
   const alternatives = rankedAlternatives.map((alternative) => ({
     ...alternative,
@@ -367,10 +428,63 @@ export async function getDemoPositionSwapPreview(input: {
       portfolioType: "demo",
       liveTracking: false,
       ledgerEntries: 0,
-      exactIndustryOnly: true,
+      verifiedComparableIndustryOnly: true,
       foreignCurrencyWithFxOnly: true,
       maxAlternatives: 5,
     },
+  };
+}
+
+/**
+ * Read-only detail view for a target that is currently part of the verified
+ * alternatives shortlist. It deliberately validates the portfolio context and
+ * target again; arbitrary ticker lookups are not exposed through the demo
+ * swap flow. The chart is an adjusted-close EODHD series and is never stored.
+ */
+export async function getDemoPositionSwapAlternativeDetail(input: {
+  portfolioId: number;
+  userId: number;
+  sourceTicker: string;
+  targetTicker: string;
+}) {
+  const context = await loadSwapContext(input.portfolioId, input.userId, input.sourceTicker);
+  const targetTicker = normalizedTicker(input.targetTicker);
+  const alternative = context.alternatives.find((item) => normalizedTicker(item.ticker) === targetTicker);
+  if (!alternative) throw new Error("Die Aktie ist nicht mehr in der aktuellen Alternativenliste.");
+
+  const [fundamentals, series] = await Promise.all([
+    fetchEODHDFundamentals(alternative.ticker),
+    fetchEodSeries(
+      alternative.ticker,
+      new Date(Date.now() - 365.25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      new Date().toISOString().slice(0, 10),
+    ),
+  ]);
+  const chart = toAlternativeDetailChartPoints(series);
+  return {
+    ticker: alternative.ticker,
+    companyName: fundamentals.companyName ?? alternative.companyName,
+    sector: fundamentals.sector ?? alternative.sector,
+    industry: fundamentals.industry ?? alternative.industry,
+    currency: fundamentals.currency ?? alternative.currency,
+    currentPrice: alternative.currentPrice,
+    dividendYield: fundamentals.dividendYield ?? alternative.dividendYield,
+    peRatio: fundamentals.peRatio,
+    pegRatio: fundamentals.pegRatio,
+    beta: fundamentals.beta,
+    marketCap: fundamentals.marketCap,
+    sharpeRatio: alternative.sharpeRatio,
+    quality: alternative.quality,
+    valuation: alternative.valuation,
+    timing: alternative.timing,
+    signalScore: alternative.signalScore,
+    signalLabel: alternative.signalLabel,
+    chart,
+    chartPeriod: "1Y" as const,
+    periodReturnPct: calculateAlternativePeriodReturn(chart),
+    chartDataStatus: chart.length >= 2 ? "available" as const : "unavailable" as const,
+    source: "EODHD" as const,
+    generatedAt: new Date().toISOString(),
   };
 }
 

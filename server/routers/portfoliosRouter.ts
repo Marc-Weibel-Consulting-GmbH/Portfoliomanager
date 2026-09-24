@@ -1741,6 +1741,37 @@ export const portfoliosRouter = router({
       }),
 
     /**
+     * Shows a source-backed, read-only detail sheet for one candidate from the
+     * current swap shortlist. It cannot create a stock, a portfolio position or
+     * an order; the target is validated against the freshly rebuilt shortlist.
+     */
+    getDemoPositionSwapAlternativeDetail: protectedProcedure
+      .input(z.object({
+        portfolioId: z.number().int().positive(),
+        sourceTicker: z.string().min(1).max(50),
+        targetTicker: z.string().min(1).max(50),
+      }))
+      .query(async ({ input, ctx }) => {
+        if (!ctx.user?.id || ctx.user.id === 1) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required." });
+        }
+        try {
+          const { getDemoPositionSwapAlternativeDetail } = await import("../lib/demoPositionAlternativeSwap");
+          return await getDemoPositionSwapAlternativeDetail({
+            portfolioId: input.portfolioId,
+            userId: ctx.user.id,
+            sourceTicker: input.sourceTicker,
+            targetTicker: input.targetTicker,
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: error instanceof Error ? error.message : "Alternativendetails konnten nicht geladen werden.",
+          });
+        }
+      }),
+
+    /**
      * Führt ausschliesslich nach einer UI-Bestätigung einen cashneutralen
      * Demo-Tausch aus. Eigentümerschaft, Demo-/Live-Status, Ledgerfreiheit und
      * der unveränderte CHF-Gegenwert werden serverseitig erneut geprüft.

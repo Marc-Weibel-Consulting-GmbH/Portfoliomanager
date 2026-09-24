@@ -879,3 +879,6 @@
 
 ## Positionsalternativen: Roche-Emittentenausschluss (2026-09-24)
 - [x] RHHVF als alternative Handelslinie derselben Roche-Holding-Gesellschaft wie RO.SW sicher erkannt und aus der Alternativenliste ausgeschlossen; Regression und schreibgeschützte Vorschau verifiziert (2026-09-24)
+
+## Positionsalternativen: Versichererpeers und Detaildialog (2026-09-24)
+- [x] ZURN.SW und seine weiteren Handelslinien als denselben Emittenten ausgeschlossen, passende Schweizer Versicherer vor globalen Peers bevorzugt und für jeden Alternativenkandidaten eine lesende Detailansicht mit Kurschart und Kennzahlen analog der Aktienansicht bereitgestellt; ohne Portfolio-, Cash-, Transaktions- oder Handelsmutation (2026-09-24)
