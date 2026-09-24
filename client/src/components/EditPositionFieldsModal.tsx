@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { trpc } from "@/lib/trpc";
 import { isShareOnlyDemoPositionEdit } from "@/lib/manualDemoPositionEdit";
 import { toast } from "sonner";
-import { GitCompareArrows } from "lucide-react";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { GitCompareArrows, Trash2 } from "lucide-react";
 
 const CURRENCIES = ["CHF", "EUR", "USD", "GBP", "JPY"];
 
@@ -26,6 +27,8 @@ interface EditPositionFieldsModalProps {
     currency?: string;
   } | null;
   allowAlternatives?: boolean;
+  /** Nur für nicht aktivierte, ledgerfreie Demoportfolios freischalten. */
+  allowDelete?: boolean;
   onShowAlternatives?: (source: { ticker: string; companyName?: string }) => void;
   onSuccess?: () => void;
 }
@@ -42,6 +45,7 @@ export function EditPositionFieldsModal({
   rawPortfolioData,
   holding,
   allowAlternatives = false,
+  allowDelete = false,
   onShowAlternatives,
   onSuccess,
 }: EditPositionFieldsModalProps) {
@@ -57,6 +61,8 @@ export function EditPositionFieldsModal({
     avgBuyPrice: holding?.avgBuyPrice != null ? String(holding.avgBuyPrice) : "",
     currency: holding?.currency || "CHF",
   }));
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const update = trpc.portfolios.update.useMutation({
     onSuccess: () => {
@@ -70,9 +76,13 @@ export function EditPositionFieldsModal({
   });
   const updateDemoPositionShares = trpc.portfolios.updateDemoPositionShares.useMutation({
     onSuccess: (result) => {
-      toast.success(`Position und Cash-Reserve aktualisiert (Cash: CHF ${result.cashBalanceChf.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`);
+      const formattedCash = result.cashBalanceChf.toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      toast.success(isDeleting
+        ? `Position gelöscht · Cash-Reserve: CHF ${formattedCash}`
+        : `Position und Cash-Reserve aktualisiert (Cash: CHF ${formattedCash})`);
       utils.portfolios.getWithCurrency.invalidate(portfolioId);
       utils.portfolios.list.invalidate();
+      setIsDeleteConfirmOpen(false);
       onSuccess?.();
       onClose();
     },
@@ -80,6 +90,7 @@ export function EditPositionFieldsModal({
   });
 
   const handleSave = () => {
+    setIsDeleting(false);
     const ticker = form.ticker.trim().toUpperCase();
     if (!ticker) {
       toast.error("Ticker darf nicht leer sein");
@@ -125,6 +136,11 @@ export function EditPositionFieldsModal({
     };
     const newData = isArray ? stocks : { ...parsed, stocks };
     update.mutate({ id: portfolioId, portfolioData: JSON.stringify(newData) });
+  };
+
+  const handleDelete = () => {
+    setIsDeleting(true);
+    updateDemoPositionShares.mutate({ portfolioId, ticker: originalTicker, shares: 0 });
   };
 
   if (!holding) return null;
@@ -200,12 +216,24 @@ export function EditPositionFieldsModal({
         </div>
 
         <DialogFooter>
+          {allowDelete && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDeleteConfirmOpen(true)}
+              disabled={update.isPending || updateDemoPositionShares.isPending}
+              className="mr-auto border-red-400/50 text-red-300 hover:border-red-400 hover:bg-red-500/10 hover:text-red-200"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Löschen
+            </Button>
+          )}
           {allowAlternatives && onShowAlternatives && (
             <Button
               type="button"
               variant="outline"
               onClick={() => onShowAlternatives({ ticker: originalTicker, companyName: holding.companyName })}
-              className="mr-auto border-[#00CFC1]/45 text-[#00CFC1] hover:bg-[#00CFC1]/10"
+              className={allowDelete ? "border-[#00CFC1]/45 text-[#00CFC1] hover:bg-[#00CFC1]/10" : "mr-auto border-[#00CFC1]/45 text-[#00CFC1] hover:bg-[#00CFC1]/10"}
             >
               <GitCompareArrows className="h-4 w-4 mr-2" />
               Alternativen
@@ -219,6 +247,20 @@ export function EditPositionFieldsModal({
           </Button>
         </DialogFooter>
       </DialogContent>
+      <ConfirmDialog
+        open={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
+        title="Position löschen?"
+        description={
+          <>
+            <strong className="text-white">{originalTicker}{holding.companyName ? ` · ${holding.companyName}` : ""}</strong> wird aus diesem nicht aktivierten Demoportfolio entfernt. Der aktuelle CHF-Gegenwert wird der Cash-Reserve gutgeschrieben. Es werden keine Börsenorder, Zahlungen oder Ledgerbuchungen erstellt.
+          </>
+        }
+        confirmLabel="Position löschen"
+        pendingLabel="Wird gelöscht…"
+        onConfirm={handleDelete}
+        isPending={updateDemoPositionShares.isPending}
+      />
     </Dialog>
   );
 }
