@@ -248,10 +248,10 @@ export function PortfolioSettingsModal({
               </div>
               <div className="flex items-center gap-3">
                 <Input id="cashReservePct" type="number" min="0" max="99.99" step="0.1" value={cashReservePct} onChange={(event) => { setCashReservePct(event.target.value); setCashRebalanceConfirmed(false); }} className="w-28 bg-slate-700 border-slate-600 text-white" />
-                <span className="text-sm text-gray-300">% des Startkapitals</span>
+                <span className="text-sm text-gray-300">% des aktuellen Gesamtwerts</span>
               </div>
-              <p className="text-xs text-gray-300">Nur für nicht aktivierte Demoportfolios: Die Wertpapiergewichte und Demo-Stückzahlen werden proportional auf den verbleibenden Investitionsanteil umgerechnet. Cash ist danach das Residuum; es werden weder Orders noch Zahlungen oder Ledgerbuchungen erzeugt.</p>
-              {hasCashReserveChange && <label className="flex items-start gap-2 text-xs text-cyan-100 cursor-pointer"><input type="checkbox" checked={cashRebalanceConfirmed} onChange={(event) => setCashRebalanceConfirmed(event.target.checked)} className="mt-0.5" /><span>Ich bestätige die technische Neugewichtung bei unverändertem Startkapital.</span></label>}
+              <p className="text-xs text-gray-300">Nur für nicht aktivierte Demoportfolios: Alle aktuellen Wertpapiere und Demo-Stückzahlen werden proportional auf den verbleibenden Investitionsanteil umgerechnet. Cash ist danach das Residuum; es werden weder Orders noch Zahlungen oder Ledgerbuchungen erzeugt.</p>
+              {hasCashReserveChange && <label className="flex items-start gap-2 text-xs text-cyan-100 cursor-pointer"><input type="checkbox" checked={cashRebalanceConfirmed} onChange={(event) => setCashRebalanceConfirmed(event.target.checked)} className="mt-0.5" /><span>Ich bestätige die technische Neugewichtung bei unverändertem aktuellem Gesamtwert.</span></label>}
               <Button type="button" size="sm" variant="outline" onClick={handleCashReserveSave} disabled={!hasCashReserveChange || !cashRebalanceConfirmed || rebalanceDemoCashReserve.isPending} className="border-cyan-400/50 text-cyan-200 hover:bg-cyan-400/10">
                 {rebalanceDemoCashReserve.isPending ? <><Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />Cash wird umgerechnet…</> : <><Wallet className="h-3.5 w-3.5 mr-2" />Cash-Quote speichern</>}
               </Button>

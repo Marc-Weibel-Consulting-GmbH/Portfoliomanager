@@ -1319,7 +1319,7 @@ export const portfoliosRouter = router({
         if (!ctx.user?.id || ctx.user.id === 1) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
         }
-        const { getDb, getSavedPortfolioById, updateSavedPortfolio } = await import('../db');
+        const { getDb, getSavedPortfolioById, getStocksByTickers, updateSavedPortfolio } = await import('../db');
         const { portfolioTransactions } = await import('../../drizzle/schema');
         const { eq } = await import('drizzle-orm');
         const portfolio = await getSavedPortfolioById(input.portfolioId, ctx.user.id);
@@ -1350,19 +1350,62 @@ export const portfoliosRouter = router({
           throw new TRPCError({ code: 'BAD_REQUEST', message: 'Portfoliodaten sind ungültig.' });
         }
         const stocks = parsed.stocks ?? [];
-        const { rebalanceDemoCashReserve } = await import('../lib/demoCashReserveRebalance');
+        if (stocks.length === 0) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Portfolio enthält keine Wertpapierpositionen.' });
+        }
+        const tickers = stocks.map((holding) => String(holding.ticker ?? '').trim()).filter(Boolean);
+        const quotes = await getStocksByTickers(tickers);
+        const { tryConvertToCHF } = await import('../fxHelper');
+        const { resolveManualDemoHoldingShares } = await import('../lib/manualDemoHoldingShares');
+        const { rebalanceDemoCashReserveProportionally } = await import('../lib/demoCashReserveRebalance');
+        const today = new Date().toISOString().slice(0, 10);
+        const canonicalPositions = [] as Array<{
+          ticker: string;
+          shares: number;
+          currentPrice: number;
+          currency: string;
+          exchangeRateToChf: number;
+        }>;
+        for (const holding of stocks) {
+          const ticker = String(holding.ticker ?? '').trim();
+          const quote = quotes.get(ticker);
+          const currentPrice = Number(quote?.currentPrice ?? holding.currentPrice);
+          const currency = String(quote?.currency ?? holding.currency ?? 'CHF').toUpperCase();
+          if (!(currentPrice > 0)) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: `Position ${ticker} hat keinen gültigen Marktpreis.` });
+          }
+          let priceChf = currency === 'CHF' ? currentPrice : await tryConvertToCHF(currentPrice, currency, today);
+          if (!(priceChf && priceChf > 0) && currency !== 'CHF') {
+            const storedExchangeRate = Number(quote?.exchangeRateToChf ?? holding.exchangeRateToChf);
+            if (storedExchangeRate > 0) {
+              priceChf = currentPrice * storedExchangeRate;
+              console.warn(`[portfolios.rebalanceDemoCashReserve] Fallback auf gespeicherten CHF-Kurs für ${ticker} (${currency}).`);
+            }
+          }
+          if (!(priceChf && priceChf > 0)) {
+            throw new TRPCError({ code: 'BAD_REQUEST', message: `Position ${ticker} hat keinen gültigen CHF-Wechselkurs.` });
+          }
+          const exchangeRateToChf = priceChf / currentPrice;
+          canonicalPositions.push({
+            ticker,
+            shares: resolveManualDemoHoldingShares({
+              shares: holding.shares,
+              weightPct: holding.weight,
+              capitalBaseChf: portfolio.investmentAmount,
+              priceLocal: currentPrice,
+              exchangeRateToChf,
+            }),
+            currentPrice,
+            currency,
+            exchangeRateToChf,
+          });
+        }
         let rebalanced;
         try {
-          rebalanced = rebalanceDemoCashReserve({
-            investmentAmountChf: Number(portfolio.investmentAmount),
+          rebalanced = rebalanceDemoCashReserveProportionally({
+            cashBalanceChf: Number(portfolio.cashBalance ?? 0),
             targetCashReservePct: input.targetCashReservePct,
-            positions: stocks.map((holding) => ({
-              ticker: String(holding.ticker ?? ''),
-              weightPct: Number(holding.weight ?? 0),
-              currentPrice: Number(holding.currentPrice ?? 0),
-              currency: String(holding.currency ?? 'CHF'),
-              exchangeRateToChf: Number(holding.exchangeRateToChf ?? 1),
-            })),
+            positions: canonicalPositions,
           });
         } catch (error) {
           throw new TRPCError({
@@ -1374,33 +1417,41 @@ export const portfoliosRouter = router({
           const result = rebalanced.positions[index]!;
           return {
             ...holding,
-            weight: result.weightPct,
+            weight: ((result.valueAfterChf / rebalanced.totalValueChf) * 100).toFixed(6),
             shares: result.shares.toFixed(6),
-            totalValue: ((result.weightPct / 100) * Number(portfolio.investmentAmount)).toFixed(2),
+            currentPrice: result.currentPrice.toString(),
+            currency: result.currency,
+            exchangeRateToChf: result.exchangeRateToChf.toString(),
+            totalValue: result.valueAfterChf.toFixed(2),
           };
         });
         await updateSavedPortfolio(input.portfolioId, ctx.user.id, {
           portfolioData: JSON.stringify({
             ...parsed,
             stocks: rebalancedStocks,
-            cashPercentage: input.targetCashReservePct,
+            cashPercentage: ((rebalanced.cashBalanceChf / rebalanced.totalValueChf) * 100).toFixed(6),
           }),
           cashBalance: rebalanced.cashBalanceChf.toFixed(2),
         });
         const { refreshPortfolioMutationMarketData } = await import('../lib/portfolioMutationMarketRefresh');
         const marketDataRefresh = await refreshPortfolioMutationMarketData(
-          stocks.map((holding) => ({ ticker: String(holding.ticker ?? ''), currency: String(holding.currency ?? 'CHF') })),
+          canonicalPositions.map((holding) => ({ ticker: holding.ticker, currency: holding.currency })),
         );
         const { cacheDel } = await import('../redisClient');
-        const { invalidatePortfolioDetailCache } = await import('../lib/portfolioDetailCache');
-        await invalidatePortfolioDetailCache(cacheDel, input.portfolioId, ctx.user.id);
-        await perfCache.invalidate(`perf:v2:${ctx.user.id}`);
+        const { invalidatePortfolioMutationCaches } = await import('../lib/portfolioMutationCache');
+        await invalidatePortfolioMutationCaches({
+          cacheDel,
+          invalidatePerformance: (key) => perfCache.invalidate(key),
+          portfolioId: input.portfolioId,
+          userId: ctx.user.id,
+        });
         return {
           success: true,
           portfolioId: input.portfolioId,
           cashBalanceChf: rebalanced.cashBalanceChf,
           securitiesValueChf: rebalanced.securitiesValueChf,
           totalValueChf: rebalanced.totalValueChf,
+          scalingFactor: rebalanced.scalingFactor,
           marketDataRefresh,
           ledgerEntriesCreated: 0,
           liveTrackingChanged: false,

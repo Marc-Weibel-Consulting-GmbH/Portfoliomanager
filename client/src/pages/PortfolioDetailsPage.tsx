@@ -68,6 +68,7 @@ import { toast } from "sonner";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PortfolioEditModal } from "@/components/PortfolioEditModal";
 import { PortfolioSettingsModal } from "@/components/PortfolioSettingsModal";
+import { CashReserveAdjustDialog } from "@/components/CashReserveAdjustDialog";
 import { EditPositionModal } from "@/components/EditPositionModal";
 import { EditPositionFieldsModal } from "@/components/EditPositionFieldsModal";
 import { PositionAlternativesDialog } from "@/components/PositionAlternativesDialog";
@@ -1067,6 +1068,7 @@ export default function PortfolioDetailsPage() {
   // State for edit modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isCashReserveAdjustOpen, setIsCashReserveAdjustOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<any>(null);
   const [isEditPositionModalOpen, setIsEditPositionModalOpen] = useState(false);
@@ -1081,6 +1083,7 @@ export default function PortfolioDetailsPage() {
   // Beim Schliessen bleibt der key stabil, damit die Exit-Animation läuft.
   const [editModalOpenSeq, setEditModalOpenSeq] = useState(0);
   const [settingsModalOpenSeq, setSettingsModalOpenSeq] = useState(0);
+  const [cashReserveAdjustOpenSeq, setCashReserveAdjustOpenSeq] = useState(0);
   const [editFieldsOpenSeq, setEditFieldsOpenSeq] = useState(0);
 
   const openEditModal = () => {
@@ -1090,6 +1093,10 @@ export default function PortfolioDetailsPage() {
   const openSettingsModal = () => {
     setSettingsModalOpenSeq((n) => n + 1);
     setIsSettingsModalOpen(true);
+  };
+  const openCashReserveAdjustDialog = () => {
+    setCashReserveAdjustOpenSeq((n) => n + 1);
+    setIsCashReserveAdjustOpen(true);
   };
   const openEditFieldsModal = () => {
     setEditFieldsOpenSeq((n) => n + 1);
@@ -3047,10 +3054,33 @@ export default function PortfolioDetailsPage() {
                         <td className="px-3 py-3.5 text-sm text-gray-400">Cash (CHF)</td>
                         <td className="px-3 py-3.5"><span className="text-xs text-gray-400">—</span></td>
                         <td className="px-3 py-3.5 text-right text-sm text-gray-400">{((parseFloat(portfolio.cashBalance) / totalValueCHF) * 100).toFixed(1)}%</td>
+                        {showDetailCols && <>
+                          <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
+                          <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
+                          <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
+                          <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
+                        </>}
                         <td className="px-3 py-3.5 text-right text-sm text-white">CHF {new Intl.NumberFormat('de-CH', { maximumFractionDigits: 0 }).format(parseFloat(portfolio.cashBalance))}</td>
                         <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
-                        <td className="px-5 py-3.5 text-right text-gray-400 text-sm">—</td>
-                        <td></td>
+                        <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
+                        <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
+                        <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
+                        <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
+                        <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
+                        <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
+                        <td className="px-3 py-3.5 text-right text-gray-400 text-sm">—</td>
+                        <td className="pr-2 text-right">
+                          {!isReadOnly && isDemo && (
+                            <button
+                              type="button"
+                              onClick={openCashReserveAdjustDialog}
+                              className="rounded-md border border-[#00CFC1]/35 px-2 py-1 text-xs text-[#00CFC1] transition-colors hover:bg-[#00CFC1]/10"
+                              title="Cashquote anpassen und alle Wertschriften proportional skalieren"
+                            >
+                              Cash anpassen
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     )}
                   </tbody>
@@ -3444,16 +3474,28 @@ export default function PortfolioDetailsPage() {
           try {
             const stored = JSON.parse((portfolio as any).portfolioData || "{}");
             const cash = Number(stored.cashPercentage);
-            const actualCashReservePct = (Number((portfolio as any).cashBalance ?? 0) / Number((portfolio as any).investmentAmount ?? 0)) * 100;
+            const capitalBase = Number((portfolio as any).totalValueCHF ?? (portfolio as any).investmentAmount ?? 0);
+            const actualCashReservePct = (Number((portfolio as any).cashBalance ?? 0) / capitalBase) * 100;
             return Number.isFinite(actualCashReservePct) && actualCashReservePct >= 0
               ? Math.round(actualCashReservePct * 10) / 10
               : (Number.isFinite(cash) ? cash : 0);
           } catch {
-            const actualCashReservePct = (Number((portfolio as any).cashBalance ?? 0) / Number((portfolio as any).investmentAmount ?? 0)) * 100;
+            const capitalBase = Number((portfolio as any).totalValueCHF ?? (portfolio as any).investmentAmount ?? 0);
+            const actualCashReservePct = (Number((portfolio as any).cashBalance ?? 0) / capitalBase) * 100;
             return Number.isFinite(actualCashReservePct) && actualCashReservePct >= 0 ? Math.round(actualCashReservePct * 10) / 10 : 0;
           }
         })()}
         portfolioType={portfolio.portfolioType as 'demo' | 'live'}
+        onSuccess={handleEditSuccess}
+      />
+
+      <CashReserveAdjustDialog
+        key={`cash-reserve-${cashReserveAdjustOpenSeq}`}
+        open={isCashReserveAdjustOpen}
+        onClose={() => setIsCashReserveAdjustOpen(false)}
+        portfolioId={portfolioId}
+        currentCashBalanceChf={cashBalance}
+        currentTotalValueChf={totalValueCHF}
         onSuccess={handleEditSuccess}
       />
       

@@ -882,3 +882,6 @@
 
 ## Positionsalternativen: Versichererpeers und Detaildialog (2026-09-24)
 - [x] ZURN.SW und seine weiteren Handelslinien als denselben Emittenten ausgeschlossen, passende Schweizer Versicherer vor globalen Peers bevorzugt und für jeden Alternativenkandidaten eine lesende Detailansicht mit Kurschart und Kennzahlen analog der Aktienansicht bereitgestellt; ohne Portfolio-, Cash-, Transaktions- oder Handelsmutation (2026-09-24)
+
+## Proportionale Cashquotenanpassung (2026-09-24)
+- [x] Eine bestätigungspflichtige Cashquotenanpassung für nicht aktivierte Demoportfolios mit Vorschau implementiert: sämtliche Wertschriften (inklusive ETFs/ETPs) werden anteilig gekürzt bzw. aufgestockt, Kapitalbasis/Cashneutralität/Kursbasis sind gesichert und Live-/Ledgerportfolios gesperrt (2026-09-24)
