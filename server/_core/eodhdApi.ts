@@ -18,6 +18,7 @@ export interface EODHDFundamentals {
   companyName: string | null;
   sector: string | null;
   industry: string | null;
+  currency: string | null;
   pegRatio: number | null;
   peRatio: number | null;
   dividendYield: number | null;
@@ -98,6 +99,7 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       companyName: null,
       sector: null,
       industry: null,
+      currency: null,
       pegRatio: null,
       peRatio: null,
       dividendYield: null,
@@ -129,6 +131,7 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
         companyName: null,
         sector: null,
         industry: null,
+        currency: null,
         pegRatio: null,
         peRatio: null,
         dividendYield: null,
@@ -147,6 +150,7 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       companyName: null,
       sector: null,
       industry: null,
+      currency: null,
       pegRatio: null,
       peRatio: null,
       dividendYield: null,
@@ -178,6 +182,9 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       }
       if (data.General.Industry) {
         fundamentals.industry = data.General.Industry;
+      }
+      if (data.General.CurrencyCode) {
+        fundamentals.currency = data.General.CurrencyCode.toUpperCase();
       }
     }
 
@@ -272,6 +279,7 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       companyName: null,
       sector: null,
       industry: null,
+      currency: null,
       pegRatio: null,
       peRatio: null,
       dividendYield: null,
@@ -283,4 +291,3 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
     };
   }
 }
-

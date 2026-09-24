@@ -43,6 +43,7 @@ export const eodhdFundamentalsSchema = z.object({
       Name: z.string().nullish(),
       Sector: z.string().nullish(),
       Industry: z.string().nullish(),
+      CurrencyCode: z.string().nullish(),
     })
     .nullish(),
   Highlights: z

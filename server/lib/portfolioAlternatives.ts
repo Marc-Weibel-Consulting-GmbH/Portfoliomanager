@@ -8,6 +8,8 @@ export type AlternativeStock = {
   category: string | null;
   currency: string | null;
   currentPrice: number | null;
+  /** Aktuelle, quellengebundene CHF-Rate für einen globalen Peer. */
+  exchangeRateToChf?: number | null;
   dividendYield: number | null;
   sharpeRatio: number | null;
   beta: number | null;
@@ -19,6 +21,8 @@ export type AlternativeStock = {
   dataQualityStatus: string | null;
   isActive: boolean;
   isCantonalBank: boolean;
+  /** Lokale Stammdaten oder schreibgeschützter globaler Screener-Treffer. */
+  origin?: "local" | "global";
 };
 
 export type AlternativeSource = Pick<AlternativeStock,
@@ -26,7 +30,7 @@ export type AlternativeSource = Pick<AlternativeStock,
 >;
 
 export type RankedAlternative = AlternativeStock & {
-  similarity: "same_industry" | "same_sector";
+  similarity: "exact_industry";
   scoreCoverage: number;
 };
 
@@ -45,11 +49,13 @@ export function canonicalTickerIdentity(ticker: string): string {
 }
 
 /**
- * Ranks only currently priced, same-currency equity candidates from the same
- * sector. The selected portfolio's own holdings (including known aliases) are
- * always excluded. Candidates must also have a verified dividend yield within
- * +/- one percentage point of the source position. It is a comparison list,
- * not a recommendation or an instruction to trade.
+ * Ranks only currently priced equity candidates from the exact same EODHD
+ * industry. The selected portfolio's own holdings (including known aliases)
+ * are always excluded. Sector matching is intentionally prohibited: it made
+ * Kuehne + Nagel appear comparable to sanitaryware and industrial machinery.
+ * Candidates must have a verified dividend yield within +/- one percentage
+ * point of the source position. It is a comparison list, not a recommendation
+ * or an instruction to trade.
  */
 export function selectComparableAlternatives(input: {
   source: AlternativeSource;
@@ -65,7 +71,7 @@ export function selectComparableAlternatives(input: {
   const held = new Set([...input.heldTickers].map(canonicalTickerIdentity));
   const limit = Math.max(1, Math.min(input.limit ?? 5, 5));
 
-  if (!sourceTicker || !sourceSector || !sourceCurrency || !finite(sourceDividendYield)) return [];
+  if (!sourceTicker || !sourceSector || !sourceIndustry || !sourceCurrency || !finite(sourceDividendYield)) return [];
 
   return input.candidates
     .filter((candidate) => {
@@ -73,7 +79,7 @@ export function selectComparableAlternatives(input: {
       if (!ticker || ticker === sourceTicker || held.has(ticker)) return false;
       if (!candidate.isActive) return false;
       if (normalized(candidate.sector) !== sourceSector) return false;
-      if (normalized(candidate.currency) !== sourceCurrency) return false;
+      if (normalized(candidate.industry) !== sourceIndustry) return false;
       if (!finite(candidate.currentPrice) || candidate.currentPrice! <= 0) return false;
       if (!finite(candidate.dividendYield)) return false;
       if (Math.abs(candidate.dividendYield! - sourceDividendYield!) > ALTERNATIVE_DIVIDEND_YIELD_TOLERANCE_PCT) return false;
@@ -84,10 +90,7 @@ export function selectComparableAlternatives(input: {
     .map((candidate) => {
       const scoreCoverage = [candidate.quality, candidate.valuation, candidate.timing]
         .filter((score) => finite(score)).length;
-      const similarity: RankedAlternative["similarity"] = sourceIndustry
-        && normalized(candidate.industry) === sourceIndustry
-        ? "same_industry"
-        : "same_sector";
+      const similarity: RankedAlternative["similarity"] = "exact_industry";
       return { ...candidate, similarity, scoreCoverage };
     })
     .sort((a, b) => {
@@ -98,8 +101,6 @@ export function selectComparableAlternatives(input: {
         const cantonalBankOrder = Number(b.isCantonalBank) - Number(a.isCantonalBank);
         if (cantonalBankOrder !== 0) return cantonalBankOrder;
       }
-      const industryOrder = Number(b.similarity === "same_industry") - Number(a.similarity === "same_industry");
-      if (industryOrder !== 0) return industryOrder;
       if (b.scoreCoverage !== a.scoreCoverage) return b.scoreCoverage - a.scoreCoverage;
       const signalOrder = (b.signalScore ?? -1) - (a.signalScore ?? -1);
       if (signalOrder !== 0) return signalOrder;

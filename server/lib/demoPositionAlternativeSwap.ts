@@ -1,8 +1,9 @@
 import { eq, sql } from "drizzle-orm";
 import { portfolioTransactions } from "../../drizzle/schema";
 import { perfCache } from "../_core/perfCache";
-import { getAllStocks, getDb, getSavedPortfolioById, updateSavedPortfolio } from "../db";
+import { getAllStocks, getDb, getSavedPortfolioById, getStockByTicker, insertStock, updateSavedPortfolio } from "../db";
 import { tryConvertToCHF } from "../fxHelper";
+import { fetchEODHDFundamentals } from "../_core/eodhdApi";
 import { resolveManualDemoHoldingShares } from "./manualDemoHoldingShares";
 import { invalidatePortfolioMutationCaches } from "./portfolioMutationCache";
 import { refreshPortfolioMutationMarketData } from "./portfolioMutationMarketRefresh";
@@ -13,6 +14,7 @@ import {
   type AlternativeStock,
   type RankedAlternative,
 } from "./portfolioAlternatives";
+import { findGlobalExactIndustryPeers } from "./globalIndustryPeerSearch";
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 const numberOrNull = (value: unknown): number | null => {
@@ -44,7 +46,8 @@ export type DemoPositionSwapPreview = {
     portfolioType: "demo";
     liveTracking: false;
     ledgerEntries: 0;
-    sameCurrencyOnly: true;
+    exactIndustryOnly: true;
+    foreignCurrencyWithFxOnly: true;
     maxAlternatives: 5;
   };
 };
@@ -132,7 +135,11 @@ async function loadScoresReadOnly(tickers: string[]): Promise<Map<string, ReadOn
   return result;
 }
 
-function toAlternativeStock(stock: any, scores: Map<string, ReadOnlyScore>): AlternativeStock {
+function toAlternativeStock(
+  stock: any,
+  scores: Map<string, ReadOnlyScore>,
+  overrides: Partial<AlternativeStock> = {},
+): AlternativeStock {
   const score = scores.get(stock.ticker);
   return {
     ticker: stock.ticker,
@@ -153,7 +160,35 @@ function toAlternativeStock(stock: any, scores: Map<string, ReadOnlyScore>): Alt
     dataQualityStatus: stock.dataQualityStatus ?? null,
     isActive: Number(stock.isActive ?? 0) === 1,
     isCantonalBank: /kantonalbank|banque\s+cantonale/i.test(String(stock.companyName ?? "")),
+    origin: "local",
+    ...overrides,
   };
+}
+
+async function persistConfirmedGlobalPeer(input: {
+  alternative: AlternativeStock;
+  exchangeRateToChf: number;
+}): Promise<void> {
+  if (input.alternative.origin !== "global") return;
+  const existing = await getStockByTicker(input.alternative.ticker);
+  if (existing) return;
+  await insertStock({
+    ticker: input.alternative.ticker,
+    companyName: input.alternative.companyName,
+    currentPrice: String(input.alternative.currentPrice),
+    currency: input.alternative.currency,
+    dividendYield: input.alternative.dividendYield == null ? null : String(input.alternative.dividendYield),
+    category: "Globaler Branchenpeer",
+    sector: input.alternative.sector,
+    industry: input.alternative.industry,
+    portfolioWeight: "0",
+    exchangeRateToChf: String(input.exchangeRateToChf),
+    isActive: 1,
+    dataQualityStatus: "global_exact_industry",
+    dataQualityNotes: "EODHD-Screener: exakte Branche; beim bestätigten Demo-Tausch angelegt.",
+    dataQualityUpdatedAt: new Date(),
+    lastDataRefresh: new Date(),
+  });
 }
 
 async function toCanonicalHolding(input: {
@@ -205,11 +240,37 @@ async function loadSwapContext(portfolioId: number, userId: number, sourceTicker
   if (!sourceCanonical) throw new Error("Ausgangsposition konnte nicht bewertet werden.");
 
   const scoreMap = await loadScoresReadOnly(allStocks.map((stock) => stock.ticker));
-  const sourceAlternative = toAlternativeStock(sourceStock, scoreMap);
+  // The local universe was historically curated by sector only. Resolve the
+  // source's actual EODHD industry for every preview so a missing/stale local
+  // `industry` never degrades a logistics company to generic Industrials.
+  const sourceFundamentals = await fetchEODHDFundamentals(sourceTicker);
+  const sourceAlternative = toAlternativeStock(sourceStock, scoreMap, {
+    sector: sourceFundamentals.sector ?? sourceStock.sector ?? null,
+    industry: sourceFundamentals.industry ?? null,
+    dividendYield: sourceFundamentals.dividendYield ?? numberOrNull(sourceStock.dividendYield),
+  });
+  const heldTickers = rawHoldings.map((holding) => normalizedTicker(holding.ticker));
+  const knownCompanyNames = [
+    ...rawHoldings.map((holding) => String(holding.companyName ?? "")),
+  ];
+  const localCandidates = allStocks.map((stock) => toAlternativeStock(stock, scoreMap));
+  const globalCandidates = sourceAlternative.industry
+    ? await findGlobalExactIndustryPeers({
+      industry: sourceAlternative.industry,
+      // Existing universe entries are comparison candidates, not exclusions.
+      // Only actual portfolio holdings must never be proposed again.
+      excludedTickers: heldTickers,
+      knownCompanyNames,
+      sourceDividendYieldPct: sourceAlternative.dividendYield,
+    })
+    : [];
+  for (const peer of globalCandidates) {
+    stockByTicker.set(normalizedTicker(peer.ticker), peer as any);
+  }
   const alternatives = selectComparableAlternatives({
     source: sourceAlternative,
-    candidates: allStocks.map((stock) => toAlternativeStock(stock, scoreMap)),
-    heldTickers: rawHoldings.map((holding) => normalizedTicker(holding.ticker)),
+    candidates: [...localCandidates, ...globalCandidates],
+    heldTickers,
     limit: 5,
   });
   const sourceValueChf = sourceCanonical.shares * sourceCanonical.priceLocal * sourceCanonical.exchangeRateToChf;
@@ -218,10 +279,13 @@ async function loadSwapContext(portfolioId: number, userId: number, sourceTicker
     const targetStock = stockByTicker.get(normalizedTicker(alternative.ticker));
     const targetPriceLocal = numberOrNull(targetStock?.currentPrice);
     const targetCurrency = String(targetStock?.currency ?? "").toUpperCase();
-    if (!targetStock || !targetPriceLocal || targetPriceLocal <= 0 || targetCurrency !== sourceCanonical.currency) continue;
-    const targetPriceChf = targetCurrency === "CHF"
-      ? targetPriceLocal
-      : await tryConvertToCHF(targetPriceLocal, targetCurrency, today);
+    if (!targetStock || !targetPriceLocal || targetPriceLocal <= 0 || !targetCurrency) continue;
+    const verifiedPeerFx = numberOrNull((targetStock as unknown as { exchangeRateToChf?: unknown }).exchangeRateToChf);
+    const targetPriceChf = verifiedPeerFx && verifiedPeerFx > 0
+      ? targetPriceLocal * verifiedPeerFx
+      : targetCurrency === "CHF"
+        ? targetPriceLocal
+        : await tryConvertToCHF(targetPriceLocal, targetCurrency, today);
     if (!targetPriceChf || targetPriceChf <= 0) continue;
     const swap = calculateEquivalentValueSwap({
       sourceShares: sourceCanonical.shares,
@@ -275,7 +339,8 @@ export async function getDemoPositionSwapPreview(input: {
       portfolioType: "demo",
       liveTracking: false,
       ledgerEntries: 0,
-      sameCurrencyOnly: true,
+      exactIndustryOnly: true,
+      foreignCurrencyWithFxOnly: true,
       maxAlternatives: 5,
     },
   };
@@ -363,6 +428,14 @@ export async function executeConfirmedDemoPositionSwap(input: {
     cashBalance: rebalanced.cashBalanceChf.toFixed(2),
   });
   if (!result) throw new Error("Portfolio konnte nicht aktualisiert werden.");
+
+  // A global peer is deliberately absent from local watchlist/universe data
+  // during preview. It becomes a persisted instrument only after this explicit
+  // owner-confirmed demo exchange has successfully updated the portfolio.
+  await persistConfirmedGlobalPeer({
+    alternative: selected,
+    exchangeRateToChf: targetExchangeRateToChf,
+  });
 
   const marketDataRefresh = await refreshPortfolioMutationMarketData([
     { ticker: context.source.ticker, currency: context.source.currency },

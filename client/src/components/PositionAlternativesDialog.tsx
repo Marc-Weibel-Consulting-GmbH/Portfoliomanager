@@ -111,7 +111,7 @@ export function PositionAlternativesDialog({
               Alternativen für {sourceTicker}
             </DialogTitle>
             <DialogDescription className="text-gray-400">
-              Bis zu fünf aktive, nicht bereits enthaltene Aktien aus demselben Sektor und derselben Handelswährung. Die Reihenfolge ist ein Datenvergleich, keine Kaufempfehlung.
+              Bis zu fünf nicht bereits enthaltene Aktien aus derselben verifizierten Branche. Wenn lokal nicht genügend Peers vorliegen, wird das globale Screener-Universum geprüft. Die Reihenfolge ist ein Datenvergleich, keine Kaufempfehlung.
             </DialogDescription>
           </DialogHeader>
 
@@ -164,8 +164,13 @@ export function PositionAlternativesDialog({
                               <span className="font-semibold text-white font-mono">{alternative.ticker}</span>
                               <span className="text-sm text-gray-300">{alternative.companyName}</span>
                               <span className="text-[10px] px-1.5 py-0.5 rounded border border-white/15 text-gray-400">
-                                {alternative.similarity === "same_industry" ? "gleiche Branche" : "gleicher Sektor"}
+                                gleiche Branche
                               </span>
+                              {alternative.origin === "global" && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded border border-cyan-400/25 bg-cyan-400/10 text-cyan-200">
+                                  Globaler Screener
+                                </span>
+                              )}
                             </div>
                             <div className="overflow-x-auto mt-2">
                               <div className="grid grid-cols-5 min-w-[500px] gap-x-3 text-xs">

@@ -867,3 +867,6 @@
 
 ## Alternativen-Dialog: Layout und Peer-Diversität (2026-09-24)
 - [x] Breiteres Kennzahlenlayout, bevorzugte Kantonalbank-Peers, Dividendenrendite innerhalb von ±1 Prozentpunkt und alias-sicherer Ausschluss bereits gehaltener Positionen implementiert und geprüft (2026-09-24)
+
+## Positionsalternativen: Branchenpräzision und Universumserweiterung (2026-09-24)
+- [x] Alternativen auf verifizierte Branchenpeers (vor Sektorpeers) begrenzt und bei Lücken analog zum Watchlist-Screener im erweiterten Aktienuniversum ergänzt; Daten- und Tauschguards geprüft (2026-09-24)

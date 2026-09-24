@@ -34,7 +34,7 @@ const lukn = {
 };
 
 describe("selectComparableAlternatives", () => {
-  it("selects at most five priced, same-sector, same-currency and dividend-similar alternatives", () => {
+  it("selects at most five priced, exact-industry and dividend-similar alternatives", () => {
     const result = selectComparableAlternatives({
       source: lukn,
       heldTickers: ["LUKN.SW", "HELD.SW"],
@@ -52,8 +52,8 @@ describe("selectComparableAlternatives", () => {
       ],
     });
 
-    expect(result.map((item) => item.ticker)).toEqual(["SGKN.SW", "TKBP.SW", "OTHER.SW"]);
-    expect(result.every((item) => item.currency === "CHF" && item.sector === "Financial Services")).toBe(true);
+    expect(result.map((item) => item.ticker)).toEqual(["SGKN.SW", "TKBP.SW", "USD.BANK", "OTHER.SW"]);
+    expect(result.every((item) => item.industry === "Banks - Regional" && item.sector === "Financial Services")).toBe(true);
     expect(result.every((item) => Math.abs((item.dividendYield ?? 0) - 2.31) <= 1)).toBe(true);
   });
 
@@ -67,8 +67,31 @@ describe("selectComparableAlternatives", () => {
         candidate("TKBP.SW", { companyName: "Thurgauer Kantonalbank", dividendYield: 2.5, isCantonalBank: true, signalScore: 1 }),
       ],
     });
-    expect(result.map((item) => item.ticker)).toEqual(["SGKN.SW", "TKBP.SW", "BAER.SW"]);
+    expect(result.map((item) => item.ticker)).toEqual(["SGKN.SW", "TKBP.SW"]);
     expect(result.slice(0, 2).every((item) => item.isCantonalBank)).toBe(true);
+  });
+
+  it("never falls back from an exact logistics industry to unrelated sector peers", () => {
+    const result = selectComparableAlternatives({
+      source: {
+        ticker: "KNIN.SW",
+        sector: "Industrials",
+        industry: "Integrated Freight & Logistics",
+        category: "Value",
+        currency: "CHF",
+        dividendYield: 2.6,
+        isCantonalBank: false,
+      },
+      heldTickers: ["KNIN.SW"],
+      candidates: [
+        candidate("GEBN.SW", { sector: "Industrials", industry: "Building Products", currency: "CHF", dividendYield: 2.35 }),
+        candidate("GF.SW", { sector: "Industrials", industry: "Specialty Industrial Machinery", currency: "CHF", dividendYield: 2.31 }),
+        candidate("DHL.DE", { sector: "Industrials", industry: "Integrated Freight & Logistics", currency: "EUR", dividendYield: 3.24 }),
+      ],
+    });
+
+    expect(result.map((item) => item.ticker)).toEqual(["DHL.DE"]);
+    expect(result.every((item) => item.industry === "Integrated Freight & Logistics")).toBe(true);
   });
 
   it("never substitutes an ETF, a held stock, or a ticker alias of a held stock", () => {
@@ -109,6 +132,18 @@ describe("calculateEquivalentValueSwap", () => {
     expect(result.targetShares).toBe(14.573554);
     expect(result.targetValueChf + result.cashResidualChf).toBeCloseTo(result.sourceValueChf, 6);
     expect(Math.abs(result.cashResidualChf)).toBeLessThan(0.01);
+  });
+
+  it("preserves CHF value for a foreign-currency peer using its verified FX rate", () => {
+    const result = calculateEquivalentValueSwap({
+      sourceShares: 21.722957,
+      sourcePriceLocal: 231.5,
+      sourceExchangeRateToChf: 1,
+      targetPriceLocal: 67.25,
+      targetExchangeRateToChf: 0.8273,
+    });
+    expect(result.targetValueChf + result.cashResidualChf).toBeCloseTo(result.sourceValueChf, 6);
+    expect(result.targetShares).toBeGreaterThan(0);
   });
 
   it("rejects a missing or invalid quote instead of estimating a target quantity", () => {
