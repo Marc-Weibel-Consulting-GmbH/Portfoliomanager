@@ -70,6 +70,7 @@ import { PortfolioEditModal } from "@/components/PortfolioEditModal";
 import { PortfolioSettingsModal } from "@/components/PortfolioSettingsModal";
 import { EditPositionModal } from "@/components/EditPositionModal";
 import { EditPositionFieldsModal } from "@/components/EditPositionFieldsModal";
+import { PositionAlternativesDialog } from "@/components/PositionAlternativesDialog";
 import { TransactionModal } from "@/components/TransactionModal";
 import { SwissquotePDFImport } from "@/components/SwissquotePDFImport";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1069,6 +1070,8 @@ export default function PortfolioDetailsPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<any>(null);
   const [isEditPositionModalOpen, setIsEditPositionModalOpen] = useState(false);
+  const [alternativesSource, setAlternativesSource] = useState<{ ticker: string; companyName?: string } | null>(null);
+  const [isAlternativesOpen, setIsAlternativesOpen] = useState(false);
   // Positions-Felder bearbeiten (Ticker/ISIN/Stück/Preis/Währung) direkt im portfolioData
   const [editFieldsHolding, setEditFieldsHolding] = useState<any>(null);
   const [isEditFieldsOpen, setIsEditFieldsOpen] = useState(false);
@@ -2669,6 +2672,19 @@ export default function PortfolioDetailsPage() {
                             </td>
                             <td className="pr-2 text-right">
                               <div className="flex items-center justify-end gap-1">
+                                {!isReadOnly && isDemo && <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAlternativesSource({ ticker: h.ticker, companyName: h.companyName });
+                                    setIsAlternativesOpen(true);
+                                  }}
+                                  aria-label={`Alternativen für ${h.ticker} anzeigen`}
+                                  title="Alternativen vergleichen und 1:1-Demo-Tausch vorbereiten"
+                                  className="text-gray-500 hover:text-[#00CFC1] transition-colors p-1"
+                                >
+                                  <GitCompareArrows className="h-3.5 w-3.5" />
+                                </button>}
                                 {!isReadOnly && <button
                                   type="button"
                                   onClick={(e) => {
@@ -3472,6 +3488,23 @@ export default function PortfolioDetailsPage() {
         portfolioId={portfolioId}
         rawPortfolioData={(allPortfolios as any[] | undefined)?.find((p) => p.id === portfolioId)?.portfolioData}
         holding={editFieldsHolding}
+        allowAlternatives={!isReadOnly && isDemo}
+        onShowAlternatives={(source) => {
+          setIsEditFieldsOpen(false);
+          setAlternativesSource(source);
+          setIsAlternativesOpen(true);
+        }}
+        onSuccess={handleEditSuccess}
+      />
+
+      <PositionAlternativesDialog
+        open={isAlternativesOpen}
+        onClose={() => {
+          setIsAlternativesOpen(false);
+          setAlternativesSource(null);
+        }}
+        portfolioId={portfolioId}
+        source={alternativesSource}
         onSuccess={handleEditSuccess}
       />
 

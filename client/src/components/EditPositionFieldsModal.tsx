@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { trpc } from "@/lib/trpc";
 import { isShareOnlyDemoPositionEdit } from "@/lib/manualDemoPositionEdit";
 import { toast } from "sonner";
+import { GitCompareArrows } from "lucide-react";
 
 const CURRENCIES = ["CHF", "EUR", "USD", "GBP", "JPY"];
 
@@ -24,6 +25,8 @@ interface EditPositionFieldsModalProps {
     isin?: string;
     currency?: string;
   } | null;
+  allowAlternatives?: boolean;
+  onShowAlternatives?: (source: { ticker: string; companyName?: string }) => void;
   onSuccess?: () => void;
 }
 
@@ -38,6 +41,8 @@ export function EditPositionFieldsModal({
   portfolioId,
   rawPortfolioData,
   holding,
+  allowAlternatives = false,
+  onShowAlternatives,
   onSuccess,
 }: EditPositionFieldsModalProps) {
   const utils = trpc.useUtils();
@@ -195,6 +200,17 @@ export function EditPositionFieldsModal({
         </div>
 
         <DialogFooter>
+          {allowAlternatives && onShowAlternatives && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onShowAlternatives({ ticker: originalTicker, companyName: holding.companyName })}
+              className="mr-auto border-[#00CFC1]/45 text-[#00CFC1] hover:bg-[#00CFC1]/10"
+            >
+              <GitCompareArrows className="h-4 w-4 mr-2" />
+              Alternativen
+            </Button>
+          )}
           <Button variant="outline" onClick={onClose} className="border-slate-600 text-white hover:bg-slate-700">
             Abbrechen
           </Button>

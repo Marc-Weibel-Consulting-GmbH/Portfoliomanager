@@ -1710,6 +1710,72 @@ export const portfoliosRouter = router({
         };
       }),
 
+    /**
+     * Read-only Vorschau für einen cashneutralen 1:1-Aktientausch. Die
+     * Kandidaten stammen ausschliesslich aus dem aktiven, gleichwährungsigen
+     * Universum desselben Sektors. Die Query schreibt nie Portfolio- oder
+     * Marktdaten.
+     */
+    getDemoPositionSwapAlternatives: protectedProcedure
+      .input(z.object({
+        portfolioId: z.number().int().positive(),
+        sourceTicker: z.string().min(1).max(50),
+      }))
+      .query(async ({ input, ctx }) => {
+        if (!ctx.user?.id || ctx.user.id === 1) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+        try {
+          const { getDemoPositionSwapPreview } = await import('../lib/demoPositionAlternativeSwap');
+          return await getDemoPositionSwapPreview({
+            portfolioId: input.portfolioId,
+            userId: ctx.user.id,
+            sourceTicker: input.sourceTicker,
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: error instanceof Error ? error.message : 'Tauschalternativen konnten nicht geprüft werden.',
+          });
+        }
+      }),
+
+    /**
+     * Führt ausschliesslich nach einer UI-Bestätigung einen cashneutralen
+     * Demo-Tausch aus. Eigentümerschaft, Demo-/Live-Status, Ledgerfreiheit und
+     * der unveränderte CHF-Gegenwert werden serverseitig erneut geprüft.
+     */
+    confirmDemoPositionSwap: protectedProcedure
+      .input(z.object({
+        portfolioId: z.number().int().positive(),
+        sourceTicker: z.string().min(1).max(50),
+        targetTicker: z.string().min(1).max(50),
+        expectedSourceValueChf: z.number().positive(),
+        expectedTargetValueChf: z.number().positive(),
+        confirmed: z.literal(true),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user?.id || ctx.user.id === 1) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required.' });
+        }
+        try {
+          const { executeConfirmedDemoPositionSwap } = await import('../lib/demoPositionAlternativeSwap');
+          return await executeConfirmedDemoPositionSwap({
+            portfolioId: input.portfolioId,
+            userId: ctx.user.id,
+            sourceTicker: input.sourceTicker,
+            targetTicker: input.targetTicker,
+            expectedSourceValueChf: input.expectedSourceValueChf,
+            expectedTargetValueChf: input.expectedTargetValueChf,
+          });
+        } catch (error) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: error instanceof Error ? error.message : 'Tausch konnte nicht ausgeführt werden.',
+          });
+        }
+      }),
+
     update: protectedProcedure
       .input(
         z.object({

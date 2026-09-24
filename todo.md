@@ -861,3 +861,6 @@
 
 ## ETF-Look-through für Drei-Scores (2026-09-24)
 - [x] Lizenz- und quellengestützten, gewichteten CHDVD-Look-through für Qualität, Bewertung und Timing gegen iShares-Kennzahlen abgeglichen und mit einem 90-%-Abdeckungsgate in die Portfolioanzeige übernommen (2026-09-24). Qualität/Bewertung bleiben beim geprüften Stand eine ausgewiesene Datenlücke; Timing 56,2/100 ist vollständig abgedeckt. Kein ETF-Bestandsteil oder Einzelgewicht wird angezeigt oder gespeichert.
+
+## Positionsalternativen mit 1:1-Tauschvorschau (2026-09-24)
+- [x] Fünf vergleichbare, datenbelegte Alternativen je Aktienposition anzeigen und einen eigentümergebundenen, bestätigungspflichtigen 1:1-Tausch mit unveränderter absoluter CHF-Positionsgrösse vorbereitet; ohne Bestätigung keine Portfolio-, Cash-, Transaktions- oder Handelsmutation ausgelöst (2026-09-24)
