@@ -52,7 +52,8 @@ describe("selectComparableAlternatives", () => {
       ],
     });
 
-    expect(result.map((item) => item.ticker)).toEqual(["SGKN.SW", "TKBP.SW", "USD.BANK", "OTHER.SW"]);
+    // Schweizer CHF-Peers stehen vor einem ansonsten höher gerankten USD-Peer.
+    expect(result.map((item) => item.ticker)).toEqual(["SGKN.SW", "TKBP.SW", "OTHER.SW", "USD.BANK"]);
     expect(result.every((item) => item.industry === "Banks - Regional" && item.sector === "Financial Services")).toBe(true);
     expect(result.every((item) => Math.abs((item.dividendYield ?? 0) - 2.31) <= 1)).toBe(true);
   });
@@ -107,6 +108,35 @@ describe("selectComparableAlternatives", () => {
       ],
     });
     expect(result.map((item) => item.ticker)).toEqual(["VALID.SW"]);
+  });
+
+  it("keeps one preferred listing per issuer and excludes an issuer already held under another listing", () => {
+    const source = {
+      ticker: "SREN.SW",
+      sector: "Financial Services",
+      industry: "Insurance - Diversified",
+      category: "Value",
+      currency: "CHF",
+      dividendYield: 4.8,
+      isCantonalBank: false,
+    };
+    const result = selectComparableAlternatives({
+      source,
+      heldTickers: ["SREN.SW"],
+      heldCompanyNames: ["Swiss Re AG"],
+      candidates: [
+        candidate("MUV2.DE", { companyName: "Münchener Rück", industry: source.industry, dividendYield: 4.8, currency: "EUR", origin: "local" }),
+        candidate("MUV2.DE", { companyName: "Münchener Rück", industry: source.industry, dividendYield: 4.8, currency: "EUR", origin: "global" }),
+        candidate("MURGY", { companyName: "Muenchener Rueckver Ges", industry: source.industry, dividendYield: 4.8, currency: "USD", origin: "global" }),
+        candidate("HNR1.DE", { companyName: "Hannover Rück SE", industry: source.industry, dividendYield: 4.9, currency: "EUR", origin: "local" }),
+        candidate("HVRRY", { companyName: "Hannover Re", industry: source.industry, dividendYield: 5.1, currency: "USD", origin: "global" }),
+        candidate("SREN.US", { companyName: "Swiss Reinsurance Company", industry: source.industry, dividendYield: 4.7, currency: "USD", origin: "global" }),
+        candidate("SZCRF", { companyName: "SCOR SE", industry: source.industry, dividendYield: 5, currency: "USD", origin: "global" }),
+        candidate("SCRYY", { companyName: "SCOR PK", industry: source.industry, dividendYield: 5, currency: "USD", origin: "global" }),
+      ],
+    });
+
+    expect(result.map((item) => item.ticker)).toEqual(["HNR1.DE", "MUV2.DE", "SCRYY"]);
   });
 
   it("returns no candidate if the source dividend yield is not verified", () => {

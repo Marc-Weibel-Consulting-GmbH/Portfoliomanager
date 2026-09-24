@@ -870,3 +870,9 @@
 
 ## Positionsalternativen: Branchenpräzision und Universumserweiterung (2026-09-24)
 - [x] Alternativen auf verifizierte Branchenpeers (vor Sektorpeers) begrenzt und bei Lücken analog zum Watchlist-Screener im erweiterten Aktienuniversum ergänzt; Daten- und Tauschguards geprüft (2026-09-24)
+
+## Positionsalternativen: Emittenten-Deduplizierung (2026-09-24)
+- [x] Mehrfachlistings und wirtschaftlich identische Emittenten in der Alternativenliste auf genau einen Kandidaten begrenzt und verifiziert (2026-09-24)
+
+## Positionsalternativen: Kennzahlen und Regionalpriorität (2026-09-24)
+- [x] Globale Peers mit verfügbaren Qualitäts-, Bewertungs-, Timing- und Sharpe-Kennzahlen angereichert; gleiche Region und Handelswährung vor ausländischen Peers priorisiert (2026-09-24)

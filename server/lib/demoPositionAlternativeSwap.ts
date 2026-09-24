@@ -15,6 +15,7 @@ import {
   type RankedAlternative,
 } from "./portfolioAlternatives";
 import { findGlobalExactIndustryPeers } from "./globalIndustryPeerSearch";
+import { getGlobalPeerDisplayMetrics } from "./globalPeerMetrics";
 
 const roundMoney = (value: number) => Math.round(value * 100) / 100;
 const numberOrNull = (value: unknown): number | null => {
@@ -245,13 +246,16 @@ async function loadSwapContext(portfolioId: number, userId: number, sourceTicker
   // `industry` never degrades a logistics company to generic Industrials.
   const sourceFundamentals = await fetchEODHDFundamentals(sourceTicker);
   const sourceAlternative = toAlternativeStock(sourceStock, scoreMap, {
+    companyName: sourceStock.companyName,
     sector: sourceFundamentals.sector ?? sourceStock.sector ?? null,
     industry: sourceFundamentals.industry ?? null,
     dividendYield: sourceFundamentals.dividendYield ?? numberOrNull(sourceStock.dividendYield),
   });
   const heldTickers = rawHoldings.map((holding) => normalizedTicker(holding.ticker));
   const knownCompanyNames = [
-    ...rawHoldings.map((holding) => String(holding.companyName ?? "")),
+    ...rawHoldings.map((holding) => String(
+      holding.companyName ?? stockByTicker.get(normalizedTicker(holding.ticker))?.companyName ?? "",
+    )),
   ];
   const localCandidates = allStocks.map((stock) => toAlternativeStock(stock, scoreMap));
   const globalCandidates = sourceAlternative.industry
@@ -267,12 +271,36 @@ async function loadSwapContext(portfolioId: number, userId: number, sourceTicker
   for (const peer of globalCandidates) {
     stockByTicker.set(normalizedTicker(peer.ticker), peer as any);
   }
-  const alternatives = selectComparableAlternatives({
+  const rankedAlternatives = selectComparableAlternatives({
     source: sourceAlternative,
     candidates: [...localCandidates, ...globalCandidates],
     heldTickers,
+    heldCompanyNames: knownCompanyNames,
     limit: 5,
   });
+  // Global screener candidates have no hourly stock_scores record yet. Enrich
+  // only the final shortlist (never the whole remote universe) using their
+  // EODHD fundamentals and adjusted-price history. The operation is read-only.
+  const globalMetrics = new Map<string, Awaited<ReturnType<typeof getGlobalPeerDisplayMetrics>>>();
+  await Promise.all(rankedAlternatives
+    .filter((alternative) => alternative.origin === "global")
+    .map(async (alternative) => {
+      const metrics = await getGlobalPeerDisplayMetrics({
+        ticker: alternative.ticker,
+        sector: alternative.sector,
+        dividendYield: alternative.dividendYield,
+      });
+      globalMetrics.set(normalizedTicker(alternative.ticker), metrics);
+    }));
+  const alternatives = rankedAlternatives.map((alternative) => ({
+    ...alternative,
+    ...(globalMetrics.get(normalizedTicker(alternative.ticker)) ?? {}),
+  }));
+  for (const alternative of alternatives) {
+    if (alternative.origin === "global") {
+      stockByTicker.set(normalizedTicker(alternative.ticker), alternative as any);
+    }
+  }
   const sourceValueChf = sourceCanonical.shares * sourceCanonical.priceLocal * sourceCanonical.exchangeRateToChf;
   const enrichedAlternatives: DemoPositionSwapAlternative[] = [];
   for (const alternative of alternatives) {
