@@ -462,10 +462,16 @@ export const portfoliosRouter = router({
         }
 
         // Volatilität über ein vollständiges Fünfjahresfenster: die Historie
-        // wird einmal für alle Positionen geladen. `adjustedClose` hat Vorrang,
-        // damit Splits die Kennzahl nicht künstlich erhöhen. Ein lückenhaftes
-        // Fenster bleibt bewusst null und wird im Client als Datenlücke gezeigt.
-        const fiveYearVolatilityByTicker = new Map<string, { value: number | null; status: string }>();
+        // wird einmal für alle Positionen geladen. Eine Kennzahl benutzt stets
+        // genau eine homogene Basis: vollständige adjusted-close-Gesamtrendite
+        // oder Rohkurse ohne Split-Hinweis. Ein Mix pro Tag wäre ökonomisch
+        // falsch; lückenhafte bzw. splitverdächtige Reihen bleiben null.
+        const fiveYearVolatilityByTicker = new Map<string, {
+          value: number | null;
+          status: string;
+          basis: "adjusted_close_total_return" | "raw_close_price_return" | null;
+          possibleSplitDate: string | null;
+        }>();
         try {
           const { historicalPrices } = await import("../../drizzle/schema");
           const { inArray, and: andOp, gte } = await import("drizzle-orm");
@@ -510,13 +516,20 @@ export const portfoliosRouter = router({
           for (const ticker of allTickers) {
             const nativeCurrency = dbStockMap.get(ticker)?.currency;
             if (nativeCurrency && !isHistoricalPriceSeriesCompatible(ticker, nativeCurrency)) {
-              fiveYearVolatilityByTicker.set(ticker, { value: null, status: 'incompatible_price_basis' });
+              fiveYearVolatilityByTicker.set(ticker, {
+                value: null,
+                status: 'incompatible_price_basis',
+                basis: null,
+                possibleSplitDate: null,
+              });
               continue;
             }
             const result = calculateFiveYearAnnualizedVolatility(rowsByTicker.get(ticker) ?? [], asOf);
             fiveYearVolatilityByTicker.set(ticker, {
               value: result.annualizedVolatilityPct,
               status: result.status,
+              basis: result.basis,
+              possibleSplitDate: result.possibleSplitDate,
             });
           }
         } catch (e) {
@@ -872,6 +885,8 @@ export const portfoliosRouter = router({
               volatility: dbStock?.volatility ?? stock.volatility ?? null,
               volatility5y: fiveYearVolatilityByTicker.get(ticker)?.value ?? null,
               volatility5yDataQuality: fiveYearVolatilityByTicker.get(ticker)?.status ?? 'insufficient_history',
+              volatility5yBasis: fiveYearVolatilityByTicker.get(ticker)?.basis ?? null,
+              volatility5yPossibleSplitDate: fiveYearVolatilityByTicker.get(ticker)?.possibleSplitDate ?? null,
               sharpeRatio: dbStock?.sharpeRatio ?? stock.sharpeRatio ?? null,
               // Der neue Qualitaets-Score. Fehlt er (Titel noch nicht vom
               // Signal-Cron erfasst, oder Fundamentaldaten unter der

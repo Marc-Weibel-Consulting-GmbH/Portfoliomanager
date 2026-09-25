@@ -34,7 +34,8 @@ describe("calculateFiveYearAnnualizedVolatility", () => {
     );
 
     expect(result).toMatchObject({
-      status: "available",
+      status: "available_adjusted_total_return",
+      basis: "adjusted_close_total_return",
       observations: expect.any(Number),
     });
     expect(result.observations).toBeGreaterThanOrEqual(1_000);
@@ -47,10 +48,12 @@ describe("calculateFiveYearAnnualizedVolatility", () => {
       asOf,
     );
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       status: "insufficient_history",
       annualizedVolatilityPct: null,
       observations: expect.any(Number),
+      basis: null,
+      possibleSplitDate: null,
     });
   });
 
@@ -62,7 +65,25 @@ describe("calculateFiveYearAnnualizedVolatility", () => {
 
     const result = calculateFiveYearAnnualizedVolatility(prices, asOf);
 
-    expect(result.status).toBe("available");
+    expect(result.status).toBe("available_adjusted_total_return");
+    expect(result.basis).toBe("adjusted_close_total_return");
     expect(result.annualizedVolatilityPct).toBeLessThan(10);
+  });
+
+  it("shows a data gap instead of joining partial adjusted prices to a raw split series", () => {
+    const prices = dailySeries("2020-09-20", "2025-09-23").map((point, index) => ({
+      ...point,
+      close: index < 900 ? point.adjustedClose! * 10 : point.adjustedClose!,
+      adjustedClose: index < 900 ? point.adjustedClose : null,
+    }));
+
+    const result = calculateFiveYearAnnualizedVolatility(prices, asOf);
+
+    expect(result).toMatchObject({
+      status: "possible_unadjusted_split",
+      annualizedVolatilityPct: null,
+      basis: null,
+      possibleSplitDate: expect.any(String),
+    });
   });
 });

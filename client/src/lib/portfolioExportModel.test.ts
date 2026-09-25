@@ -222,6 +222,8 @@ describe("buildPortfolioExportModel", () => {
         dividendYield: 3.2,
         peRatio: 18.4,
         volatility5y: 21.5,
+        volatility5yDataQuality: "available_raw_price",
+        volatility5yBasis: "raw_close_price_return",
       }],
     });
 
@@ -231,6 +233,8 @@ describe("buildPortfolioExportModel", () => {
       dividendYieldPct: 3.2,
       peRatio: 18.4,
       volatility5yPct: 21.5,
+      volatility5yDataQuality: "available_raw_price",
+      volatility5yBasis: "raw_close_price_return",
     });
   });
 

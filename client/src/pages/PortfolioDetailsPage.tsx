@@ -2404,7 +2404,7 @@ export default function PortfolioDetailsPage() {
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Brutto-Dividendenrendite gemäss aktuellem Instrumentdatensatz. «—» bedeutet: keine verlässliche Ausschüttungsrendite vorhanden. Klicken zum Sortieren." onClick={() => handleSort('dividendYield')}>
                         <span className={sortKey === 'dividendYield' ? 'text-[#00CFC1]' : 'text-gray-400'}>DIV. RENDITE {sortKey === 'dividendYield' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Annualisierte Volatilität aus täglichen splitbereinigten Schlusskursen über ein vollständiges 5-Jahres-Fenster (252 Handelstage p.a.). «—» bedeutet: unvollständige oder inkompatible Historie. Klicken zum Sortieren." onClick={() => handleSort('volatility5y')}>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Annualisierte Volatilität über fünf volle Kalenderjahre (252 Handelstage p.a.). Pro Titel wird exakt eine Basis verwendet: vollständige EODHD-adjusted-close-Gesamtrendite oder eine vollständige Rohkursserie ohne Split-Hinweis. «—» bedeutet: unvollständige oder inkompatible Historie bzw. ein möglicher nicht bereinigter Split. Klicken zum Sortieren." onClick={() => handleSort('volatility5y')}>
                         <span className={sortKey === 'volatility5y' ? 'text-[#00CFC1]' : 'text-gray-400'}>VOL. 5J {sortKey === 'volatility5y' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Qualitäts-Score 0–100 aus dem Drei-Score-Konzept — wie gut das Unternehmen ist (Niveau + Richtung); seit der Reform die Leitgrösse. Nur für Aktien. Klicken zum Sortieren." onClick={() => handleSort('qualitaet')}>
@@ -2525,7 +2525,17 @@ export default function PortfolioDetailsPage() {
                         const volatility5y = Number.isFinite(volatility5yRaw) && volatility5yRaw >= 0 ? volatility5yRaw : null;
                         const volatility5yTitle = h.volatility5yDataQuality === 'incompatible_price_basis'
                           ? '5-Jahres-Volatilität nicht verfügbar: historische Proxyreihe hat eine inkompatible Preisbasis.'
-                          : '5-Jahres-Volatilität nicht verfügbar: vollständige, aktuelle fünfjährige Historie fehlt.';
+                          : h.volatility5yDataQuality === 'possible_unadjusted_split'
+                            ? `5-Jahres-Volatilität nicht verfügbar: Rohkursreihe enthält am ${h.volatility5yPossibleSplitDate || 'einem Handelstag'} einen möglichen nicht bereinigten Split. Es wird keine künstliche Kennzahl angezeigt.`
+                            : '5-Jahres-Volatilität nicht verfügbar: vollständige, aktuelle fünfjährige Historie fehlt.';
+                        const volatility5yBasisLabel = h.volatility5yBasis === 'adjusted_close_total_return'
+                          ? 'Gesamt'
+                          : h.volatility5yBasis === 'raw_close_price_return'
+                            ? 'Kurs'
+                            : null;
+                        const volatility5yAvailableTitle = h.volatility5yBasis === 'adjusted_close_total_return'
+                          ? 'Annualisierte 5-Jahres-Gesamtrendite-Volatilität aus vollständigen EODHD-adjusted-close-Werten (Splits und Dividenden berücksichtigt; 252 Handelstage p.a.).'
+                          : 'Annualisierte 5-Jahres-Preisvolatilität aus einer vollständigen Rohkursserie ohne Split-Hinweis (252 Handelstage p.a.).';
                         const weight = parseFloat(h.weight || '0');
                         // Bonds: value = nominalValue × pricePercent / 100 (already computed server-side as valueCHF)
                         const value = isBond
@@ -2709,8 +2719,9 @@ export default function PortfolioDetailsPage() {
                               </span>
                             </td>
                             <td className="px-3 py-3.5 text-right">
-                              <span className={`text-sm font-mono ${volatility5y === null ? 'text-gray-500' : 'text-violet-300'}`} title={volatility5y === null ? volatility5yTitle : 'Annualisierte 5-Jahres-Volatilität (splitbereinigte Schlusskurse, 252 Handelstage p.a.).'}>
+                              <span className={`inline-flex items-baseline justify-end gap-1 text-sm font-mono ${volatility5y === null ? 'text-gray-500' : 'text-violet-300'}`} title={volatility5y === null ? volatility5yTitle : volatility5yAvailableTitle}>
                                 {volatility5y === null ? '—' : `${volatility5y.toFixed(1)}%`}
+                                {volatility5yBasisLabel && <span className="text-[9px] font-sans text-violet-300/70">{volatility5yBasisLabel}</span>}
                               </span>
                             </td>
                             <td className="px-3 py-3.5 text-right">

@@ -17,6 +17,8 @@ export type PortfolioExportPosition = {
   dividendYieldPct: number | null;
   peRatio: number | null;
   volatility5yPct: number | null;
+  volatility5yDataQuality: string | null;
+  volatility5yBasis: string | null;
   dataStatus: ExportDataStatus;
   returnDataStatus: "OK" | "Einstandsdaten fehlen";
 };
@@ -281,6 +283,8 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
         dividendYieldPct: firstNumber(holding.dividendYield),
         peRatio: firstNumber(holding.peRatio),
         volatility5yPct: firstNumber(holding.volatility5y),
+        volatility5yDataQuality: typeof holding.volatility5yDataQuality === "string" ? holding.volatility5yDataQuality : null,
+        volatility5yBasis: typeof holding.volatility5yBasis === "string" ? holding.volatility5yBasis : null,
         dataStatus,
         returnDataStatus,
       };

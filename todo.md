@@ -918,3 +918,6 @@
 
 ## Externe Plausibilisierung der Titelliste (2026-09-25)
 - [x] Alle 31 Portfolioinstrumente zum Stichtag 25.09.2026, 09:22 Europe/Zurich anhand der richtigen Handelslinie, Börse und Handelswährung untersucht. Die Prüfung trennt Kurs-YTD von Total Return, Forward- von TTM-Dividendenrendite sowie TTM- von Forward-KGV und weist nur reproduzierbare 5J-Tagesvolatilitäten numerisch aus. Vollständiger Quellen- und Korrekturaudit erstellt; keine Portfolio-, Cash-, Ledger-, Preisreihen- oder Handelsmutation vorgenommen (2026-09-25)
+
+## 5J-Volatilität: lokale EODHD-Basis und Schattenprüfung (2026-09-25)
+- [x] Lokale 5J-Preisreihen, Corporate-Action-/Adjustierungsbasis und bestehende Volatilitätsverbraucher mit lesender Schattenberechnung geprüft. Alle 31 Titel haben 1'250–1'274 Rohkursbeobachtungen; `adjustedClose` ist jedoch nur teilweise belegt. Die Positionsansicht und Excel nutzen deshalb je Titel eine homogene Basis (vollständige adjusted-close-Gesamtrendite oder splitgeprüfte Rohkurs-Preisrendite); GOOGL, NVDA, TSLA, ISRG, NOVO-B.CO und ABTC.SW bleiben bewusst Datenlücken. Keine historischen Rohpreise überschrieben; über eine versionierte Anreicherung der Adjustierungsbasis wird erst nach separater Entscheidung entschieden (2026-09-25)

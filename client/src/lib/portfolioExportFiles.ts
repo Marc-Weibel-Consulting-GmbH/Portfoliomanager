@@ -188,21 +188,29 @@ export async function downloadPortfolioExcel(model: PortfolioExportModel): Promi
     { key: "dividend", width: 15 },
     { key: "pe", width: 12 },
     { key: "volatility5y", width: 15 },
+    { key: "volatilityBasis", width: 28 },
     { key: "entryDate", width: 16 },
     { key: "status", width: 30 },
   ];
-  positions.mergeCells("A1:P1");
+  positions.mergeCells("A1:Q1");
   positions.getCell("A1").value = `Titelliste · ${model.title}`;
   positions.getCell("A1").font = { name: "Aptos Display", size: 18, bold: true, color: { argb: COLORS.navy } };
   positions.getRow(1).height = 30;
-  positions.mergeCells("A2:P2");
+  positions.mergeCells("A2:Q2");
   positions.getCell("A2").value = `Datenstand: ${model.asOfLabel} · Sortiert nach aktuellem CHF-Marktwert`;
   positions.getCell("A2").font = { name: "Aptos", size: 10, color: { argb: COLORS.gray } };
   positions.addRow([]);
-  const positionHeader = positions.addRow(["Ticker", "Unternehmen", "ISIN", "Sektor", "Währung", "Stück", "Kurs lokal", "Marktwert CHF", "Gewicht", "YTD", "Seit Kauf", "Div.-Rendite", "KGV", "Vol. 5J", "Einstandsdatum", "Datenstatus"]);
+  const positionHeader = positions.addRow(["Ticker", "Unternehmen", "ISIN", "Sektor", "Währung", "Stück", "Kurs lokal", "Marktwert CHF", "Gewicht", "YTD", "Seit Kauf", "Div.-Rendite", "KGV", "Vol. 5J", "Vol.-Basis", "Einstandsdatum", "Datenstatus"]);
   applyHeader(positionHeader);
   const positionsStart = positionHeader.number + 1;
   for (const position of model.positions) {
+    const volatilityBasis = position.volatility5yBasis === "adjusted_close_total_return"
+      ? "Gesamtrendite · adjusted close"
+      : position.volatility5yBasis === "raw_close_price_return"
+        ? "Preisrendite · Rohkurs, Split-Guard"
+        : position.volatility5yDataQuality === "possible_unadjusted_split"
+          ? "Datenlücke · möglicher Split"
+          : "Datenlücke · keine homogene Basis";
     const status = [
       position.dataStatus !== "OK" ? position.dataStatus : null,
       position.returnDataStatus !== "OK" ? position.returnDataStatus : null,
@@ -222,17 +230,18 @@ export async function downloadPortfolioExcel(model: PortfolioExportModel): Promi
       position.dividendYieldPct !== null ? position.dividendYieldPct / 100 : "n/a",
       position.peRatio ?? "n/a",
       position.volatility5yPct !== null ? position.volatility5yPct / 100 : "n/a",
+      volatilityBasis,
       position.entryDate ?? position.entryBasisLabel ?? "—",
       status,
     ]);
     row.getCell(1).font = { name: "Aptos Mono", bold: true, color: { argb: COLORS.tealDark } };
     if (status !== "OK") {
-      row.getCell(16).font = { name: "Aptos", color: { argb: COLORS.warning }, bold: true };
-      row.getCell(16).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7ED" } };
+      row.getCell(17).font = { name: "Aptos", color: { argb: COLORS.warning }, bold: true };
+      row.getCell(17).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7ED" } };
     }
   }
-  if (model.positions.length > 0) applyTableBorders(positions, positionsStart, positions.lastRow.number, 1, 16);
-  positions.autoFilter = `A${positionHeader.number}:P${positions.lastRow.number}`;
+  if (model.positions.length > 0) applyTableBorders(positions, positionsStart, positions.lastRow.number, 1, 17);
+  positions.autoFilter = `A${positionHeader.number}:Q${positions.lastRow.number}`;
   positions.getColumn("F").numFmt = '#,##0.00';
   positions.getColumn("G").numFmt = '#,##0.00';
   setCurrencyColumn(positions, "H");
