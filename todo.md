@@ -912,3 +912,6 @@
 
 ## Kursdetail-Zeiträume (2026-09-25)
 - [x] Einheitliche Auswahl **YTD**, **1 Jahr**, **3 Jahre**, **5 Jahre** und **Max.** in der lesenden Kandidatenansicht der vollständigen Aktien-Neuoptimierung sowie in den Aktien-Details ergänzt. Die Auswahl lädt ausschliesslich vorhandene, splitbereinigte EODHD-Schlusskurse; **Max.** bedeutet die gesamte gespeicherte lokale Historie. Renditebadge und Chartüberschrift folgen jeweils der gewählten Periode. Live an GPW.WA geprüft (1J, 3J, 5J und Max.); keine Portfolio-, Cash-, Buchungs-, Order- oder Preisreihenmutation durch den Dialog (2026-09-25)
+
+## Laufende Empfehlungen: CHF- und Cash-Gewichte (2026-09-25)
+- [x] Die laufenden sowie geplanten Rebalancing-Empfehlungen berechnen Istgewichte nun aus den gleichen aktuellen CHF-Marktwerten und derselben Cash-Reserve wie Positionen und Aktien-Details. Lokale Fremdwährungskurse werden nicht mehr addiert; eine fehlende Preis-/FX-Basis bleibt Gewicht 0 statt einer erfundenen Übergewichtung. Das Zielbudget erhält die Cashquote; die serverseitige Handelsableitung verwendet denselben Gesamtnenner. Live für «Mami» bestätigt: CHDVD.SW 18,4 % in Empfehlungen und Positionen; AKRBP.OL 2,6 % statt der zuvor falschen 26,6 %. Keine Position, Cashreserve, Buchung, Preisreihe oder Order verändert (2026-09-25)

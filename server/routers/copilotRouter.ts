@@ -144,7 +144,8 @@ type RebalancingTrade = {
 async function deriveTradesFromTargetWeights(
   portfolioId: number,
   targets: Array<{ ticker: string; companyName?: string; targetWeight: number }>,
-  errors: string[]
+  errors: string[],
+  cashBalanceCHF: number,
 ): Promise<RebalancingTrade[]> {
   const today = new Date().toISOString().split('T')[0];
 
@@ -182,8 +183,11 @@ async function deriveTradesFromTargetWeights(
     priceInfo[ticker] = { price: quote.price, currency: quote.currency, priceCHF };
   }
 
-  // Gesamtwert des Portfolios in CHF (nur bewertbare Positionen)
-  let totalValueCHF = 0;
+  // Gesamtwert in CHF: dieselbe Basis wie die angezeigten Positionsgewichte.
+  // Die explizite Cashreserve gehört in den Nenner, sonst würden targetWeight
+  // aus der Empfehlungsliste beim Übernehmen gegen einen kleineren Aktienwert
+  // interpretiert.
+  let totalValueCHF = Number.isFinite(cashBalanceCHF) && cashBalanceCHF > 0 ? cashBalanceCHF : 0;
   for (const [ticker, sh] of Object.entries(sharesByTicker)) {
     if (sh > 0 && priceInfo[ticker]) totalValueCHF += sh * priceInfo[ticker].priceCHF;
   }
@@ -239,9 +243,11 @@ export const copilotRouter = router({
       }
 
       // Holdings ausschliesslich aus EODHD (Kurse + Fundamentaldaten + Währung);
-      // Yahoo ist in der Produktion blockiert. Titel ohne Kursreihe erhalten weight 0
-      // und werden aus der Risiko-/Analyse-Berechnung gefiltert (keine Platzhalter).
-      const holdings = await buildHoldingsEodhd(stocks);
+      // Yahoo ist in der Produktion blockiert. Die Gewichtung selbst folgt dem
+      // CHF-Portfoliowert inklusive Cashreserve (keine lokalen Kurswährungen).
+      const holdings = await buildHoldingsEodhd(stocks, {
+        cashBalanceCHF: parseFloat(String(portfolio.cashBalance ?? "0")) || 0,
+      });
 
       // Signal-Cache laden für Konsistenz mit Signale-Tab
       const signalCacheMap = new Map<string, { combinedScore: number | null; signalType: string | null; signalStrength: string | null }>();
@@ -388,7 +394,9 @@ export const copilotRouter = router({
       }
 
       // Holdings ausschliesslich aus EODHD (siehe analyze — Yahoo in Prod blockiert).
-      const holdings = await buildHoldingsEodhd(stocks);
+      const holdings = await buildHoldingsEodhd(stocks, {
+        cashBalanceCHF: parseFloat(String(portfolio.cashBalance ?? "0")) || 0,
+      });
 
       const rankings = await calculateRankings(holdings);
       return { error: null, rankings };
@@ -536,7 +544,8 @@ export const copilotRouter = router({
         const derived = await deriveTradesFromTargetWeights(
           input.portfolioId,
           input.targetWeights,
-          errors
+          errors,
+          parseFloat(String(portfolio.cashBalance ?? "0")) || 0,
         );
         trades = derived;
       } else if (!input.trades) {

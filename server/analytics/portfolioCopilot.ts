@@ -310,6 +310,12 @@ export function calculateRebalancingSuggestions(
 ): RebalancingSuggestion[] {
   if (holdings.length === 0) return [];
 
+  // Holdings carry their weight against the entire CHF portfolio value.  Their
+  // sum may therefore be below 1 when the user holds cash.  Rebalancing must
+  // preserve that explicit cash reserve rather than silently allocating it to
+  // securities only.
+  const investedWeight = Math.min(1, Math.max(0, holdings.reduce((sum, holding) => sum + Math.max(0, holding.weight), 0)));
+
   // Create a map of rankings by ticker
   const rankMap = new Map(rankings.map(r => [r.ticker, r]));
   
@@ -377,10 +383,12 @@ export function calculateRebalancingSuggestions(
     };
   });
 
-  // Normalize target weights to sum to 1
+  // Normalize the security targets to the actually invested portfolio budget,
+  // not to 100 %.  The difference remains cash and is already included in the
+  // current-weight denominator shown in Positions and Aktien-Details.
   const totalTarget = suggestions.reduce((sum, s) => sum + s.targetWeight, 0);
-  if (totalTarget > 0 && Math.abs(totalTarget - 1) > 0.01) {
-    const scale = 1 / totalTarget;
+  if (totalTarget > 0 && Math.abs(totalTarget - investedWeight) > 0.01) {
+    const scale = investedWeight / totalTarget;
     for (const s of suggestions) {
       s.targetWeight = Math.round(s.targetWeight * scale * 1000) / 1000;
       s.delta = Math.round((s.targetWeight - s.currentWeight) * 1000) / 1000;

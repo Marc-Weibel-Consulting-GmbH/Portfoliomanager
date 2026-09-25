@@ -65,7 +65,9 @@ async function processPortfolio(
   stocks = stocks.filter((s) => s && s.ticker);
   if (stocks.length === 0) return;
 
-  const allHoldings = await buildHoldingsEodhd(stocks);
+  const allHoldings = await buildHoldingsEodhd(stocks, {
+    cashBalanceCHF: parseFloat(String(portfolio.cashBalance ?? "0")) || 0,
+  });
   const holdings = allHoldings.filter((h) => (h.prices?.length ?? 0) >= MIN_PRICE_HISTORY);
   if (holdings.length === 0) {
     console.warn(`[recommendationCron] Portfolio ${cfg.portfolioId}: keine EODHD-Kursreihen — übersprungen`);
