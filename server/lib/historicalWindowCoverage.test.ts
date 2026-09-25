@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { assessHistoricalWindowCoverage } from "./historicalWindowCoverage";
+import {
+  assessHistoricalWindowCoverage,
+  hasSufficientCommonReturnCoverage,
+} from "./historicalWindowCoverage";
 
 describe("assessHistoricalWindowCoverage", () => {
   it("weist eine ausdrücklich dreijährige Historie zurück, wenn eine Preisreihe erst nach dem erforderlichen Start beginnt", () => {
@@ -23,5 +26,19 @@ describe("assessHistoricalWindowCoverage", () => {
 
     expect(evidence.hasFullRequestedWindow).toBe(true);
     expect(evidence.reason).toBeNull();
+  });
+
+  it("verwirft eine scheinbar vollständige Fünfjahresbasis, wenn nach FX- und Kalenderabgleich nur 195 gemeinsame Renditetage bleiben", () => {
+    expect(hasSufficientCommonReturnCoverage({
+      requestedLookbackDays: 1260,
+      commonReturnDays: 195,
+    })).toBe(false);
+  });
+
+  it("akzeptiert internationale Fünfjahresreihen mit realistischen Feiertagsdifferenzen", () => {
+    expect(hasSufficientCommonReturnCoverage({
+      requestedLookbackDays: 1260,
+      commonReturnDays: 1129,
+    })).toBe(true);
   });
 });

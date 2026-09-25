@@ -11,6 +11,8 @@ export interface FullReoptimizationReturnEvidenceInput {
   historicalAnnualizedReturn: number | null | undefined;
   /** Vom serverseitigen Kandidaten-Gate nach Kalenderdaten bestätigte Vollabdeckung. */
   hasFullRequestedWindow?: boolean;
+  /** Mindestzahl gemeinsamer CHF-Renditetage nach Kurs-, FX- und Kalenderabgleich. */
+  minimumCommonReturnDays?: number | null;
   basis: {
     jahreMin: number;
     jahreMedian: number;
@@ -33,6 +35,10 @@ export function getFullReoptimizationReturnEvidence(input: FullReoptimizationRet
     basis
     && basis.jahreMin >= requestedYears - 0.05
     && (
+      input.minimumCommonReturnDays == null
+      || basis.gemeinsameTage >= input.minimumCommonReturnDays
+    )
+    && (
       input.hasFullRequestedWindow === true
       || (input.hasFullRequestedWindow === undefined && basis.gemeinsameTage >= input.requestedLookbackDays - 1)
     ),
@@ -46,6 +52,7 @@ export function getFullReoptimizationReturnEvidence(input: FullReoptimizationRet
     value,
     requestedYears,
     hasRequestedHistory,
+    minimumCommonReturnDays: input.minimumCommonReturnDays ?? null,
     basisText,
   };
 }

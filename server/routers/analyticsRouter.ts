@@ -20,7 +20,11 @@ import { SLEEVE_TICKER_LABEL } from "../../shared/const";
 import { buildAssetAllocationPreservingEquityProposal } from "../lib/fullReoptimizationProposal";
 import { selectFullReoptimizationUniverse } from "../lib/fullReoptimizationUniverse";
 import { historicalPriceLookupKeys } from "../lib/historicalPriceLookupKeys";
-import { assessHistoricalWindowCoverage } from "../lib/historicalWindowCoverage";
+import {
+  assessHistoricalWindowCoverage,
+  hasSufficientCommonReturnCoverage,
+  minimumCommonReturnDays,
+} from "../lib/historicalWindowCoverage";
 import { isHistoricalPriceSeriesCompatible } from "../lib/eodhdSymbol";
 import {
   ALTERNATIVE_DETAIL_CHART_PERIODS,
@@ -369,6 +373,11 @@ export const analyticsRouter = router({
         currentWeights: currentEquityWeights,
         userConstraints: input.userConstraints,
       });
+      const minimumRequiredCommonReturnDays = minimumCommonReturnDays(input.lookbackDays);
+      const hasSufficientCommonReturnHistory = hasSufficientCommonReturnCoverage({
+        requestedLookbackDays: input.lookbackDays,
+        commonReturnDays: optimizer.renditeBasis.gemeinsameTage,
+      });
       const allocation = buildAssetAllocationPreservingEquityProposal({
         currentPositions,
         cashWeightPct,
@@ -390,7 +399,9 @@ export const analyticsRouter = router({
           historyStartDate,
           requestedHistoryStartDate,
           hasFullRequestedWindow: universe.tickers.length > 0
-            && universe.tickers.every((ticker) => fullWindowCoverageByTicker.get(ticker) === true),
+            && universe.tickers.every((ticker) => fullWindowCoverageByTicker.get(ticker) === true)
+            && hasSufficientCommonReturnHistory,
+          minimumCommonReturnDays: minimumRequiredCommonReturnDays,
           commonHistoryDateCount: universe.commonHistoryDateCount,
         },
       };

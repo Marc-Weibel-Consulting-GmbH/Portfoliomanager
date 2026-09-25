@@ -31,4 +31,14 @@ describe("formatFullReoptimizationFraction", () => {
       basis: { jahreMin: 3.0, jahreMedian: 3.1, gemeinsameTage: 709 },
     }).hasRequestedHistory).toBe(true);
   });
+
+  it("kennzeichnet 195 gemeinsame Renditetage nicht als fünfjährige Entscheidungsbasis", () => {
+    expect(getFullReoptimizationReturnEvidence({
+      requestedLookbackDays: 1260,
+      historicalAnnualizedReturn: 0.1947,
+      hasFullRequestedWindow: true,
+      minimumCommonReturnDays: 1071,
+      basis: { jahreMin: 5.0, jahreMedian: 5.0, gemeinsameTage: 195 },
+    }).hasRequestedHistory).toBe(false);
+  });
 });

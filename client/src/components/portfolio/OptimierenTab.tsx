@@ -625,7 +625,19 @@ export default function OptimierenTab({
     [fullReoptimizationPreview?.candidateUniverse.candidates],
   );
 
-  const canApplyFullReoptimization = portfolioType === "demo" && !isLive;
+  const fullReoptimizationReturnEvidence = useMemo(() => {
+    if (!fullReoptimizationPreview) return null;
+    return getFullReoptimizationReturnEvidence({
+      requestedLookbackDays: fullLookbackDays,
+      historicalAnnualizedReturn: fullReoptimizationPreview.optimizer.optimalPortfolio.historicalAnnualizedReturn,
+      hasFullRequestedWindow: fullReoptimizationPreview.candidateUniverse.hasFullRequestedWindow,
+      minimumCommonReturnDays: fullReoptimizationPreview.candidateUniverse.minimumCommonReturnDays,
+      basis: fullReoptimizationPreview.optimizer.renditeBasis,
+    });
+  }, [fullLookbackDays, fullReoptimizationPreview]);
+  const isDemoReoptimization = portfolioType === "demo" && !isLive;
+  const canApplyFullReoptimization = isDemoReoptimization
+    && fullReoptimizationReturnEvidence?.hasRequestedHistory === true;
   const applyFullReoptimizationMutation = trpc.portfolios.rebalanceDemoPortfolioWeights.useMutation({
     onSuccess: (data) => {
       const dialog = fullReoptimizationApplyDialog;
@@ -645,8 +657,12 @@ export default function OptimierenTab({
   });
 
   const openFullReoptimizationApplyDialog = (scope: FullReoptimizationApplyScope, ticker?: string) => {
-    if (!canApplyFullReoptimization) {
+    if (!isDemoReoptimization) {
       toast.error("Übernahme ist nur für nicht aktivierte Demoportfolios verfügbar.");
+      return;
+    }
+    if (!fullReoptimizationReturnEvidence?.hasRequestedHistory) {
+      toast.error("Übernahme gesperrt: Die gemeinsame CHF-Renditehistorie reicht für das gewählte Fenster nicht aus.");
       return;
     }
     const optimizedWeights = (fullReoptimizationPreview as any)?.optimizer?.weights as Record<string, number> | undefined;
@@ -1056,7 +1072,7 @@ export default function OptimierenTab({
             <Target className={`w-4 h-4 ${showFullReoptimization ? 'text-indigo-300' : 'text-gray-500'}`} />
             <span className="text-sm font-semibold text-white">Vollständige Aktien-Neuoptimierung</span>
             <span className="text-[10px] text-indigo-200 bg-indigo-500/15 border border-indigo-400/20 px-1.5 py-0.5 rounded">
-              {canApplyFullReoptimization ? "Vorschau · Übernahme möglich" : "Nur Vorschau"}
+              {isDemoReoptimization ? "Vorschau · Übernahme nach Historien-Gate" : "Nur Vorschau"}
             </span>
           </div>
           <span className="text-gray-500 text-xs">{showFullReoptimization ? '▲ Schliessen' : '▼ Ziele setzen & berechnen'}</span>
@@ -1107,17 +1123,12 @@ export default function OptimierenTab({
             ) : fullReoptimizationPreview ? (
               <div className="space-y-4">
                 {(() => {
-                  const returnEvidence = getFullReoptimizationReturnEvidence({
-                    requestedLookbackDays: fullLookbackDays,
-                    historicalAnnualizedReturn: fullReoptimizationPreview.optimizer.optimalPortfolio.historicalAnnualizedReturn,
-                    hasFullRequestedWindow: fullReoptimizationPreview.candidateUniverse.hasFullRequestedWindow,
-                    basis: fullReoptimizationPreview.optimizer.renditeBasis,
-                  });
+                  const returnEvidence = fullReoptimizationReturnEvidence!;
                   return <div className={returnEvidence.hasRequestedHistory ? "rounded-lg border border-indigo-400/20 bg-indigo-500/5 px-3 py-3" : "rounded-lg border border-amber-400/30 bg-amber-500/5 px-3 py-3"}>
                     <p className="text-xs font-semibold text-indigo-100">Aktienkomponente: historische Optimierung</p>
                     <p className="text-xs text-indigo-100/70 mt-1">{fullReoptimizationPreview.candidateUniverse.tickers.length} Kandidaten nach Historien-Gate · {returnEvidence.label} {returnEvidence.value} · Volatilität {formatFullReoptimizationFraction(fullReoptimizationPreview.optimizer.optimalPortfolio.volatility)} · Sharpe {fullReoptimizationPreview.optimizer.optimalPortfolio.sharpe.toFixed(2)}</p>
                     <p className="text-[11px] text-indigo-100/55 mt-1">Datenbasis: {returnEvidence.basisText}. Angefordert: {returnEvidence.requestedYears.toFixed(0)} Jahre.</p>
-                    {!returnEvidence.hasRequestedHistory && <p className="text-[11px] text-amber-200 mt-1">Die angeforderte Historienlänge ist für alle ausgewählten Titel nicht vollständig belegt. Die Rendite ist deshalb eine hypothetische Kennzahl der verfügbaren Teilreihe, keine {returnEvidence.requestedYears.toFixed(0)}-Jahres-Performance und keine Prognose.</p>}
+                    {!returnEvidence.hasRequestedHistory && <p className="text-[11px] text-amber-200 mt-1">Die gemeinsame, nach CHF-/FX- und Kalenderabgleich verfügbare Renditehistorie erfüllt das angeforderte Fenster nicht ({fullReoptimizationPreview.optimizer.renditeBasis.gemeinsameTage} von mindestens {returnEvidence.minimumCommonReturnDays ?? "—"} Handelstagen). Die Rendite ist deshalb eine hypothetische Kennzahl der verfügbaren Teilreihe, keine {returnEvidence.requestedYears.toFixed(0)}-Jahres-Performance und keine Prognose. Die Übernahme bleibt gesperrt.</p>}
                     <p className="text-[11px] text-indigo-100/55 mt-1">Cash und feste Sleeves bleiben unverändert. Alle historischen Kennzahlen gelten nur für die Aktienkomponente und nicht für das Gesamtportfolio.</p>
                   </div>;
                 })()}
@@ -1160,7 +1171,7 @@ export default function OptimierenTab({
                       Alle Aktien übernehmen
                     </button>
                   ) : (
-                    <span className="text-[11px] text-amber-200">Übernahme nur für nicht aktivierte Demoportfolios.</span>
+                    <span className="text-[11px] text-amber-200">{isDemoReoptimization ? "Übernahme gesperrt: gemeinsame CHF-Renditehistorie unzureichend." : "Übernahme nur für nicht aktivierte Demoportfolios."}</span>
                   )}
                 </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
