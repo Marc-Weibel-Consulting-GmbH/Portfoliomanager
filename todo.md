@@ -915,3 +915,6 @@
 
 ## Laufende Empfehlungen: CHF- und Cash-Gewichte (2026-09-25)
 - [x] Die laufenden sowie geplanten Rebalancing-Empfehlungen berechnen Istgewichte nun aus den gleichen aktuellen CHF-Marktwerten und derselben Cash-Reserve wie Positionen und Aktien-Details. Lokale Fremdwährungskurse werden nicht mehr addiert; eine fehlende Preis-/FX-Basis bleibt Gewicht 0 statt einer erfundenen Übergewichtung. Das Zielbudget erhält die Cashquote; die serverseitige Handelsableitung verwendet denselben Gesamtnenner. Live für «Mami» bestätigt: CHDVD.SW 18,4 % in Empfehlungen und Positionen; AKRBP.OL 2,6 % statt der zuvor falschen 26,6 %. Keine Position, Cashreserve, Buchung, Preisreihe oder Order verändert (2026-09-25)
+
+## Externe Plausibilisierung der Titelliste (2026-09-25)
+- [x] Alle 31 Portfolioinstrumente zum Stichtag 25.09.2026, 09:22 Europe/Zurich anhand der richtigen Handelslinie, Börse und Handelswährung untersucht. Die Prüfung trennt Kurs-YTD von Total Return, Forward- von TTM-Dividendenrendite sowie TTM- von Forward-KGV und weist nur reproduzierbare 5J-Tagesvolatilitäten numerisch aus. Vollständiger Quellen- und Korrekturaudit erstellt; keine Portfolio-, Cash-, Ledger-, Preisreihen- oder Handelsmutation vorgenommen (2026-09-25)
