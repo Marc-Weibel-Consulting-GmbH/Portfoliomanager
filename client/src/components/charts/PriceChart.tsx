@@ -176,15 +176,25 @@ export function PriceChart({
 
     chart.timeScale().fitContent();
 
+    let disposed = false;
     const resizeObserver = new ResizeObserver(entries => {
+      // ResizeObserver callbacks can already be queued when a dialog unmounts.
+      // Never apply options to a lightweight-charts instance after removal.
+      if (disposed) return;
       const { width } = entries[0].contentRect;
       chart.applyOptions({ width });
     });
     resizeObserver.observe(container);
 
     return () => {
+      disposed = true;
       resizeObserver.disconnect();
-      chart.remove();
+      try {
+        chart.remove();
+      } catch {
+        // Chart teardown must not take down the portfolio dialog if the library
+        // has already disposed the instance during a concurrent unmount.
+      }
       chartRef.current = null;
     };
     // Daten/Serientyp-Wechsel bauen den Chart neu auf (einfachstes korrektes Verhalten).

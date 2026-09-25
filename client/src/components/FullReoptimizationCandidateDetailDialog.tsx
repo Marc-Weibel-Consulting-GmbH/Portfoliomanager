@@ -111,6 +111,11 @@ export function FullReoptimizationCandidateDetailDialog({
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm text-gray-300">
                   <BarChart3 className="h-4 w-4 text-[#00CFC1]" /> Kursentwicklung · {chartPeriodLabel(chartPeriod)}
+                  {detail.chartIsHistoricalProxy && (
+                    <span className="rounded border border-amber-400/30 bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-200">
+                      {detail.chartCurrency}-Proxy
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <div className="flex items-center rounded-lg border border-white/10 bg-black/10 p-0.5" aria-label="Kurszeitraum wählen">
@@ -137,13 +142,20 @@ export function FullReoptimizationCandidateDetailDialog({
                 </div>
               </div>
               {chartValues.length >= 2 ? (
-                <PriceChart
-                  values={chartValues}
-                  seriesType="area"
-                  height={300}
-                  className="min-h-[300px]"
-                  colors={{ lineColor: "#00CFC1", areaTopColor: "rgba(0, 207, 193, 0.22)", areaBottomColor: "rgba(0, 207, 193, 0.02)", textColor: "#94a3b8" }}
-                />
+                <>
+                  <PriceChart
+                    values={chartValues}
+                    seriesType="area"
+                    height={300}
+                    className="min-h-[300px]"
+                    colors={{ lineColor: "#00CFC1", areaTopColor: "rgba(0, 207, 193, 0.22)", areaBottomColor: "rgba(0, 207, 193, 0.02)", textColor: "#94a3b8" }}
+                  />
+                  {detail.chartIsHistoricalProxy && (
+                    <p className="mt-2 text-xs leading-relaxed text-amber-200/80">
+                      Historische Kursquelle in {detail.chartCurrency} (Auslandslisting/ADR-Proxy). Der Chart dient nur der Transparenz und fliesst ohne bestätigtes Umrechnungsverhältnis nicht in Risiko-, Rendite- oder Optimierungskennzahlen ein.
+                    </p>
+                  )}
+                </>
               ) : (
                 <div className="flex h-[300px] items-center justify-center rounded-lg border border-dashed border-white/10 text-sm text-gray-500">
                   {detail.chartDataReason ?? "Keine ausreichende gespeicherte EODHD-Kursreihe verfügbar."}
@@ -159,7 +171,7 @@ export function FullReoptimizationCandidateDetailDialog({
             </div>
 
             <p className="text-xs leading-relaxed text-gray-500">
-              Branche: {detail.industry ?? "—"} · Sektor: {detail.sector ?? "—"} · Handelswährung: {detail.currency ?? "—"} · Datenquelle: {detail.source} · Stand: {new Date(detail.generatedAt).toLocaleString("de-CH")}
+              Branche: {detail.industry ?? "—"} · Sektor: {detail.sector ?? "—"} · Handelswährung: {detail.currency ?? "—"} · Chartwährung: {detail.chartCurrency ?? detail.currency ?? "—"} · Datenquelle: {detail.source} · Stand: {new Date(detail.generatedAt).toLocaleString("de-CH")}
             </p>
           </div>
         )}

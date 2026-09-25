@@ -26,8 +26,8 @@ function sourceKeysForTicker(ticker: string): string[] {
 /**
  * Picks exactly one historical source series for a requested ticker. Legacy
  * bare/.US aliases are therefore never interleaved day by day. The candidate
- * with the latest valid observation wins; then adjusted-close coverage, row
- * count and the exact ticker break ties deterministically.
+ * with the latest valid observation wins; then the exact requested ticker,
+ * adjusted-close coverage and row count break ties deterministically.
  */
 export function selectPreferredHistoricalPriceSeries(
   ticker: string,
@@ -61,9 +61,9 @@ export function selectPreferredHistoricalPriceSeries(
     })
     .sort((left, right) =>
       right.latestDate.localeCompare(left.latestDate)
+      || Number(right.exactTicker) - Number(left.exactTicker)
       || right.adjustedCount - left.adjustedCount
       || right.series.length - left.series.length
-      || Number(right.exactTicker) - Number(left.exactTicker)
       || left.source.localeCompare(right.source),
     )
     .at(0);

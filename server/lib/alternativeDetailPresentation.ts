@@ -1,3 +1,5 @@
+import { selectPreferredHistoricalPriceSeries } from "./preferredHistoricalPriceSeries";
+
 export type AlternativeDetailPriceSeries = {
   dates: string[];
   prices: number[];
@@ -16,6 +18,10 @@ export type StoredAlternativeDetailPrice = {
   date: string;
   adjustedClose: string | number | null;
   close: string | number | null;
+};
+
+export type CandidateAlternativeDetailPrice = StoredAlternativeDetailPrice & {
+  ticker: string;
 };
 
 /**
@@ -74,6 +80,21 @@ export function toAlternativeDetailChartFromStoredRows(
     }))
     .filter((row) => Boolean(row.date) && Number.isFinite(row.value) && row.value > 0)
     .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Historical rows can be present under both the current and a legacy `.US`
+ * alias. Chart libraries require one strictly ascending point per trading day,
+ * so choose one complete source series before converting it to visual points.
+ * This is presentation-only and never changes or merges stored price data.
+ */
+export function toAlternativeDetailChartFromCandidateRows(
+  ticker: string,
+  rows: CandidateAlternativeDetailPrice[],
+): AlternativeDetailChartPoint[] {
+  return toAlternativeDetailChartFromStoredRows(
+    selectPreferredHistoricalPriceSeries(ticker, rows),
+  );
 }
 
 /** Returns a percentage only when both observed endpoints are valid. */

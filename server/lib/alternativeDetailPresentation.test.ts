@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateAlternativePeriodReturn, getAlternativeDetailPeriodStart, toAlternativeDetailChartFromStoredRows, toAlternativeDetailChartPoints } from "./alternativeDetailPresentation";
+import { calculateAlternativePeriodReturn, getAlternativeDetailPeriodStart, toAlternativeDetailChartFromCandidateRows, toAlternativeDetailChartFromStoredRows, toAlternativeDetailChartPoints } from "./alternativeDetailPresentation";
 
 describe("alternative detail presentation", () => {
   it("keeps only genuine positive source prices in chronological chart order", () => {
@@ -30,6 +30,18 @@ describe("alternative detail presentation", () => {
     ])).toEqual([
       { date: "2025-09-22", value: 10.5 },
       { date: "2025-09-23", value: 10.75 },
+    ]);
+  });
+
+  it("selects one current historical alias before charting so duplicate trading days cannot crash the chart", () => {
+    expect(toAlternativeDetailChartFromCandidateRows("JNJ", [
+      { ticker: "JNJ.US", date: "2026-09-23", adjustedClose: "148.7425", close: "160.26" },
+      { ticker: "JNJ", date: "2026-09-23", adjustedClose: null, close: "269.17" },
+      { ticker: "JNJ.US", date: "2026-09-24", adjustedClose: "149.30", close: "160.86" },
+      { ticker: "JNJ", date: "2026-09-24", adjustedClose: null, close: "270.68" },
+    ])).toEqual([
+      { date: "2026-09-23", value: 269.17 },
+      { date: "2026-09-24", value: 270.68 },
     ]);
   });
 

@@ -38,3 +38,13 @@ Die Zielunterseite reduziert die Komplexität nochmals auf eine einzelne Anleger
 Der erneute Login im Smartphone-Viewport (390 × 844 Pixel) reproduziert dieselbe technische Grenze: Nach erfolgreicher Authentifizierung leitet Selma nach `https://app.selma.com/de/download_app` weiter. Die mobile Weboberfläche bietet keinen Beratungs-, Anlageprofil- oder Portfolioerstellungsflow, sondern ausschliesslich den Handoff zur nativen App. Der Screenshot `selma-mobile-web-handoff-2026-08-25.png` hält diesen Zustand fest.
 
 Die konkreten Schritte *Beratung → Anlageprofil → Plan/Portfolio → Kontoeröffnung* werden deshalb erst dokumentiert, wenn native App-Bildschirme verfügbar sind. Es wird ausdrücklich keine solche Strecke rekonstruiert, geschätzt oder als beobachtet ausgegeben.
+
+## Wiederholungsprüfung am 25. September 2026
+
+Der öffentliche Einstieg unter `https://app.selma.com/signup` wurde erneut ohne Eingabe einer realen E-Mail-Adresse geprüft. Der Bildschirm bestätigt den bereits dokumentierten App-Handoff: Er bietet ausschliesslich ein E-Mail-Feld, kündigt einen Signup-Code und die Fortsetzung in der Selma-App an. Vor diesem Übergang verlangt Selma eine Cloudflare-Prüfung. Im isolierten Webbrowser schlug diese Prüfung erneut fehl; ein Beratungs-, Anlageprofil- oder Portfolioerstellungsbildschirm wurde deshalb nicht zugänglich.
+
+Der anonymisierte Beleg ist unter `workings/selma-onboarding-2026-09-25/public-signup-human-verification-boundary.webp` gesichert. Dieser Befund erweitert die tatsächliche Beobachtung **nicht** um eine vermutete native Strecke. Für die noch offene Seite-für-Seite-Dokumentation sind Bildschirmaufnahmen aus der bereits angemeldeten nativen Selma-App erforderlich. Die Untersuchung löste weder eine Registrierung noch eine Kontoeröffnung, Anlage-, Zahlungs- oder Vertragsaktion aus.
+
+## References
+
+[1]: https://app.selma.com/signup "Selma Finance – Sign-up"

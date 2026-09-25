@@ -44,8 +44,22 @@ export function StockLogo({ ticker, companyName, size = 'md', className = '', ic
     setImageError(false);
   }
 
-  // Handle undefined ticker or companyName
-  if (!ticker || !companyName) {
+  // This hook must run on every render: dialogs may clear `ticker` while the
+  // logo component is still mounted during their closing transition.
+  const hasIdentity = Boolean(ticker && companyName);
+  const { data: logoData, isLoading } = trpc.logos.getLogoUrl.useQuery(
+    { ticker, companyName },
+    {
+      enabled: hasIdentity,
+      staleTime: 1000 * 60 * 60, // Cache for 1 hour
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      retry: 1,
+    }
+  );
+
+  // Handle undefined ticker or companyName only after all hooks have run.
+  if (!hasIdentity) {
     const initial = (ticker || companyName || '?').charAt(0).toUpperCase();
     return (
       <div className={`${sizeClasses[size]} ${className} rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold`}>
@@ -53,17 +67,6 @@ export function StockLogo({ ticker, companyName, size = 'md', className = '', ic
       </div>
     );
   }
-
-  // Fetch logo URL from backend
-  const { data: logoData, isLoading } = trpc.logos.getLogoUrl.useQuery(
-    { ticker, companyName },
-    {
-      staleTime: 1000 * 60 * 60, // Cache for 1 hour
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-      retry: 1,
-    }
-  );
 
   // Show letter avatar while loading
   if (isLoading) {

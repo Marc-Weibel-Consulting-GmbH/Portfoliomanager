@@ -25,12 +25,12 @@ import {
   hasSufficientCommonReturnCoverage,
   minimumCommonReturnDays,
 } from "../lib/historicalWindowCoverage";
-import { isHistoricalPriceSeriesCompatible } from "../lib/eodhdSymbol";
+import { getHistoricalPriceCurrency, isHistoricalPriceSeriesCompatible } from "../lib/eodhdSymbol";
 import {
   ALTERNATIVE_DETAIL_CHART_PERIODS,
   calculateAlternativePeriodReturn,
   getAlternativeDetailPeriodStart,
-  toAlternativeDetailChartFromStoredRows,
+  toAlternativeDetailChartFromCandidateRows,
 } from "../lib/alternativeDetailPresentation";
 
 const HoldingSchema = z.object({
@@ -461,20 +461,20 @@ export const analyticsRouter = router({
       const fromDate = getAlternativeDetailPeriodStart(input.chartPeriod, asOfDate);
       const historicalKeys = historicalPriceLookupKeys(ticker);
       const priceSeriesIsCompatible = isHistoricalPriceSeriesCompatible(ticker, stock.currency ?? "");
+      const historicalPriceCurrency = getHistoricalPriceCurrency(ticker, stock.currency ?? "");
       const [storedPrices, storedScoreResult] = await Promise.all([
-        priceSeriesIsCompatible
-          ? db
-            .select({
-              date: historicalPrices.date,
-              adjustedClose: historicalPrices.adjustedClose,
-              close: historicalPrices.close,
-            })
-            .from(historicalPrices)
-            .where(and(
-              inArray(historicalPrices.ticker, historicalKeys),
-              ...(fromDate ? [gte(historicalPrices.date, fromDate)] : []),
-            ))
-          : Promise.resolve([]),
+        db
+          .select({
+            ticker: historicalPrices.ticker,
+            date: historicalPrices.date,
+            adjustedClose: historicalPrices.adjustedClose,
+            close: historicalPrices.close,
+          })
+          .from(historicalPrices)
+          .where(and(
+            inArray(historicalPrices.ticker, historicalKeys),
+            ...(fromDate ? [gte(historicalPrices.date, fromDate)] : []),
+          )),
         db.execute(sql`
           SELECT qualitaet, bewertung, timing, signalScore, signalLabel
           FROM stock_scores
@@ -486,7 +486,7 @@ export const analyticsRouter = router({
         ? (storedScoreResult[0] ?? storedScoreResult)
         : ((storedScoreResult as any)?.rows ?? []);
       const storedScores = rawScoreRows[0] ?? null;
-      const chart = toAlternativeDetailChartFromStoredRows(storedPrices);
+      const chart = toAlternativeDetailChartFromCandidateRows(ticker, storedPrices);
 
       return {
         ticker: stock.ticker,
@@ -510,7 +510,13 @@ export const analyticsRouter = router({
         chartPeriod: input.chartPeriod,
         periodReturnPct: calculateAlternativePeriodReturn(chart),
         chartDataStatus: chart.length >= 2 ? "available" as const : "unavailable" as const,
-        chartDataReason: priceSeriesIsCompatible ? null : "Historische Proxyreihe hat eine abweichende Kurswährung.",
+        chartDataReason: chart.length >= 2
+          ? null
+          : priceSeriesIsCompatible
+            ? "Keine ausreichende gespeicherte EODHD-Kursreihe verfügbar."
+            : "Für die historische Proxyreihe sind in diesem Zeitraum nicht genügend gespeicherte Kurse vorhanden.",
+        chartCurrency: historicalPriceCurrency,
+        chartIsHistoricalProxy: !priceSeriesIsCompatible,
         source: "Gespeicherte EODHD-Daten" as const,
         generatedAt: new Date().toISOString(),
       };
