@@ -23,6 +23,11 @@ import {
   formatFullReoptimizationFraction,
   getFullReoptimizationReturnEvidence,
 } from "@/lib/fullReoptimizationPresentation";
+import {
+  buildFullReoptimizationApplyPlan,
+  type FullReoptimizationApplyPlan,
+  type FullReoptimizationApplyScope,
+} from "@/lib/fullReoptimizationApplyPlan";
 
 // ─── Diversification Rule Check ───────────────────────────────────────────────
 // F2: Die Schwellen kommen aus der Admin-Konfig (trpc.analytics.getDiversificationRules),
@@ -328,6 +333,7 @@ export default function OptimierenTab({
   onNavigateToPositions,
   portfolioCreatedAt,
   portfolioType,
+  isLive = false,
   profileMismatch,
   allocationScope = 'profile_mix',
 }: {
@@ -347,6 +353,8 @@ export default function OptimierenTab({
   portfolioCreatedAt?: string | null;
   /** P-ALIGN: Portfolio-Typ ('demo' | 'live') */
   portfolioType?: string | null;
+  /** Aktivierte Portfolios bleiben im Übernahmepfad sichtbar gesperrt. */
+  isLive?: boolean;
   /** Profil-Mismatch: Gründe und KI-Vorschlag wenn Portfolio nicht mehr zum Anlegerprofil passt */
   profileMismatch?: { reasons: string[]; severity: "low" | "medium" | "high"; aiSuggestion: string | null } | null;
   /** Bewusst gewählte Anlageklassenstrategie aus dem Portfolio-Builder. */
@@ -479,6 +487,16 @@ export default function OptimierenTab({
   const [fullCandidateLimit, setFullCandidateLimit] = useState(20);
   const [fullLookbackDays, setFullLookbackDays] = useState<756 | 1260 | 2520>(756);
   const [fullReoptimizationDetailTicker, setFullReoptimizationDetailTicker] = useState<string | null>(null);
+  const [fullReoptimizationApplyDialog, setFullReoptimizationApplyDialog] = useState<{
+    scope: FullReoptimizationApplyScope;
+    ticker?: string;
+    plan: FullReoptimizationApplyPlan;
+  } | null>(null);
+  const [fullReoptimizationApplyResult, setFullReoptimizationApplyResult] = useState<{
+    scope: FullReoptimizationApplyScope;
+    changeCount: number;
+    cashBalanceChf: number;
+  } | null>(null);
 
   // Parsed constraints (nur wenn gültige Zahlen eingegeben)
   const userConstraints = useMemo(() => {
@@ -606,6 +624,55 @@ export default function OptimierenTab({
     ),
     [fullReoptimizationPreview?.candidateUniverse.candidates],
   );
+
+  const canApplyFullReoptimization = portfolioType === "demo" && !isLive;
+  const applyFullReoptimizationMutation = trpc.portfolios.rebalanceDemoPortfolioWeights.useMutation({
+    onSuccess: (data) => {
+      const dialog = fullReoptimizationApplyDialog;
+      setFullReoptimizationApplyResult({
+        scope: dialog?.scope ?? "all_equities",
+        changeCount: dialog?.plan.changes.length ?? 0,
+        cashBalanceChf: data.cashBalanceChf,
+      });
+      setFullReoptimizationApplyDialog(null);
+      utils.portfolios.getWithCurrency.invalidate(portfolioId);
+      utils.portfolios.list.invalidate();
+      utils.dashboard.getRiskMetrics.invalidate();
+      utils.analytics.fullReoptimizationPreview.invalidate();
+      if (onNavigateToPositions) setTimeout(() => onNavigateToPositions(), 700);
+    },
+    onError: (error) => toast.error("Volloptimierung konnte nicht übernommen werden", { description: getUserErrorMessage(error) }),
+  });
+
+  const openFullReoptimizationApplyDialog = (scope: FullReoptimizationApplyScope, ticker?: string) => {
+    if (!canApplyFullReoptimization) {
+      toast.error("Übernahme ist nur für nicht aktivierte Demoportfolios verfügbar.");
+      return;
+    }
+    const optimizedWeights = (fullReoptimizationPreview as any)?.optimizer?.weights as Record<string, number> | undefined;
+    if (!optimizedWeights) {
+      toast.error("Die aktuelle Volloptimierung enthält keine umsetzbaren Zielgewichte.");
+      return;
+    }
+    try {
+      const plan = buildFullReoptimizationApplyPlan({
+        holdings,
+        optimizedWeights,
+        isSleeve: (candidateTicker) => SLEEVE_TICKER_LABEL[candidateTicker.toUpperCase()] != null,
+        scope,
+        ticker,
+      });
+      if (plan.changes.length === 0) {
+        toast.info("Die ausgewählte Zielallokation entspricht bereits dem aktuellen Depot.");
+        return;
+      }
+      setFullReoptimizationApplyDialog({ scope, ticker, plan });
+    } catch (error) {
+      toast.error("Übernahmeplan konnte nicht erstellt werden", {
+        description: error instanceof Error ? error.message : "Ungültige Zielallokation.",
+      });
+    }
+  };
 
   // ─── Backtest der optimierten Ziel-Allokation ───────────────────────────────
   const [showBacktest, setShowBacktest] = useState(false);
@@ -988,7 +1055,9 @@ export default function OptimierenTab({
           <div className="flex items-center gap-2">
             <Target className={`w-4 h-4 ${showFullReoptimization ? 'text-indigo-300' : 'text-gray-500'}`} />
             <span className="text-sm font-semibold text-white">Vollständige Aktien-Neuoptimierung</span>
-            <span className="text-[10px] text-indigo-200 bg-indigo-500/15 border border-indigo-400/20 px-1.5 py-0.5 rounded">Nur Vorschau</span>
+            <span className="text-[10px] text-indigo-200 bg-indigo-500/15 border border-indigo-400/20 px-1.5 py-0.5 rounded">
+              {canApplyFullReoptimization ? "Vorschau · Übernahme möglich" : "Nur Vorschau"}
+            </span>
           </div>
           <span className="text-gray-500 text-xs">{showFullReoptimization ? '▲ Schliessen' : '▼ Ziele setzen & berechnen'}</span>
         </button>
@@ -1069,29 +1138,67 @@ export default function OptimierenTab({
                   ].filter(Boolean) as Array<{ label: string; target: string; achieved: string; met: boolean }>;
                   return rows.length > 0 ? <div className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-3"><p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Zielerreichung · Soft-Constraints der Aktienkomponente</p><div className="mt-2 grid sm:grid-cols-2 gap-x-5 gap-y-2">{rows.map((row) => <div key={row.label} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs"><span className="text-gray-400">{row.label}: <span className="text-gray-300">Ziel {row.target}</span></span><span className={row.met ? "text-emerald-300 font-medium" : "text-amber-300 font-medium"}>Ergebnis {row.achieved} · {row.met ? "erreicht" : "nicht erreicht"}</span></div>)}</div></div> : null;
                 })()}
+                {fullReoptimizationApplyResult && (
+                  <div className="flex items-start gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/5 px-3 py-2.5 text-xs text-emerald-100">
+                    <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                    <p>
+                      {fullReoptimizationApplyResult.scope === "all_equities" ? "Aktienallokation übernommen" : "Einzeltitel übernommen"}: {fullReoptimizationApplyResult.changeCount} Position{fullReoptimizationApplyResult.changeCount !== 1 ? "en" : ""} angepasst · Cash CHF {fullReoptimizationApplyResult.cashBalanceChf.toLocaleString("de-CH", { maximumFractionDigits: 2 })}.
+                    </p>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-indigo-400/20 bg-indigo-500/[0.05] px-3 py-3">
+                  <div>
+                    <p className="text-xs font-semibold text-indigo-100">Übernahme nach Bestätigung</p>
+                    <p className="mt-0.5 text-[11px] text-indigo-100/65">Gesamt: ersetzt nur die Aktienkomponente. Einzeln: passt nur den gewählten Optimierungstitel an. Cash und feste Sleeves bleiben unverändert.</p>
+                  </div>
+                  {canApplyFullReoptimization ? (
+                    <button
+                      type="button"
+                      onClick={() => openFullReoptimizationApplyDialog("all_equities")}
+                      className="shrink-0 rounded-lg bg-indigo-500 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-indigo-400"
+                    >
+                      Alle Aktien übernehmen
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-amber-200">Übernahme nur für nicht aktivierte Demoportfolios.</span>
+                  )}
+                </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
                   {fullReoptimizationPreview.allocation.positions.filter((position: any) => position.assetKind === 'equity').map((position: any) => {
                     const candidate = fullReoptimizationCandidateByTicker.get(position.ticker);
                     const companyName = candidate?.companyName ?? "Unternehmensname nicht verfügbar";
                     return (
-                      <button
+                      <div
                         key={position.ticker}
-                        type="button"
-                        onClick={() => setFullReoptimizationDetailTicker(position.ticker)}
-                        className="flex min-w-0 items-center justify-between gap-3 rounded border border-white/10 bg-white/[0.03] px-3 py-2 text-left text-xs transition-colors hover:border-indigo-300/50 hover:bg-indigo-500/[0.07] focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
-                        title={`${position.ticker} · ${companyName} – Details öffnen`}
+                        className="flex min-w-0 items-center gap-2 rounded border border-white/10 bg-white/[0.03] p-2 text-left text-xs transition-colors hover:border-indigo-300/50 hover:bg-indigo-500/[0.07]"
                       >
-                        <span className="min-w-0">
-                          <span className="block font-mono font-semibold text-indigo-200">{position.ticker}</span>
-                          <span className="mt-0.5 block truncate text-[11px] text-gray-400">{companyName}</span>
-                        </span>
-                        <span className="shrink-0 font-mono text-indigo-200">{position.weightPct.toFixed(2)}%</span>
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => setFullReoptimizationDetailTicker(position.ticker)}
+                          className="flex min-w-0 flex-1 items-center justify-between gap-3 px-1 py-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+                          title={`${position.ticker} · ${companyName} – Details öffnen`}
+                        >
+                          <span className="min-w-0">
+                            <span className="block font-mono font-semibold text-indigo-200">{position.ticker}</span>
+                            <span className="mt-0.5 block truncate text-[11px] text-gray-400">{companyName}</span>
+                          </span>
+                          <span className="shrink-0 font-mono text-indigo-200">{position.weightPct.toFixed(2)}%</span>
+                        </button>
+                        {canApplyFullReoptimization && (
+                          <button
+                            type="button"
+                            onClick={() => openFullReoptimizationApplyDialog("single_equity", position.ticker)}
+                            className="shrink-0 rounded border border-indigo-300/30 px-2 py-1 text-[10px] font-semibold text-indigo-100 transition-colors hover:bg-indigo-400/20"
+                            title={`${position.ticker} einzeln auf das Optimierungsziel setzen`}
+                          >
+                            Übernehmen
+                          </button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
-                <p className="text-[11px] text-gray-500">Titel anklicken für Kurschart, Kennzahlen und Drei-Score-Details.</p>
-                <p className="text-[11px] text-gray-500">Die vollständige Vorschau ist absichtlich nicht direkt umsetzbar. Prüfen und übernehmen Sie sie später nur über einen separaten, ausdrücklich bestätigten Portfolio-Schritt.</p>
+                <p className="text-[11px] text-gray-500">Titel anklicken für Kurschart, Kennzahlen und Drei-Score-Details. «Übernehmen» öffnet immer zuerst die konkrete Bestätigung.</p>
               </div>
             ) : null}
           </div>
@@ -2569,6 +2676,87 @@ export default function OptimierenTab({
             ⚠️ Basierend auf historischen Renditen (Modern Portfolio Theory). Keine Anlageberatung.
           </p>
         </>
+      )}
+
+      {fullReoptimizationApplyDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-indigo-300/30 bg-[#0f1420] p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-base font-semibold text-white">
+                  {fullReoptimizationApplyDialog.scope === "all_equities"
+                    ? "Aktienallokation übernehmen?"
+                    : `${fullReoptimizationApplyDialog.ticker} auf Optimierungsziel setzen?`}
+                </h3>
+                <p className="mt-1 text-xs text-gray-400">
+                  Diese Demo-Änderung wird erst durch die Schaltfläche unten gespeichert. Es werden keine Börsenorders oder Ledgerbuchungen erzeugt.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFullReoptimizationApplyDialog(null)}
+                className="rounded p-1 text-gray-500 transition-colors hover:bg-white/10 hover:text-white"
+                aria-label="Übernahme abbrechen"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg border border-white/10 bg-white/[0.02] p-3 text-xs">
+              <div>
+                <p className="text-gray-500">Betroffene Positionen</p>
+                <p className="mt-0.5 font-mono font-semibold text-white">{fullReoptimizationApplyDialog.plan.changes.length}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Cash-Effekt</p>
+                <p className={`mt-0.5 font-mono font-semibold ${fullReoptimizationApplyDialog.plan.cashDeltaChfPct >= 0 ? "text-emerald-300" : "text-amber-300"}`}>
+                  {fullReoptimizationApplyDialog.plan.cashDeltaChfPct >= 0 ? "+" : ""}{fullReoptimizationApplyDialog.plan.cashDeltaChfPct.toFixed(2)} %-Punkte
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 max-h-64 space-y-1.5 overflow-y-auto pr-1">
+              {fullReoptimizationApplyDialog.plan.changes.map((change) => (
+                <div key={change.ticker} className="flex items-center justify-between gap-3 rounded bg-white/[0.03] px-3 py-2 text-xs">
+                  <span className="font-mono font-semibold text-indigo-100">{change.ticker}</span>
+                  <span className="font-mono text-gray-300">
+                    {change.currentWeightPct.toFixed(2)}% <span className="text-gray-600">→</span> {change.targetWeightPct.toFixed(2)}%
+                    <span className={change.deltaWeightPct >= 0 ? "ml-2 text-emerald-300" : "ml-2 text-red-300"}>
+                      ({change.deltaWeightPct >= 0 ? "+" : ""}{change.deltaWeightPct.toFixed(2)} PP)
+                    </span>
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-[11px] leading-relaxed text-amber-100">
+              Cash und feste Multi-Asset-Sleeves werden unverändert beibehalten. Der Server prüft beim Speichern erneut Eigentümerschaft, Demo-Status, fehlende Ledgerbuchungen, aktuelle Kurse und CHF-Wechselkurse.
+            </div>
+
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setFullReoptimizationApplyDialog(null)}
+                disabled={applyFullReoptimizationMutation.isPending}
+                className="rounded-lg px-4 py-2 text-sm text-gray-400 transition-colors hover:text-white disabled:opacity-50"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                onClick={() => applyFullReoptimizationMutation.mutate({
+                  portfolioId,
+                  targetWeightsPct: fullReoptimizationApplyDialog.plan.targetWeightsPct,
+                })}
+                disabled={applyFullReoptimizationMutation.isPending}
+                className="flex items-center gap-2 rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-400 disabled:opacity-50"
+              >
+                {applyFullReoptimizationMutation.isPending ? <RefreshCw className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                {applyFullReoptimizationMutation.isPending ? "Wird übernommen…" : "Jetzt verbindlich übernehmen"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <FullReoptimizationCandidateDetailDialog

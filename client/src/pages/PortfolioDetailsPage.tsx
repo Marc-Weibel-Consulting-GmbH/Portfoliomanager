@@ -627,8 +627,8 @@ const PROFILE_GOAL_LABEL: Record<string, string> = {
 };
 
 function OptimierungEmpfehlungenTab({
-  portfolioId, holdings, totalValueCHF, cashBalance, onNavigateToTransactions, onNavigateToPositions, portfolioCreatedAt, portfolioType, allocationScope,
-}: { portfolioId: number; holdings: any[]; totalValueCHF?: number; cashBalance?: number; onNavigateToTransactions?: () => void; onNavigateToPositions?: () => void; portfolioCreatedAt?: string | null; portfolioType?: string | null; allocationScope?: import('@/lib/optimizationPresentation').PortfolioAllocationScope }) {
+  portfolioId, holdings, totalValueCHF, cashBalance, onNavigateToTransactions, onNavigateToPositions, portfolioCreatedAt, portfolioType, isLive, allocationScope,
+}: { portfolioId: number; holdings: any[]; totalValueCHF?: number; cashBalance?: number; onNavigateToTransactions?: () => void; onNavigateToPositions?: () => void; portfolioCreatedAt?: string | null; portfolioType?: string | null; isLive?: boolean; allocationScope?: import('@/lib/optimizationPresentation').PortfolioAllocationScope }) {
   const [mode, setMode] = useState<"empfehlungen" | "optimierung">("empfehlungen");
   const { data: profile } = trpc.investmentProfile.get.useQuery();
 
@@ -753,6 +753,7 @@ function OptimierungEmpfehlungenTab({
           onNavigateToPositions={onNavigateToPositions}
           portfolioCreatedAt={portfolioCreatedAt}
           portfolioType={portfolioType}
+          isLive={isLive}
           allocationScope={allocationScope}
           profileMismatch={profileMismatch ? { reasons: profileMismatch.reasons, severity: profileMismatch.severity, aiSuggestion: profileMismatch.aiSuggestion } : null}
         />
@@ -3479,7 +3480,7 @@ export default function PortfolioDetailsPage() {
               title="Portfolio-Optimierung & KI-Empfehlungen"
               description="Lassen Sie Ihr Portfolio optimieren und erhalten Sie konkrete KI-Umschichtungsvorschläge. Teil von Basic und Pro."
             >
-              <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} onNavigateToPositions={() => handleTabChange('positionen')} portfolioCreatedAt={portfolio.createdAt ? String(portfolio.createdAt) : null} portfolioType={portfolio.portfolioType ?? null} allocationScope={getPortfolioAllocationScope((portfolio as any).portfolioData)} />
+              <OptimierungEmpfehlungenTab portfolioId={portfolioId} holdings={holdings} totalValueCHF={totalValueCHF} cashBalance={cashBalance} onNavigateToTransactions={() => handleTabChange('transaktionen')} onNavigateToPositions={() => handleTabChange('positionen')} portfolioCreatedAt={portfolio.createdAt ? String(portfolio.createdAt) : null} portfolioType={portfolio.portfolioType ?? null} isLive={portfolio.isLive === 1} allocationScope={getPortfolioAllocationScope((portfolio as any).portfolioData)} />
             </FeatureGate>
           </TabsContent>}
 
