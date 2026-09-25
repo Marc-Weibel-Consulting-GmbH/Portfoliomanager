@@ -1971,14 +1971,14 @@ export default function PortfolioDetailsPage() {
           {/* SHARPE — fortgeschrittene Kennzahl, nur in «detailliert» */}
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Sharpe Ratio = risikoadjustierte Rendite">RISIKO · SHARPE</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Fünfjähriger Sharpe des historischen Allokationsproxys: annualisierte tägliche CHF-Rendite abzüglich 2 % risikofreiem Satz, dividiert durch die annualisierte Volatilität. Keine reale Depotperformance vor Portfolio-Start.">RISIKO · SHARPE (5J)</p>
             <p className={`${isRiskMetricsLoading ? 'text-lg' : 'text-2xl'} font-bold font-mono text-white`}>
               {riskHeader.sharpe.value}
             </p>
             {/* Zonenleiste mit Positionspfeil — ordnet die Zahl ohne Hover ein. */}
             {!isRiskMetricsLoading && <KpiMiniSkala kpi="sharpe" wert={riskMetrics?.sharpeRatio ?? null} className="max-w-[9rem]" />}
             <p className="text-xs text-gray-400 mt-1">
-              {riskHeader.sharpe.sub}
+              {isRiskMetricsLoading ? riskHeader.sharpe.sub : `5J-Proxy · ${riskHeader.sharpe.sub}`}
             </p>
           </div>
           )}

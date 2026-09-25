@@ -932,3 +932,6 @@
 
 ## Risiko-Kopfkennzahlen: transparenter Ladezustand (2026-09-25)
 - [x] Ursache für scheinbar fehlende Kennzahlen nach frischem Seitenaufruf geprüft: Die vollständige 5J-Risikoreihe für «Mami» wird serverseitig neu aufgebaut und benötigte im Livecheck 8.5 Sekunden. Sie ist vollständig qualifiziert (1'292 Beobachtungen, keine Abdeckungslücke, SPI-Stressgate erfüllt); danach liefert sie Sharpe −0.11 / Benchmark 0.10 und Max.-Drawdown −25.6 % / Benchmark −29.3 %. Der Kopfbereich kennzeichnet diesen Zwischenzustand nun klar als «Wird berechnet…» statt irreführend «—» und unterscheidet ihn von echten 5J-Datenlücken (2026-09-25)
+
+## Sharpe-Kopfkennzahl: Fünfjahresfenster klar beschriftet (2026-09-25)
+- [x] Abweichung zum früheren hohen Sharpe geprüft: Formel und risikofreier Satz sind unverändert, aber das Risiko-Kopf-KPI verwendet seit der 5J-Risikoumstellung nicht mehr das ruhige Einjahresfenster. Aktueller 5J-Allokationsproxy 27.09.2021–24.09.2026: annualisierte arithmetische Tagesrendite 0.764 %, Volatilität 10.844 %, risikofreier Satz 2.0 %, Sharpe −0.114. Dasselbe Portfolio über das letzte Jahr läge auf aktueller Basis bei Sharpe 1.241. Kopf-KPI deshalb als «RISIKO · SHARPE (5J)» und «5J-Proxy» beschriftet (2026-09-25)
