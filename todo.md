@@ -929,3 +929,6 @@
 
 ## Positionsliste: Sektor-Sortierung (2026-09-25)
 - [x] Die Spalte **Sektor** ist nun wie die bestehenden Kennzahlenspalten klickbar. Der erste Klick sortiert alphabetisch aufsteigend, ein zweiter absteigend; unklassifizierte Instrumente bleiben nach den belegten Sektoren und Gleichstände sind per Ticker stabil. Live im Portfolio «Mami» geprüft: Andere → Basic Materials → Communication Services → Financial Services usw.; keine Portfolio-, Cash-, Ledger-, Transaktions- oder Handelsmutation (2026-09-25)
+
+## Risiko-Kopfkennzahlen: transparenter Ladezustand (2026-09-25)
+- [x] Ursache für scheinbar fehlende Kennzahlen nach frischem Seitenaufruf geprüft: Die vollständige 5J-Risikoreihe für «Mami» wird serverseitig neu aufgebaut und benötigte im Livecheck 8.5 Sekunden. Sie ist vollständig qualifiziert (1'292 Beobachtungen, keine Abdeckungslücke, SPI-Stressgate erfüllt); danach liefert sie Sharpe −0.11 / Benchmark 0.10 und Max.-Drawdown −25.6 % / Benchmark −29.3 %. Der Kopfbereich kennzeichnet diesen Zwischenzustand nun klar als «Wird berechnet…» statt irreführend «—» und unterscheidet ihn von echten 5J-Datenlücken (2026-09-25)

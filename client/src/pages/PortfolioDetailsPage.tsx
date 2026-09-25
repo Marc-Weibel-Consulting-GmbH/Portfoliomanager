@@ -115,6 +115,7 @@ import { SLEEVE_LABEL_CONFIG, SLEEVE_TICKER_LABEL } from '@shared/const';
 import { getTransactionActivityPresentation } from "@/lib/transactionActivityPresentation";
 import { buildPortfolioExportModel } from "@/lib/portfolioExportModel";
 import { downloadPortfolioExcel, downloadPortfolioPdf } from "@/lib/portfolioExportFiles";
+import { getRiskHeaderPresentation } from "@/lib/riskHeaderPresentation";
 
 // ─── Performance Tab with Attribution Waterfall ───
 function PerformanceTab({
@@ -1359,10 +1360,11 @@ export default function PortfolioDetailsPage() {
   );
 
   // Risk metrics (real Sharpe ratio + benchmark Sharpe) scoped to this portfolio
-  const { data: riskMetrics } = trpc.dashboard.getRiskMetrics.useQuery(
+  const { data: riskMetrics, isLoading: isRiskMetricsLoading } = trpc.dashboard.getRiskMetrics.useQuery(
     { scope: portfolioId },
     { enabled: portfolioId > 0 }
   );
+  const riskHeader = getRiskHeaderPresentation(riskMetrics, isRiskMetricsLoading);
 
   // Signals for Positionen tab detail rows (cache-first, loaded lazily when tab is active)
   const trpcUtils = trpc.useUtils();
@@ -1970,13 +1972,13 @@ export default function PortfolioDetailsPage() {
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Sharpe Ratio = risikoadjustierte Rendite">RISIKO · SHARPE</p>
-            <p className="text-2xl font-bold font-mono text-white">
-              {riskMetrics?.sharpeRatio != null ? riskMetrics.sharpeRatio.toFixed(2) : '—'}
+            <p className={`${isRiskMetricsLoading ? 'text-lg' : 'text-2xl'} font-bold font-mono text-white`}>
+              {riskHeader.sharpe.value}
             </p>
             {/* Zonenleiste mit Positionspfeil — ordnet die Zahl ohne Hover ein. */}
-            <KpiMiniSkala kpi="sharpe" wert={riskMetrics?.sharpeRatio ?? null} className="max-w-[9rem]" />
+            {!isRiskMetricsLoading && <KpiMiniSkala kpi="sharpe" wert={riskMetrics?.sharpeRatio ?? null} className="max-w-[9rem]" />}
             <p className="text-xs text-gray-400 mt-1">
-              Bench {riskMetrics?.sharpeBenchmark != null ? riskMetrics.sharpeBenchmark.toFixed(2) : '—'}
+              {riskHeader.sharpe.sub}
             </p>
           </div>
           )}
@@ -1985,11 +1987,11 @@ export default function PortfolioDetailsPage() {
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Maximaler zwischenzeitlicher Wertverlust im qualifizierten Fünfjahres-Allokationsproxy inklusive objektivem Stressnachweis">VERLUSTRISIKO · MAX. (5J)</p>
-            <p className="text-2xl font-bold font-mono text-white">
-              {riskMetrics?.maxDrawdown != null ? `${riskMetrics.maxDrawdown.toFixed(1)}%` : '—'}
+            <p className={`${isRiskMetricsLoading ? 'text-lg' : 'text-2xl'} font-bold font-mono text-white`}>
+              {riskHeader.maxDrawdown.value}
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              {riskMetrics?.drawdownBenchmark != null ? `Bench ${riskMetrics.drawdownBenchmark.toFixed(1)}%` : '5J-Gate erforderlich'}
+              {riskHeader.maxDrawdown.sub}
             </p>
           </div>
           )}
