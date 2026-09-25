@@ -122,7 +122,7 @@ describe("buildPortfolioExportModel", () => {
   it("übernimmt die tägliche Drawdown-Reihe als prüfbaren Excel-Nachweis", () => {
     const model = buildPortfolioExportModel(base);
 
-    expect(model.drawdown).toEqual({
+    expect(model.drawdown).toMatchObject({
       method: "demo_fixed_shares_including_cash",
       windowStart: "2026-01-02",
       windowEnd: "2026-01-05",
@@ -291,5 +291,49 @@ describe("buildPortfolioExportModel", () => {
         { date: "2026-01-04", portfolioReturnPct: 2.5, spiReturnPct: 1, sp500ReturnPct: 1.5 },
       ],
     }));
+  });
+
+  it("gibt Fünfjahres-Gate, Proxy-Status und Krisennachweis an den Export weiter", () => {
+    const model = buildPortfolioExportModel({
+      ...base,
+      risk: {
+        ...base.risk,
+        maxDrawdown: null,
+        riskWindowStatus: "insufficient_history",
+        riskWindowTarget: "5Y",
+        riskHistoryYears: 3.41,
+        riskProxyType: "historical_allocation_proxy_not_actual_depot_history",
+        coverage: {
+          qualifiedObservationCount: 552,
+          requiredObservationCount: 1000,
+          complete: false,
+          benchmarkOutlierCount: 1,
+          issues: [{ key: "ISRG", kind: "price" }],
+        },
+        stressEvidence: {
+          qualified: false,
+          benchmark: "SPI (Swiss Performance Index)",
+          requiredDrawdownPct: -15,
+          observedDrawdownPct: -18.2,
+          peakDate: "2022-01-04",
+          troughDate: "2022-10-03",
+        },
+        drawdownSeries: [],
+      },
+    });
+
+    expect(model.drawdown).toMatchObject({
+      status: "insufficient_history",
+      target: "5Y",
+      proxyType: "historical_allocation_proxy_not_actual_depot_history",
+      coverage: expect.objectContaining({ qualifiedObservationCount: 552, complete: false, benchmarkOutlierCount: 1 }),
+      stressEvidence: expect.objectContaining({ benchmark: "SPI (Swiss Performance Index)", qualified: false }),
+    });
+    expect(model.kpis.find((kpi) => kpi.key === "max_drawdown")?.value).toBeNull();
+    expect(model.dataQualityNotes).toEqual(expect.arrayContaining([
+      expect.stringContaining("ISRG"),
+      expect.stringContaining("kein verkürzter Ersatzwert"),
+      expect.stringContaining("Benchmark-Massstabsbrüche"),
+    ]));
   });
 });

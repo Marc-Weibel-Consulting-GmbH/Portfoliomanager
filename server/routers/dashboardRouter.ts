@@ -9,6 +9,7 @@ import { DEFAULT_RISK_FREE_RATE } from "../analytics/riskStats";
 import { getHistoricalPriceCurrency } from "../lib/eodhdSymbol";
 import { buildPortfolioDrawdownAnalysis, calculateDailyReturns } from "../lib/portfolioDrawdown";
 import { alignReturnsByDate, calculateDatedReturns, calculatePairedBeta } from "../lib/benchmarkReturnSeries";
+import { assessPortfolioRiskWindow, MAX_RISK_WINDOW_START_LAG_DAYS } from "../lib/portfolioRiskWindow";
 
 // Helper to safely parse float values - handles 'NA', null, undefined
 function safeParseFloat(value: string | null | undefined, fallback = 0): number {
@@ -1889,12 +1890,25 @@ export const dashboardRouter = router({
       }
       if (targetPortfolios.length === 0) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
-      // Get 1 year of data for risk calculation
+      // Risikovertrag: Der sichtbare Max.-Drawdown braucht mindestens fünf
+      // Kalenderjahre sowie eine belegte Stressphase. Vor dem Portfolio-Start
+      // ist eine Demo-Reihe deshalb ausschliesslich ein historischer
+      // Allokationsproxy mit heutigen festen Stückzahlen, nie Depot-Historie.
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-      const startDateStr = oneYearAgo.toISOString().split('T')[0];
+      const riskTargetStart = new Date(today);
+      riskTargetStart.setUTCFullYear(riskTargetStart.getUTCFullYear() - 5);
+      const riskTargetStartStr = riskTargetStart.toISOString().split('T')[0];
+      const riskQueryStart = new Date(riskTargetStart);
+      riskQueryStart.setUTCDate(riskQueryStart.getUTCDate() - MAX_RISK_WINDOW_START_LAG_DAYS);
+      const riskQueryStartStr = riskQueryStart.toISOString().split('T')[0];
+      const riskWindowStartCeiling = new Date(riskTargetStart);
+      riskWindowStartCeiling.setUTCDate(riskWindowStartCeiling.getUTCDate() + MAX_RISK_WINDOW_START_LAG_DAYS);
+      const riskWindowStartCeilingStr = riskWindowStartCeiling.toISOString().split('T')[0];
+      const riskWindowEndFloor = new Date(today);
+      riskWindowEndFloor.setUTCDate(riskWindowEndFloor.getUTCDate() - 7);
+      const riskWindowEndFloorStr = riskWindowEndFloor.toISOString().split('T')[0];
+      const MAX_PRICE_STALENESS_DAYS = 7;
 
       // Get all tickers (live: from transactions, demo: from portfolioData)
       const allTickers = new Set<string>();
@@ -1926,11 +1940,12 @@ export const dashboardRouter = router({
 
       const stocksMap = await batchGetStocks(Array.from(allTickers));
 
-      // Get historical prices for 1 year
+      // Read the entire target window. Historical rows remain additive; the
+      // risk path is read-only and never initiates an import or price rewrite.
       const pricesResult = await db.select().from(historicalPrices)
         .where(and(
           inArray(historicalPrices.ticker, Array.from(allTickers)),
-          gte(historicalPrices.date, startDateStr),
+          gte(historicalPrices.date, riskQueryStartStr),
           lte(historicalPrices.date, todayStr)
         ));
 
@@ -1981,100 +1996,119 @@ export const dashboardRouter = router({
         demoSharesCalc.set(portfolio.id, sharesMap);
       }
 
-      // Calculate daily portfolio values. Demo cash is a genuine part of the
-      // portfolio capital base and therefore must be included in its risk path.
-      // Live cash is transaction-dependent and continues to be handled only by
-      // the dedicated performance engine until a dated cash-balance replay is
-      // available here as well.
+      const { tryConvertToCHF, tryGetFxRate } = await import("../fxHelper");
+      const priceCoverage = Array.from(allTickers).map((ticker) => {
+        const dates = Array.from(priceMap.get(ticker)?.keys() ?? []).sort();
+        return {
+          key: ticker,
+          kind: "price" as const,
+          supportsWindowStart: dates.some((date) => date >= riskQueryStartStr && date <= riskWindowStartCeilingStr),
+          supportsWindowEnd: dates.some((date) => date >= riskWindowEndFloorStr),
+        };
+      });
+      const fxCoverage = await Promise.all(Array.from(uniqueCurrencies)
+        .filter((currency) => currency !== "CHF")
+        .map(async (currency) => ({
+          key: `${currency}CHF`,
+          kind: "fx" as const,
+          supportsWindowStart: (await tryGetFxRate(riskTargetStartStr, `${currency}CHF`)) !== null,
+          supportsWindowEnd: (await tryGetFxRate(todayStr, `${currency}CHF`)) !== null,
+        })));
+
+      const priceAtOrBefore = (ticker: string, date: string): number | null => {
+        const tickerPrices = priceMap.get(ticker);
+        if (!tickerPrices) return null;
+        const observedDate = Array.from(tickerPrices.keys())
+          .filter((availableDate) => availableDate <= date)
+          .sort()
+          .at(-1);
+        if (!observedDate) return null;
+        const stalenessDays = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${observedDate}T00:00:00Z`)) / 86_400_000);
+        if (stalenessDays > MAX_PRICE_STALENESS_DAYS) return null;
+        const price = tickerPrices.get(observedDate);
+        return price && Number.isFinite(price) && price > 0 ? price : null;
+      };
+
+      // Build a daily CHF allocation proxy. Different exchanges close on
+      // different holidays, so a price may only be carried forward for seven
+      // days after every constituent has proven coverage at the five-year start.
+      // Missing price or FX points exclude a day; no amount becomes CHF 1:1.
       const dailyValues: Array<{ date: string; portfolioValueCHF: number }> = [];
-      for (const date of sortedDates) {
+      for (const date of sortedDates.filter((candidate) => candidate >= riskTargetStartStr && candidate <= todayStr)) {
         let totalValueCHF = 0;
+        let completeValuation = true;
         for (const portfolio of targetPortfolios) {
           if (portfolio.isLive === 1 && portfolio.liveStartDate) {
-            const transactions = txByPortfolio.get(portfolio.id) || [];
-            const holdingsMap = buildHoldings(transactions, date);
+            const holdingsMap = buildHoldings(txByPortfolio.get(portfolio.id) || [], date);
             for (const [ticker, { shares }] of Array.from(holdingsMap.entries())) {
               if (shares <= 0) continue;
-              const tickerPrices = priceMap.get(ticker);
-              if (!tickerPrices) continue;
-              let price = tickerPrices.get(date);
-              if (!price) {
-                const avail = Array.from(tickerPrices.keys()).sort();
-                for (let j = avail.length - 1; j >= 0; j--) {
-                  if (avail[j] <= date) { price = tickerPrices.get(avail[j]); break; }
-                }
-              }
-              if (!price) continue;
-              const stock = stocksMap.get(ticker) as any;
-              const currency = stock?.currency || 'CHF';
-              const priceCHF = await convertToCHF(price, currency, date);
+              const price = priceAtOrBefore(ticker, date);
+              const currency = (stocksMap.get(ticker) as any)?.currency || "CHF";
+              const priceCHF = price === null ? null : await tryConvertToCHF(price, currency, date);
+              if (priceCHF === null) { completeValuation = false; break; }
               totalValueCHF += shares * priceCHF;
             }
           } else {
-            // Demo portfolio: use pre-calculated shares
             const sharesMap = demoSharesCalc.get(portfolio.id) || new Map();
             for (const [ticker, shares] of Array.from(sharesMap.entries())) {
-              const tickerPrices = priceMap.get(ticker);
-              if (!tickerPrices) continue;
-              let price = tickerPrices.get(date);
-              if (!price) {
-                const avail = Array.from(tickerPrices.keys()).sort();
-                for (let j = avail.length - 1; j >= 0; j--) {
-                  if (avail[j] <= date) { price = tickerPrices.get(avail[j]); break; }
-                }
-              }
-              if (!price) continue;
-              const stock = stocksMap.get(ticker) as any;
-              const currency = stock?.currency || 'CHF';
-              const priceCHF = await convertToCHF(price, currency, date);
+              const price = priceAtOrBefore(ticker, date);
+              const currency = (stocksMap.get(ticker) as any)?.currency || "CHF";
+              const priceCHF = price === null ? null : await tryConvertToCHF(price, currency, date);
+              if (priceCHF === null) { completeValuation = false; break; }
               totalValueCHF += shares * priceCHF;
             }
             const cashBalance = parseFloat(portfolio.cashBalance || "0");
-            if (Number.isFinite(cashBalance) && cashBalance > 0) {
-              totalValueCHF += cashBalance;
-            }
+            if (Number.isFinite(cashBalance) && cashBalance > 0) totalValueCHF += cashBalance;
           }
+          if (!completeValuation) break;
         }
-        dailyValues.push({ date, portfolioValueCHF: totalValueCHF });
+        if (completeValuation && totalValueCHF > 0) dailyValues.push({ date, portfolioValueCHF: totalValueCHF });
       }
 
-      // Calculate daily returns
-      const dailyReturns = calculateDailyReturns(dailyValues.map((value) => value.portfolioValueCHF));
+      const configuredBenchmark = targetPortfolios.length === 1 ? targetPortfolios[0]?.benchmark : null;
+      const benchmarkKey = configuredBenchmark === "SP500" || configuredBenchmark === "MSCI_WORLD" || configuredBenchmark === "SMI"
+        ? configuredBenchmark
+        : "SMI";
+      const benchmarkData = await getBenchmarkData(benchmarkKey, riskQueryStartStr, todayStr);
+      const { benchmarkLabel } = await import("../lib/benchmarkIdentity");
+      const riskWindow = assessPortfolioRiskWindow({
+        asOfDate: todayStr,
+        qualifiedDates: dailyValues.map((point) => point.date),
+        coverage: [...priceCoverage, ...fxCoverage],
+        benchmark: {
+          key: benchmarkLabel(benchmarkKey),
+          points: benchmarkData.map((point) => ({ date: point.date, close: parseFloat(point.close) })),
+        },
+      });
+      const qualifiedBenchmarkPoints = riskWindow.benchmarkPoints;
+      const qualifiedForRisk = riskWindow.canPublishMaxDrawdown;
+      const dailyReturns = qualifiedForRisk ? calculateDailyReturns(dailyValues.map((value) => value.portfolioValueCHF)) : [];
+      const mean = dailyReturns.length > 0 ? dailyReturns.reduce((sum, value) => sum + value, 0) / dailyReturns.length : null;
+      const variance = dailyReturns.length > 1 && mean !== null
+        ? dailyReturns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (dailyReturns.length - 1)
+        : null;
+      const volatility = variance !== null ? Math.sqrt(variance) * Math.sqrt(252) * 100 : null;
+      const drawdownAnalysis = qualifiedForRisk ? buildPortfolioDrawdownAnalysis(dailyValues) : null;
+      const maxDrawdown = drawdownAnalysis?.maxDrawdownPct ?? null;
+      const sortedReturns = [...dailyReturns].sort((left, right) => left - right);
+      const var95 = sortedReturns.length > 0 ? sortedReturns[Math.floor(dailyReturns.length * 0.05)] * 100 : null;
+      const rf = DEFAULT_RISK_FREE_RATE / 252;
+      const sharpeRatio = variance !== null && variance > 0 && mean !== null
+        ? ((mean - rf) / Math.sqrt(variance)) * Math.sqrt(252)
+        : null;
 
-      if (dailyReturns.length < 10) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
-
-      // Volatility (annualized)
-      const mean = dailyReturns.reduce((s, r) => s + r, 0) / dailyReturns.length;
-      const variance = dailyReturns.reduce((s, r) => s + (r - mean) ** 2, 0) / (dailyReturns.length - 1);
-      const volatility = Math.sqrt(variance) * Math.sqrt(252) * 100;
-
-      // Max Drawdown. The complete observed series is returned for the Excel
-      // audit sheet, including running peaks and daily drawdowns.
-      const drawdownAnalysis = buildPortfolioDrawdownAnalysis(dailyValues);
-      const maxDrawdown = (drawdownAnalysis.maxDrawdownPct ?? 0) / 100;
-
-      // VaR 95%
-      const sortedReturns = [...dailyReturns].sort((a, b) => a - b);
-      const var95Index = Math.floor(dailyReturns.length * 0.05);
-      const var95 = sortedReturns[var95Index] * 100;
-
-      // Sharpe Ratio (rf = 1.5% annual = 0.006 daily)
-      const rf = DEFAULT_RISK_FREE_RATE / 252; // DAT-3: zentraler rf statt lokal 0.015
-      const excessMean = mean - rf;
-      const sharpeRatio = variance > 0 ? (excessMean / Math.sqrt(variance)) * Math.sqrt(252) : 0;
-
-      // Benchmark metrics (SMI)
-      const smiData = await getBenchmarkData("SMI", startDateStr, todayStr);
+      // Benchmark statistics use exactly the same five-year window and are
+      // intentionally withheld when the strict coverage/stress gate is unmet.
       let volBenchmark = 0;
       let drawdownBenchmark = 0;
       let beta: number | null = null;
       let sharpeBenchmark = 0;
 
-      if (smiData.length > 10) {
-        const smiPrices = smiData.map(d => parseFloat(d.close));
-        const smiReturnPoints = calculateDatedReturns(smiData.map((point) => ({
+      if (qualifiedForRisk && qualifiedBenchmarkPoints.length > 10) {
+        const smiPrices = qualifiedBenchmarkPoints.map((point) => point.close);
+        const smiReturnPoints = calculateDatedReturns(qualifiedBenchmarkPoints.map((point) => ({
           date: point.date,
-          value: parseFloat(point.close),
+          value: point.close,
         })));
         const smiReturns = smiReturnPoints.map((point) => point.value);
 
@@ -2139,23 +2173,43 @@ export const dashboardRouter = router({
 
       return {
         dataAvailable: true,
-        volatility: Number(volatility.toFixed(1)),
-        volBenchmark: Number(volBenchmark.toFixed(1)),
-        maxDrawdown: Number((maxDrawdown * 100).toFixed(1)),
-        drawdownBenchmark: Number((drawdownBenchmark * 100).toFixed(1)),
-        var95: Number(var95.toFixed(1)),
+        volatility: volatility === null ? null : Number(volatility.toFixed(1)),
+        volBenchmark: qualifiedForRisk ? Number(volBenchmark.toFixed(1)) : null,
+        maxDrawdown: maxDrawdown === null ? null : Number(maxDrawdown.toFixed(1)),
+        drawdownBenchmark: qualifiedForRisk ? Number((drawdownBenchmark * 100).toFixed(1)) : null,
+        var95: var95 === null ? null : Number(var95.toFixed(1)),
         concentrationTop3: Number(concentrationTop3.toFixed(1)),
-        sharpeRatio: Number(sharpeRatio.toFixed(2)),
-        sharpeBenchmark: Number(sharpeBenchmark.toFixed(2)),
+        sharpeRatio: sharpeRatio === null ? null : Number(sharpeRatio.toFixed(2)),
+        sharpeBenchmark: qualifiedForRisk ? Number(sharpeBenchmark.toFixed(2)) : null,
         beta: beta === null ? null : Number(beta.toFixed(2)),
-        riskWindowStart: drawdownAnalysis.points[0]?.date ?? null,
-        riskWindowEnd: drawdownAnalysis.points.at(-1)?.date ?? null,
+        riskWindowStatus: riskWindow.status,
+        riskWindowTarget: `${riskWindow.targetYears}Y`,
+        riskWindowStart: drawdownAnalysis?.points[0]?.date ?? riskWindow.historyStart,
+        riskWindowEnd: drawdownAnalysis?.points.at(-1)?.date ?? riskWindow.historyEnd,
+        riskHistoryYears: riskWindow.historyStart && riskWindow.historyEnd
+          ? Number(((Date.parse(`${riskWindow.historyEnd}T00:00:00Z`) - Date.parse(`${riskWindow.historyStart}T00:00:00Z`)) / (365.25 * 86_400_000)).toFixed(2))
+          : null,
         riskSeriesMethod: targetPortfolios.every((portfolio) => portfolio.isLive !== 1)
           ? "demo_fixed_shares_including_cash"
           : "market_values_from_available_price_history",
-        drawdownPeakDate: drawdownAnalysis.peakDate,
-        drawdownTroughDate: drawdownAnalysis.troughDate,
-        drawdownSeries: drawdownAnalysis.points,
+        riskProxyType: targetPortfolios.every((portfolio) => portfolio.isLive !== 1)
+          ? "historical_allocation_proxy_not_actual_depot_history"
+          : "historical_market_value_replay",
+        coverage: {
+          qualifiedObservationCount: riskWindow.historyObservationCount,
+          requiredObservationCount: 1_000,
+          complete: qualifiedForRisk,
+          issues: riskWindow.coverageIssues,
+          benchmarkOutlierCount: riskWindow.benchmarkOutlierCount,
+        },
+        stressEvidence: riskWindow.stressEvidence,
+        benchmark: {
+          key: benchmarkKey,
+          label: benchmarkLabel(benchmarkKey),
+        },
+        drawdownPeakDate: drawdownAnalysis?.peakDate ?? null,
+        drawdownTroughDate: drawdownAnalysis?.troughDate ?? null,
+        drawdownSeries: drawdownAnalysis?.points ?? [],
       };
     }),
 

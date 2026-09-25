@@ -298,12 +298,39 @@ export async function downloadPortfolioExcel(model: PortfolioExportModel): Promi
   drawdownTitle.alignment = { vertical: "middle" };
   drawdown.getRow(3).height = 26;
   drawdown.mergeCells("C5:G5");
-  drawdown.getCell("C5").value = "Herleitung des grössten beobachteten Rückgangs vom bisherigen Hoch (nicht VaR und keine Prognose).";
+  drawdown.getCell("C5").value = "Herleitung des grössten beobachteten Rückgangs vom bisherigen Hoch (nicht VaR und keine Prognose). Der Max.-Drawdown wird nur bei erfüllt dokumentiertem Fünfjahres- und Stress-Gate ausgewiesen.";
   drawdown.getCell("C5").font = { name: "Aptos", size: 11, bold: true, color: { argb: "000000" } };
   drawdown.mergeCells("C6:G6");
-  drawdown.getCell("C6").value = `Risikofenster: ${model.drawdown.windowStart ?? "—"} bis ${model.drawdown.windowEnd ?? "—"} · Methode: ${model.drawdown.method === "demo_fixed_shares_including_cash" ? "Demo: feste Stückzahlen + konstante Cash-Reserve" : "Marktwerte aus verfügbarer Kurshistorie"}`;
+  const riskStatusLabel: Record<string, string> = {
+    five_year_with_stress: "5J mit Krisen-/Stressnachweis erfüllt",
+    five_year_without_stress: "5J ohne bestätigten Stressnachweis",
+    insufficient_history: "Fünfjahresabdeckung unzureichend",
+    incompatible_history: "Historien-/FX-Reihe inkompatibel",
+  };
+  const proxyMethodLabel = model.drawdown.method === "demo_fixed_shares_including_cash"
+    ? "Demo: feste Stückzahlen + konstante Cash-Reserve"
+    : "Marktwerte aus verfügbarer Kurshistorie";
+  const proxyTypeLabel = model.drawdown.proxyType === "historical_allocation_proxy_not_actual_depot_history"
+    ? "historischer Allokationsproxy, keine tatsächliche Depot-/Transaktionshistorie vor Portfolio-Start"
+    : "historische Marktwertreihe";
+  const coverageText = model.drawdown.coverage.qualifiedObservationCount !== null
+    ? `${model.drawdown.coverage.qualifiedObservationCount} / ${model.drawdown.coverage.requiredObservationCount ?? "—"} qualifizierte Beobachtungen`
+    : "Abdeckung nicht überliefert";
+  drawdown.getCell("C6").value = `Risikofenster-Ziel: ${model.drawdown.target ?? "—"} · Beobachtet: ${model.drawdown.windowStart ?? "—"} bis ${model.drawdown.windowEnd ?? "—"} · ${coverageText}`;
   drawdown.getCell("C6").font = { name: "Aptos", size: 10, italic: true, color: { argb: COLORS.gray } };
   drawdown.getCell("C6").note = "Source: Portfoliomanager, dashboard.getRiskMetrics; Datenstand gemäss Exportzeitpunkt. Die Risikoreihe basiert auf den im System verfügbaren täglichen Kursen und der gespeicherten Portfoliozusammensetzung.";
+  drawdown.mergeCells("C7:G7");
+  const stress = model.drawdown.stressEvidence;
+  const benchmarkAudit = (model.drawdown.coverage.benchmarkOutlierCount ?? 0) > 0
+    ? ` · ${model.drawdown.coverage.benchmarkOutlierCount} isolierte Benchmark-Massstabsbrüche ausgeschlossen (Quellzeilen unverändert).`
+    : "";
+  const stressText = stress.qualified
+    ? `Krisennachweis: ${stress.benchmark ?? "Benchmark"}, Drawdown ${formatPercent(stress.observedDrawdownPct)} vom ${stress.peakDate ?? "—"} bis ${stress.troughDate ?? "—"}; Gate ${formatPercent(stress.requiredDrawdownPct)}.${benchmarkAudit}`
+    : `Gate-Status: ${riskStatusLabel[model.drawdown.status ?? ""] ?? "nicht qualifiziert"} · ${proxyTypeLabel}${model.drawdown.coverage.issues.length > 0 ? ` · Fehlend: ${model.drawdown.coverage.issues.map((issue) => `${issue.key}${issue.kind === "fx" ? " (FX)" : ""}`).join(", ")}` : ""}.${benchmarkAudit}`;
+  drawdown.getCell("C7").value = stressText;
+  drawdown.getCell("C7").font = { name: "Aptos", size: 9.5, color: { argb: model.drawdown.status === "five_year_with_stress" ? COLORS.positive : COLORS.warning } };
+  drawdown.getCell("C7").alignment = { wrapText: true, vertical: "middle" };
+  drawdown.getRow(7).height = 30;
 
   const summaryHeader = drawdown.getCell("C8");
   summaryHeader.value = "MAX.-DRAWDOWN-ZUSAMMENFASSUNG";
@@ -633,6 +660,50 @@ export async function downloadPortfolioPdf(model: PortfolioExportModel): Promise
   pdf.text(noteLines.slice(0, 4), margin + 5, qualityTop + 13);
   pdf.setFontSize(6.5);
   pdf.text("Definitionen und Datenherkunft sind im Excel-Export vollständig dokumentiert. Kennzahlen sind Momentaufnahmen und keine Anlageempfehlung.", margin, pageHeight - 9);
+
+  if (model.drawdown.target || model.drawdown.status) {
+    const stress = model.drawdown.stressEvidence;
+    const readableRiskStatus: Record<string, string> = {
+      five_year_with_stress: "Fünfjahresfenster mit Krisennachweis validiert",
+      five_year_without_stress: "Fünfjahresfenster ohne ausreichenden Krisennachweis",
+      insufficient_history: "Fünfjahreshistorie unzureichend",
+      incompatible_history: "Fünfjahreshistorie inkompatibel",
+    };
+    const methodologyLines = [
+      `Gate-Status: ${readableRiskStatus[model.drawdown.status ?? ""] ?? "nicht qualifiziert"}. Ein Maximal-Drawdown wird nur bei qualifiziertem Fünfjahresfenster publiziert; es gibt kein verkürztes Ersatzfenster.`,
+      `Risikofenster: Ziel ${model.drawdown.target ?? "—"}; beobachtet ${model.drawdown.windowStart ?? "—"} bis ${model.drawdown.windowEnd ?? "—"}; ${model.drawdown.coverage.qualifiedObservationCount ?? "—"} von mindestens ${model.drawdown.coverage.requiredObservationCount ?? "—"} qualifizierten Beobachtungen.`,
+      stress.qualified
+        ? `Krisennachweis: ${stress.benchmark ?? "Benchmark"} erreichte vom ${stress.peakDate ?? "—"} bis ${stress.troughDate ?? "—"} einen Drawdown von ${formatPercent(stress.observedDrawdownPct)}. Das objektive Gate beträgt ${formatPercent(stress.requiredDrawdownPct)}.`
+        : "Krisennachweis: nicht qualifiziert; die Kennzahl wird deshalb nicht als Risikoaussage veröffentlicht.",
+      "Methode: Die Demo-Risikoreihe bewertet die heutige Allokation mit festen Stückzahlen, historischen Schlusskursen und historischen FX-Raten in CHF. Die aktuelle Cash-Reserve bleibt konstant. Dies ist ein historischer Allokations-/Risikoproxy und keine tatsächliche Depot- oder Transaktionshistorie vor Portfolio-Start.",
+      "Prüfformel: Drawdown = (Portfoliowert am Tag − bisheriges Hoch) / bisheriges Hoch × 100. Der Maximal-Drawdown ist der tiefste tägliche Wert dieser Reihe.",
+      (model.drawdown.coverage.benchmarkOutlierCount ?? 0) > 0
+        ? `Datenintegrität: ${model.drawdown.coverage.benchmarkOutlierCount} isolierte Benchmark-Massstabsbrüche wurden als Datenlücke ausgeschlossen. Die Rohzeilen wurden weder gelöscht noch überschrieben.`
+        : "Datenintegrität: Keine isolierten Benchmark-Massstabsbrüche im qualifizierten Fenster festgestellt.",
+    ];
+    pdf.addPage();
+    setPdfFillColor(pdf, COLORS.navy);
+    pdf.rect(0, 0, pageWidth, 20, "F");
+    setPdfTextColor(pdf, "FFFFFF");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(13);
+    pdf.text(`Risikomethodik · ${model.title}`, margin, 12);
+    let riskTextY = 33;
+    methodologyLines.forEach((line, index) => {
+      setPdfFillColor(pdf, index === 0 ? COLORS.light : "F8FAFC");
+      const lines = pdf.splitTextToSize(line, usableWidth - 14);
+      const height = Math.max(16, lines.length * 4.6 + 8);
+      pdf.roundedRect(margin, riskTextY - 6, usableWidth, height, 2, 2, "F");
+      setPdfTextColor(pdf, COLORS.navy);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8.2);
+      pdf.text(lines, margin + 6, riskTextY);
+      riskTextY += height + 5;
+    });
+    setPdfTextColor(pdf, COLORS.gray);
+    pdf.setFontSize(6.5);
+    pdf.text("Die detaillierte Tagesreihe mit Hochpunkten, Tiefpunkten und Berechnungsformel befindet sich im Excel-Blatt «Verlustrisiko».", margin, pageHeight - 9);
+  }
 
   const periodComparisons = model.benchmarkComparisons.filter((comparison) => comparison.key !== "portfolio_start");
   if (periodComparisons.length > 0) {

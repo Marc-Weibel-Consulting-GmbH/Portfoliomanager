@@ -36,12 +36,35 @@ export type PortfolioDrawdownExportPoint = {
   drawdownPct: number;
 };
 
+export type PortfolioRiskCoverageExport = {
+  qualifiedObservationCount: number | null;
+  requiredObservationCount: number | null;
+  complete: boolean | null;
+  benchmarkOutlierCount: number | null;
+  issues: Array<{ key: string; kind: "price" | "fx" }>;
+};
+
+export type PortfolioStressEvidenceExport = {
+  qualified: boolean | null;
+  benchmark: string | null;
+  requiredDrawdownPct: number | null;
+  observedDrawdownPct: number | null;
+  peakDate: string | null;
+  troughDate: string | null;
+};
+
 export type PortfolioDrawdownExport = {
   method: string | null;
+  status: string | null;
+  target: string | null;
+  historyYears: number | null;
+  proxyType: string | null;
   windowStart: string | null;
   windowEnd: string | null;
   peakDate: string | null;
   troughDate: string | null;
+  coverage: PortfolioRiskCoverageExport;
+  stressEvidence: PortfolioStressEvidenceExport;
   points: PortfolioDrawdownExportPoint[];
 };
 
@@ -172,7 +195,15 @@ function buildKpis(
     { key: "irr", label: "IRR p.a.", value: firstNumber(performance.irr), unit: "percent", definition: "Geldgewichtete Jahresrendite inklusive Zeitpunkten externer Zahlungsströme." },
     { key: "sharpe", label: "Sharpe Ratio", value: riskAvailable ? firstNumber(risk?.sharpeRatio) : null, unit: "ratio", definition: "Risikoadjustierte Rendite auf Basis der verfügbaren Risikoreihe." },
     { key: "volatility", label: "Volatilität p.a.", value: riskAvailable ? firstNumber(risk?.volatility) : null, unit: "percent", definition: "Annualisierte Volatilität der verfügbaren täglichen Portfolioentwicklung." },
-    { key: "max_drawdown", label: "Max. Drawdown", value: riskAvailable ? firstNumber(risk?.maxDrawdown) : null, unit: "percent", definition: "Grösster beobachteter prozentualer Rückgang vom vorherigen Höchststand." },
+    {
+      key: "max_drawdown",
+      label: risk?.riskWindowTarget === "5Y" ? "Max. Drawdown (5J)" : "Max. Drawdown",
+      value: riskAvailable ? firstNumber(risk?.maxDrawdown) : null,
+      unit: "percent",
+      definition: risk?.riskWindowTarget === "5Y"
+        ? "Grösster beobachteter Rückgang vom vorherigen Höchststand im qualifizierten Fünfjahresfenster mit objektivem Benchmark-Stressnachweis."
+        : "Grösster beobachteter prozentualer Rückgang vom vorherigen Höchststand.",
+    },
     { key: "dividend_yield", label: "Ø Dividendenrendite", value: summary.avgDividendYieldPct, unit: "percent", definition: "Gewichtete, aktuell gespeicherte Dividendenrendite der Positionen; kein garantierter Ertrag." },
   ];
 }
@@ -301,10 +332,46 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
     .filter((point): point is PortfolioDrawdownExportPoint => point !== null);
   const drawdown: PortfolioDrawdownExport = {
     method: typeof input.risk?.riskSeriesMethod === "string" ? input.risk.riskSeriesMethod : null,
+    status: typeof input.risk?.riskWindowStatus === "string" ? input.risk.riskWindowStatus : null,
+    target: typeof input.risk?.riskWindowTarget === "string" ? input.risk.riskWindowTarget : null,
+    historyYears: firstNumber(input.risk?.riskHistoryYears),
+    proxyType: typeof input.risk?.riskProxyType === "string" ? input.risk.riskProxyType : null,
     windowStart: typeof input.risk?.riskWindowStart === "string" ? input.risk.riskWindowStart : null,
     windowEnd: typeof input.risk?.riskWindowEnd === "string" ? input.risk.riskWindowEnd : null,
     peakDate: typeof input.risk?.drawdownPeakDate === "string" ? input.risk.drawdownPeakDate : null,
     troughDate: typeof input.risk?.drawdownTroughDate === "string" ? input.risk.drawdownTroughDate : null,
+    coverage: {
+      qualifiedObservationCount: firstNumber((input.risk?.coverage as UnknownRecord | undefined)?.qualifiedObservationCount),
+      requiredObservationCount: firstNumber((input.risk?.coverage as UnknownRecord | undefined)?.requiredObservationCount),
+      complete: typeof (input.risk?.coverage as UnknownRecord | undefined)?.complete === "boolean"
+        ? (input.risk?.coverage as UnknownRecord).complete as boolean
+        : null,
+      benchmarkOutlierCount: firstNumber((input.risk?.coverage as UnknownRecord | undefined)?.benchmarkOutlierCount),
+      issues: Array.isArray((input.risk?.coverage as UnknownRecord | undefined)?.issues)
+        ? ((input.risk?.coverage as UnknownRecord).issues as UnknownRecord[])
+          .map((issue) => ({
+            key: typeof issue.key === "string" ? issue.key : "",
+            kind: issue.kind === "fx" ? "fx" as const : "price" as const,
+          }))
+          .filter((issue) => Boolean(issue.key))
+        : [],
+    },
+    stressEvidence: {
+      qualified: typeof (input.risk?.stressEvidence as UnknownRecord | undefined)?.qualified === "boolean"
+        ? (input.risk?.stressEvidence as UnknownRecord).qualified as boolean
+        : null,
+      benchmark: typeof (input.risk?.stressEvidence as UnknownRecord | undefined)?.benchmark === "string"
+        ? (input.risk?.stressEvidence as UnknownRecord).benchmark as string
+        : null,
+      requiredDrawdownPct: firstNumber((input.risk?.stressEvidence as UnknownRecord | undefined)?.requiredDrawdownPct),
+      observedDrawdownPct: firstNumber((input.risk?.stressEvidence as UnknownRecord | undefined)?.observedDrawdownPct),
+      peakDate: typeof (input.risk?.stressEvidence as UnknownRecord | undefined)?.peakDate === "string"
+        ? (input.risk?.stressEvidence as UnknownRecord).peakDate as string
+        : null,
+      troughDate: typeof (input.risk?.stressEvidence as UnknownRecord | undefined)?.troughDate === "string"
+        ? (input.risk?.stressEvidence as UnknownRecord).troughDate as string
+        : null,
+    },
     points: drawdownPoints,
   };
 
@@ -344,6 +411,18 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
   }
   if (drawdown.points.length < 2) {
     dataQualityNotes.push("Für die Max.-Drawdown-Herleitung liegt keine ausreichende tägliche Risikoreihe vor.");
+  }
+  if (drawdown.status && drawdown.status !== "five_year_with_stress") {
+    dataQualityNotes.push("Der Max.-Drawdown wird nicht ausgewiesen: kein verkürzter Ersatzwert bei nicht erfülltem Fünfjahres-/Stress-Gate.");
+  }
+  if (drawdown.proxyType === "historical_allocation_proxy_not_actual_depot_history") {
+    dataQualityNotes.push("Die Risikoreihe ist ein historischer Allokationsproxy mit heutigen festen Stückzahlen und konstanter Cash-Reserve; sie ist keine tatsächliche Depot- oder Transaktionshistorie vor Portfolio-Start.");
+  }
+  if (drawdown.coverage.issues.length > 0) {
+    dataQualityNotes.push(`Fehlende Fünfjahresabdeckung: ${drawdown.coverage.issues.map((issue) => `${issue.key}${issue.kind === "fx" ? " (FX)" : ""}`).join(", ")}.`);
+  }
+  if ((drawdown.coverage.benchmarkOutlierCount ?? 0) > 0) {
+    dataQualityNotes.push(`${drawdown.coverage.benchmarkOutlierCount} isolierte Benchmark-Massstabsbrüche wurden als Datenlücke ausgeschlossen; keine Quellzeile wurde verändert.`);
   }
   if (benchmarkComparisons.some((comparison) => comparison.key === "portfolio_start")) {
     dataQualityNotes.push("«Seit Portfolio-Start» zeigt Start- und aktuellen Gesamtwert inkl. Liquidität. Einzelpositionsrenditen bleiben ohne bestätigten Einstand separat als Datenlücke ausgewiesen.");

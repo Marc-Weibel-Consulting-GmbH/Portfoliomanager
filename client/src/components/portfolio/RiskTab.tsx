@@ -155,6 +155,39 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
   // berechnet werden konnten (kein Portfolio, keine Kurshistorie). Dann keine
   // irreführenden 0.0%-Werte anzeigen.
   const riskData = risk && risk.dataAvailable !== false ? risk : undefined;
+  const riskDetail = riskData as any;
+  const hasValidatedFiveYearRisk = riskDetail?.riskWindowStatus === "five_year_with_stress";
+  const numberOrNull = (value: unknown): number | null => typeof value === "number" && Number.isFinite(value) ? value : null;
+  const volatility = numberOrNull(riskData?.volatility);
+  const benchmarkVolatility = numberOrNull(riskData?.volBenchmark);
+  const maxDrawdown = numberOrNull(riskData?.maxDrawdown);
+  const benchmarkDrawdown = numberOrNull(riskData?.drawdownBenchmark);
+  const var95 = numberOrNull(riskData?.var95);
+  const sharpeRatio = numberOrNull(riskData?.sharpeRatio);
+  const benchmarkSharpe = numberOrNull(riskData?.sharpeBenchmark);
+  const riskWindowStatus: string | null = typeof riskDetail?.riskWindowStatus === "string" ? riskDetail.riskWindowStatus : null;
+  const coverageIssues: Array<{ key: string; kind: "price" | "fx" }> = Array.isArray(riskDetail?.coverage?.issues)
+    ? riskDetail.coverage.issues
+    : [];
+  const benchmarkOutlierCount = numberOrNull(riskDetail?.coverage?.benchmarkOutlierCount) ?? 0;
+  const stressEvidence = riskDetail?.stressEvidence as {
+    qualified?: boolean;
+    benchmark?: string;
+    observedDrawdownPct?: number | null;
+    requiredDrawdownPct?: number;
+    peakDate?: string | null;
+    troughDate?: string | null;
+  } | undefined;
+
+  const riskGateExplanation = riskWindowStatus === "five_year_with_stress"
+    ? `5 Jahre qualifizierte Historie inklusive Marktstress über ${stressEvidence?.benchmark ?? "Benchmark"}.`
+    : riskWindowStatus === "five_year_without_stress"
+      ? "Die Fünfjahresreihe enthält keine objektiv bestätigte Stressphase; deshalb wird kein Max.-Drawdown ausgewiesen."
+      : riskWindowStatus === "incompatible_history"
+        ? "Für mindestens eine Fremdwährungsposition fehlt eine kompatible historische FX-Reihe. Es wird keine CHF-Risikokennzahl geschätzt."
+        : riskWindowStatus === "insufficient_history"
+          ? "Die vollständige Fünfjahresreihe ist noch nicht nachgewiesen. Es wird bewusst kein verkürzter Max.-Drawdown angezeigt."
+          : "Für die Risikoberechnung liegt noch keine ausreichende Kurshistorie vor.";
 
   const metrics: {
     label: string;
@@ -167,20 +200,20 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     benchmarkTone?: "good" | "bad" | "neutral";
   }[] = [
     {
-      label: "Volatilität (p.a.)",
-      value: riskData ? `${riskData.volatility.toFixed(1)}%` : "—",
-      sub: riskData ? `Bench ${riskData.volBenchmark.toFixed(1)}%` : undefined,
-      tone: riskData ? (riskData.volatility < riskData.volBenchmark ? "good" : "neutral") : "neutral",
-      tooltip: "Annualisierte Standardabweichung der täglichen Renditen.",
+      label: "Volatilität (5J p.a.)",
+      value: volatility === null ? "—" : `${volatility.toFixed(1)}%`,
+      sub: benchmarkVolatility === null ? "5J-Gate erforderlich" : `Bench ${benchmarkVolatility.toFixed(1)}%`,
+      tone: volatility !== null && benchmarkVolatility !== null && volatility < benchmarkVolatility ? "good" : "neutral",
+      tooltip: "Annualisierte Standardabweichung der täglichen Renditen über das qualifizierte Fünfjahresfenster.",
       kpiKey: "volatility",
-      benchmark: riskData ? `Benchmark: ${riskData.volBenchmark.toFixed(1)}%` : undefined,
+      benchmark: benchmarkVolatility === null ? undefined : `Benchmark: ${benchmarkVolatility.toFixed(1)}%`,
     },
     {
-      label: "Max Drawdown",
-      value: riskData ? `${riskData.maxDrawdown.toFixed(1)}%` : "—",
-      sub: riskData ? `Bench ${riskData.drawdownBenchmark.toFixed(1)}%` : undefined,
-      tone: riskData ? (Math.abs(riskData.maxDrawdown) < Math.abs(riskData.drawdownBenchmark) ? "good" : "bad") : "neutral",
-      tooltip: "Maximaler Wertverlust vom Höchststand bis zum Tiefststand.",
+      label: "Verlustrisiko · Max. (5J)",
+      value: maxDrawdown === null ? "—" : `${maxDrawdown.toFixed(1)}%`,
+      sub: benchmarkDrawdown === null ? "Kein verkürztes Ersatzfenster" : `Bench ${benchmarkDrawdown.toFixed(1)}%`,
+      tone: maxDrawdown !== null && benchmarkDrawdown !== null && Math.abs(maxDrawdown) < Math.abs(benchmarkDrawdown) ? "good" : maxDrawdown !== null ? "bad" : "neutral",
+      tooltip: "Maximaler Rückgang vom bisherigen Hoch bis zum späteren Tief im qualifizierten Fünfjahres-Allokationsproxy; keine Prognose und keine rückwirkende Depottransaktionshistorie.",
       kpiKey: "maxDrawdown",
     },
     {
@@ -193,18 +226,18 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     },
     {
       label: "VaR (95%, 1T)",
-      value: riskData ? `${riskData.var95.toFixed(1)}%` : "—",
-      sub: "Tagesverlust-Schwelle",
-      tone: riskData ? "bad" : "neutral",
-      tooltip: "Value at Risk: maximaler Tagesverlust mit 95% Wahrscheinlichkeit.",
+      value: var95 === null ? "—" : `${var95.toFixed(1)}%`,
+      sub: var95 === null ? "5J-Gate erforderlich" : "Tagesverlust-Schwelle",
+      tone: var95 === null ? "neutral" : "bad",
+      tooltip: "Value at Risk: Tagesverlust-Schwelle auf Basis des qualifizierten Fünfjahresfensters.",
       kpiKey: "var",
     },
     {
       label: "Sharpe Ratio",
-      value: riskData ? riskData.sharpeRatio.toFixed(2) : "—",
-      sub: riskData ? `Bench ${riskData.sharpeBenchmark.toFixed(2)}` : undefined,
-      tone: riskData && riskData.sharpeRatio >= 1 ? "good" : "neutral",
-      tooltip: "Rendite pro Risikoeinheit.",
+      value: sharpeRatio === null ? "—" : sharpeRatio.toFixed(2),
+      sub: benchmarkSharpe === null ? "5J-Gate erforderlich" : `Bench ${benchmarkSharpe.toFixed(2)}`,
+      tone: sharpeRatio !== null && sharpeRatio >= 1 ? "good" : "neutral",
+      tooltip: "Rendite pro Risikoeinheit im qualifizierten Fünfjahresfenster.",
       kpiKey: "sharpe",
     },
     {
@@ -225,18 +258,18 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     bubble?.label === "Hoch" ? "bg-red-400" : bubble?.label === "Mittel" ? "bg-amber-400" : "bg-[#00CFC1]";
 
   // Determine risk assessment text for green boxes
-  const riskAssessment = riskData ? {
-    overall: riskData.sharpeRatio >= 1 && riskData.concentrationTop3 < 50 ? "Gut diversifiziert" :
+  const riskAssessment = riskData && hasValidatedFiveYearRisk && sharpeRatio !== null && volatility !== null ? {
+    overall: sharpeRatio >= 1 && riskData.concentrationTop3 < 50 ? "Gut diversifiziert" :
              riskData.concentrationTop3 > 60 ? "Klumpenrisiko erkannt" : "Ausgewogen",
-    overallTone: riskData.sharpeRatio >= 1 && riskData.concentrationTop3 < 50 ? "good" :
+    overallTone: sharpeRatio >= 1 && riskData.concentrationTop3 < 50 ? "good" :
                  riskData.concentrationTop3 > 60 ? "bad" : "neutral",
-    volatilityAssessment: riskData.volatility < 15 ? "Niedrig (defensiv)" :
-                          riskData.volatility < 25 ? "Moderat (ausgewogen)" : "Hoch (aggressiv)",
-    volatilityTone: riskData.volatility < 15 ? "good" : riskData.volatility < 25 ? "neutral" : "bad",
-    sharpeAssessment: riskData.sharpeRatio >= 1.5 ? "Ausgezeichnet" :
-                      riskData.sharpeRatio >= 1 ? "Gut" :
-                      riskData.sharpeRatio >= 0.5 ? "Akzeptabel" : "Verbesserungswürdig",
-    sharpeTone: riskData.sharpeRatio >= 1 ? "good" : riskData.sharpeRatio >= 0.5 ? "neutral" : "bad",
+    volatilityAssessment: volatility < 15 ? "Niedrig (defensiv)" :
+                          volatility < 25 ? "Moderat (ausgewogen)" : "Hoch (aggressiv)",
+    volatilityTone: volatility < 15 ? "good" : volatility < 25 ? "neutral" : "bad",
+    sharpeAssessment: sharpeRatio >= 1.5 ? "Ausgezeichnet" :
+                      sharpeRatio >= 1 ? "Gut" :
+                      sharpeRatio >= 0.5 ? "Akzeptabel" : "Verbesserungswürdig",
+    sharpeTone: sharpeRatio >= 1 ? "good" : sharpeRatio >= 0.5 ? "neutral" : "bad",
   } : null;
 
   return (
@@ -319,6 +352,43 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
         </div>
       </div>
 
+      {!riskLoading && riskData && (
+        <div className={`rounded-lg border p-4 ${hasValidatedFiveYearRisk ? "border-[#00CFC1]/30 bg-[#00CFC1]/5" : "border-amber-400/30 bg-amber-400/5"}`}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className={`text-xs font-semibold uppercase tracking-widest ${hasValidatedFiveYearRisk ? "text-[#00CFC1]" : "text-amber-300"}`}>
+                Verlust-Risiko · {hasValidatedFiveYearRisk ? "5J validiert" : "Datenlücke statt Ersatzwert"}
+              </p>
+              <p className="mt-1 text-sm text-gray-200">{riskGateExplanation}</p>
+            </div>
+            <div className="text-right text-xs text-gray-400">
+              <p>Zeitraum: {riskDetail?.riskWindowStart ?? "—"} bis {riskDetail?.riskWindowEnd ?? "—"}</p>
+              <p>{riskDetail?.coverage?.qualifiedObservationCount ?? 0} qualifizierte Beobachtungen</p>
+            </div>
+          </div>
+          <p className="mt-3 text-xs leading-relaxed text-gray-400">
+            {riskDetail?.riskProxyType === "historical_allocation_proxy_not_actual_depot_history"
+              ? "Demoportfolio: Die Reihe bewertet die heutige Allokation mit festen Stückzahlen und konstanter Cash-Reserve rückwirkend in CHF. Sie ist ein historischer Allokations-/Risikoproxy und keine tatsächliche Depot- oder Transaktionshistorie vor dem Portfolio-Start."
+              : "Die Reihe basiert auf verfügbaren historischen Marktwerten und ersetzt keine fehlende Transaktions- oder Cash-Historie."}
+          </p>
+          {hasValidatedFiveYearRisk && stressEvidence?.qualified && (
+            <p className="mt-2 text-xs text-gray-300">
+              Krisennachweis: {stressEvidence.benchmark} erreichte vom {stressEvidence.peakDate ?? "—"} bis {stressEvidence.troughDate ?? "—"} einen Drawdown von {stressEvidence.observedDrawdownPct?.toFixed(1) ?? "—"}% (Gate: höchstens {stressEvidence.requiredDrawdownPct ?? -15}%).
+            </p>
+          )}
+          {benchmarkOutlierCount > 0 && (
+            <p className="mt-2 text-xs text-gray-400">
+              Audit-Hinweis: {benchmarkOutlierCount} isolierte Benchmark-Massstabsbrüche wurden als Datenlücke ausgeschlossen; die Quellzeilen bleiben unverändert erhalten.
+            </p>
+          )}
+          {!hasValidatedFiveYearRisk && coverageIssues.length > 0 && (
+            <p className="mt-2 text-xs text-amber-200/90">
+              Fehlende Fünfjahresabdeckung: {coverageIssues.map((issue) => `${issue.key}${issue.kind === "fx" ? " (FX)" : ""}`).join(", ")}.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Risk Assessment Summary: «Keine Daten»-Zustand statt 0.0%-Werten (F-08) */}
       {!riskLoading && !riskData && (
         <div className="grid grid-cols-3 gap-4">
@@ -352,7 +422,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
           }`}>
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">Volatilität</p>
             <p className={`text-lg font-bold ${toneClass(riskAssessment.volatilityTone as any)}`}>{riskAssessment.volatilityAssessment}</p>
-            <p className="text-xs text-gray-500 mt-1">{riskData?.volatility.toFixed(1)}% p.a.</p>
+            <p className="text-xs text-gray-500 mt-1">{volatility?.toFixed(1)}% p.a.</p>
           </div>
           <div className={`bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border rounded-lg p-4 ${
             riskAssessment.sharpeTone === 'good' ? 'border-[#00CFC1]/30' :
@@ -360,7 +430,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
           }`}>
             <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest mb-1">Rendite/Risiko</p>
             <p className={`text-lg font-bold ${toneClass(riskAssessment.sharpeTone as any)}`}>{riskAssessment.sharpeAssessment}</p>
-            <p className="text-xs text-gray-500 mt-1">Sharpe {riskData?.sharpeRatio.toFixed(2)}</p>
+            <p className="text-xs text-gray-500 mt-1">Sharpe {sharpeRatio?.toFixed(2)}</p>
           </div>
         </div>
       )}

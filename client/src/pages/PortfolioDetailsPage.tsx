@@ -1970,12 +1970,12 @@ export default function PortfolioDetailsPage() {
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Sharpe Ratio = risikoadjustierte Rendite">RISIKO · SHARPE</p>
             <p className="text-2xl font-bold font-mono text-white">
-              {riskMetrics?.sharpeRatio !== undefined ? riskMetrics.sharpeRatio.toFixed(2) : '—'}
+              {riskMetrics?.sharpeRatio != null ? riskMetrics.sharpeRatio.toFixed(2) : '—'}
             </p>
             {/* Zonenleiste mit Positionspfeil — ordnet die Zahl ohne Hover ein. */}
             <KpiMiniSkala kpi="sharpe" wert={riskMetrics?.sharpeRatio ?? null} className="max-w-[9rem]" />
             <p className="text-xs text-gray-400 mt-1">
-              Bench {riskMetrics?.sharpeBenchmark !== undefined ? riskMetrics.sharpeBenchmark.toFixed(2) : '—'}
+              Bench {riskMetrics?.sharpeBenchmark != null ? riskMetrics.sharpeBenchmark.toFixed(2) : '—'}
             </p>
           </div>
           )}
@@ -1983,12 +1983,12 @@ export default function PortfolioDetailsPage() {
           {/* K10 (Soll-Ablauf S5): max. Verlustrisiko mit Benchmark-Vergleich */}
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Maximaler zwischenzeitlicher Wertverlust (Drawdown) im Betrachtungszeitraum">VERLUSTRISIKO · MAX.</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Maximaler zwischenzeitlicher Wertverlust im qualifizierten Fünfjahres-Allokationsproxy inklusive objektivem Stressnachweis">VERLUSTRISIKO · MAX. (5J)</p>
             <p className="text-2xl font-bold font-mono text-white">
-              {riskMetrics?.dataAvailable ? `${riskMetrics.maxDrawdown.toFixed(1)}%` : '—'}
+              {riskMetrics?.maxDrawdown != null ? `${riskMetrics.maxDrawdown.toFixed(1)}%` : '—'}
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              Bench {riskMetrics?.dataAvailable ? `${riskMetrics.drawdownBenchmark.toFixed(1)}%` : '—'}
+              {riskMetrics?.drawdownBenchmark != null ? `Bench ${riskMetrics.drawdownBenchmark.toFixed(1)}%` : '5J-Gate erforderlich'}
             </p>
           </div>
           )}
