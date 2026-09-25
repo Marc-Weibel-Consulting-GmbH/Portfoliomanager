@@ -477,6 +477,7 @@ export const portfoliosRouter = router({
           const { inArray, and: andOp, gte } = await import("drizzle-orm");
           const { getDb } = await import("../db");
           const { calculateFiveYearAnnualizedVolatility } = await import("../lib/fiveYearVolatility");
+          const { selectPreferredHistoricalPriceSeries } = await import("../lib/preferredHistoricalPriceSeries");
           const { isHistoricalPriceSeriesCompatible } = await import("../lib/eodhdSymbol");
           const dbConn = await getDb();
           if (!dbConn) throw new Error("Datenbank nicht verfuegbar");
@@ -504,13 +505,12 @@ export const portfoliosRouter = router({
             .where(andOp(inArray(historicalPrices.ticker, Array.from(variants)), gte(historicalPrices.date, historyStart)));
 
           const rowsByTicker = new Map<string, Array<{ date: string; close: string | number | null; adjustedClose: string | number | null }>>();
-          for (const row of rows) {
-            const baseTicker = String(row.ticker).endsWith('.US') ? String(row.ticker).slice(0, -3) : String(row.ticker);
-            for (const key of [String(row.ticker), baseTicker, `${baseTicker}.US`]) {
-              const entries = rowsByTicker.get(key) ?? [];
-              entries.push({ date: String(row.date), close: row.close, adjustedClose: row.adjustedClose });
-              rowsByTicker.set(key, entries);
-            }
+          for (const ticker of allTickers) {
+            // Alte `.US`-Aliasreihen dürfen nicht tagweise mit der aktuellen
+            // kanonischen Serie verschmolzen werden. Die Auswahl nimmt genau
+            // eine vollständigste/rezenteste Quelle und schützt so Kennzahlen
+            // vor durch Aliasüberlagerungen erzeugten Datenlücken.
+            rowsByTicker.set(ticker, selectPreferredHistoricalPriceSeries(ticker, rows));
           }
 
           for (const ticker of allTickers) {

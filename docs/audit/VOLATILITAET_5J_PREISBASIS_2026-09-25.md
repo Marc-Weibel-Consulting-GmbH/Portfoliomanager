@@ -28,6 +28,27 @@ Die Berechnung verwendet nun pro Titel genau **eine homogene Basis**. Bei einer 
 
 Die teilweise fehlenden adjusted-close-Werte lassen sich aus der Importhistorie erklären. Der tägliche additive Import speichert absichtlich nur neue Rohschlusskurse. Dadurch ersetzt ein späterer Abruf ältere Reihen nicht stillschweigend. Das schützt die Datenintegrität, bedeutet aber auch, dass nachträglich verfügbare adjusted-close-Werte nicht in bereits bestehende Tageszeilen geschrieben werden.
 
+## Aktueller Provider-Check ohne Datenmutation
+
+Ein erneuter, rein lesender Abruf bei EODHD am 25. September 2026 bestätigte für alle sechs durch den Split-Guard gesperrten Instrumente eine vollständige aktuelle adjusted-close-Reihe. GOOGL, NVDA, TSLA und ISRG lieferten jeweils 1’254 Tageszeilen, NOVO-B.CO 1’252 und ABTC.SW 1’256 Zeilen. Bei jeder Reihe war `adjusted_close` auf 100,0 % der zurückgegebenen Handelstage vorhanden. Dies zeigt, dass die Lücke in der lokalen Datenbank eine **Speicher-/Importhistorie** und keine gegenwärtige Providerlücke ist.
+
+Der Abruf war ausdrücklich nicht schreibend. Die sechs sichtbaren Datenlücken bleiben daher aktiv, bis eine separate Entscheidung einen versionierten Import mit Vergleich der bisherigen und neuen Werte erlaubt. Der aktuelle Schutz verhindert, dass eine scheinbar vollständige Kennzahl aus nachträglich veränderten adjusted-close-Werten entsteht, ohne dass deren Auswirkung auf historische Renditen und Volatilität auditiert wurde.
+
+## Kontrollierte Anreicherung nach Vergleich
+
+Nach expliziter Freigabe wurde ausschließlich für Reihen mit vollständiger Zeilenübereinstimmung eine additive Anreicherung der **fehlenden** localen `adjustedClose`-Werte ausgeführt. Die Prüfung sperrte eine gesamte Reihe, sobald ein bestehender positiver adjusted-close-Wert oder ein Rohschlusskurs vom aktuellen EODHD-Wert abwich. Sie fügte weder neue Handelstage ein noch überschrieb sie Rohkurse oder bereits vorhandene positive Adjustierungswerte.
+
+| Ticker | Ergänzte `adjustedClose`-Werte | Nachprüfung der Basis | Ergebnis |
+|---|---:|---|---|
+| GOOGL | 935 | 1’254 von 1’254 positiv; 32,2362 % p.a. | Gesamtrenditebasis verfügbar |
+| NVDA | 935 | 1’254 von 1’254 positiv; 52,0282 % p.a. | Gesamtrenditebasis verfügbar |
+| TSLA | 935 | 1’254 von 1’254 positiv; 59,8937 % p.a. | Gesamtrenditebasis verfügbar |
+| ISRG | 552 | 1’254 von 1’254 positiv; 34,5805 % p.a. | Gesamtrenditebasis verfügbar |
+| NOVO-B.CO | 550 | 1’251 von 1’251 positiv; 39,4274 % p.a. | Gesamtrenditebasis verfügbar |
+| ABTC.SW | 0 | 1 vorhandener Adjustierungswert wich um −9,6037 % ab; 13 Rohkurstage weichen ebenfalls ab | **gesperrt, keine Änderung** |
+
+Insgesamt wurden **3’907** fehlende Adjustierungswerte ergänzt. Die Anwendung zeigt jetzt bei den fünf freigegebenen Titeln die Kennzeichnung `Gesamt`; ABTC.SW bleibt eine sichtbare Datenlücke. NVIDIA wurde anschließend zusätzlich geprüft: Eine veraltete `NVDA.US`-Aliasreihe hatte die aktuelle kanonische `NVDA`-Reihe im Positionsrouter tagweise überlagert. Der Router wählt nun für jede Volatilitätskennzahl genau eine aktuelle, vollständigste Aliasreihe statt Daten aus beiden Reihen zu vermischen. Dadurch erscheint NVIDIA korrekt mit 52,0 % Gesamtrenditevolatilität.
+
 ## Titel mit bewusstem Split-Gate
 
 | Ticker | Split-Hinweis am | Behandlung |
