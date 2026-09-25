@@ -18,6 +18,18 @@ describe("resolvePositionEntryBasis", () => {
     });
   });
 
+  it("kennzeichnet die berechnete Portfolio-Startbasis getrennt von einem bestätigten Kauf", () => {
+    expect(resolvePositionEntryBasis({
+      hasCostBasis: true,
+      isPortfolioStartBasis: true,
+      portfolioStartDate: "2026-09-08",
+    })).toEqual({
+      status: "portfolio_start",
+      entryDate: "2026-09-08",
+      label: "Einstand aus Portfolio-Start",
+    });
+  });
+
   it("leitet einen eindeutigen Einstandstag aus einer einzelnen Buchung ab", () => {
     expect(resolvePositionEntryBasis({ hasCostBasis: true, transactionDates: ["2026-09-08", "2026-09-08"] })).toEqual({
       status: "transaction_date",

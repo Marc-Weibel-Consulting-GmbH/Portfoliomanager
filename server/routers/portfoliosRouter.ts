@@ -523,6 +523,82 @@ export const portfoliosRouter = router({
           console.warn('[portfolios] Fuenfjahresvolatilitaet nicht berechenbar:', (e as Error).message);
         }
 
+        // Transaktionslose Demobestände haben keinen tatsächlichen Kaufbeleg.
+        // Auf ausdrücklichen Nutzerwunsch wird für diese Positionen eine klar
+        // bezeichnete *Portfolio-Startbasis* aus dem historischen Schlusskurs
+        // abgeleitet. Sie ist kein erfundener Kauf und wird erst durch ein
+        // separates Speichern im Positionsdialog persistiert.
+        const portfolioStartPriceByTicker = new Map<string, { priceChf: number; date: string }>();
+        const portfolioStartDate = portfolio.createdAt
+          ? new Date(portfolio.createdAt).toISOString().slice(0, 10)
+          : null;
+        if ((portfolio.portfolioType === 'demo' || !portfolio.portfolioType) && portfolioStartDate) {
+          try {
+            const { historicalPrices } = await import('../../drizzle/schema');
+            const { and: andOp, desc, inArray, lte } = await import('drizzle-orm');
+            const { getDb } = await import('../db');
+            const { historicalPriceLookupKeys } = await import('../lib/historicalPriceLookupKeys');
+            const { resolveHistoricalEntryPrice } = await import('../lib/entryPriceLookup');
+            const dbConn = await getDb();
+            if (!dbConn) throw new Error('Datenbank nicht verfuegbar');
+
+            const lookupKeysByTicker = new Map<string, string[]>();
+            const lookupKeys = new Set<string>();
+            for (const ticker of allTickers) {
+              const keys = historicalPriceLookupKeys(String(ticker));
+              lookupKeysByTicker.set(String(ticker), keys);
+              keys.forEach((key) => lookupKeys.add(key));
+            }
+            const historicalRows = await dbConn
+              .select({
+                ticker: historicalPrices.ticker,
+                date: historicalPrices.date,
+                close: historicalPrices.close,
+                adjustedClose: historicalPrices.adjustedClose,
+                currency: historicalPrices.currency,
+              })
+              .from(historicalPrices)
+              .where(andOp(inArray(historicalPrices.ticker, Array.from(lookupKeys)), lte(historicalPrices.date, portfolioStartDate)))
+              .orderBy(desc(historicalPrices.date));
+
+            const fxRateCache = new Map<string, number | null>();
+            for (const ticker of allTickers) {
+              const nativeCurrency = String(dbStockMap.get(ticker)?.currency ?? '').toUpperCase();
+              if (!nativeCurrency || !isHistoricalPriceSeriesCompatible(ticker, nativeCurrency)) continue;
+              const keys = new Set(lookupKeysByTicker.get(String(ticker)) ?? []);
+              const rows = historicalRows.filter((row) => keys.has(String(row.ticker)));
+              const preflight = resolveHistoricalEntryPrice({
+                rows,
+                requestedDate: portfolioStartDate,
+                nativeCurrency,
+                historicalPriceCurrency: getHistoricalPriceCurrency(ticker, nativeCurrency),
+                fxRateToChf: 1,
+              });
+              if (preflight.status !== 'available') continue;
+              const fxKey = `${nativeCurrency}:${preflight.effectiveDate}`;
+              if (!fxRateCache.has(fxKey)) {
+                fxRateCache.set(fxKey, nativeCurrency === 'CHF'
+                  ? 1
+                  : await tryConvertToCHF(1, nativeCurrency, preflight.effectiveDate));
+              }
+              const resolved = resolveHistoricalEntryPrice({
+                rows,
+                requestedDate: portfolioStartDate,
+                nativeCurrency,
+                historicalPriceCurrency: getHistoricalPriceCurrency(ticker, nativeCurrency),
+                fxRateToChf: fxRateCache.get(fxKey) ?? null,
+              });
+              if (resolved.status === 'available') {
+                portfolioStartPriceByTicker.set(ticker, { priceChf: resolved.priceChf, date: resolved.effectiveDate });
+              }
+            }
+          } catch (e) {
+            // A missing history/FX record remains a per-position data gap. It
+            // must never make a portfolio detail request fail or invent a price.
+            console.warn('[portfolios] Portfolio-Startbasis nicht vollstaendig ableitbar:', (e as Error).message);
+          }
+        }
+
         // Enrich stocks with currency and FX data
         const enrichedStocks = await Promise.all(
           stocksWithoutCash.map(async (stock: any) => {
@@ -635,6 +711,10 @@ export const portfoliosRouter = router({
             // If it's missing, assume legacy and apply old conversion logic.
             const storedAvgBuyPrice = parseFloat(stock.avgBuyPrice) || 0;
             const storedAvgBuyPriceCHF = parseFloat(stock.avgBuyPriceCHF) || 0;
+            const portfolioStartBasis = portfolioStartPriceByTicker.get(ticker);
+            const hasStoredOrTransactionBasis = storedAvgBuyPriceCHF > 0
+              || storedAvgBuyPrice > 0
+              || (avgBuyPriceLocalMap.get(ticker) ?? 0) > 0;
             let avgBuyPriceCHF: number;
             if (storedAvgBuyPriceCHF > 0) {
               // New path: avgBuyPriceCHF is explicitly stored as CHF — use directly
@@ -656,6 +736,11 @@ export const portfoliosRouter = router({
               if (txAvgLocal && txAvgLocal > 0) {
                 // Use transaction-derived local price × FX rate at purchase for CHF value
                 avgBuyPriceCHF = txAvgLocal * (txFxRate ?? fxRate);
+              } else if (portfolioStartBasis) {
+                // Read-only, clearly labeled comparison basis for undated demo
+                // positions. It uses the portfolio's creation date and the
+                // compatible historical closing price in CHF.
+                avgBuyPriceCHF = portfolioStartBasis.priceChf;
               } else {
                 // Absolute fallback: use current CHF price (0% performance)
                 avgBuyPriceCHF = priceCHF;
@@ -663,12 +748,16 @@ export const portfoliosRouter = router({
             }
             // Keep backward-compat field name (used by client)
             const avgBuyPrice = avgBuyPriceCHF;
-            // hasBuyPrice: true only when we have a real purchase price (not the fallback)
-            const hasBuyPrice = storedAvgBuyPriceCHF > 0 || storedAvgBuyPrice > 0 || (avgBuyPriceLocalMap.get(ticker) ?? 0) > 0;
+            // A persisted purchase/transaction stays distinct from a
+            // derived, portfolio-start comparison basis. Both are verifiable
+            // cost references; the current price fallback never is.
+            const hasBuyPrice = hasStoredOrTransactionBasis || Boolean(portfolioStartBasis);
             const entryBasis = resolvePositionEntryBasis({
               hasCostBasis: hasBuyPrice,
               storedEntryDate: stock.entryDate ?? stock.buyDate ?? stock.purchaseDate,
               transactionDates: buyTransactionDatesByTicker.get(ticker),
+              portfolioStartDate: portfolioStartBasis?.date,
+              isPortfolioStartBasis: !hasStoredOrTransactionBasis && Boolean(portfolioStartBasis),
             });
 
             // Stückzahlen über die EINE gemeinsame Regel (lib/demoAnteile):
@@ -905,6 +994,97 @@ export const portfoliosRouter = router({
         } catch { /* non-critical */ }
         
         return result;
+      }),
+
+    /**
+     * Read-only quote lookup for the manual demo-position dialog. The price is
+     * never persisted here; saving remains a separate, explicit mutation.
+     */
+    getHistoricalEntryPrice: protectedProcedure
+      .input(z.object({
+        portfolioId: z.number().int().positive(),
+        sourceTicker: z.string().min(1).max(50),
+        ticker: z.string().min(1).max(50),
+        entryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }))
+      .query(async ({ input, ctx }) => {
+        const { getPortfolioReadAccess, getStockByTicker, getDb } = await import("../db");
+        const { historicalPrices } = await import("../../drizzle/schema");
+        const { and, desc, inArray, lte } = await import("drizzle-orm");
+        const { tryConvertToCHF } = await import("../fxHelper");
+        const { historicalPriceLookupKeys } = await import("../lib/historicalPriceLookupKeys");
+        const { getHistoricalPriceCurrency } = await import("../lib/eodhdSymbol");
+        const { resolveHistoricalEntryPrice } = await import("../lib/entryPriceLookup");
+
+        const access = await getPortfolioReadAccess(input.portfolioId, ctx.user.id);
+        if (!access) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Portfolio nicht gefunden oder nicht berechtigt." });
+        }
+
+        let rawPortfolioData: { stocks?: Array<{ ticker?: unknown }> } = {};
+        try {
+          rawPortfolioData = JSON.parse(String(access.portfolio.portfolioData ?? "{}"));
+        } catch {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Portfoliodaten sind nicht lesbar." });
+        }
+        const sourceTicker = input.sourceTicker.trim().toUpperCase();
+        const sourceExists = (rawPortfolioData.stocks ?? []).some(
+          (holding) => String(holding.ticker ?? "").trim().toUpperCase() === sourceTicker,
+        );
+        if (!sourceExists) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Die Ausgangsposition ist nicht mehr im Portfolio enthalten." });
+        }
+
+        const ticker = input.ticker.trim().toUpperCase();
+        const stock = await getStockByTicker(ticker);
+        if (!stock) {
+          return {
+            status: "price_missing" as const,
+            requestedDate: input.entryDate,
+            message: "Für diesen Ticker ist keine verifizierte historische Kursreihe im Datenbestand verfügbar.",
+          };
+        }
+
+        const nativeCurrency = String(stock.currency ?? "CHF").toUpperCase();
+        const historicalPriceCurrency = getHistoricalPriceCurrency(ticker, nativeCurrency);
+        const lookupKeys = historicalPriceLookupKeys(ticker);
+        const db = await getDb();
+        if (!db) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Datenbankverbindung nicht verfügbar." });
+        }
+        const rows = await db
+          .select({
+            ticker: historicalPrices.ticker,
+            date: historicalPrices.date,
+            close: historicalPrices.close,
+            adjustedClose: historicalPrices.adjustedClose,
+            currency: historicalPrices.currency,
+          })
+          .from(historicalPrices)
+          .where(and(inArray(historicalPrices.ticker, lookupKeys), lte(historicalPrices.date, input.entryDate)))
+          .orderBy(desc(historicalPrices.date));
+
+        // Resolve the actual market date first; this allows the FX rate to use
+        // that same day (e.g. Friday before a weekend), not the requested date.
+        const preflight = resolveHistoricalEntryPrice({
+          rows,
+          requestedDate: input.entryDate,
+          nativeCurrency,
+          historicalPriceCurrency,
+          fxRateToChf: 1,
+        });
+        if (preflight.status !== "available") return preflight;
+
+        const fxRateToChf = nativeCurrency === "CHF"
+          ? 1
+          : await tryConvertToCHF(1, nativeCurrency, preflight.effectiveDate);
+        return resolveHistoricalEntryPrice({
+          rows,
+          requestedDate: input.entryDate,
+          nativeCurrency,
+          historicalPriceCurrency,
+          fxRateToChf,
+        });
       }),
 
     create: protectedProcedure

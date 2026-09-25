@@ -1,5 +1,6 @@
 export type PositionEntryBasisStatus =
   | "missing"
+  | "portfolio_start"
   | "confirmed_date"
   | "transaction_date"
   | "multiple_transaction_dates"
@@ -26,7 +27,17 @@ export function resolvePositionEntryBasis(input: {
   hasCostBasis: boolean;
   storedEntryDate?: unknown;
   transactionDates?: unknown[];
+  portfolioStartDate?: unknown;
+  isPortfolioStartBasis?: boolean;
 }): PositionEntryBasis {
+  const portfolioStartDate = normalizeIsoDate(input.portfolioStartDate);
+  if (input.isPortfolioStartBasis && input.hasCostBasis && portfolioStartDate) {
+    return {
+      status: "portfolio_start",
+      entryDate: portfolioStartDate,
+      label: "Einstand aus Portfolio-Start",
+    };
+  }
   if (!input.hasCostBasis) {
     return { status: "missing", entryDate: null, label: "Einstandsdaten fehlen" };
   }

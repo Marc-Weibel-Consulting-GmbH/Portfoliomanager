@@ -3586,6 +3586,7 @@ export default function PortfolioDetailsPage() {
         portfolioId={portfolioId}
         rawPortfolioData={(allPortfolios as any[] | undefined)?.find((p) => p.id === portfolioId)?.portfolioData}
         holding={editFieldsHolding}
+        portfolioCreatedAt={portfolio.createdAt ? String(portfolio.createdAt) : null}
         allowAlternatives={!isReadOnly && isDemo}
         allowDelete={!isReadOnly && isDemo}
         onShowAlternatives={(source) => {

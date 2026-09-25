@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { isShareOnlyDemoPositionEdit } from "@/lib/manualDemoPositionEdit";
+import { resolveInitialEntryDate } from "@/lib/positionEntryDate";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { GitCompareArrows, Trash2 } from "lucide-react";
@@ -24,6 +25,7 @@ interface EditPositionFieldsModalProps {
     shares?: number | string;
     avgBuyPrice?: number | string;
     entryDate?: string | null;
+    entryBasisStatus?: string | null;
     entryBasisLabel?: string | null;
     isin?: string;
     currency?: string;
@@ -31,6 +33,8 @@ interface EditPositionFieldsModalProps {
   allowAlternatives?: boolean;
   /** Nur für nicht aktivierte, ledgerfreie Demoportfolios freischalten. */
   allowDelete?: boolean;
+  /** Portfolio-Startdatum ist nur ein reversibler Dialogstandard, nie eine Sofortmutation. */
+  portfolioCreatedAt?: string | Date | null;
   onShowAlternatives?: (source: { ticker: string; companyName?: string }) => void;
   onSuccess?: () => void;
 }
@@ -48,11 +52,17 @@ export function EditPositionFieldsModal({
   holding,
   allowAlternatives = false,
   allowDelete = false,
+  portfolioCreatedAt = null,
   onShowAlternatives,
   onSuccess,
 }: EditPositionFieldsModalProps) {
   const utils = trpc.useUtils();
   const originalTicker = holding?.ticker ?? "";
+  const initialEntryDate = resolveInitialEntryDate({
+    storedEntryDate: holding?.entryDate,
+    entryBasisStatus: holding?.entryBasisStatus,
+    portfolioCreatedAt,
+  });
 
   // Der Aufrufer montiert das Modal bei jedem Öffnen neu (wechselnder `key`),
   // daher genügt das Seeding über den useState-Initializer — kein Reset-Effect.
@@ -61,11 +71,46 @@ export function EditPositionFieldsModal({
     isin: holding?.isin ?? "",
     shares: holding?.shares != null ? String(holding.shares) : "",
     avgBuyPrice: holding?.avgBuyPrice != null ? String(holding.avgBuyPrice) : "",
-    entryDate: holding?.entryDate ?? "",
+    entryDate: initialEntryDate,
     currency: holding?.currency || "CHF",
   }));
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [autoQuoteEnabled, setAutoQuoteEnabled] = useState(() =>
+    !holding?.entryDate && holding?.entryBasisStatus !== "multiple_transaction_dates",
+  );
+  const [appliedQuoteKey, setAppliedQuoteKey] = useState<string | null>(null);
+
+  const quoteTicker = form.ticker.trim().toUpperCase();
+  const quoteKey = useMemo(
+    () => `${quoteTicker}|${form.entryDate}`,
+    [quoteTicker, form.entryDate],
+  );
+  const historicalQuote = trpc.portfolios.getHistoricalEntryPrice.useQuery(
+    {
+      portfolioId,
+      sourceTicker: originalTicker,
+      ticker: quoteTicker || originalTicker,
+      entryDate: form.entryDate || "1900-01-01",
+    },
+    {
+      enabled: open && autoQuoteEnabled && Boolean(quoteTicker && form.entryDate),
+      staleTime: 60_000,
+    },
+  );
+
+  useEffect(() => {
+    const quote = historicalQuote.data;
+    if (!autoQuoteEnabled || !quote || quote.requestedDate !== form.entryDate || appliedQuoteKey === quoteKey) return;
+
+    if (quote.status === "available") {
+      setForm((current) => current.entryDate === quote.requestedDate
+        ? { ...current, avgBuyPrice: quote.priceChf.toFixed(4) }
+        : current,
+      );
+    }
+    setAppliedQuoteKey(quoteKey);
+  }, [appliedQuoteKey, autoQuoteEnabled, form.entryDate, historicalQuote.data, quoteKey]);
 
   const update = trpc.portfolios.update.useMutation({
     onSuccess: () => {
@@ -165,7 +210,11 @@ export function EditPositionFieldsModal({
               <Label className="text-xs">Ticker *</Label>
               <Input
                 value={form.ticker}
-                onChange={(e) => setForm({ ...form, ticker: e.target.value })}
+                onChange={(e) => {
+                  setAutoQuoteEnabled(true);
+                  setAppliedQuoteKey(null);
+                  setForm({ ...form, ticker: e.target.value });
+                }}
                 className="bg-slate-600 border-slate-500 text-white mt-1 font-mono"
               />
             </div>
@@ -191,12 +240,15 @@ export function EditPositionFieldsModal({
               />
             </div>
             <div>
-              <Label className="text-xs">Ø-Einstandspreis</Label>
+              <Label className="text-xs">Ø-Einstandspreis (CHF)</Label>
               <Input
                 type="number"
                 step="0.01"
                 value={form.avgBuyPrice}
-                onChange={(e) => setForm({ ...form, avgBuyPrice: e.target.value })}
+                onChange={(e) => {
+                  setAutoQuoteEnabled(false);
+                  setForm({ ...form, avgBuyPrice: e.target.value });
+                }}
                 className="bg-slate-600 border-slate-500 text-white mt-1"
               />
             </div>
@@ -205,7 +257,11 @@ export function EditPositionFieldsModal({
               <Input
                 type="date"
                 value={form.entryDate}
-                onChange={(e) => setForm({ ...form, entryDate: e.target.value })}
+                onChange={(e) => {
+                  setAutoQuoteEnabled(true);
+                  setAppliedQuoteKey(null);
+                  setForm({ ...form, entryDate: e.target.value });
+                }}
                 className="bg-slate-600 border-slate-500 text-white mt-1"
               />
             </div>
@@ -223,9 +279,18 @@ export function EditPositionFieldsModal({
               </Select>
             </div>
           </div>
+          {autoQuoteEnabled && form.entryDate && (
+            <p className={`text-xs ${historicalQuote.data?.status && historicalQuote.data.status !== "available" ? "text-amber-300" : "text-cyan-300"}`}>
+              {historicalQuote.isFetching
+                ? "Historischer Einstandskurs wird geladen …"
+                : historicalQuote.data?.status === "available"
+                  ? <>Einstand automatisch aus dem splitbereinigten Schlusskurs vom {historicalQuote.data.effectiveDate} ({historicalQuote.data.priceLocal.toFixed(4)} {historicalQuote.data.priceCurrency}; FX {historicalQuote.data.fxRateToChf.toFixed(6)}) = CHF {historicalQuote.data.priceChf.toFixed(4)}. Erst «Speichern» übernimmt ihn.</>
+                  : historicalQuote.data?.message ?? "Für das gewählte Datum ist noch kein historischer Einstandskurs verfügbar."}
+            </p>
+          )}
           <p className="text-xs text-muted-foreground">
             Bei einer reinen Stückzahländerung in einem nicht aktivierten Demoportfolio wird der Gegenwert zum aktuellen CHF-Kurs automatisch der Cash-Reserve gutgeschrieben oder aus ihr belastet. ISIN, Ticker, Einstand, Einstandsdatum und Währung können weiterhin separat korrigiert werden.
-            {holding.entryBasisLabel ? ` Aktueller Status: ${holding.entryBasisLabel}.` : ""}
+            {holding.entryBasisLabel ? ` Gespeicherter Status: ${holding.entryBasisLabel}.` : ""}
           </p>
         </div>
 

@@ -903,3 +903,6 @@
 
 ## Einstandsbasis und erweiterter PDF-Report (2026-09-25)
 - [x] Einheitliche, belegbare Demo-Einstandsbasis mit optionalem Einstandsdatum je Position modelliert; Portfolio-Startperformance klar von positionsbezogener Rendite getrennt; PDF um Dividendenrendite, KGV, 5J-Volatilität und die drei Portfolio-/Benchmarkcharts erweitert; keine automatische Änderung von Einstand, Position, Cash oder Transaktion (2026-09-25)
+
+## Datumsgebundene Demo-Einstandsbasis (2026-09-25)
+- [x] Portfolio-Startdatum als vorbelegtes Einstandsdatum und den historischen CHF-Schlusskurs desselben Datums im Positionsdialog verwendet; bei bewusster Datumsänderung wird der Einstandskurs lesend aus der EODHD-Historie neu geladen, Datenlücken bleiben transparent und erst Speichern persistiert (2026-09-25)
