@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { PriceChart } from "@/components/charts";
 import { StockLogo } from "@/components/StockLogo";
@@ -28,6 +28,17 @@ const formatPct = (value: number | null | undefined, digits = 1) =>
 const formatRatio = (value: number | null | undefined, digits = 2) =>
   value === null || value === undefined || !Number.isFinite(value) ? "—" : value.toFixed(digits);
 
+const CHART_PERIODS = ["YTD", "1Y", "3Y", "5Y", "Max"] as const;
+type ChartPeriod = (typeof CHART_PERIODS)[number];
+
+const chartPeriodLabel = (period: ChartPeriod) => ({
+  YTD: "YTD",
+  "1Y": "1 Jahr",
+  "3Y": "3 Jahre",
+  "5Y": "5 Jahre",
+  Max: "Max.",
+})[period];
+
 function Metric({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) {
   return (
     <div className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5">
@@ -48,8 +59,9 @@ export function FullReoptimizationCandidateDetailDialog({
   portfolioId,
   ticker,
 }: FullReoptimizationCandidateDetailDialogProps) {
+  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>("1Y");
   const detailQuery = trpc.analytics.getFullReoptimizationCandidateDetail.useQuery(
-    { portfolioId, ticker: ticker ?? "" },
+    { portfolioId, ticker: ticker ?? "", chartPeriod },
     { enabled: open && portfolioId > 0 && Boolean(ticker), retry: false, staleTime: 5 * 60 * 1000 },
   );
   const detail = detailQuery.data;
@@ -96,13 +108,32 @@ export function FullReoptimizationCandidateDetailDialog({
             </div>
 
             <section className="rounded-xl border border-white/10 bg-white/[0.02] p-3 sm:p-4">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm text-gray-300">
-                  <BarChart3 className="h-4 w-4 text-[#00CFC1]" /> Kursentwicklung · 1 Jahr
+                  <BarChart3 className="h-4 w-4 text-[#00CFC1]" /> Kursentwicklung · {chartPeriodLabel(chartPeriod)}
                 </div>
-                <div className={`flex items-center gap-1 font-mono text-sm ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
-                  {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                  {formatPct(detail.periodReturnPct, 2)}
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <div className="flex items-center rounded-lg border border-white/10 bg-black/10 p-0.5" aria-label="Kurszeitraum wählen">
+                    {CHART_PERIODS.map((period) => (
+                      <button
+                        key={period}
+                        type="button"
+                        aria-pressed={chartPeriod === period}
+                        onClick={() => setChartPeriod(period)}
+                        className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                          chartPeriod === period
+                            ? "bg-[#00CFC1] text-[#07101c]"
+                            : "text-gray-400 hover:bg-white/10 hover:text-white"
+                        }`}
+                      >
+                        {chartPeriodLabel(period)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className={`flex items-center gap-1 font-mono text-sm ${isPositive ? "text-emerald-400" : "text-rose-400"}`}>
+                    {isPositive ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
+                    {formatPct(detail.periodReturnPct, 2)}
+                  </div>
                 </div>
               </div>
               {chartValues.length >= 2 ? (

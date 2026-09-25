@@ -909,3 +909,6 @@
 
 ## Verlust-Risiko: Fünfjahres- und Krisenfenster (2026-09-25)
 - [x] Maximal-Drawdown auf ein transparentes Fünfjahresfenster mit mindestens 1’000 qualifizierten Beobachtungen und objektivem Benchmark-Stressnachweis (Drawdown ≤ −15 %) umgestellt. Fehlende Historie/FX wird als Datenlücke statt Ersatzwert ausgewiesen; Demoportfolios sind klar als historische Allokationsproxys gekennzeichnet. Für Mami wurden 2’651 fehlende EODHD-Kurszeilen ausschliesslich additiv ergänzt; eine isolierte Alt-Benchmarkzeile im falschen Massstab wird nur analytisch ausgeschlossen und transparent auditiert, nie gelöscht (2026-09-25)
+
+## Kursdetail-Zeiträume (2026-09-25)
+- [x] Einheitliche Auswahl **YTD**, **1 Jahr**, **3 Jahre**, **5 Jahre** und **Max.** in der lesenden Kandidatenansicht der vollständigen Aktien-Neuoptimierung sowie in den Aktien-Details ergänzt. Die Auswahl lädt ausschliesslich vorhandene, splitbereinigte EODHD-Schlusskurse; **Max.** bedeutet die gesamte gespeicherte lokale Historie. Renditebadge und Chartüberschrift folgen jeweils der gewählten Periode. Live an GPW.WA geprüft (1J, 3J, 5J und Max.); keine Portfolio-, Cash-, Buchungs-, Order- oder Preisreihenmutation durch den Dialog (2026-09-25)

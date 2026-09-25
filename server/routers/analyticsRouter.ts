@@ -22,7 +22,12 @@ import { selectFullReoptimizationUniverse } from "../lib/fullReoptimizationUnive
 import { historicalPriceLookupKeys } from "../lib/historicalPriceLookupKeys";
 import { assessHistoricalWindowCoverage } from "../lib/historicalWindowCoverage";
 import { isHistoricalPriceSeriesCompatible } from "../lib/eodhdSymbol";
-import { calculateAlternativePeriodReturn, toAlternativeDetailChartFromStoredRows } from "../lib/alternativeDetailPresentation";
+import {
+  ALTERNATIVE_DETAIL_CHART_PERIODS,
+  calculateAlternativePeriodReturn,
+  getAlternativeDetailPeriodStart,
+  toAlternativeDetailChartFromStoredRows,
+} from "../lib/alternativeDetailPresentation";
 
 const HoldingSchema = z.object({
   ticker: z.string(),
@@ -399,6 +404,7 @@ export const analyticsRouter = router({
     .input(z.object({
       portfolioId: z.number().int().positive(),
       ticker: z.string().trim().min(1).max(50),
+      chartPeriod: z.enum(ALTERNATIVE_DETAIL_CHART_PERIODS).default("1Y"),
     }))
     .query(async ({ input, ctx }) => {
       const db = await getDb();
@@ -440,7 +446,8 @@ export const analyticsRouter = router({
         const number = Number(value);
         return Number.isFinite(number) ? number : null;
       };
-      const fromDate = new Date(Date.now() - 365.25 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const asOfDate = new Date().toISOString().slice(0, 10);
+      const fromDate = getAlternativeDetailPeriodStart(input.chartPeriod, asOfDate);
       const historicalKeys = historicalPriceLookupKeys(ticker);
       const priceSeriesIsCompatible = isHistoricalPriceSeriesCompatible(ticker, stock.currency ?? "");
       const [storedPrices, storedScoreResult] = await Promise.all([
@@ -452,7 +459,10 @@ export const analyticsRouter = router({
               close: historicalPrices.close,
             })
             .from(historicalPrices)
-            .where(and(inArray(historicalPrices.ticker, historicalKeys), gte(historicalPrices.date, fromDate)))
+            .where(and(
+              inArray(historicalPrices.ticker, historicalKeys),
+              ...(fromDate ? [gte(historicalPrices.date, fromDate)] : []),
+            ))
           : Promise.resolve([]),
         db.execute(sql`
           SELECT qualitaet, bewertung, timing, signalScore, signalLabel
@@ -486,7 +496,7 @@ export const analyticsRouter = router({
         signalScore: asNumber(storedScores?.signalScore) ?? asNumber(stock.signalScore),
         signalLabel: storedScores?.signalLabel ?? stock.signalType,
         chart,
-        chartPeriod: "1Y" as const,
+        chartPeriod: input.chartPeriod,
         periodReturnPct: calculateAlternativePeriodReturn(chart),
         chartDataStatus: chart.length >= 2 ? "available" as const : "unavailable" as const,
         chartDataReason: priceSeriesIsCompatible ? null : "Historische Proxyreihe hat eine abweichende Kurswährung.",

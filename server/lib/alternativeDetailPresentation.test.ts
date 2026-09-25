@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateAlternativePeriodReturn, toAlternativeDetailChartFromStoredRows, toAlternativeDetailChartPoints } from "./alternativeDetailPresentation";
+import { calculateAlternativePeriodReturn, getAlternativeDetailPeriodStart, toAlternativeDetailChartFromStoredRows, toAlternativeDetailChartPoints } from "./alternativeDetailPresentation";
 
 describe("alternative detail presentation", () => {
   it("keeps only genuine positive source prices in chronological chart order", () => {
@@ -31,5 +31,15 @@ describe("alternative detail presentation", () => {
       { date: "2025-09-22", value: 10.5 },
       { date: "2025-09-23", value: 10.75 },
     ]);
+  });
+
+  it("maps the shared dialog periods to calendar-consistent stored-history starts", () => {
+    const asOfDate = "2026-09-25";
+
+    expect(getAlternativeDetailPeriodStart("YTD", asOfDate)).toBe("2025-12-25");
+    expect(getAlternativeDetailPeriodStart("1Y", asOfDate)).toBe("2025-09-25");
+    expect(getAlternativeDetailPeriodStart("3Y", asOfDate)).toBe("2023-09-25");
+    expect(getAlternativeDetailPeriodStart("5Y", asOfDate)).toBe("2021-09-25");
+    expect(getAlternativeDetailPeriodStart("Max", asOfDate)).toBeNull();
   });
 });

@@ -8,11 +8,40 @@ export type AlternativeDetailChartPoint = {
   value: number;
 };
 
+/** The only chart periods exposed in read-only detail dialogs. */
+export const ALTERNATIVE_DETAIL_CHART_PERIODS = ["YTD", "1Y", "3Y", "5Y", "Max"] as const;
+export type AlternativeDetailChartPeriod = (typeof ALTERNATIVE_DETAIL_CHART_PERIODS)[number];
+
 export type StoredAlternativeDetailPrice = {
   date: string;
   adjustedClose: string | number | null;
   close: string | number | null;
 };
+
+/**
+ * Resolves a chart period to the earliest stored date that may be displayed.
+ * `Max` intentionally has no lower date bound: it means the full available
+ * local EODHD history, never an invented or on-demand series.
+ */
+export function getAlternativeDetailPeriodStart(
+  period: AlternativeDetailChartPeriod,
+  asOfDate: string,
+): string | null {
+  if (period === "Max") return null;
+  const date = new Date(`${asOfDate}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return null;
+
+  if (period === "YTD") {
+    date.setUTCFullYear(date.getUTCFullYear() - 1, 11, 25);
+  } else if (period === "1Y") {
+    date.setUTCFullYear(date.getUTCFullYear() - 1);
+  } else if (period === "3Y") {
+    date.setUTCFullYear(date.getUTCFullYear() - 3);
+  } else {
+    date.setUTCFullYear(date.getUTCFullYear() - 5);
+  }
+  return date.toISOString().slice(0, 10);
+}
 
 /**
  * Converts source-backed adjusted-close series into safe chart data. Missing or
@@ -30,7 +59,7 @@ export function toAlternativeDetailChartPoints(series: AlternativeDetailPriceSer
 }
 
 /**
- * Builds a one-year chart strictly from the additive `historical_prices` cache.
+ * Builds a period-filtered chart strictly from the additive `historical_prices` cache.
  * The source's split-adjusted close has precedence; a valid raw close is an
  * explicit fallback only when adjusted close is unavailable. No prices are
  * fabricated, interpolated, refreshed, or written during detail inspection.

@@ -32,7 +32,15 @@ import {
   ReferenceLine,
 } from "recharts";
 
-type TimePeriod = "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "3Y" | "5Y" | "10Y" | "YTD" | "All";
+type TimePeriod = "1Y" | "3Y" | "5Y" | "YTD" | "All";
+
+const chartPeriodOptions: Array<{ value: TimePeriod; label: string }> = [
+  { value: "YTD", label: "YTD" },
+  { value: "1Y", label: "1 Jahr" },
+  { value: "3Y", label: "3 Jahre" },
+  { value: "5Y", label: "5 Jahre" },
+  { value: "All", label: "Max." },
+];
 
 // Metric card component with rating
 function MetricCard({ label, value, suffix = "", rating }: { label: string; value: string | number; suffix?: string; rating?: "good" | "neutral" | "bad" }) {
@@ -98,7 +106,7 @@ export default function StockDetail() {
   // Must match the live route or the page renders blank via `if (!match) return null`.
   const [match, params] = useRoute<{ ticker: string }>("/aktien/:ticker");
   const ticker = params?.ticker || '';
-  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("6M");
+  const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>("1Y");
   const [showScoreExplanation, setShowScoreExplanation] = useState(false);
   const [showSignalExplanation, setShowSignalExplanation] = useState(false);
   const [showTimingExplanation, setShowTimingExplanation] = useState(false);
@@ -425,7 +433,7 @@ export default function StockDetail() {
     { label: "Free Cash Flow", value: stock.financialHighlight3 || "—", isPositive: false },
   ];
 
-  const periods: TimePeriod[] = ["1D", "1W", "1M", "3M", "6M", "1Y", "3Y", "5Y", "10Y", "YTD", "All"];
+  const selectedPeriodLabel = chartPeriodOptions.find((option) => option.value === selectedPeriod)?.label ?? selectedPeriod;
 
   return (
     <DashboardLayout>
@@ -581,22 +589,22 @@ export default function StockDetail() {
                     <span className={`text-lg font-bold ${priceChange.percent >= 0 ? 'text-[#00CFC1]' : 'text-red-500'}`}>
                       {priceChange.percent >= 0 ? '+' : ''}{priceChange.percent.toFixed(2)}%
                     </span>
-                    <span className="text-xs text-gray-400">({selectedPeriod})</span>
+                    <span className="text-xs text-gray-400">({selectedPeriodLabel})</span>
                   </div>
                   
                   {/* Period Buttons */}
                   <div className="flex items-center gap-1">
-                    {periods.map((period) => (
+                    {chartPeriodOptions.map((period) => (
                       <button
-                        key={period}
-                        onClick={() => setSelectedPeriod(period)}
+                        key={period.value}
+                        onClick={() => setSelectedPeriod(period.value)}
                         className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                          selectedPeriod === period
+                          selectedPeriod === period.value
                             ? 'bg-[#00CFC1] text-black font-semibold'
                             : 'text-gray-400 hover:text-white hover:bg-white/10'
                         }`}
                       >
-                        {period}
+                        {period.label}
                       </button>
                     ))}
                   </div>
