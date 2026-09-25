@@ -12,6 +12,11 @@ export type PortfolioExportPosition = {
   portfolioWeightPct: number | null;
   ytdReturnPct: number | null;
   totalReturnPct: number | null;
+  entryDate: string | null;
+  entryBasisLabel: string | null;
+  dividendYieldPct: number | null;
+  peRatio: number | null;
+  volatility5yPct: number | null;
   dataStatus: ExportDataStatus;
   returnDataStatus: "OK" | "Einstandsdaten fehlen";
 };
@@ -40,6 +45,20 @@ export type PortfolioDrawdownExport = {
   points: PortfolioDrawdownExportPoint[];
 };
 
+export type PortfolioBenchmarkComparisonPoint = {
+  date: string;
+  portfolioReturnPct: number | null;
+  spiReturnPct: number | null;
+  sp500ReturnPct: number | null;
+};
+
+export type PortfolioBenchmarkComparison = {
+  key: "portfolio_start" | "ytd" | "five_year";
+  label: string;
+  method: string;
+  points: PortfolioBenchmarkComparisonPoint[];
+};
+
 export type PortfolioExportModel = {
   title: string;
   portfolioId: number;
@@ -63,6 +82,7 @@ export type PortfolioExportModel = {
   indexedReturnSeries: Array<{ date: string; cumulativeReturnPct: number }>;
   depotValueSeriesKind: "actual" | "indexed" | "unavailable";
   drawdown: PortfolioDrawdownExport;
+  benchmarkComparisons: PortfolioBenchmarkComparison[];
   dataQualityNotes: string[];
 };
 
@@ -74,6 +94,15 @@ export type BuildPortfolioExportModelInput = {
   performance?: UnknownRecord | null;
   risk?: UnknownRecord | null;
   fallbackIndexedSeries?: UnknownRecord[];
+  benchmarkComparisonInputs?: Array<{
+    key: "portfolio_start" | "ytd" | "five_year";
+    label: string;
+    chartData: UnknownRecord[];
+    sp500ChartData?: UnknownRecord[];
+    method: string;
+    /** Beschränkt die Vergleichsreihe und setzt sie zum Startdatum auf 0 % zurück. */
+    startDate?: string | Date | null;
+  }>;
   referenceCurrency?: string;
   asOf?: Date;
   periodLabel?: string;
@@ -98,6 +127,12 @@ function firstNumber(...values: unknown[]): number | null {
 
 function asText(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function asDateText(value: unknown, fallback = ""): string {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  const text = asText(value, fallback);
+  return text ? text.slice(0, 10) : fallback;
 }
 
 function getDataStatus(holding: UnknownRecord): ExportDataStatus {
@@ -142,6 +177,39 @@ function buildKpis(
   ];
 }
 
+function buildBenchmarkComparison(input: NonNullable<BuildPortfolioExportModelInput["benchmarkComparisonInputs"]>[number]): PortfolioBenchmarkComparison {
+  const sp500ByDate = new Map(
+    (input.sp500ChartData ?? [])
+      .map((row) => [asText(row.date, ""), firstNumber(row.benchmark)] as const)
+      .filter(([date, value]) => Boolean(date) && value !== null) as Array<[string, number]>,
+  );
+  const startDate = asDateText(input.startDate);
+  const rawPoints = input.chartData
+    .map((row): PortfolioBenchmarkComparisonPoint | null => {
+      const date = asText(row.date, "");
+      const portfolioReturnPct = firstNumber(row.portfolio);
+      if (!date || portfolioReturnPct === null) return null;
+      return {
+        date,
+        portfolioReturnPct,
+        spiReturnPct: firstNumber(row.benchmark),
+        sp500ReturnPct: sp500ByDate.get(date) ?? null,
+      };
+    })
+    .filter((point): point is PortfolioBenchmarkComparisonPoint => point !== null)
+    .filter((point) => !startDate || point.date >= startDate);
+  const basePortfolio = startDate ? rawPoints.find((point) => point.portfolioReturnPct !== null)?.portfolioReturnPct ?? null : null;
+  const baseSpi = startDate ? rawPoints.find((point) => point.spiReturnPct !== null)?.spiReturnPct ?? null : null;
+  const baseSp500 = startDate ? rawPoints.find((point) => point.sp500ReturnPct !== null)?.sp500ReturnPct ?? null : null;
+  const points = rawPoints.map((point) => ({
+    ...point,
+    portfolioReturnPct: basePortfolio === null || point.portfolioReturnPct === null ? point.portfolioReturnPct : point.portfolioReturnPct - basePortfolio,
+    spiReturnPct: baseSpi === null || point.spiReturnPct === null ? point.spiReturnPct : point.spiReturnPct - baseSpi,
+    sp500ReturnPct: baseSp500 === null || point.sp500ReturnPct === null ? point.sp500ReturnPct : point.sp500ReturnPct - baseSp500,
+  }));
+  return { key: input.key, label: input.label, method: input.method, points };
+}
+
 export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput): PortfolioExportModel {
   const asOf = input.asOf ?? new Date();
   const portfolio = input.portfolio;
@@ -177,6 +245,11 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
         portfolioWeightPct: firstNumber(holding.weight),
         ytdReturnPct: firstNumber(holding.ytdPerformance),
         totalReturnPct: returnDataStatus === "OK" ? firstNumber(holding.totalReturn) : null,
+        entryDate: typeof holding.entryDate === "string" && holding.entryDate.trim() ? holding.entryDate.trim().slice(0, 10) : null,
+        entryBasisLabel: typeof holding.entryBasisLabel === "string" && holding.entryBasisLabel.trim() ? holding.entryBasisLabel.trim() : null,
+        dividendYieldPct: firstNumber(holding.dividendYield),
+        peRatio: firstNumber(holding.peRatio),
+        volatility5yPct: firstNumber(holding.volatility5y),
         dataStatus,
         returnDataStatus,
       };
@@ -235,6 +308,28 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
     points: drawdownPoints,
   };
 
+  const portfolioStartDate = asDateText(portfolio.liveStartDate, asDateText(portfolio.createdAt));
+  const portfolioStartReturnPct = summary.totalInvestedCHF && summary.totalInvestedCHF > 0
+    ? ((summary.currentValueCHF - summary.totalInvestedCHF) / summary.totalInvestedCHF) * 100
+    : null;
+  const benchmarkComparisons: PortfolioBenchmarkComparison[] = [];
+  const hasPortfolioStartSeries = (input.benchmarkComparisonInputs ?? []).some((comparison) => comparison.key === "portfolio_start");
+  if (portfolioStartDate && portfolioStartReturnPct !== null && !hasPortfolioStartSeries) {
+    benchmarkComparisons.push({
+      key: "portfolio_start",
+      label: "Seit Portfolio-Start",
+      method: "Start-/Endwert: Gesamtdepot inkl. Liquidität gegen die dokumentierte Kapitalbasis; keine behauptete Einzelpositions-Transaktionsreihe.",
+      points: [
+        { date: portfolioStartDate.slice(0, 10), portfolioReturnPct: 0, spiReturnPct: null, sp500ReturnPct: null },
+        { date: asOf.toISOString().slice(0, 10), portfolioReturnPct: portfolioStartReturnPct, spiReturnPct: null, sp500ReturnPct: null },
+      ],
+    });
+  }
+  for (const comparisonInput of input.benchmarkComparisonInputs ?? []) {
+    const comparison = buildBenchmarkComparison(comparisonInput);
+    if (comparison.points.length >= 2) benchmarkComparisons.push(comparison);
+  }
+
   const dataQualityNotes: string[] = [];
   for (const position of positions) {
     if (position.dataStatus !== "OK") dataQualityNotes.push(`${position.ticker}: ${position.dataStatus}.`);
@@ -249,6 +344,9 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
   }
   if (drawdown.points.length < 2) {
     dataQualityNotes.push("Für die Max.-Drawdown-Herleitung liegt keine ausreichende tägliche Risikoreihe vor.");
+  }
+  if (benchmarkComparisons.some((comparison) => comparison.key === "portfolio_start")) {
+    dataQualityNotes.push("«Seit Portfolio-Start» zeigt Start- und aktuellen Gesamtwert inkl. Liquidität. Einzelpositionsrenditen bleiben ohne bestätigten Einstand separat als Datenlücke ausgewiesen.");
   }
 
   return {
@@ -267,6 +365,7 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
     indexedReturnSeries,
     depotValueSeriesKind: depotValueSeries.length >= 2 ? "actual" : indexedReturnSeries.length >= 2 ? "indexed" : "unavailable",
     drawdown,
+    benchmarkComparisons,
     dataQualityNotes,
   };
 }

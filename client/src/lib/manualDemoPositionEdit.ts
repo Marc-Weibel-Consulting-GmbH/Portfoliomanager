@@ -3,6 +3,7 @@ type DisplayedHolding = {
   shares?: string | number;
   avgBuyPrice?: string | number;
   currency?: string;
+  entryDate?: string | null;
 };
 
 type PositionEditForm = {
@@ -11,6 +12,7 @@ type PositionEditForm = {
   shares: string;
   avgBuyPrice: string;
   currency: string;
+  entryDate?: string;
 };
 
 export function isShareOnlyDemoPositionEdit(input: {
@@ -23,11 +25,13 @@ export function isShareOnlyDemoPositionEdit(input: {
   const displayedCurrency = String(input.displayedHolding.currency ?? 'CHF').toUpperCase();
   const displayedAvgBuyPrice = Number(input.displayedHolding.avgBuyPrice);
   const formAvgBuyPrice = input.form.avgBuyPrice.trim() === '' ? displayedAvgBuyPrice : Number(input.form.avgBuyPrice);
+  const displayedEntryDate = String(input.displayedHolding.entryDate ?? '');
 
   return ticker === originalTicker
     && input.form.isin.trim() === ''
     && Number.isFinite(formAvgBuyPrice)
     && Number.isFinite(displayedAvgBuyPrice)
     && formAvgBuyPrice === displayedAvgBuyPrice
-    && input.form.currency.toUpperCase() === displayedCurrency;
+    && input.form.currency.toUpperCase() === displayedCurrency
+    && (input.form.entryDate ?? '') === displayedEntryDate;
 }

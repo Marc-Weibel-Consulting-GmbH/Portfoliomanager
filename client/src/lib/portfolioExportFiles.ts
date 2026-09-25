@@ -185,17 +185,21 @@ export async function downloadPortfolioExcel(model: PortfolioExportModel): Promi
     { key: "weight", width: 13 },
     { key: "ytd", width: 13 },
     { key: "total", width: 14 },
+    { key: "dividend", width: 15 },
+    { key: "pe", width: 12 },
+    { key: "volatility5y", width: 15 },
+    { key: "entryDate", width: 16 },
     { key: "status", width: 30 },
   ];
-  positions.mergeCells("A1:L1");
+  positions.mergeCells("A1:P1");
   positions.getCell("A1").value = `Titelliste · ${model.title}`;
   positions.getCell("A1").font = { name: "Aptos Display", size: 18, bold: true, color: { argb: COLORS.navy } };
   positions.getRow(1).height = 30;
-  positions.mergeCells("A2:L2");
+  positions.mergeCells("A2:P2");
   positions.getCell("A2").value = `Datenstand: ${model.asOfLabel} · Sortiert nach aktuellem CHF-Marktwert`;
   positions.getCell("A2").font = { name: "Aptos", size: 10, color: { argb: COLORS.gray } };
   positions.addRow([]);
-  const positionHeader = positions.addRow(["Ticker", "Unternehmen", "ISIN", "Sektor", "Währung", "Stück", "Kurs lokal", "Marktwert CHF", "Gewicht", "YTD", "Seit Kauf", "Datenstatus"]);
+  const positionHeader = positions.addRow(["Ticker", "Unternehmen", "ISIN", "Sektor", "Währung", "Stück", "Kurs lokal", "Marktwert CHF", "Gewicht", "YTD", "Seit Kauf", "Div.-Rendite", "KGV", "Vol. 5J", "Einstandsdatum", "Datenstatus"]);
   applyHeader(positionHeader);
   const positionsStart = positionHeader.number + 1;
   for (const position of model.positions) {
@@ -215,22 +219,28 @@ export async function downloadPortfolioExcel(model: PortfolioExportModel): Promi
       position.portfolioWeightPct !== null ? position.portfolioWeightPct / 100 : "n/a",
       position.ytdReturnPct !== null ? position.ytdReturnPct / 100 : "n/a",
       position.totalReturnPct !== null ? position.totalReturnPct / 100 : "n/a",
+      position.dividendYieldPct !== null ? position.dividendYieldPct / 100 : "n/a",
+      position.peRatio ?? "n/a",
+      position.volatility5yPct !== null ? position.volatility5yPct / 100 : "n/a",
+      position.entryDate ?? position.entryBasisLabel ?? "—",
       status,
     ]);
     row.getCell(1).font = { name: "Aptos Mono", bold: true, color: { argb: COLORS.tealDark } };
     if (status !== "OK") {
-      row.getCell(12).font = { name: "Aptos", color: { argb: COLORS.warning }, bold: true };
-      row.getCell(12).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7ED" } };
+      row.getCell(16).font = { name: "Aptos", color: { argb: COLORS.warning }, bold: true };
+      row.getCell(16).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFF7ED" } };
     }
   }
-  if (model.positions.length > 0) applyTableBorders(positions, positionsStart, positions.lastRow.number, 1, 12);
-  positions.autoFilter = `A${positionHeader.number}:L${positions.lastRow.number}`;
+  if (model.positions.length > 0) applyTableBorders(positions, positionsStart, positions.lastRow.number, 1, 16);
+  positions.autoFilter = `A${positionHeader.number}:P${positions.lastRow.number}`;
   positions.getColumn("F").numFmt = '#,##0.00';
   positions.getColumn("G").numFmt = '#,##0.00';
   setCurrencyColumn(positions, "H");
   setPercentColumn(positions, "I");
   setPercentColumn(positions, "J");
   setPercentColumn(positions, "K");
+  setPercentColumn(positions, "L");
+  setPercentColumn(positions, "N");
 
   const development = workbook.addWorksheet("Depotentwicklung", { views: [{ showGridLines: false, state: "frozen", ySplit: 4 }] });
   development.columns = [
@@ -462,6 +472,83 @@ function drawDepotChart(pdf: any, model: PortfolioExportModel, x: number, y: num
   pdf.text(actual ? formatCHF(minValue) : formatPercent(minValue), plot.right, plot.bottom, { align: "right" });
 }
 
+function drawBenchmarkComparisonChart(
+  pdf: any,
+  comparison: PortfolioExportModel["benchmarkComparisons"][number],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) {
+  const points = comparison.points.length > 90
+    ? comparison.points.filter((_, index) => index % Math.ceil(comparison.points.length / 90) === 0 || index === comparison.points.length - 1)
+    : comparison.points;
+  setPdfFillColor(pdf, "F8FAFC");
+  pdf.roundedRect(x, y, width, height, 2, 2, "F");
+  setPdfTextColor(pdf, COLORS.navy);
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(10);
+  pdf.text(`Wertentwicklung · ${comparison.label}`, x + 5, y + 8);
+  setPdfTextColor(pdf, COLORS.gray);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(6.8);
+  const methodLines = pdf.splitTextToSize(comparison.method, width - 10);
+  pdf.text(methodLines.slice(0, 2), x + 5, y + 13);
+
+  if (points.length < 2) {
+    pdf.setFontSize(8);
+    pdf.text("Für diesen Zeitraum ist keine ausreichende Vergleichsreihe verfügbar.", x + 5, y + height / 2);
+    return;
+  }
+
+  const plot = { left: x + 9, right: x + width - 9, top: y + 27, bottom: y + height - 12 };
+  const allValues = points.flatMap((point) => [point.portfolioReturnPct, point.spiReturnPct, point.sp500ReturnPct])
+    .filter((value): value is number => value !== null && Number.isFinite(value));
+  const minValue = Math.min(...allValues, 0);
+  const maxValue = Math.max(...allValues, 0);
+  const span = Math.max(maxValue - minValue, 0.1);
+  const padding = span * 0.1;
+  const minY = minValue - padding;
+  const maxY = maxValue + padding;
+  const xFor = (index: number) => plot.left + (index / (points.length - 1)) * (plot.right - plot.left);
+  const yFor = (value: number) => plot.bottom - ((value - minY) / (maxY - minY)) * (plot.bottom - plot.top);
+
+  pdf.setDrawColor(226, 232, 240);
+  pdf.setLineWidth(0.2);
+  for (let grid = 0; grid < 3; grid += 1) {
+    const gridY = plot.top + ((plot.bottom - plot.top) / 2) * grid;
+    pdf.line(plot.left, gridY, plot.right, gridY);
+  }
+  const drawSeries = (key: "portfolioReturnPct" | "spiReturnPct" | "sp500ReturnPct", color: [number, number, number], widthValue: number, dash?: number[]) => {
+    pdf.setDrawColor(...color);
+    pdf.setLineWidth(widthValue);
+    pdf.setLineDashPattern(dash ?? [], 0);
+    for (let index = 1; index < points.length; index += 1) {
+      const previous = points[index - 1][key];
+      const current = points[index][key];
+      if (previous !== null && current !== null) pdf.line(xFor(index - 1), yFor(previous), xFor(index), yFor(current));
+    }
+    pdf.setLineDashPattern([], 0);
+  };
+  drawSeries("portfolioReturnPct", [0, 207, 193], 0.9);
+  drawSeries("spiReturnPct", [100, 116, 139], 0.6, [1.5, 1]);
+  drawSeries("sp500ReturnPct", [234, 88, 12], 0.6, [2, 1]);
+
+  setPdfTextColor(pdf, COLORS.gray);
+  pdf.setFontSize(6.5);
+  pdf.text(points[0].date, plot.left, y + height - 4);
+  pdf.text(points[points.length - 1].date, plot.right, y + height - 4, { align: "right" });
+  pdf.text(formatPercent(maxValue), plot.right, plot.top + 2, { align: "right" });
+  pdf.text(formatPercent(minValue), plot.right, plot.bottom, { align: "right" });
+  pdf.setFontSize(6.4);
+  setPdfTextColor(pdf, COLORS.tealDark);
+  pdf.text("— Portfolio", x + 6, y + 22);
+  setPdfTextColor(pdf, COLORS.gray);
+  pdf.text("– – SPI", x + 34, y + 22);
+  setPdfTextColor(pdf, "EA580C");
+  pdf.text("– – S&P 500", x + 54, y + 22);
+}
+
 function drawAllocation(pdf: any, model: PortfolioExportModel, x: number, y: number, width: number) {
   setPdfTextColor(pdf, COLORS.navy);
   pdf.setFont("helvetica", "bold");
@@ -523,7 +610,12 @@ export async function downloadPortfolioPdf(model: PortfolioExportModel): Promise
     drawPdfKpi(pdf, margin + column * (tileWidth + 4), 45 + row * 25, tileWidth, kpi.label, formatKpi(kpi), accent);
   });
 
-  drawDepotChart(pdf, model, margin, firstPageLayout.chartY, usableWidth, firstPageLayout.chartHeight);
+  const portfolioStartComparison = model.benchmarkComparisons.find((comparison) => comparison.key === "portfolio_start");
+  if (portfolioStartComparison) {
+    drawBenchmarkComparisonChart(pdf, portfolioStartComparison, margin, firstPageLayout.chartY, usableWidth, firstPageLayout.chartHeight);
+  } else {
+    drawDepotChart(pdf, model, margin, firstPageLayout.chartY, usableWidth, firstPageLayout.chartHeight);
+  }
   drawAllocation(pdf, model, margin, firstPageLayout.allocationY, usableWidth);
 
   const qualityTop = firstPageLayout.qualityTop;
@@ -542,6 +634,24 @@ export async function downloadPortfolioPdf(model: PortfolioExportModel): Promise
   pdf.setFontSize(6.5);
   pdf.text("Definitionen und Datenherkunft sind im Excel-Export vollständig dokumentiert. Kennzahlen sind Momentaufnahmen und keine Anlageempfehlung.", margin, pageHeight - 9);
 
+  const periodComparisons = model.benchmarkComparisons.filter((comparison) => comparison.key !== "portfolio_start");
+  if (periodComparisons.length > 0) {
+    pdf.addPage();
+    setPdfFillColor(pdf, COLORS.navy);
+    pdf.rect(0, 0, pageWidth, 20, "F");
+    setPdfTextColor(pdf, "FFFFFF");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(13);
+    pdf.text(`Benchmarkvergleich · ${model.title}`, margin, 12);
+    const comparisonHeight = periodComparisons.length > 1 ? 106 : 180;
+    periodComparisons.slice(0, 2).forEach((comparison, index) => {
+      drawBenchmarkComparisonChart(pdf, comparison, margin, 28 + index * (comparisonHeight + 10), usableWidth, comparisonHeight);
+    });
+    setPdfTextColor(pdf, COLORS.gray);
+    pdf.setFontSize(6.5);
+    pdf.text("Portfolio, SPI und S&P 500 sind als Renditeindizes ab dem jeweiligen sichtbaren Startpunkt dargestellt. Vergleichswerte sind keine Anlageempfehlung.", margin, pageHeight - 9);
+  }
+
   pdf.addPage();
   setPdfFillColor(pdf, COLORS.navy);
   pdf.rect(0, 0, pageWidth, 20, "F");
@@ -556,7 +666,7 @@ export async function downloadPortfolioPdf(model: PortfolioExportModel): Promise
 
   autoTable(pdf, {
     startY: 30,
-    head: [["Ticker", "Unternehmen", "Sektor", "Stück", "Marktwert CHF", "Gewicht", "YTD", "Seit Kauf", "Status"]],
+    head: [["Ticker", "Unternehmen", "Sektor", "Stück", "Marktwert CHF", "Gewicht", "YTD", "Seit Kauf", "Div.", "KGV", "Vol. 5J", "Status"]],
     body: model.positions.map((position) => [
       position.ticker,
       position.companyName,
@@ -566,27 +676,33 @@ export async function downloadPortfolioPdf(model: PortfolioExportModel): Promise
       formatPercent(position.portfolioWeightPct),
       formatPercent(position.ytdReturnPct),
       formatPercent(position.totalReturnPct),
+      formatPercent(position.dividendYieldPct),
+      formatRatio(position.peRatio),
+      formatPercent(position.volatility5yPct),
       [
         position.dataStatus !== "OK" ? "Kurs/FX prüfen" : null,
         position.returnDataStatus !== "OK" ? "Einstand fehlt" : null,
       ].filter(Boolean).join(" · ") || "OK",
     ]),
-    styles: { font: "helvetica", fontSize: 6.5, cellPadding: 1.8, lineColor: [226, 232, 240], lineWidth: 0.1, textColor: [15, 23, 42] },
+    styles: { font: "helvetica", fontSize: 5.5, cellPadding: 1.35, lineColor: [226, 232, 240], lineWidth: 0.1, textColor: [15, 23, 42] },
     headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold" },
     alternateRowStyles: { fillColor: [248, 250, 252] },
     columnStyles: {
-      0: { cellWidth: 15, fontStyle: "bold" },
-      1: { cellWidth: 28 },
-      2: { cellWidth: 22 },
-      3: { cellWidth: 12, halign: "right" },
-      4: { cellWidth: 22, halign: "right" },
-      5: { cellWidth: 14, halign: "right" },
-      6: { cellWidth: 12, halign: "right" },
-      7: { cellWidth: 14, halign: "right" },
-      8: { cellWidth: 13 },
+      0: { cellWidth: 13, fontStyle: "bold" },
+      1: { cellWidth: 25 },
+      2: { cellWidth: 16 },
+      3: { cellWidth: 10, halign: "right" },
+      4: { cellWidth: 18, halign: "right" },
+      5: { cellWidth: 10, halign: "right" },
+      6: { cellWidth: 10, halign: "right" },
+      7: { cellWidth: 11, halign: "right" },
+      8: { cellWidth: 10, halign: "right" },
+      9: { cellWidth: 9, halign: "right" },
+      10: { cellWidth: 10, halign: "right" },
+      11: { cellWidth: 14 },
     },
     didParseCell: (hookData: any) => {
-      if (hookData.section === "body" && hookData.column.index === 8 && hookData.cell.raw === "Prüfen") {
+      if (hookData.section === "body" && hookData.column.index === 11 && hookData.cell.raw !== "OK") {
         hookData.cell.styles.textColor = [180, 83, 9];
         hookData.cell.styles.fontStyle = "bold";
       }

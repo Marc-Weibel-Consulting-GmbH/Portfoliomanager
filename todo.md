@@ -900,3 +900,6 @@
 
 ## Beta: Zeitachsen- und Datenintegrität (2026-09-25)
 - [x] Portfolio- und SPI-Renditereihen auf gemeinsame Handelstage abgeglichen, die bestehende Beta-Berechnung gegen eine unabhängige Paarberechnung geprüft und die bestätigte Datenursache korrigiert; keine Portfolio-, Cash-, Transaktions- oder Handelsmutation (2026-09-25)
+
+## Einstandsbasis und erweiterter PDF-Report (2026-09-25)
+- [x] Einheitliche, belegbare Demo-Einstandsbasis mit optionalem Einstandsdatum je Position modelliert; Portfolio-Startperformance klar von positionsbezogener Rendite getrennt; PDF um Dividendenrendite, KGV, 5J-Volatilität und die drei Portfolio-/Benchmarkcharts erweitert; keine automatische Änderung von Einstand, Position, Cash oder Transaktion (2026-09-25)

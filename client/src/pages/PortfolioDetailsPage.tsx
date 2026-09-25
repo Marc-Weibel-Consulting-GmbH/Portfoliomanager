@@ -143,7 +143,7 @@ function PerformanceTab({
   });
   const entry = (multiPeriod as any[] | undefined)?.find((p: any) => p.portfolioId === portfolioId);
   const ytd = entry?.performance?.YTD ?? null;
-  // «Seit Kauf» misst das eingesetzte Kapital gegen den heutigen Gesamtwert.
+  // «Seit Portfolio-Start» misst die dokumentierte Kapitalbasis gegen den heutigen Gesamtwert.
   // `totalValueCHF` enthält die Liquidität BEREITS (portfoliosRouter addiert
   // cashBalance, bevor der Wert geliefert wird) — sie hier nochmals zu addieren
   // zählte sie doppelt und liess ein frisch erstelltes Portfolio mit 10 % Cash
@@ -216,9 +216,9 @@ function PerformanceTab({
           <p className="text-xs text-gray-400 mt-0.5">Seit Jahresanfang</p>
         </div>
         <div className="bg-[#0f1420] p-4 border-r border-white/10">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">SEIT KAUF</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1" title="Gesamtdepot inklusive Cash gegen die dokumentierte Kapitalbasis; keine einzelne Kaufkursrendite.">SEIT PORTFOLIO-START</p>
           <p className={`text-2xl font-bold font-mono ${(seitKauf ?? 0) >= 0 ? 'text-[#00CFC1]' : 'text-negative'}`}>{seitKauf !== null ? `${seitKauf >= 0 ? '+' : ''}${seitKauf.toFixed(2)}%` : '–'}</p>
-          <p className="text-xs text-gray-400 mt-0.5">Gesamtrendite</p>
+          <p className="text-xs text-gray-400 mt-0.5">Gesamtdepot inkl. Cash</p>
         </div>
         <div className="bg-[#0f1420] p-4">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-1">G/V ABSOLUT</p>
@@ -1507,12 +1507,64 @@ export default function PortfolioDetailsPage() {
     }
     setExportingFormat(format);
     try {
+      let exportModel = portfolioExportModel;
+      if (format === "pdf") {
+        const [ytdSpi, ytdSp500, fiveYearSpi, fiveYearSp500] = await Promise.all([
+          utils.portfolios.getHistoricalPerformance.fetch({ portfolioId, period: "YTD", benchmark: "CHSPI.SW" }),
+          utils.portfolios.getHistoricalPerformance.fetch({ portfolioId, period: "YTD", benchmark: "SPY" }),
+          utils.portfolios.getHistoricalPerformance.fetch({ portfolioId, period: "5Y", benchmark: "CHSPI.SW" }),
+          utils.portfolios.getHistoricalPerformance.fetch({ portfolioId, period: "5Y", benchmark: "SPY" }),
+        ]);
+        const portfolioStartCandidate = (portfolio as any).liveStartDate ?? (portfolio as any).createdAt;
+        const portfolioStart = portfolioStartCandidate instanceof Date
+          ? portfolioStartCandidate.toISOString().slice(0, 10)
+          : typeof portfolioStartCandidate === "string"
+            ? portfolioStartCandidate.slice(0, 10)
+            : null;
+        const startsInCurrentYear = portfolioStart ? portfolioStart.slice(0, 4) === String(new Date().getFullYear()) : false;
+        const startSpi = startsInCurrentYear ? ytdSpi : fiveYearSpi;
+        const startSp500 = startsInCurrentYear ? ytdSp500 : fiveYearSp500;
+        exportModel = buildPortfolioExportModel({
+          portfolio: portfolio as Record<string, unknown>,
+          holdings: holdings as Record<string, unknown>[],
+          performance: perfMetrics as Record<string, unknown> | undefined,
+          risk: riskMetrics as Record<string, unknown> | undefined,
+          fallbackIndexedSeries: (historicalData?.chartData ?? []) as Record<string, unknown>[],
+          benchmarkComparisonInputs: [
+            {
+              key: "portfolio_start",
+              label: "Seit Portfolio-Start",
+              chartData: (startSpi?.chartData ?? []) as Record<string, unknown>[],
+              sp500ChartData: (startSp500?.chartData ?? []) as Record<string, unknown>[],
+              startDate: portfolioStart,
+              method: "Gewichtete Portfolioentwicklung in CHF gegenüber SPI und S&P 500 ab Portfolio-Start; alle drei Reihen werden am ersten gemeinsamen Handelstag auf 0 % gesetzt.",
+            },
+            {
+              key: "ytd",
+              label: "YTD",
+              chartData: (ytdSpi?.chartData ?? []) as Record<string, unknown>[],
+              sp500ChartData: (ytdSp500?.chartData ?? []) as Record<string, unknown>[],
+              method: "Gewichtete Portfolioentwicklung in CHF gegenüber SPI und S&P 500 auf derselben YTD-Zeitachse.",
+            },
+            {
+              key: "five_year",
+              label: "5 Jahre",
+              chartData: (fiveYearSpi?.chartData ?? []) as Record<string, unknown>[],
+              sp500ChartData: (fiveYearSp500?.chartData ?? []) as Record<string, unknown>[],
+              method: "Gewichtete Portfolioentwicklung in CHF gegenüber SPI und S&P 500 auf derselben verfügbaren Fünfjahres-Zeitachse.",
+            },
+          ],
+          referenceCurrency: typeof profile?.referenceCurrency === "string" ? profile.referenceCurrency : "CHF",
+          asOf: new Date(),
+          periodLabel: selectedPeriod,
+        });
+      }
       if (format === "excel") {
-        await downloadPortfolioExcel(portfolioExportModel);
+        await downloadPortfolioExcel(exportModel);
         toast.success("Excel-Export erstellt", { description: "Übersicht, Titelliste und Depotentwicklung wurden heruntergeladen." });
       } else {
-        await downloadPortfolioPdf(portfolioExportModel);
-        toast.success("PDF-Report erstellt", { description: "Kennzahlen, Depotentwicklung, Allokation und Titelliste wurden heruntergeladen." });
+        await downloadPortfolioPdf(exportModel);
+        toast.success("PDF-Report erstellt", { description: "Kennzahlen, Vergleichscharts, Allokation und Titelliste wurden heruntergeladen." });
       }
     } catch (error: any) {
       toast.error(`${format === "excel" ? "Excel" : "PDF"}-Export fehlgeschlagen`, {
@@ -1886,9 +1938,10 @@ export default function PortfolioDetailsPage() {
             })()}
           </div>
 
-          {/* SEIT KAUF — Gesamtrendite seit Erstinvestition */}
+          {/* PORTFOLIO-START — Gesamtrendite gegen die dokumentierte Kapitalbasis.
+              Das ist bewusst keine positionsbezogene «seit Kauf»-Rendite. */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">RENDITE · SEIT KAUF</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Gesamtdepot inklusive Cash gegen die dokumentierte Kapitalbasis; nicht mit einzelnen Kaufkursen gleichzusetzen.">RENDITE · SEIT PORTFOLIO-START</p>
             {(() => {
               // `totalValueCHF` enthält die Liquidität bereits (siehe
               // portfoliosRouter) — nicht nochmals addieren, sonst zählt die
@@ -1903,6 +1956,9 @@ export default function PortfolioDetailsPage() {
                   </p>
                   <p className={`text-xs mt-1 ${gain >= 0 ? 'text-gray-400' : 'text-negative'}`}>
                     G/V {formatCHF(gain, { decimals: 0, signDisplay: 'always' })}
+                  </p>
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    Basis {formatCHF(invested, { decimals: 0 })} · inkl. Cash
                   </p>
                 </>
               );

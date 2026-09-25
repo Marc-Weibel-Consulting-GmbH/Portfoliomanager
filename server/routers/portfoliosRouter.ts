@@ -349,6 +349,7 @@ export const portfoliosRouter = router({
         // avgFxRateAtPurchaseMap: weighted avg FX rate at purchase time
         const avgBuyPriceLocalMap = new Map<string, number>();
         const avgFxRateAtPurchaseMap = new Map<string, number>();
+        const buyTransactionDatesByTicker = new Map<string, string[]>();
         let transactions: any[] = [];
         try {
           transactions = await getPortfolioTransactions(input);
@@ -364,6 +365,10 @@ export const portfoliosRouter = router({
               const priceLocal = parseFloat(tx.pricePerShare) || 0;
               const fxAtPurchase = parseFloat(tx.fxRate) || 1;
               if (!tk || qty <= 0 || priceLocal <= 0) continue;
+              const transactionDate = new Date(tx.transactionDate).toISOString().slice(0, 10);
+              const existingDates = buyTransactionDatesByTicker.get(tk) ?? [];
+              existingDates.push(transactionDate);
+              buyTransactionDatesByTicker.set(tk, existingDates);
               const existing = byTicker.get(tk) || { totalShares: 0, totalCostLocal: 0, totalCostCHF: 0 };
               existing.totalShares += qty;
               existing.totalCostLocal += qty * priceLocal;
@@ -442,6 +447,7 @@ export const portfoliosRouter = router({
         const { berechneTagesveraenderung } = await import("../lib/dailyChange");
         const { getHistoricalPriceCurrency, isHistoricalPriceSeriesCompatible } = await import("../lib/eodhdSymbol");
         const { getCuratedInstrumentDisclosure } = await import("../lib/curatedInstrumentDisclosures");
+        const { resolvePositionEntryBasis } = await import("../lib/positionEntryBasis");
 
         // Qualitaet aus den vorgerechneten drei Scores (stock_scores), nicht
         // mehr aus dem alten Einzelscore. Ein Titel ohne Eintrag bekommt null —
@@ -659,6 +665,11 @@ export const portfoliosRouter = router({
             const avgBuyPrice = avgBuyPriceCHF;
             // hasBuyPrice: true only when we have a real purchase price (not the fallback)
             const hasBuyPrice = storedAvgBuyPriceCHF > 0 || storedAvgBuyPrice > 0 || (avgBuyPriceLocalMap.get(ticker) ?? 0) > 0;
+            const entryBasis = resolvePositionEntryBasis({
+              hasCostBasis: hasBuyPrice,
+              storedEntryDate: stock.entryDate ?? stock.buyDate ?? stock.purchaseDate,
+              transactionDates: buyTransactionDatesByTicker.get(ticker),
+            });
 
             // Stückzahlen über die EINE gemeinsame Regel (lib/demoAnteile):
             // gespeicherte Stückzahlen, sonst Allokation ÷ KAUFPREIS.
@@ -698,7 +709,9 @@ export const portfoliosRouter = router({
               dayChangeDataQuality,
               weight: parseFloat(weight.toFixed(2)),
               shares: shares.toFixed(2),
-              avgBuyPrice: avgBuyPrice.toFixed(2),
+              // The current market price is a valuation fallback only. It must
+              // never masquerade as a confirmed per-position cost basis.
+              avgBuyPrice: hasBuyPrice ? avgBuyPrice.toFixed(2) : null,
               totalValue: totalValue.toFixed(2),
               valueCHF: totalValue,
               // Add missing fields from database
@@ -778,7 +791,14 @@ export const portfoliosRouter = router({
               qualityScore: qualitaetNachTicker.get(ticker) ?? null,
               // hasBuyPrice: true only when a real purchase price exists (not the 0%-fallback)
               hasBuyPrice,
-              returnDataQuality: hasBuyPrice ? null : 'Einstandsdaten fehlen; Rendite seit Kauf ist nicht verfügbar.',
+              entryDate: entryBasis.entryDate,
+              entryBasisStatus: entryBasis.status,
+              entryBasisLabel: entryBasis.label,
+              returnDataQuality: hasBuyPrice
+                ? (entryBasis.status === 'multiple_transaction_dates'
+                  ? 'Mehrere Kauftranchen; ein einzelnes Einstandsdatum wird nicht erfunden.'
+                  : null)
+                : 'Einstandsdaten fehlen; Rendite seit Kauf ist nicht verfügbar.',
               // Reine Zusatzinformation aus einzeln datierten Primärquellen.
               // Sie überschreibt weder Vendor-Stammdaten noch Preis-/Portfoliofelder.
               instrumentDisclosure,

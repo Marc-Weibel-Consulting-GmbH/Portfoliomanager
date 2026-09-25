@@ -23,6 +23,8 @@ interface EditPositionFieldsModalProps {
     companyName?: string;
     shares?: number | string;
     avgBuyPrice?: number | string;
+    entryDate?: string | null;
+    entryBasisLabel?: string | null;
     isin?: string;
     currency?: string;
   } | null;
@@ -59,6 +61,7 @@ export function EditPositionFieldsModal({
     isin: holding?.isin ?? "",
     shares: holding?.shares != null ? String(holding.shares) : "",
     avgBuyPrice: holding?.avgBuyPrice != null ? String(holding.avgBuyPrice) : "",
+    entryDate: holding?.entryDate ?? "",
     currency: holding?.currency || "CHF",
   }));
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -132,6 +135,7 @@ export function EditPositionFieldsModal({
       isin: form.isin.trim() || undefined,
       shares: form.shares.trim() !== "" ? form.shares.trim() : original.shares,
       avgBuyPrice: form.avgBuyPrice.trim() !== "" ? form.avgBuyPrice.trim() : original.avgBuyPrice,
+      entryDate: form.entryDate || undefined,
       currency: form.currency,
     };
     const newData = isArray ? stocks : { ...parsed, stocks };
@@ -175,7 +179,7 @@ export function EditPositionFieldsModal({
               />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <Label className="text-xs">Stück</Label>
               <Input
@@ -197,6 +201,15 @@ export function EditPositionFieldsModal({
               />
             </div>
             <div>
+              <Label className="text-xs">Einstandsdatum</Label>
+              <Input
+                type="date"
+                value={form.entryDate}
+                onChange={(e) => setForm({ ...form, entryDate: e.target.value })}
+                className="bg-slate-600 border-slate-500 text-white mt-1"
+              />
+            </div>
+            <div>
               <Label className="text-xs">Währung</Label>
               <Select value={form.currency} onValueChange={(v) => setForm({ ...form, currency: v })}>
                 <SelectTrigger className="bg-slate-600 border-slate-500 text-white mt-1">
@@ -211,7 +224,8 @@ export function EditPositionFieldsModal({
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Bei einer reinen Stückzahländerung in einem nicht aktivierten Demoportfolio wird der Gegenwert zum aktuellen CHF-Kurs automatisch der Cash-Reserve gutgeschrieben oder aus ihr belastet. ISIN, Ticker, Einstand und Währung können weiterhin separat korrigiert werden.
+            Bei einer reinen Stückzahländerung in einem nicht aktivierten Demoportfolio wird der Gegenwert zum aktuellen CHF-Kurs automatisch der Cash-Reserve gutgeschrieben oder aus ihr belastet. ISIN, Ticker, Einstand, Einstandsdatum und Währung können weiterhin separat korrigiert werden.
+            {holding.entryBasisLabel ? ` Aktueller Status: ${holding.entryBasisLabel}.` : ""}
           </p>
         </div>
 

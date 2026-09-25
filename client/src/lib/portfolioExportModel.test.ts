@@ -211,4 +211,85 @@ describe("buildPortfolioExportModel", () => {
       expect.stringContaining("keine rückwirkend ausgeführte Transaktionshistorie"),
     ]));
   });
+
+  it("gibt bestätigte Einstandsangaben und zusätzliche Positionskennzahlen an die Exporte weiter", () => {
+    const model = buildPortfolioExportModel({
+      ...base,
+      holdings: [{
+        ...base.holdings[0],
+        entryDate: "2026-01-02",
+        entryBasisLabel: "Einstand bestätigt",
+        dividendYield: 3.2,
+        peRatio: 18.4,
+        volatility5y: 21.5,
+      }],
+    });
+
+    expect(model.positions[0]).toMatchObject({
+      entryDate: "2026-01-02",
+      entryBasisLabel: "Einstand bestätigt",
+      dividendYieldPct: 3.2,
+      peRatio: 18.4,
+      volatility5yPct: 21.5,
+    });
+  });
+
+  it("bildet YTD- und Fünfjahresvergleiche mit SPI und S&P 500 ab", () => {
+    const model = buildPortfolioExportModel({
+      ...base,
+      portfolio: { ...base.portfolio, createdAt: "2026-01-02" },
+      benchmarkComparisonInputs: [{
+        key: "ytd",
+        label: "YTD",
+        method: "Vergleichsmethode",
+        chartData: [
+          { date: "2026-01-02", portfolio: 0, benchmark: 0 },
+          { date: "2026-01-05", portfolio: 1.2, benchmark: 0.8 },
+        ],
+        sp500ChartData: [
+          { date: "2026-01-02", benchmark: 0 },
+          { date: "2026-01-05", benchmark: 1.1 },
+        ],
+      }],
+    });
+
+    expect(model.benchmarkComparisons).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: "portfolio_start", points: expect.any(Array) }),
+      expect.objectContaining({
+        key: "ytd",
+        points: expect.arrayContaining([
+          expect.objectContaining({ date: "2026-01-05", portfolioReturnPct: 1.2, spiReturnPct: 0.8, sp500ReturnPct: 1.1 }),
+        ]),
+      }),
+    ]));
+  });
+
+  it("rebasiert den Vergleich seit Portfolio-Start auf den ersten gemeinsamen Handelstag", () => {
+    const model = buildPortfolioExportModel({
+      ...base,
+      benchmarkComparisonInputs: [{
+        key: "portfolio_start",
+        label: "Seit Portfolio-Start",
+        startDate: "2026-01-03",
+        method: "Startvergleich",
+        chartData: [
+          { date: "2026-01-02", portfolio: -2, benchmark: 3 },
+          { date: "2026-01-03", portfolio: 4, benchmark: 5 },
+          { date: "2026-01-04", portfolio: 6.5, benchmark: 6 },
+        ],
+        sp500ChartData: [
+          { date: "2026-01-03", benchmark: 7 },
+          { date: "2026-01-04", benchmark: 8.5 },
+        ],
+      }],
+    });
+
+    expect(model.benchmarkComparisons).toContainEqual(expect.objectContaining({
+      key: "portfolio_start",
+      points: [
+        { date: "2026-01-03", portfolioReturnPct: 0, spiReturnPct: 0, sp500ReturnPct: 0 },
+        { date: "2026-01-04", portfolioReturnPct: 2.5, spiReturnPct: 1, sp500ReturnPct: 1.5 },
+      ],
+    }));
+  });
 });
