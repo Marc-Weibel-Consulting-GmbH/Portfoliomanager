@@ -87,6 +87,29 @@ describe("rebalanceManualDemoPortfolio", () => {
     expect(result.totalValueAfterChf).toBe(result.totalValueBeforeChf);
   });
 
+  it("kann einen neuen Optimierungskandidaten mit einer getrennt geprüften Kursbasis aufnehmen", () => {
+    const result = rebalanceManualDemoPortfolioWeights({
+      cashBalanceChf: 10_000,
+      before: [nestle, roche],
+      quoteBasis: [{
+        ticker: "RUS.TO",
+        shares: 0,
+        priceLocal: 84.51,
+        currency: "CAD",
+        exchangeRateToChf: 0.62,
+      }],
+      targetWeightsPct: [
+        { ticker: "NESN.SW", weightPct: 40 },
+        { ticker: "RUS.TO", weightPct: 20 },
+      ],
+    });
+
+    expect(result.positions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ ticker: "RUS.TO", weightPct: 20 }),
+    ]));
+    expect(result.totalValueAfterChf).toBeCloseTo(result.totalValueBeforeChf, 2);
+  });
+
   it("weist Gewichtungspläne über 100 Prozent vor jeder Cash-Belastung ab", () => {
     expect(() => rebalanceManualDemoPortfolioWeights({
       cashBalanceChf: 10_000,

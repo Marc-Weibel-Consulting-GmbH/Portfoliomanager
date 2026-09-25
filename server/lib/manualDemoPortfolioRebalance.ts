@@ -66,6 +66,12 @@ export function rebalanceManualDemoPortfolio(input: {
 export function rebalanceManualDemoPortfolioWeights(input: {
   cashBalanceChf: number;
   before: ManualDemoHolding[];
+  /**
+   * Aktuelle, bereits serverseitig geprüfte Kurse für neue Zielpositionen.
+   * Diese Positionen gehören ausdrücklich nicht zum Ausgangsdepot und dürfen
+   * deshalb den Gesamtwert vor der Umschichtung nicht verändern.
+   */
+  quoteBasis?: ManualDemoHolding[];
   targetWeightsPct: Array<{ ticker: string; weightPct: number }>;
 }): {
   positions: Array<{ ticker: string; shares: number; weightPct: number }>;
@@ -79,7 +85,13 @@ export function rebalanceManualDemoPortfolioWeights(input: {
   if (!(input.cashBalanceChf >= 0)) throw new Error("Ungültige Cash-Reserve.");
   const totalValueBeforeChf = securitiesValueBeforeChf + input.cashBalanceChf;
   const targetTickers = new Set<string>();
-  const quoteByTicker = new Map(input.before.map((holding) => [holding.ticker, holding]));
+  // `before` bestimmt ausschliesslich den Wert des bestehenden Depots. Eine
+  // separate Kursbasis erlaubt dennoch neue, vom Optimizer vorgeschlagene
+  // Titel mit ihrer geprüften lokalen Preis-/FX-Basis zu bewerten.
+  const quoteByTicker = new Map([
+    ...input.before.map((holding) => [holding.ticker, holding] as const),
+    ...(input.quoteBasis ?? []).map((holding) => [holding.ticker, holding] as const),
+  ]);
   const targetWeightSum = input.targetWeightsPct.reduce((sum, target) => {
     if (!target.ticker || targetTickers.has(target.ticker)) {
       throw new Error(`Positionen müssen eindeutige Ticker enthalten (${target.ticker || "leer"}).`);

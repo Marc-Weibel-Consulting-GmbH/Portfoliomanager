@@ -1910,6 +1910,10 @@ export const portfoliosRouter = router({
           rebalanced = rebalanceManualDemoPortfolioWeights({
             cashBalanceChf: Number(portfolio.cashBalance ?? 0),
             before,
+            // Neue Volloptimierungsziele sind noch keine Bestandteile von
+            // `before`, besitzen aber bereits eine aktuelle lokale Kurs- und
+            // CHF-FX-Basis aus dem kontrollierten Serverpfad oben.
+            quoteBasis: targetQuotes,
             targetWeightsPct: targets,
           });
         } catch (error) {
