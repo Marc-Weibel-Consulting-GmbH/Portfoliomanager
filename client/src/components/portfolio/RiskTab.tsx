@@ -142,9 +142,19 @@ function BubbleDetailModal({ open, onClose, bubble }: { open: boolean; onClose: 
 export default function RiskTab({ portfolioId }: { portfolioId: number }) {
   const [bubbleModalOpen, setBubbleModalOpen] = useState(false);
 
-  const { data: risk, isLoading: riskLoading } = trpc.dashboard.getRiskMetrics.useQuery(
+  const {
+    data: risk,
+    isLoading: riskLoading,
+    isError: riskError,
+    isFetching: riskFetching,
+    refetch: refetchRisk,
+  } = trpc.dashboard.getRiskMetrics.useQuery(
     { scope: portfolioId },
-    { enabled: portfolioId > 0 }
+    {
+      enabled: portfolioId > 0,
+      retry: 3,
+      retryDelay: attempt => Math.min(1_000 * 2 ** attempt, 5_000),
+    }
   );
   const { data: bubble, isLoading: bubbleLoading } = trpc.dashboard.getBubbleIndicator.useQuery(
     { scope: portfolioId },
@@ -155,6 +165,8 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
   // berechnet werden konnten (kein Portfolio, keine Kurshistorie). Dann keine
   // irreführenden 0.0%-Werte anzeigen.
   const riskData = risk && risk.dataAvailable !== false ? risk : undefined;
+  const riskDataUnavailable = risk?.dataAvailable === false;
+  const riskRequestFailed = riskError || riskDataUnavailable;
   const riskDetail = riskData as any;
   const hasValidatedFiveYearRisk = riskDetail?.riskWindowStatus === "five_year_with_stress";
   const numberOrNull = (value: unknown): number | null => typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -179,7 +191,11 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     troughDate?: string | null;
   } | undefined;
 
-  const riskGateExplanation = riskWindowStatus === "five_year_with_stress"
+  const riskGateExplanation = riskError
+    ? "Der Risikoabruf ist vorübergehend fehlgeschlagen. Das ist keine Datenlücke und wird nicht als 0.00 angezeigt."
+    : riskDataUnavailable
+      ? "Der Server konnte keine qualifizierte Risikoreihe liefern. Das ist keine Kennzahl von 0.00; der Abruf kann erneut gestartet werden."
+    : riskWindowStatus === "five_year_with_stress"
     ? `5 Jahre qualifizierte Historie inklusive Marktstress über ${stressEvidence?.benchmark ?? "Benchmark"}.`
     : riskWindowStatus === "five_year_without_stress"
       ? "Die Fünfjahresreihe enthält keine objektiv bestätigte Stressphase; deshalb wird kein Max.-Drawdown ausgewiesen."
@@ -202,7 +218,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     {
       label: "Volatilität (5J p.a.)",
       value: volatility === null ? "—" : `${volatility.toFixed(1)}%`,
-      sub: benchmarkVolatility === null ? "5J-Gate erforderlich" : `Bench ${benchmarkVolatility.toFixed(1)}%`,
+      sub: riskRequestFailed ? "Risikodaten nicht verfügbar" : benchmarkVolatility === null ? "5J-Gate erforderlich" : `Bench ${benchmarkVolatility.toFixed(1)}%`,
       tone: volatility !== null && benchmarkVolatility !== null && volatility < benchmarkVolatility ? "good" : "neutral",
       tooltip: "Annualisierte Standardabweichung der täglichen Renditen über das qualifizierte Fünfjahresfenster.",
       kpiKey: "volatility",
@@ -211,7 +227,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     {
       label: "Verlustrisiko · Max. (5J)",
       value: maxDrawdown === null ? "—" : `${maxDrawdown.toFixed(1)}%`,
-      sub: benchmarkDrawdown === null ? "Kein verkürztes Ersatzfenster" : `Bench ${benchmarkDrawdown.toFixed(1)}%`,
+      sub: riskRequestFailed ? "Abruf fehlgeschlagen – erneut versuchen" : benchmarkDrawdown === null ? "Kein verkürztes Ersatzfenster" : `Bench ${benchmarkDrawdown.toFixed(1)}%`,
       tone: maxDrawdown !== null && benchmarkDrawdown !== null && Math.abs(maxDrawdown) < Math.abs(benchmarkDrawdown) ? "good" : maxDrawdown !== null ? "bad" : "neutral",
       tooltip: "Maximaler Rückgang vom bisherigen Hoch bis zum späteren Tief im qualifizierten Fünfjahres-Allokationsproxy; keine Prognose und keine rückwirkende Depottransaktionshistorie.",
       kpiKey: "maxDrawdown",
@@ -219,7 +235,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     {
       label: "Beta",
       value: riskData?.beta != null ? riskData.beta.toFixed(2) : "—",
-      sub: riskData?.beta != null ? "vs. SPI" : "Datenlücke vs. SPI",
+      sub: riskRequestFailed ? "Risikoabruf fehlgeschlagen" : riskData?.beta != null ? "vs. SPI" : "Datenlücke vs. SPI",
       tone: "neutral",
       tooltip: "Sensitivität des Portfolios gegenüber dem SPI. Sie wird aus tagesgleich gepaarten Portfolio- und Benchmarkrenditen berechnet; bei unzureichenden gemeinsamen Handelstagen erscheint eine Datenlücke statt 0.00.",
       kpiKey: "beta",
@@ -227,7 +243,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     {
       label: "VaR (95%, 1T)",
       value: var95 === null ? "—" : `${var95.toFixed(1)}%`,
-      sub: var95 === null ? "5J-Gate erforderlich" : "Tagesverlust-Schwelle",
+      sub: riskRequestFailed ? "Risikodaten nicht verfügbar" : var95 === null ? "5J-Gate erforderlich" : "Tagesverlust-Schwelle",
       tone: var95 === null ? "neutral" : "bad",
       tooltip: "Value at Risk: Tagesverlust-Schwelle auf Basis des qualifizierten Fünfjahresfensters.",
       kpiKey: "var",
@@ -235,7 +251,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     {
       label: "Sharpe Ratio",
       value: sharpeRatio === null ? "—" : sharpeRatio.toFixed(2),
-      sub: benchmarkSharpe === null ? "5J-Gate erforderlich" : `Bench ${benchmarkSharpe.toFixed(2)}`,
+      sub: riskRequestFailed ? "Abruf fehlgeschlagen – erneut versuchen" : benchmarkSharpe === null ? "5J-Gate erforderlich" : `Bench ${benchmarkSharpe.toFixed(2)}`,
       tone: sharpeRatio !== null && sharpeRatio >= 1 ? "good" : "neutral",
       tooltip: "Rendite pro Risikoeinheit im qualifizierten Fünfjahresfenster.",
       kpiKey: "sharpe",
@@ -243,7 +259,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     {
       label: "Konzentration Top 3",
       value: riskData ? `${riskData.concentrationTop3.toFixed(1)}%` : "—",
-      sub: "Anteil der 3 grössten Positionen",
+      sub: riskRequestFailed ? "Risikoabruf fehlgeschlagen" : "Anteil der 3 grössten Positionen",
       tone: riskData && riskData.concentrationTop3 > 60 ? "bad" : riskData && riskData.concentrationTop3 < 40 ? "good" : "neutral",
       tooltip: "Prozentualer Anteil der drei grössten Positionen am Gesamtportfolio. Werte über 60% deuten auf Klumpenrisiko hin.",
     },
@@ -279,33 +295,48 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
         <div className="lg:col-span-3">
           <div className="bg-[#0f1420] border border-white/10 rounded-lg p-5">
             <h3 className="text-sm font-semibold text-white mb-4">Risiko-Kennzahlen</h3>
-            {riskLoading ? (
+            {riskLoading || (riskFetching && !risk) ? (
               <div className="flex items-center justify-center h-40">
                 <div className="w-5 h-5 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin" />
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/10 rounded-lg overflow-hidden">
-                {metrics.map((m) => (
-                  <div key={m.label} className="bg-[#0f1420] p-4">
-                    <div className="flex items-center mb-1.5">
-                      <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">{m.label}</p>
-                      {m.kpiKey
-                        ? <RichKpiTooltip kpi={m.kpiKey} iconOnly side="top" />
-                        : (
-                          <span className="relative inline-block ml-1 group">
-                            <Info className="w-3 h-3 text-gray-600 hover:text-gray-400 cursor-help" />
-                            <span className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 bg-[#1a1f2e] border border-white/20 rounded-lg px-3 py-2 text-[11px] text-gray-300 leading-relaxed shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                              {m.tooltip}
-                            </span>
-                          </span>
-                        )
-                      }
-                    </div>
-                    <p className={`text-xl font-bold font-mono ${toneClass(m.tone)}`}>{m.value}</p>
-                    {m.sub && <p className="text-xs text-gray-500 mt-0.5">{m.sub}</p>}
+              <>
+                {riskRequestFailed && (
+                  <div className="mb-4 flex flex-col gap-2 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs leading-relaxed text-amber-100">{riskGateExplanation}</p>
+                    <button
+                      type="button"
+                      onClick={() => void refetchRisk()}
+                      disabled={riskFetching}
+                      className="shrink-0 text-xs font-semibold text-[#00CFC1] hover:text-[#44e0d5] disabled:cursor-wait disabled:opacity-60"
+                    >
+                      {riskFetching ? "Berechnung läuft…" : "Analyse erneut starten"}
+                    </button>
                   </div>
-                ))}
-              </div>
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-white/10 rounded-lg overflow-hidden">
+                  {metrics.map((m) => (
+                    <div key={m.label} className="bg-[#0f1420] p-4">
+                      <div className="flex items-center mb-1.5">
+                        <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">{m.label}</p>
+                        {m.kpiKey
+                          ? <RichKpiTooltip kpi={m.kpiKey} iconOnly side="top" />
+                          : (
+                            <span className="relative inline-block ml-1 group">
+                              <Info className="w-3 h-3 text-gray-600 hover:text-gray-400 cursor-help" />
+                              <span className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-52 bg-[#1a1f2e] border border-white/20 rounded-lg px-3 py-2 text-[11px] text-gray-300 leading-relaxed shadow-xl pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                                {m.tooltip}
+                              </span>
+                            </span>
+                          )
+                        }
+                      </div>
+                      <p className={`text-xl font-bold font-mono ${toneClass(m.tone)}`}>{m.value}</p>
+                      {m.sub && <p className="text-xs text-gray-500 mt-0.5">{m.sub}</p>}
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>

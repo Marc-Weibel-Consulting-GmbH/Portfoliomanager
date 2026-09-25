@@ -1360,11 +1360,26 @@ export default function PortfolioDetailsPage() {
   );
 
   // Risk metrics (real Sharpe ratio + benchmark Sharpe) scoped to this portfolio
-  const { data: riskMetrics, isLoading: isRiskMetricsLoading } = trpc.dashboard.getRiskMetrics.useQuery(
+  const {
+    data: riskMetrics,
+    isLoading: isRiskMetricsLoading,
+    isError: isRiskMetricsError,
+    isFetching: isRiskMetricsFetching,
+    refetch: refetchRiskMetrics,
+  } = trpc.dashboard.getRiskMetrics.useQuery(
     { scope: portfolioId },
-    { enabled: portfolioId > 0 }
+    {
+      enabled: portfolioId > 0,
+      // Die Fünfjahresreihe ist eine lokale, rein lesende Berechnung. Ein
+      // einzelner transienter Abruffehler darf nicht als Datenlücke enden.
+      retry: 3,
+      retryDelay: attempt => Math.min(1_000 * 2 ** attempt, 5_000),
+    }
   );
-  const riskHeader = getRiskHeaderPresentation(riskMetrics, isRiskMetricsLoading);
+  const riskHeader = getRiskHeaderPresentation(riskMetrics, {
+    isLoading: isRiskMetricsLoading || (isRiskMetricsFetching && !riskMetrics),
+    isError: isRiskMetricsError,
+  });
 
   // Signals for Positionen tab detail rows (cache-first, loaded lazily when tab is active)
   const trpcUtils = trpc.useUtils();
@@ -1972,14 +1987,24 @@ export default function PortfolioDetailsPage() {
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Fünfjähriger Sharpe des historischen Allokationsproxys: annualisierte tägliche CHF-Rendite abzüglich 2 % risikofreiem Satz, dividiert durch die annualisierte Volatilität. Keine reale Depotperformance vor Portfolio-Start.">RISIKO · SHARPE (5J)</p>
-            <p className={`${isRiskMetricsLoading ? 'text-lg' : 'text-2xl'} font-bold font-mono text-white`}>
+            <p className={`${riskHeader.status === 'loading' ? 'text-lg' : 'text-2xl'} font-bold font-mono text-white`}>
               {riskHeader.sharpe.value}
             </p>
             {/* Zonenleiste mit Positionspfeil — ordnet die Zahl ohne Hover ein. */}
-            {!isRiskMetricsLoading && <KpiMiniSkala kpi="sharpe" wert={riskMetrics?.sharpeRatio ?? null} className="max-w-[9rem]" />}
+            {riskHeader.status === 'ready' && <KpiMiniSkala kpi="sharpe" wert={riskMetrics?.sharpeRatio ?? null} className="max-w-[9rem]" />}
             <p className="text-xs text-gray-400 mt-1">
-              {isRiskMetricsLoading ? riskHeader.sharpe.sub : `5J-Proxy · ${riskHeader.sharpe.sub}`}
+              {riskHeader.status === 'loading' ? riskHeader.sharpe.sub : `5J-Proxy · ${riskHeader.sharpe.sub}`}
             </p>
+            {riskHeader.canRetry && (
+              <button
+                type="button"
+                onClick={() => void refetchRiskMetrics()}
+                disabled={isRiskMetricsFetching}
+                className="mt-2 text-[11px] font-medium text-[#00CFC1] hover:text-[#44e0d5] disabled:cursor-wait disabled:opacity-60"
+              >
+                {isRiskMetricsFetching ? 'Berechnung läuft…' : 'Analyse erneut starten'}
+              </button>
+            )}
           </div>
           )}
 
@@ -1987,7 +2012,7 @@ export default function PortfolioDetailsPage() {
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Maximaler zwischenzeitlicher Wertverlust im qualifizierten Fünfjahres-Allokationsproxy inklusive objektivem Stressnachweis">VERLUSTRISIKO · MAX. (5J)</p>
-            <p className={`${isRiskMetricsLoading ? 'text-lg' : 'text-2xl'} font-bold font-mono text-white`}>
+            <p className={`${riskHeader.status === 'loading' ? 'text-lg' : 'text-2xl'} font-bold font-mono text-white`}>
               {riskHeader.maxDrawdown.value}
             </p>
             <p className="text-xs text-gray-400 mt-1">
