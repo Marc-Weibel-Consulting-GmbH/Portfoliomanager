@@ -1852,11 +1852,26 @@ export async function getBenchmarkData(
       conditions.push(lte(benchmarkData.date, endDate));
     }
 
-    const rawResults = await db
-      .select()
+    // Historical benchmark imports are deliberately additive. Reading every
+    // duplicate day and resolving it in JavaScript made a five-year risk query
+    // load hundreds of thousands of stale audit rows. `id` is monotonic for a
+    // recorded import, so the greatest id per day is the same governing row as
+    // the existing latest-import rule, without mutating any raw observation.
+    const latestIdRows = await db
+      .select({ latestId: sql<number>`max(${benchmarkData.id})` })
       .from(benchmarkData)
       .where(and(...conditions))
-      .orderBy(asc(benchmarkData.date));
+      .groupBy(benchmarkData.date);
+    const latestIds = latestIdRows
+      .map((row) => Number(row.latestId))
+      .filter((id) => Number.isFinite(id) && id > 0);
+    const rawResults = latestIds.length > 0
+      ? await db
+        .select()
+        .from(benchmarkData)
+        .where(inArray(benchmarkData.id, latestIds))
+        .orderBy(asc(benchmarkData.date))
+      : [];
 
     // Historical imports are intentionally additive. Return exactly one
     // deterministic EODHD observation per benchmark day to callers without

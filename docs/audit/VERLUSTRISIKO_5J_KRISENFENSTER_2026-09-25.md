@@ -74,3 +74,16 @@ Die reine Risiko-Hilfslogik wird mit sechs Tests geprüft. Sie decken die qualif
 ## References
 
 [1]: https://eodhd.com/financial-apis/eod-historical-data-api/ "EOD Historical Data API"
+
+## Laufzeit und Abrufstabilität (Ergänzung 25.09.2026)
+
+Nach einer späteren, ausdrücklich bestätigten Test-Optimierung zeigte die Kopfzeile zeitweise dauerhaft **„Wird berechnet…”**. Die Ursachenanalyse war rein lesend und ergab zwei voneinander unabhängige Kostenquellen:
+
+1. Die additive Tabelle `benchmarkData` enthielt im aktuellen Fünfjahresfenster **295’480** SMI-Auditzeilen, obwohl nur **1’262** Handelstage benötigt werden. Vorher wurden alle Duplikate geladen und erst danach in JavaScript auf eine Tageszeile reduziert.
+2. Die fünfjährige Risikoreihe musste bei jedem Kopfladen vollständig neu aufgebaut werden. Ein zuvor eingesetzter allgemeiner Performancecache darf diesen Pfad nicht blockieren, weil er optional ein externes Cachebackend nutzt.
+
+Die Risikoberechnung liest jetzt je Benchmarktag direkt nur die letzte additive Importzeile (`MAX(id)` je Datum) und behält die Rohdaten vollständig unverändert. Der anschliessende bestehende Deduplizierungs- und Massstabsbruch-Guard bleibt als zweite Schutzschicht aktiv. Der reine Benchmarkabruf sank bei gleicher Antwortgrösse von **3.60 s** (295’480 Rohzeilen) auf **0.28 s** (1’262 Tageszeilen). Die gesamte live gemessene Risikoabfrage liefert anschliessend wieder HTTP 200 mit qualifiziertem Fünfjahresfenster.
+
+Zusätzlich hält ein **prozesslokaler, fünf Minuten gültiger Cache** nur bereits vollständig geprüfte Risikoreihen vor. Er hat keine Netzwerkabhängigkeit; nach jeder bestätigten Portfolio-, Cash- oder Optimierungsmutation wird er zusammen mit dem bestehenden Portfolio-/Performancecache für den betroffenen Nutzer gelöscht. Der Cache ist nach Risiko-Scope, Datum und Portfolio-Revision getrennt. Ein frischer Entwicklungsseiten-Reload zeigte wieder unmittelbar **Sharpe −0.14** und **Max.-Drawdown −24.9 %** (SPI −29.3 %, 1’292 Beobachtungen); es blieb kein Ladehinweis stehen. Die Abweichung zum früher dokumentierten Proxywert reflektiert die später bestätigte Portfolioumschichtung, nicht eine Umdeutung der Risikomethodik.
+
+Die neue Testabdeckung umfasst den lokalen Cache (Treffer, Ablauf und nutzerspezifische Invalidierung) sowie den effizienten, datumsbasierten Preislookup. Keine Benchmark-, Kurs-, Portfolio-, Cash-, Ledger-, Transaktions- oder Handelszeile wurde durch diese Laufzeitkorrektur geändert.

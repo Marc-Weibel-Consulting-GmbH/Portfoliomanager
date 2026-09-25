@@ -1,4 +1,5 @@
 import { invalidatePortfolioDetailCache } from "./portfolioDetailCache";
+import { invalidateCachedRiskMetricsForUser } from "./riskMetricsCache";
 
 type CacheDelete = (key: string) => Promise<unknown>;
 type PerformanceInvalidator = (key: string) => Promise<unknown>;
@@ -16,4 +17,5 @@ export async function invalidatePortfolioMutationCaches(input: {
 }): Promise<void> {
   await invalidatePortfolioDetailCache(input.cacheDel, input.portfolioId, input.userId);
   await input.invalidatePerformance(`perf:v2:${input.userId}`);
+  invalidateCachedRiskMetricsForUser(input.userId);
 }

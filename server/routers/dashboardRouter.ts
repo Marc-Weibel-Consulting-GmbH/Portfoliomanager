@@ -7,9 +7,49 @@ import { ENV } from "../_core/env";
 import { buildHoldings } from "../lib/holdings";
 import { DEFAULT_RISK_FREE_RATE } from "../analytics/riskStats";
 import { getHistoricalPriceCurrency } from "../lib/eodhdSymbol";
-import { buildPortfolioDrawdownAnalysis, calculateDailyReturns } from "../lib/portfolioDrawdown";
+import { buildPortfolioDrawdownAnalysis, calculateDailyReturns, type PortfolioDrawdownPoint } from "../lib/portfolioDrawdown";
 import { alignReturnsByDate, calculateDatedReturns, calculatePairedBeta } from "../lib/benchmarkReturnSeries";
-import { assessPortfolioRiskWindow, MAX_RISK_WINDOW_START_LAG_DAYS } from "../lib/portfolioRiskWindow";
+import {
+  assessPortfolioRiskWindow,
+  MAX_RISK_WINDOW_START_LAG_DAYS,
+  type RiskCoverageItem,
+  type RiskWindowStatus,
+  type StressEvidence,
+} from "../lib/portfolioRiskWindow";
+import { createRiskPriceLookup } from "../lib/riskPriceLookup";
+import { getCachedRiskMetrics, setCachedRiskMetrics } from "../lib/riskMetricsCache";
+
+type PublishedRiskMetrics = {
+  dataAvailable: true;
+  volatility: number | null;
+  volBenchmark: number | null;
+  maxDrawdown: number | null;
+  drawdownBenchmark: number | null;
+  var95: number | null;
+  concentrationTop3: number;
+  sharpeRatio: number | null;
+  sharpeBenchmark: number | null;
+  beta: number | null;
+  riskWindowStatus: RiskWindowStatus;
+  riskWindowTarget: string;
+  riskWindowStart: string | null;
+  riskWindowEnd: string | null;
+  riskHistoryYears: number | null;
+  riskSeriesMethod: "demo_fixed_shares_including_cash" | "market_values_from_available_price_history";
+  riskProxyType: "historical_allocation_proxy_not_actual_depot_history" | "historical_market_value_replay";
+  coverage: {
+    qualifiedObservationCount: number;
+    requiredObservationCount: number;
+    complete: boolean;
+    issues: RiskCoverageItem[];
+    benchmarkOutlierCount: number;
+  };
+  stressEvidence: StressEvidence;
+  benchmark: { key: string; label: string };
+  drawdownPeakDate: string | null;
+  drawdownTroughDate: string | null;
+  drawdownSeries: PortfolioDrawdownPoint[];
+};
 
 // Helper to safely parse float values - handles 'NA', null, undefined
 function safeParseFloat(value: string | null | undefined, fallback = 0): number {
@@ -1870,7 +1910,7 @@ export const dashboardRouter = router({
     .query(async ({ ctx, input }) => {
       const { getSavedPortfolios, getPortfolioReadAccess, getPortfolioTransactions, getBenchmarkData } = await import("../db");
       const { batchGetStocks } = await import("../db-optimized");
-      const { convertToCHF, convertToCHFSync, getFxRate } = await import("../fxHelper");
+      const { convertToCHF, tryConvertToCHFSync, tryGetFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
       const { historicalPrices } = await import("../../drizzle/schema");
       const { inArray, and, gte, lte } = await import("drizzle-orm");
@@ -1878,12 +1918,11 @@ export const dashboardRouter = router({
       const db = await getDb();
       if (!db) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
-      const ownedPortfolios = await getSavedPortfolios(ctx.user.id);
       // The personal aggregate intentionally remains owner-only. A numerical
       // scope may additionally be a specifically shared read-only portfolio.
       let targetPortfolios: any[];
       if (input.scope === "aggregate") {
-        targetPortfolios = ownedPortfolios;
+        targetPortfolios = await getSavedPortfolios(ctx.user.id);
       } else {
         const readAccess = await getPortfolioReadAccess(input.scope, ctx.user.id);
         targetPortfolios = readAccess ? [readAccess.portfolio] : [];
@@ -1896,6 +1935,14 @@ export const dashboardRouter = router({
       // Allokationsproxy mit heutigen festen Stückzahlen, nie Depot-Historie.
       const today = new Date();
       const todayStr = today.toISOString().split('T')[0];
+      const scopeKey = input.scope === "aggregate" ? "aggregate" : `portfolio-${input.scope}`;
+      const portfolioRevision = targetPortfolios
+        .map((portfolio) => `${portfolio.id}-${portfolio.updatedAt instanceof Date ? portfolio.updatedAt.toISOString() : String(portfolio.updatedAt ?? "")}`)
+        .sort()
+        .join("_");
+      const riskCacheKey = `risk:${ctx.user.id}:${scopeKey}:${todayStr}:${portfolioRevision}`;
+      const cachedRiskMetrics = getCachedRiskMetrics<PublishedRiskMetrics>(riskCacheKey);
+      if (cachedRiskMetrics) return cachedRiskMetrics;
       const riskTargetStart = new Date(today);
       riskTargetStart.setUTCFullYear(riskTargetStart.getUTCFullYear() - 5);
       const riskTargetStartStr = riskTargetStart.toISOString().split('T')[0];
@@ -1942,7 +1989,11 @@ export const dashboardRouter = router({
 
       // Read the entire target window. Historical rows remain additive; the
       // risk path is read-only and never initiates an import or price rewrite.
-      const pricesResult = await db.select().from(historicalPrices)
+      const pricesResult = await db.select({
+        ticker: historicalPrices.ticker,
+        date: historicalPrices.date,
+        close: historicalPrices.close,
+      }).from(historicalPrices)
         .where(and(
           inArray(historicalPrices.ticker, Array.from(allTickers)),
           gte(historicalPrices.date, riskQueryStartStr),
@@ -1996,7 +2047,6 @@ export const dashboardRouter = router({
         demoSharesCalc.set(portfolio.id, sharesMap);
       }
 
-      const { tryConvertToCHF, tryGetFxRate } = await import("../fxHelper");
       const priceCoverage = Array.from(allTickers).map((ticker) => {
         const dates = Array.from(priceMap.get(ticker)?.keys() ?? []).sort();
         return {
@@ -2015,19 +2065,9 @@ export const dashboardRouter = router({
           supportsWindowEnd: (await tryGetFxRate(todayStr, `${currency}CHF`)) !== null,
         })));
 
-      const priceAtOrBefore = (ticker: string, date: string): number | null => {
-        const tickerPrices = priceMap.get(ticker);
-        if (!tickerPrices) return null;
-        const observedDate = Array.from(tickerPrices.keys())
-          .filter((availableDate) => availableDate <= date)
-          .sort()
-          .at(-1);
-        if (!observedDate) return null;
-        const stalenessDays = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${observedDate}T00:00:00Z`)) / 86_400_000);
-        if (stalenessDays > MAX_PRICE_STALENESS_DAYS) return null;
-        const price = tickerPrices.get(observedDate);
-        return price && Number.isFinite(price) && price > 0 ? price : null;
-      };
+      // FX is fully prewarmed above. Prepare each price series once instead of
+      // repeatedly sorting it for every constituent and calendar day.
+      const priceAtOrBefore = createRiskPriceLookup(priceMap, MAX_PRICE_STALENESS_DAYS);
 
       // Build a daily CHF allocation proxy. Different exchanges close on
       // different holidays, so a price may only be carried forward for seven
@@ -2044,7 +2084,7 @@ export const dashboardRouter = router({
               if (shares <= 0) continue;
               const price = priceAtOrBefore(ticker, date);
               const currency = (stocksMap.get(ticker) as any)?.currency || "CHF";
-              const priceCHF = price === null ? null : await tryConvertToCHF(price, currency, date);
+              const priceCHF = price === null ? null : tryConvertToCHFSync(price, currency, date);
               if (priceCHF === null) { completeValuation = false; break; }
               totalValueCHF += shares * priceCHF;
             }
@@ -2053,7 +2093,7 @@ export const dashboardRouter = router({
             for (const [ticker, shares] of Array.from(sharesMap.entries())) {
               const price = priceAtOrBefore(ticker, date);
               const currency = (stocksMap.get(ticker) as any)?.currency || "CHF";
-              const priceCHF = price === null ? null : await tryConvertToCHF(price, currency, date);
+              const priceCHF = price === null ? null : tryConvertToCHFSync(price, currency, date);
               if (priceCHF === null) { completeValuation = false; break; }
               totalValueCHF += shares * priceCHF;
             }
@@ -2171,7 +2211,7 @@ export const dashboardRouter = router({
       holdingValues.sort((a, b) => b - a);
       const concentrationTop3 = totalVal > 0 ? (holdingValues.slice(0, 3).reduce((s, v) => s + v, 0) / totalVal) * 100 : 0;
 
-      return {
+      const riskMetrics: PublishedRiskMetrics = {
         dataAvailable: true,
         volatility: volatility === null ? null : Number(volatility.toFixed(1)),
         volBenchmark: qualifiedForRisk ? Number(volBenchmark.toFixed(1)) : null,
@@ -2211,6 +2251,8 @@ export const dashboardRouter = router({
         drawdownTroughDate: drawdownAnalysis?.troughDate ?? null,
         drawdownSeries: drawdownAnalysis?.points ?? [],
       };
+      setCachedRiskMetrics(riskCacheKey, riskMetrics, 5 * 60_000);
+      return riskMetrics;
     }),
 
   // ──────────────────────────────────────────────────────────────────────
