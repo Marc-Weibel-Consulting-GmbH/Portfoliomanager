@@ -605,6 +605,7 @@ export const portfolioTransactionsRouter = router({
         return {
           batchKey: key,
           executedAt: items[0].createdAt,
+          transactionIds: items.map((item) => item.id),
           transactionCount: items.length,
           buyCount: buys.length,
           sellCount: sells.length,

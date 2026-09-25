@@ -32,6 +32,7 @@ import {
   getAlternativeDetailPeriodStart,
   toAlternativeDetailChartFromCandidateRows,
 } from "../lib/alternativeDetailPresentation";
+import { buildOptimizationUndoSummary } from "../lib/optimizationUndo";
 
 const HoldingSchema = z.object({
   ticker: z.string(),
@@ -1681,41 +1682,76 @@ Gib eine strukturierte Analyse zurück.`;
       if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       // Verify portfolio ownership
       const portfolio = await db
-        .select({ id: savedPortfolios.id, userId: savedPortfolios.userId, cashBalance: savedPortfolios.cashBalance })
+        .select({
+          id: savedPortfolios.id,
+          userId: savedPortfolios.userId,
+          cashBalance: savedPortfolios.cashBalance,
+          portfolioType: savedPortfolios.portfolioType,
+          isLive: savedPortfolios.isLive,
+        })
         .from(savedPortfolios)
         .where(and(eq(savedPortfolios.id, input.portfolioId), eq(savedPortfolios.userId, ctx.user.id)))
         .limit(1);
       if (portfolio.length === 0) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Portfolio nicht gefunden oder keine Berechtigung' });
       }
-      // Fetch the transactions to reverse cashBalance and sync portfolioData
+      if (portfolio[0].portfolioType !== 'demo' || portfolio[0].isLive === 1) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Eine Optimierungsrücknahme ist nur in nicht aktivierten Demoportfolios möglich.',
+        });
+      }
+      const requestedTransactionIds = [...new Set(input.transactionIds)];
+      // Fetch the complete selected group before changing anything. A manual
+      // transaction may never be removed through this convenience path.
       const txs = await db
-        .select({ id: portfolioTransactions.id, transactionType: portfolioTransactions.transactionType, totalAmountCHF: portfolioTransactions.totalAmountCHF, ticker: portfolioTransactions.ticker, shares: portfolioTransactions.shares, pricePerShare: portfolioTransactions.pricePerShare })
+        .select({
+          id: portfolioTransactions.id,
+          source: portfolioTransactions.source,
+          transactionType: portfolioTransactions.transactionType,
+          totalAmountCHF: portfolioTransactions.totalAmountCHF,
+          ticker: portfolioTransactions.ticker,
+          shares: portfolioTransactions.shares,
+          pricePerShare: portfolioTransactions.pricePerShare,
+        })
         .from(portfolioTransactions)
         .where(and(
-          inArray(portfolioTransactions.id, input.transactionIds),
+          inArray(portfolioTransactions.id, requestedTransactionIds),
           eq(portfolioTransactions.portfolioId, input.portfolioId),
         ));
-      if (txs.length === 0) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Keine Transaktionen gefunden' });
+      if (txs.length !== requestedTransactionIds.length) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Die vollständige Optimierungsbuchungsgruppe wurde nicht gefunden.',
+        });
       }
-      // Calculate reverse cash effect: sells were +cash, buys were -cash → reverse
-      let reverseCashChange = 0;
-      for (const tx of txs) {
-        const amt = parseFloat(tx.totalAmountCHF ?? '0') || 0;
-        if (tx.transactionType === 'sell') reverseCashChange -= amt; // undo sell → subtract
-        else if (tx.transactionType === 'buy') reverseCashChange += amt; // undo buy → add back
+      let undoSummary;
+      try {
+        undoSummary = buildOptimizationUndoSummary(txs);
+      } catch (error) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: error instanceof Error ? error.message : 'Optimierungsrücknahme konnte nicht validiert werden.',
+        });
+      }
+      const reverseCashChange = undoSummary.reverseCashChangeChf;
+      const currentCash = parseFloat(portfolio[0]?.cashBalance ?? '0') || 0;
+      if (currentCash + reverseCashChange < -0.01) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Die Rücknahme würde einen negativen Cashbestand erzeugen und wurde nicht ausgeführt.',
+        });
       }
       // Delete transactions
       await db.delete(portfolioTransactions)
         .where(and(
-          inArray(portfolioTransactions.id, input.transactionIds),
+          inArray(portfolioTransactions.id, undoSummary.transactionIds),
           eq(portfolioTransactions.portfolioId, input.portfolioId),
+          eq(portfolioTransactions.source, 'optimization'),
         ));
       // Restore cashBalance
       if (Math.abs(reverseCashChange) > 0.01) {
-        const currentCash = parseFloat(portfolio[0]?.cashBalance ?? '0') || 0;
-        const newCash = Math.max(0, currentCash + reverseCashChange);
+        const newCash = currentCash + reverseCashChange;
         await db.update(savedPortfolios)
           .set({ cashBalance: newCash.toFixed(2) })
           .where(eq(savedPortfolios.id, input.portfolioId));
@@ -1773,17 +1809,24 @@ Gib eine strukturierte Analyse zurück.`;
         console.error('[undoRecommendations] portfolioData sync failed:', (syncErr as Error).message);
       }
 
-      // Invalidate Redis cache for this portfolio
+      // Verwerfe Detail- und Performancecache erst nach vollständiger Rücknahme.
       try {
         const { cacheDel } = await import('../redisClient');
-        await cacheDel(`portfolio:detail:${input.portfolioId}:${ctx.user.id}`);
+        const { perfCache } = await import('../_core/perfCache');
+        const { invalidatePortfolioMutationCaches } = await import('../lib/portfolioMutationCache');
+        await invalidatePortfolioMutationCaches({
+          cacheDel,
+          invalidatePerformance: (key) => perfCache.invalidate(key),
+          portfolioId: input.portfolioId,
+          userId: ctx.user.id,
+        });
       } catch (e) {
-        console.warn('[undoRecommendations] Redis cache invalidation failed (non-critical):', (e as Error).message);
+        console.warn('[undoRecommendations] Cache invalidation failed (non-critical):', (e as Error).message);
       }
       return {
         success: true,
         deletedCount: txs.length,
-        reverseCashChange: Math.round(reverseCashChange),
+        reverseCashChange,
       };
     }),
 });

@@ -1180,6 +1180,46 @@ export default function PortfolioDetailsPage() {
   const deletePortfolio = trpc.portfolios.delete.useMutation();
   const utils = trpc.useUtils();
 
+  // Eine übernommene Test-Optimierung erzeugt bewusst Ledgerbuchungen. Damit
+  // die Rücknahme auch nach Navigation/Neuladen noch erreichbar bleibt, werden
+  // ausschliesslich serverseitig als "optimization" markierte Demo-Batches
+  // separat gelesen und mit einer erneuten Bestätigung angeboten.
+  const { data: optimizationHistory = [] } = trpc.portfolioTransactions.getOptimizationHistory.useQuery(
+    { portfolioId },
+    { enabled: portfolioId > 0 && portfolio?.isLive === 0 && !isReadOnly },
+  );
+  const [optimizationUndoBatch, setOptimizationUndoBatch] = useState<any | null>(null);
+  const undoOptimizationBatch = trpc.analytics.undoRecommendations.useMutation({
+    onSuccess: (data) => {
+      const cashEffect = Number(data.reverseCashChange || 0);
+      toast.success('Test-Optimierung zurückgenommen', {
+        description: `${data.deletedCount} Optimierungsbuchungen entfernt · Cash ${cashEffect >= 0 ? '+' : ''}${formatCHF(cashEffect, { decimals: 2 })}`,
+      });
+      setOptimizationUndoBatch(null);
+      utils.portfolios.getWithCurrency.invalidate(portfolioId);
+      utils.portfolios.list.invalidate();
+      utils.portfolios.getMultiPeriodPerformanceV2.invalidate();
+      utils.portfolioTransactions.list.invalidate({ portfolioId });
+      utils.portfolioTransactions.getOptimizationHistory.invalidate({ portfolioId });
+      utils.realizedGainsHistory.getAll.invalidate({ portfolioId });
+      utils.dashboard.getAggregatedMetrics.invalidate();
+      utils.dashboard.getPerformanceTimeseries.invalidate();
+      utils.dashboard.getRiskMetrics.invalidate();
+      utils.dashboard.getBubbleIndicator.invalidate();
+      utils.dashboard.getSectorAllocation.invalidate();
+      utils.dashboard.getRegionAllocation.invalidate();
+      utils.dashboard.getAggregatedHoldings.invalidate();
+      utils.dashboard.getPortfolioCompact.invalidate();
+      refetch();
+    },
+    onError: (error) => {
+      setOptimizationUndoBatch(null);
+      toast.error('Test-Optimierung konnte nicht zurückgenommen werden', {
+        description: getUserErrorMessage(error),
+      });
+    },
+  });
+
   // Einzahlung-Mutation für Demo-Portfolios
   const depositMutation = trpc.portfolios.deposit.useMutation({
     onSuccess: (data) => {
@@ -3250,6 +3290,42 @@ export default function PortfolioDetailsPage() {
                 </Button>
               </div>
             )}
+            {isDemo && optimizationHistory.length > 0 && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 mb-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-amber-200">Test-Optimierung übernommen</p>
+                    <p className="text-xs text-amber-100/70 mt-1">
+                      Die Übernahme hat Demo-Buchungen angelegt. Diese sind nicht einzeln über Positionen löschbar, können hier aber batchweise und bestätigt zurückgenommen werden.
+                    </p>
+                  </div>
+                  <span className="text-[11px] text-amber-300/80">{optimizationHistory.length} Gruppe{optimizationHistory.length === 1 ? '' : 'n'}</span>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {optimizationHistory.map((batch: any) => (
+                    <div key={batch.batchKey} className="flex flex-wrap items-center justify-between gap-3 rounded-md bg-black/15 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-gray-200">
+                          {new Date(batch.executedAt).toLocaleString('de-CH')} · {batch.transactionCount} Buchung{batch.transactionCount === 1 ? '' : 'en'}
+                        </p>
+                        <p className="mt-0.5 truncate text-[11px] text-gray-400" title={(batch.tickers ?? []).join(', ')}>
+                          {(batch.tickers ?? []).join(', ')}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setOptimizationUndoBatch(batch)}
+                        disabled={undoOptimizationBatch.isPending}
+                        className="border-amber-500/40 bg-amber-500/10 text-amber-200 hover:bg-amber-500/20 hover:text-amber-100"
+                      >
+                        Test zurücknehmen
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {/* U-03: Transaktion erfassen + PDF-Import — nur für Live-Portfolios */}
             {!isReadOnly && !isDemo && (
               <div className="flex justify-end gap-2 mb-4">
@@ -3829,6 +3905,27 @@ export default function PortfolioDetailsPage() {
         confirmLabel={`${selectedTxIds.size} Transaktion${selectedTxIds.size === 1 ? '' : 'en'} löschen`}
         onConfirm={() => bulkDeleteMutation.mutate({ transactionIds: Array.from(selectedTxIds) })}
         isPending={bulkDeleteMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={optimizationUndoBatch !== null}
+        onOpenChange={(open) => { if (!open) setOptimizationUndoBatch(null); }}
+        title="Test-Optimierung zurücknehmen?"
+        description={optimizationUndoBatch ? (
+          <span>
+            Es werden ausschliesslich die <strong>{optimizationUndoBatch.transactionCount} automatisch gebuchten Optimierungs-Transaktionen</strong> vom {new Date(optimizationUndoBatch.executedAt).toLocaleString('de-CH')} entfernt. Die Demo-Positionen und die Cashreserve werden auf den Stand vor dieser Testübernahme zurückgeführt. Manuelle Buchungen bleiben ausgeschlossen.
+          </span>
+        ) : null}
+        confirmLabel="Test-Optimierung zurücknehmen"
+        pendingLabel="Test-Optimierung wird zurückgenommen…"
+        onConfirm={() => {
+          if (!optimizationUndoBatch) return;
+          undoOptimizationBatch.mutate({
+            portfolioId,
+            transactionIds: optimizationUndoBatch.transactionIds,
+          });
+        }}
+        isPending={undoOptimizationBatch.isPending}
       />
 
       {/* Delete Confirmation Dialog */}
