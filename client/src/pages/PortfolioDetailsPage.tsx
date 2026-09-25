@@ -1020,7 +1020,7 @@ export default function PortfolioDetailsPage() {
   // per Klick auf einen Kreis oder die Signal-Skala in der aufgeklappten Zeile.
   const [scoreDialog, setScoreDialog] = useState<{ ticker: string; art: "qualitaet" | "bewertung" | "timing" | "signal" } | null>(null);
   // Sort state for Positionen table
-  type SortKey = 'weight' | 'ytd' | 'today' | 'dividendYield' | 'volatility5y' | 'qualitaet' | 'bewertung' | 'timing' | 'signalScore';
+  type SortKey = 'weight' | 'sector' | 'ytd' | 'today' | 'dividendYield' | 'volatility5y' | 'qualitaet' | 'bewertung' | 'timing' | 'signalScore';
   const [sortKey, setSortKey] = useState<SortKey>('weight');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const handleSort = (key: SortKey) => {
@@ -1028,7 +1028,7 @@ export default function PortfolioDetailsPage() {
       setSortDir(d => d === 'desc' ? 'asc' : 'desc');
     } else {
       setSortKey(key);
-      setSortDir('desc');
+      setSortDir(key === 'sector' ? 'asc' : 'desc');
     }
   };
 
@@ -2327,7 +2327,7 @@ export default function PortfolioDetailsPage() {
                 {posView === 'konstellation' ? <div /> : (
                   <div>
                     <h3 className="text-sm font-semibold text-white">{holdings.length} Positionen</h3>
-                    {posView === 'tabelle' && <p className="text-xs text-gray-400">sortiert nach {sortKey === 'weight' ? 'Gewicht' : sortKey === 'ytd' ? 'YTD' : sortKey === 'today' ? 'Heute' : sortKey === 'dividendYield' ? 'Div.-Rendite' : sortKey === 'volatility5y' ? 'Volatilität 5J' : sortKey === 'qualitaet' ? 'Qualität' : sortKey === 'bewertung' ? 'Bewertung' : sortKey === 'timing' ? 'Timing' : 'Signal'} {sortDir === 'desc' ? '↓' : '↑'}</p>}
+                    {posView === 'tabelle' && <p className="text-xs text-gray-400">sortiert nach {sortKey === 'weight' ? 'Gewicht' : sortKey === 'sector' ? 'Sektor' : sortKey === 'ytd' ? 'YTD' : sortKey === 'today' ? 'Heute' : sortKey === 'dividendYield' ? 'Div.-Rendite' : sortKey === 'volatility5y' ? 'Volatilität 5J' : sortKey === 'qualitaet' ? 'Qualität' : sortKey === 'bewertung' ? 'Bewertung' : sortKey === 'timing' ? 'Timing' : 'Signal'} {sortDir === 'desc' ? '↓' : '↑'}</p>}
                   </div>
                 )}
                 <div className="flex items-center gap-2">
@@ -2383,7 +2383,9 @@ export default function PortfolioDetailsPage() {
                     <tr className="border-b border-white/10">
                       <th className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Ticker</th>
                       <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Name</th>
-                      <th className="text-left px-3 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Sektor</th>
+                      <th className="text-left px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Nach Sektor sortieren" onClick={() => handleSort('sector')}>
+                        <span className={sortKey === 'sector' ? 'text-[#00CFC1]' : 'text-gray-400'}>Sektor {sortKey === 'sector' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
+                      </th>
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" onClick={() => handleSort('weight')}>
                         <span className={sortKey === 'weight' ? 'text-[#00CFC1]' : 'text-gray-400'}>Gewicht {sortKey === 'weight' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
@@ -2440,6 +2442,16 @@ export default function PortfolioDetailsPage() {
                         const aClass = getAssetOrder(a);
                         const bClass = getAssetOrder(b);
                         if (sortKey === 'weight' && aClass !== bClass) return aClass - bClass;
+                        if (sortKey === 'sector') {
+                          // Nicht zuordenbare Instrumente stets nach den belegten
+                          // Sektoren führen; bei gleichem Sektor bleibt die Liste
+                          // über den Ticker reproduzierbar.
+                          const aSector = String(a.sector ?? '').trim() || '\uffff';
+                          const bSector = String(b.sector ?? '').trim() || '\uffff';
+                          const bySector = aSector.localeCompare(bSector, 'de', { sensitivity: 'base' });
+                          if (bySector !== 0) return sortDir === 'desc' ? -bySector : bySector;
+                          return String(a.ticker ?? '').localeCompare(String(b.ticker ?? ''), 'de', { sensitivity: 'base' });
+                        }
                         let aVal: number, bVal: number;
                         if (sortKey === 'weight') {
                           aVal = parseFloat(a.weight || '0');
