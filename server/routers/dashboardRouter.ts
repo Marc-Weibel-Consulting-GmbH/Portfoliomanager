@@ -8,6 +8,7 @@ import { buildHoldings } from "../lib/holdings";
 import { DEFAULT_RISK_FREE_RATE } from "../analytics/riskStats";
 import { getHistoricalPriceCurrency } from "../lib/eodhdSymbol";
 import { buildPortfolioDrawdownAnalysis, calculateDailyReturns } from "../lib/portfolioDrawdown";
+import { alignReturnsByDate, calculateDatedReturns, calculatePairedBeta } from "../lib/benchmarkReturnSeries";
 
 // Helper to safely parse float values - handles 'NA', null, undefined
 function safeParseFloat(value: string | null | undefined, fallback = 0): number {
@@ -2066,15 +2067,16 @@ export const dashboardRouter = router({
       const smiData = await getBenchmarkData("SMI", startDateStr, todayStr);
       let volBenchmark = 0;
       let drawdownBenchmark = 0;
-      let beta = 0;
+      let beta: number | null = null;
       let sharpeBenchmark = 0;
 
       if (smiData.length > 10) {
         const smiPrices = smiData.map(d => parseFloat(d.close));
-        const smiReturns: number[] = [];
-        for (let i = 1; i < smiPrices.length; i++) {
-          if (smiPrices[i - 1] > 0) smiReturns.push((smiPrices[i] - smiPrices[i - 1]) / smiPrices[i - 1]);
-        }
+        const smiReturnPoints = calculateDatedReturns(smiData.map((point) => ({
+          date: point.date,
+          value: parseFloat(point.close),
+        })));
+        const smiReturns = smiReturnPoints.map((point) => point.value);
 
         const smiMean = smiReturns.reduce((s, r) => s + r, 0) / smiReturns.length;
         const smiVariance = smiReturns.reduce((s, r) => s + (r - smiMean) ** 2, 0) / (smiReturns.length - 1);
@@ -2089,15 +2091,16 @@ export const dashboardRouter = router({
           if (dd < drawdownBenchmark) drawdownBenchmark = dd;
         }
 
-        // Beta = cov(portfolio, benchmark) / var(benchmark)
-        const minLen = Math.min(dailyReturns.length, smiReturns.length);
-        if (minLen > 10 && smiVariance > 0) {
-          let cov = 0;
-          for (let i = 0; i < minLen; i++) {
-            cov += (dailyReturns[i] - mean) * (smiReturns[i] - smiMean);
-          }
-          cov /= (minLen - 1);
-          beta = cov / smiVariance;
+        // Beta = cov(portfolio, benchmark) / var(benchmark), strictly paired
+        // by the same trading date. Index-based pairing would shift returns on
+        // exchange holidays and was invalidated by additive benchmark imports.
+        const portfolioReturnPoints = calculateDatedReturns(dailyValues.map((point) => ({
+          date: point.date,
+          value: point.portfolioValueCHF,
+        })));
+        const matchedReturnPairs = alignReturnsByDate(portfolioReturnPoints, smiReturnPoints);
+        if (matchedReturnPairs.length > 10) {
+          beta = calculatePairedBeta(matchedReturnPairs);
         }
       }
 
@@ -2144,7 +2147,7 @@ export const dashboardRouter = router({
         concentrationTop3: Number(concentrationTop3.toFixed(1)),
         sharpeRatio: Number(sharpeRatio.toFixed(2)),
         sharpeBenchmark: Number(sharpeBenchmark.toFixed(2)),
-        beta: Number(beta.toFixed(2)),
+        beta: beta === null ? null : Number(beta.toFixed(2)),
         riskWindowStart: drawdownAnalysis.points[0]?.date ?? null,
         riskWindowEnd: drawdownAnalysis.points.at(-1)?.date ?? null,
         riskSeriesMethod: targetPortfolios.every((portfolio) => portfolio.isLive !== 1)

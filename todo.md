@@ -897,3 +897,6 @@
 
 ## Positionsframe und Verlust-Risiko-Excel (2026-09-25)
 - [x] Detaillierte Positionsansicht auf die verfügbare Desktop-Inhaltsbreite erweitert und den Portfolio-Excel-Export um das prüfbare Blatt «Verlustrisiko» ergänzt; Datenbasis, Formeln und Kennzahl live verifiziert (2026-09-25)
+
+## Beta: Zeitachsen- und Datenintegrität (2026-09-25)
+- [x] Portfolio- und SPI-Renditereihen auf gemeinsame Handelstage abgeglichen, die bestehende Beta-Berechnung gegen eine unabhängige Paarberechnung geprüft und die bestätigte Datenursache korrigiert; keine Portfolio-, Cash-, Transaktions- oder Handelsmutation (2026-09-25)

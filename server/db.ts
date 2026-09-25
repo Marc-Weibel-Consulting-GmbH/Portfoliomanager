@@ -4,6 +4,7 @@ import { InsertStock, InsertUser, InsertNews, InsertTransaction, InsertSavedPort
 import { ENV } from './_core/env';
 import { roundRappen } from './lib/rounding';
 import { resolvePortfolioReadAccess, type PortfolioReadAccess } from "./lib/portfolioAccessPolicy";
+import { selectLatestBenchmarkRows } from "./lib/benchmarkReturnSeries";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 // A-07: memoize the first connection error so it is logged LOUDLY exactly
@@ -1851,11 +1852,16 @@ export async function getBenchmarkData(
       conditions.push(lte(benchmarkData.date, endDate));
     }
 
-    const results = await db
+    const rawResults = await db
       .select()
       .from(benchmarkData)
       .where(and(...conditions))
       .orderBy(asc(benchmarkData.date));
+
+    // Historical imports are intentionally additive. Return exactly one
+    // deterministic EODHD observation per benchmark day to callers without
+    // deleting audit rows; the latest imported row wins on a duplicate date.
+    const results = selectLatestBenchmarkRows(rawResults);
       
     // If benchmarkData table has sufficient data covering the requested range, use it
     // Check that the data actually covers the requested period (not stale/old data)

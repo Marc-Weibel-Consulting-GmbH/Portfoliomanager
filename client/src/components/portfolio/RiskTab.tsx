@@ -185,10 +185,10 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     },
     {
       label: "Beta",
-      value: riskData ? riskData.beta.toFixed(2) : "—",
-      sub: "vs. SPI",
+      value: riskData?.beta != null ? riskData.beta.toFixed(2) : "—",
+      sub: riskData?.beta != null ? "vs. SPI" : "Datenlücke vs. SPI",
       tone: "neutral",
-      tooltip: "Sensitivität des Portfolios gegenüber dem Markt.",
+      tooltip: "Sensitivität des Portfolios gegenüber dem SPI. Sie wird aus tagesgleich gepaarten Portfolio- und Benchmarkrenditen berechnet; bei unzureichenden gemeinsamen Handelstagen erscheint eine Datenlücke statt 0.00.",
       kpiKey: "beta",
     },
     {
