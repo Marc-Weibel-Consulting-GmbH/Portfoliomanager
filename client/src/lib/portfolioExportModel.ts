@@ -24,6 +24,22 @@ export type PortfolioExportKpi = {
   definition: string;
 };
 
+export type PortfolioDrawdownExportPoint = {
+  date: string;
+  portfolioValueCHF: number;
+  runningPeakCHF: number;
+  drawdownPct: number;
+};
+
+export type PortfolioDrawdownExport = {
+  method: string | null;
+  windowStart: string | null;
+  windowEnd: string | null;
+  peakDate: string | null;
+  troughDate: string | null;
+  points: PortfolioDrawdownExportPoint[];
+};
+
 export type PortfolioExportModel = {
   title: string;
   portfolioId: number;
@@ -46,6 +62,7 @@ export type PortfolioExportModel = {
   depotValueSeries: Array<{ date: string; marketValueCHF: number }>;
   indexedReturnSeries: Array<{ date: string; cumulativeReturnPct: number }>;
   depotValueSeriesKind: "actual" | "indexed" | "unavailable";
+  drawdown: PortfolioDrawdownExport;
   dataQualityNotes: string[];
 };
 
@@ -196,6 +213,28 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
     .filter((row): row is { date: string; cumulativeReturnPct: number } => Boolean(row.date) && row.cumulativeReturnPct !== null)
     .map((row) => ({ ...row, cumulativeReturnPct: row.cumulativeReturnPct * 100 }));
 
+  const rawDrawdownPoints = Array.isArray(input.risk?.drawdownSeries)
+    ? input.risk.drawdownSeries as UnknownRecord[]
+    : [];
+  const drawdownPoints = rawDrawdownPoints
+    .map((point): PortfolioDrawdownExportPoint | null => {
+      const date = asText(point.date, "");
+      const portfolioValueCHF = firstNumber(point.portfolioValueCHF);
+      const runningPeakCHF = firstNumber(point.runningPeakCHF);
+      const drawdownPct = firstNumber(point.drawdownPct);
+      if (!date || portfolioValueCHF === null || runningPeakCHF === null || drawdownPct === null) return null;
+      return { date, portfolioValueCHF, runningPeakCHF, drawdownPct };
+    })
+    .filter((point): point is PortfolioDrawdownExportPoint => point !== null);
+  const drawdown: PortfolioDrawdownExport = {
+    method: typeof input.risk?.riskSeriesMethod === "string" ? input.risk.riskSeriesMethod : null,
+    windowStart: typeof input.risk?.riskWindowStart === "string" ? input.risk.riskWindowStart : null,
+    windowEnd: typeof input.risk?.riskWindowEnd === "string" ? input.risk.riskWindowEnd : null,
+    peakDate: typeof input.risk?.drawdownPeakDate === "string" ? input.risk.drawdownPeakDate : null,
+    troughDate: typeof input.risk?.drawdownTroughDate === "string" ? input.risk.drawdownTroughDate : null,
+    points: drawdownPoints,
+  };
+
   const dataQualityNotes: string[] = [];
   for (const position of positions) {
     if (position.dataStatus !== "OK") dataQualityNotes.push(`${position.ticker}: ${position.dataStatus}.`);
@@ -207,6 +246,9 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
   if (warningCount > 0) dataQualityNotes.push(`${warningCount} auffällige Tagesrendite(n) sind im Performance-Ledger markiert.`);
   if (depotValueSeries.length < 2 && indexedReturnSeries.length >= 2) {
     dataQualityNotes.push("Die grafische Depotentwicklung ist als indexierter, gewichteter Renditeverlauf ausgewiesen, weil keine vollständige historische CHF-Wertreihe vorliegt; sie ist keine rückwirkend ausgeführte Transaktionshistorie.");
+  }
+  if (drawdown.points.length < 2) {
+    dataQualityNotes.push("Für die Max.-Drawdown-Herleitung liegt keine ausreichende tägliche Risikoreihe vor.");
   }
 
   return {
@@ -224,6 +266,7 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
     depotValueSeries,
     indexedReturnSeries,
     depotValueSeriesKind: depotValueSeries.length >= 2 ? "actual" : indexedReturnSeries.length >= 2 ? "indexed" : "unavailable",
+    drawdown,
     dataQualityNotes,
   };
 }

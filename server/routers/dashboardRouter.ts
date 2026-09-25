@@ -7,6 +7,7 @@ import { ENV } from "../_core/env";
 import { buildHoldings } from "../lib/holdings";
 import { DEFAULT_RISK_FREE_RATE } from "../analytics/riskStats";
 import { getHistoricalPriceCurrency } from "../lib/eodhdSymbol";
+import { buildPortfolioDrawdownAnalysis, calculateDailyReturns } from "../lib/portfolioDrawdown";
 
 // Helper to safely parse float values - handles 'NA', null, undefined
 function safeParseFloat(value: string | null | undefined, fallback = 0): number {
@@ -1979,8 +1980,12 @@ export const dashboardRouter = router({
         demoSharesCalc.set(portfolio.id, sharesMap);
       }
 
-      // Calculate daily portfolio values
-      const dailyValues: number[] = [];
+      // Calculate daily portfolio values. Demo cash is a genuine part of the
+      // portfolio capital base and therefore must be included in its risk path.
+      // Live cash is transaction-dependent and continues to be handled only by
+      // the dedicated performance engine until a dated cash-balance replay is
+      // available here as well.
+      const dailyValues: Array<{ date: string; portfolioValueCHF: number }> = [];
       for (const date of sortedDates) {
         let totalValueCHF = 0;
         for (const portfolio of targetPortfolios) {
@@ -2023,18 +2028,17 @@ export const dashboardRouter = router({
               const priceCHF = await convertToCHF(price, currency, date);
               totalValueCHF += shares * priceCHF;
             }
+            const cashBalance = parseFloat(portfolio.cashBalance || "0");
+            if (Number.isFinite(cashBalance) && cashBalance > 0) {
+              totalValueCHF += cashBalance;
+            }
           }
         }
-        dailyValues.push(totalValueCHF);
+        dailyValues.push({ date, portfolioValueCHF: totalValueCHF });
       }
 
       // Calculate daily returns
-      const dailyReturns: number[] = [];
-      for (let i = 1; i < dailyValues.length; i++) {
-        if (dailyValues[i - 1] > 0) {
-          dailyReturns.push((dailyValues[i] - dailyValues[i - 1]) / dailyValues[i - 1]);
-        }
-      }
+      const dailyReturns = calculateDailyReturns(dailyValues.map((value) => value.portfolioValueCHF));
 
       if (dailyReturns.length < 10) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
@@ -2043,14 +2047,10 @@ export const dashboardRouter = router({
       const variance = dailyReturns.reduce((s, r) => s + (r - mean) ** 2, 0) / (dailyReturns.length - 1);
       const volatility = Math.sqrt(variance) * Math.sqrt(252) * 100;
 
-      // Max Drawdown
-      let maxDrawdown = 0;
-      let peak = dailyValues[0];
-      for (const val of dailyValues) {
-        if (val > peak) peak = val;
-        const dd = (val - peak) / peak;
-        if (dd < maxDrawdown) maxDrawdown = dd;
-      }
+      // Max Drawdown. The complete observed series is returned for the Excel
+      // audit sheet, including running peaks and daily drawdowns.
+      const drawdownAnalysis = buildPortfolioDrawdownAnalysis(dailyValues);
+      const maxDrawdown = (drawdownAnalysis.maxDrawdownPct ?? 0) / 100;
 
       // VaR 95%
       const sortedReturns = [...dailyReturns].sort((a, b) => a - b);
@@ -2145,6 +2145,14 @@ export const dashboardRouter = router({
         sharpeRatio: Number(sharpeRatio.toFixed(2)),
         sharpeBenchmark: Number(sharpeBenchmark.toFixed(2)),
         beta: Number(beta.toFixed(2)),
+        riskWindowStart: drawdownAnalysis.points[0]?.date ?? null,
+        riskWindowEnd: drawdownAnalysis.points.at(-1)?.date ?? null,
+        riskSeriesMethod: targetPortfolios.every((portfolio) => portfolio.isLive !== 1)
+          ? "demo_fixed_shares_including_cash"
+          : "market_values_from_available_price_history",
+        drawdownPeakDate: drawdownAnalysis.peakDate,
+        drawdownTroughDate: drawdownAnalysis.troughDate,
+        drawdownSeries: drawdownAnalysis.points,
       };
     }),
 

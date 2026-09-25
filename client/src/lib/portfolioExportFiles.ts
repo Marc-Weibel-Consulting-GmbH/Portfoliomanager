@@ -261,6 +261,121 @@ export async function downloadPortfolioExcel(model: PortfolioExportModel): Promi
   setPercentColumn(development, "C");
   development.autoFilter = `A${developmentHeader.number}:C${development.lastRow.number}`;
 
+  // A separate, formula-driven audit sheet makes the exact maximum-drawdown
+  // derivation reproducible in Excel. The input series stays visibly separate
+  // from Excel formulas: C/D are source observations; E/F/G are formulas.
+  const drawdown = workbook.addWorksheet("Verlustrisiko", { views: [{ showGridLines: false }] });
+  drawdown.pageSetup = {
+    orientation: "landscape",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+  };
+  drawdown.columns = [
+    { key: "gutter1", width: 20 },
+    { key: "gutter2", width: 20 },
+    { key: "date", width: 16 },
+    { key: "value", width: 19 },
+    { key: "peak", width: 19 },
+    { key: "drawdown", width: 15 },
+    { key: "loss", width: 19 },
+  ];
+  drawdown.mergeCells("C3:G3");
+  const drawdownTitle = drawdown.getCell("C3");
+  drawdownTitle.value = `Verlustrisiko / Max. Drawdown · ${model.title}`;
+  drawdownTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "135B44" } };
+  drawdownTitle.font = { name: "Aptos", size: 16, bold: true, color: { argb: "FFFFFF" } };
+  drawdownTitle.alignment = { vertical: "middle" };
+  drawdown.getRow(3).height = 26;
+  drawdown.mergeCells("C5:G5");
+  drawdown.getCell("C5").value = "Herleitung des grössten beobachteten Rückgangs vom bisherigen Hoch (nicht VaR und keine Prognose).";
+  drawdown.getCell("C5").font = { name: "Aptos", size: 11, bold: true, color: { argb: "000000" } };
+  drawdown.mergeCells("C6:G6");
+  drawdown.getCell("C6").value = `Risikofenster: ${model.drawdown.windowStart ?? "—"} bis ${model.drawdown.windowEnd ?? "—"} · Methode: ${model.drawdown.method === "demo_fixed_shares_including_cash" ? "Demo: feste Stückzahlen + konstante Cash-Reserve" : "Marktwerte aus verfügbarer Kurshistorie"}`;
+  drawdown.getCell("C6").font = { name: "Aptos", size: 10, italic: true, color: { argb: COLORS.gray } };
+  drawdown.getCell("C6").note = "Source: Portfoliomanager, dashboard.getRiskMetrics; Datenstand gemäss Exportzeitpunkt. Die Risikoreihe basiert auf den im System verfügbaren täglichen Kursen und der gespeicherten Portfoliozusammensetzung.";
+
+  const summaryHeader = drawdown.getCell("C8");
+  summaryHeader.value = "MAX.-DRAWDOWN-ZUSAMMENFASSUNG";
+  drawdown.mergeCells("C8:G8");
+  summaryHeader.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "CFE9E0" } };
+  summaryHeader.font = { name: "Aptos", size: 11, bold: true, color: { argb: "000000" } };
+
+  const sourceComment = "Source: Portfoliomanager, dashboard.getRiskMetrics / historische Preise und gespeicherte Portfoliozusammensetzung; Datenstand gemäss Exportzeitpunkt.";
+  const drawdownDataStart = 18;
+  const drawdownDataEnd = drawdownDataStart + model.drawdown.points.length - 1;
+  const maxDrawdownPct = model.drawdown.points.length > 0
+    ? Math.min(...model.drawdown.points.map((point) => point.drawdownPct)) / 100
+    : null;
+
+  const summaryRows: Array<[string, string | number | null, "percent" | "currency" | "date" | "text"]> = model.drawdown.points.length > 0
+    ? [
+        ["Beobachteter Max. Drawdown", null, "percent"],
+        ["Hochpunkt (Datum)", null, "date"],
+        ["Tiefpunkt (Datum)", null, "date"],
+        ["Wert am Hochpunkt", null, "currency"],
+        ["Wert am Tiefpunkt", null, "currency"],
+        ["Prüfformel", "MIN(alle täglichen Drawdown-Werte)", "text"],
+      ]
+    : [["Status", "Keine ausreichende tägliche Risikoreihe verfügbar", "text"]];
+  for (const [index, [label, value, kind]] of summaryRows.entries()) {
+    const rowNumber = 9 + index;
+    drawdown.getCell(`C${rowNumber}`).value = label;
+    drawdown.getCell(`C${rowNumber}`).font = { name: "Aptos", bold: true, color: { argb: "000000" } };
+    const valueCell = drawdown.getCell(`D${rowNumber}`);
+    if (model.drawdown.points.length > 0 && index === 0) {
+      valueCell.value = { formula: `MIN(F${drawdownDataStart}:F${drawdownDataEnd})`, result: maxDrawdownPct ?? 0 };
+      valueCell.numFmt = '0.0%;[Red]-0.0%;—';
+    } else if (model.drawdown.points.length > 0 && index === 1) {
+      valueCell.value = { formula: `INDEX(C${drawdownDataStart}:C${drawdownDataEnd},MATCH(INDEX(E${drawdownDataStart}:E${drawdownDataEnd},MATCH(D9,F${drawdownDataStart}:F${drawdownDataEnd},0)),D${drawdownDataStart}:D${drawdownDataEnd},0))`, result: model.drawdown.peakDate ?? "" };
+      valueCell.numFmt = "yyyy-mm-dd";
+    } else if (model.drawdown.points.length > 0 && index === 2) {
+      valueCell.value = { formula: `INDEX(C${drawdownDataStart}:C${drawdownDataEnd},MATCH(D9,F${drawdownDataStart}:F${drawdownDataEnd},0))`, result: model.drawdown.troughDate ?? "" };
+      valueCell.numFmt = "yyyy-mm-dd";
+    } else if (model.drawdown.points.length > 0 && index === 3) {
+      valueCell.value = { formula: `INDEX(E${drawdownDataStart}:E${drawdownDataEnd},MATCH(D9,F${drawdownDataStart}:F${drawdownDataEnd},0))`, result: model.drawdown.points.find((point) => point.date === model.drawdown.troughDate)?.runningPeakCHF ?? 0 };
+      valueCell.numFmt = 'CHF #,##0;[Red]-CHF #,##0;—';
+    } else if (model.drawdown.points.length > 0 && index === 4) {
+      valueCell.value = { formula: `INDEX(D${drawdownDataStart}:D${drawdownDataEnd},MATCH(D9,F${drawdownDataStart}:F${drawdownDataEnd},0))`, result: model.drawdown.points.find((point) => point.date === model.drawdown.troughDate)?.portfolioValueCHF ?? 0 };
+      valueCell.numFmt = 'CHF #,##0;[Red]-CHF #,##0;—';
+    } else {
+      valueCell.value = value ?? "—";
+      valueCell.font = { name: "Aptos", color: { argb: "0000FF" } };
+      valueCell.note = sourceComment;
+    }
+    valueCell.alignment = { horizontal: kind === "text" ? "left" : "right" };
+  }
+
+  const drawdownHeader = drawdown.getRow(17);
+  drawdownHeader.values = ["", "", "Datum", "Depotwert CHF", "Laufendes Hoch CHF", "Drawdown", "Abstand zum Hoch CHF"];
+  applyHeader(drawdownHeader, "135B44");
+  for (const [index, point] of model.drawdown.points.entries()) {
+    const rowNumber = drawdownDataStart + index;
+    const row = drawdown.getRow(rowNumber);
+    row.getCell(3).value = point.date;
+    row.getCell(4).value = point.portfolioValueCHF;
+    row.getCell(5).value = { formula: `MAX($D$${drawdownDataStart}:D${rowNumber})`, result: point.runningPeakCHF };
+    row.getCell(6).value = { formula: `IF(E${rowNumber}>0,D${rowNumber}/E${rowNumber}-1,0)`, result: point.drawdownPct / 100 };
+    row.getCell(7).value = { formula: `D${rowNumber}-E${rowNumber}`, result: point.portfolioValueCHF - point.runningPeakCHF };
+    row.getCell(3).font = { name: "Aptos", color: { argb: "0000FF" } };
+    row.getCell(4).font = { name: "Aptos", color: { argb: "0000FF" } };
+    row.getCell(3).note = sourceComment;
+    row.getCell(4).note = sourceComment;
+    row.getCell(5).font = { name: "Aptos", color: { argb: "000000" } };
+    row.getCell(6).font = { name: "Aptos", color: { argb: "000000" } };
+    row.getCell(7).font = { name: "Aptos", color: { argb: "000000" } };
+    row.getCell(4).numFmt = 'CHF #,##0;[Red]-CHF #,##0;—';
+    row.getCell(5).numFmt = 'CHF #,##0;[Red]-CHF #,##0;—';
+    row.getCell(6).numFmt = '0.0%;[Red]-0.0%;—';
+    row.getCell(7).numFmt = 'CHF #,##0;[Red]-CHF #,##0;—';
+  }
+  if (model.drawdown.points.length > 0) {
+    applyTableBorders(drawdown, drawdownDataStart, drawdownDataEnd, 3, 7);
+    drawdown.autoFilter = `C17:G${drawdownDataEnd}`;
+  }
+  drawdown.pageSetup.printArea = `B2:G${Math.max(drawdown.lastRow.number, 18)}`;
+  drawdown.headerFooter.oddFooter = "Verlustrisiko · Seite &P von &N";
+
   const buffer = await workbook.xlsx.writeBuffer();
   downloadBlob(new Blob([buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${portfolioExportFilenameStem(model)}-portfolio.xlsx`);
 }

@@ -53,6 +53,17 @@ describe("buildPortfolioExportModel", () => {
       maxDrawdown: -8.3,
       var95: -1.8,
       concentrationTop3: 38,
+      riskSeriesMethod: "demo_fixed_shares_including_cash",
+      riskWindowStart: "2026-01-02",
+      riskWindowEnd: "2026-01-05",
+      drawdownPeakDate: "2026-01-03",
+      drawdownTroughDate: "2026-01-04",
+      drawdownSeries: [
+        { date: "2026-01-02", portfolioValueCHF: 100_000, runningPeakCHF: 100_000, drawdownPct: 0 },
+        { date: "2026-01-03", portfolioValueCHF: 110_000, runningPeakCHF: 110_000, drawdownPct: 0 },
+        { date: "2026-01-04", portfolioValueCHF: 102_740, runningPeakCHF: 110_000, drawdownPct: -6.6 },
+        { date: "2026-01-05", portfolioValueCHF: 114_000, runningPeakCHF: 114_000, drawdownPct: 0 },
+      ],
     },
     referenceCurrency: "CHF",
     asOf: new Date("2026-09-07T10:30:00.000Z"),
@@ -106,6 +117,21 @@ describe("buildPortfolioExportModel", () => {
       expect.objectContaining({ key: "sharpe", value: -0.09 }),
       expect.objectContaining({ key: "max_drawdown", value: -11.2 }),
     ]));
+  });
+
+  it("übernimmt die tägliche Drawdown-Reihe als prüfbaren Excel-Nachweis", () => {
+    const model = buildPortfolioExportModel(base);
+
+    expect(model.drawdown).toEqual({
+      method: "demo_fixed_shares_including_cash",
+      windowStart: "2026-01-02",
+      windowEnd: "2026-01-05",
+      peakDate: "2026-01-03",
+      troughDate: "2026-01-04",
+      points: expect.arrayContaining([
+        expect.objectContaining({ date: "2026-01-04", runningPeakCHF: 110_000, drawdownPct: -6.6 }),
+      ]),
+    });
   });
 
   it("weist fehlende Kurs- oder Wechselkurswerte als Datenlücke aus statt sie als Wert null zu behaupten", () => {

@@ -894,3 +894,6 @@
 
 ## Vollständige Aktien-Neuoptimierung: Namen und Details (2026-09-24)
 - [x] In der Vorschau alle selektierten Aktien mit Ticker und Unternehmensnamen dargestellt und einen lesenden Detaildialog mit Kurschart und Kennzahlen wie bei Aktiendetails/Alternativen bereitgestellt; die Ansicht verwendet gespeicherte EODHD-Daten mit begründeter Datenlücke statt auf Live-Provider zu warten und verändert keine Positionen, Cash, Transaktionen oder Orders (2026-09-24)
+
+## Positionsframe und Verlust-Risiko-Excel (2026-09-25)
+- [x] Detaillierte Positionsansicht auf die verfügbare Desktop-Inhaltsbreite erweitert und den Portfolio-Excel-Export um das prüfbare Blatt «Verlustrisiko» ergänzt; Datenbasis, Formeln und Kennzahl live verifiziert (2026-09-25)
