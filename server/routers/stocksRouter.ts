@@ -8,6 +8,10 @@ import { recalculateWeights } from "../_core/portfolioWeightHelper";
 import { getStockLogoUrl } from "../_core/stockLogo";
 import { ENV } from "../_core/env";
 import { toEodhdSymbol } from "../lib/eodhdSymbol";
+import {
+  fetchTransientEodhdHistoricalChartSeries,
+  selectEodhdHistoricalChartSeries,
+} from "../lib/eodhdInstrumentSearch";
 
 /**
  * Annualisierte Volatilität (%) und Sharpe-Ratio aus der historicalPrices-DB (EODHD)
@@ -590,43 +594,12 @@ export const stocksRouter = router({
           return dbStock;
         }
 
-        // Fallback: ticker not in local DB → fetch live from Yahoo so any
-        // searchable stock can be viewed. Mapped to the DB stock shape.
+        // Fallback: a title discovered in the global EODHD search need not be
+        // pre-seeded in the curated local universe. Read it from the same
+        // provider without silently creating a stock, price or portfolio row.
         try {
-          const YahooFinanceClass = (await import("yahoo-finance2")).default;
-          const yahooFinance: any = new (YahooFinanceClass as any)();
-          const qs: any = await yahooFinance.quoteSummary(input, {
-            modules: ["price", "summaryDetail", "summaryProfile", "defaultKeyStatistics"],
-          }, { validateResult: false }).catch(() => null);
-          if (!qs?.price) return undefined;
-
-          const price = qs.price || {};
-          const summary = qs.summaryDetail || {};
-          const profile = qs.summaryProfile || {};
-          const keyStats = qs.defaultKeyStatistics || {};
-          const str = (v: any, d = 2) => (v === null || v === undefined ? null : Number(v).toFixed(d));
-          const divYield = summary.dividendYield ?? summary.trailingAnnualDividendYield;
-
-          return {
-            ticker: input,
-            companyName: price.longName || price.shortName || input,
-            currentPrice: str(price.regularMarketPrice),
-            currency: price.currency || null,
-            peRatio: str(summary.trailingPE),
-            pegRatio: str(keyStats.pegRatio),
-            dividendYield: divYield ? str(divYield * 100) : null,
-            beta: str(summary.beta),
-            marketCap: price.marketCap ? str(price.marketCap / 1e9) : null,
-            week52High: str(summary.fiftyTwoWeekHigh),
-            week52Low: str(summary.fiftyTwoWeekLow),
-            sector: profile.sector || null,
-            category: null,
-            volatility: null,
-            sharpeRatio: null,
-            ytdPerformance: null,
-            chartData: null,
-            score: 0,
-          } as any;
+          const { fetchEodhdInstrumentSnapshot } = await import("../lib/eodhdInstrumentSearch");
+          return await fetchEodhdInstrumentSnapshot(input);
         } catch {
           return undefined;
         }
@@ -1568,50 +1541,27 @@ export const stocksRouter = router({
             )
             .orderBy(historicalPrices.date);
           
-          // If no data in DB, try to fetch on-demand from EODHD for non-listed tickers
-          if (prices.length === 0) {
-            try {
-              const { importHistoricalPricesForTicker } = await import("../jobs/importHistoricalPrices");
-              // Determine a reasonable from-date for on-demand fetch (max 2 years)
-              const onDemandFrom = new Date();
-              onDemandFrom.setFullYear(onDemandFrom.getFullYear() - 2);
-              const onDemandFromStr = onDemandFrom.toISOString().split('T')[0];
-              const todayStr = new Date().toISOString().split('T')[0];
-              console.log(`[getHistoricalPrices] No DB data for ${input.ticker}, fetching on-demand from EODHD...`);
-              const result = await importHistoricalPricesForTicker(input.ticker, onDemandFromStr, todayStr);
-              if (result.pricesImported > 0) {
-                // Re-query DB with the newly imported data
-                const freshPrices = await db
-                  .select({ date: historicalPrices.date, close: historicalPrices.close, adjustedClose: historicalPrices.adjustedClose })
-                  .from(historicalPrices)
-                  .where(and(eq(historicalPrices.ticker, input.ticker), gte(historicalPrices.date, startDateStr)))
-                  .orderBy(historicalPrices.date);
-                return freshPrices.map(p => ({
-                  date: p.date,
-                  open: null as number | null,
-                  high: null as number | null,
-                  low: null as number | null,
-                  close: p.close ? parseFloat(p.close) : null,
-                  volume: null as number | null,
-                }));
-              }
-            } catch (onDemandError) {
-              console.warn(`[getHistoricalPrices] On-demand fetch failed for ${input.ticker}:`, onDemandError);
-            }
-          }
+          const storedSeries = selectEodhdHistoricalChartSeries(prices);
+          const todayStr = new Date().toISOString().split('T')[0];
+          const chartSeries = storedSeries.status === "incompatible"
+            ? await fetchTransientEodhdHistoricalChartSeries(input.ticker, startDateStr, todayStr)
+            : storedSeries;
 
-          // DAT-1 (Audit 2026-07): KEINE fabrizierten Werte mehr — die DB führt nur
-          // Schlusskurse; Open/High/Low/Volumen wurden vorher bei jedem Request per
-          // Math.random() erfunden und als echte Daten ausgeliefert. Ehrlich: null.
-          return prices.map(p => {
-            const closePrice = p.close ? parseFloat(p.close) : null;
+          // A searched external title, or a stored series with a split-like
+          // scale break, uses a transient EODHD series. This is deliberately
+          // read-only: opening a chart never writes price history or changes a
+          // portfolio. If EODHD cannot provide one homogeneous basis, return a
+          // truthful empty chart instead of a fabricated performance collapse.
+          return chartSeries.points.map((point) => {
             return {
-              date: p.date,
+              date: point.date,
               open: null as number | null,
               high: null as number | null,
               low: null as number | null,
-              close: closePrice,
+              close: point.close,
               volume: null as number | null,
+              priceBasis: chartSeries.status,
+              dataSource: chartSeries === storedSeries ? "stored_eodhd" : "transient_eodhd",
             };
           });
         } catch (error) {

@@ -6,6 +6,7 @@ import { curated } from "../lib/stockUniverse";
 import { eq, like, or, and, desc, count } from "drizzle-orm";
 import YahooFinanceClass from "yahoo-finance2";
 import { getUniverseListTypeFilter } from "../lib/watchlistUniverse";
+import { searchEodhdInstruments } from "../lib/eodhdInstrumentSearch";
 
 const yahooFinance: any = new (YahooFinanceClass as any)();
 
@@ -27,32 +28,22 @@ function resolveYahooTicker(ticker: string): string {
 }
 
 export const investRouter = router({
-  // Search for stocks by name or ticker (Yahoo Finance live search)
+  // EODHD is the authoritative discovery source for the portfolio universe.
+  // Keeping the search and the EODHD-based price/history paths aligned avoids
+  // suggestions that can be displayed but not subsequently found by the user.
   search: protectedProcedure
     .input(z.object({
       query: z.string().min(1).max(100),
     }))
     .query(async ({ input }) => {
-      try {
-        const results: any = await yahooFinance.search(input.query, { quotesCount: 15, newsCount: 0 }, { validateResult: false });
-        
-        const quotes = (results.quotes || [])
-          .filter((q: any) => q.quoteType === "EQUITY" || q.quoteType === "ETF")
-          .slice(0, 15)
-          .map((q: any) => ({
-            ticker: q.symbol,
-            companyName: q.longname || q.shortname || q.symbol,
-            exchange: q.exchange,
-            quoteType: q.quoteType,
-            sector: q.sector || null,
-            industry: q.industry || null,
-          }));
-
-        return { results: quotes };
-      } catch (err) {
-        console.error("[Invest Search] Error:", err);
-        return { results: [] };
-      }
+      const results = await searchEodhdInstruments(input.query, 15);
+      return {
+        results: results.map((result) => ({
+          ...result,
+          sector: null,
+          industry: null,
+        })),
+      };
     }),
 
   // Get detailed stock analysis for a single ticker
