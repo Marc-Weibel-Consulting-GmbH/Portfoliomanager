@@ -958,3 +958,9 @@
 
 ## Volloptimierung: neue Titel mit geprüfter Kursbasis übernehmen (2026-09-25)
 - [x] Fehler «Fehlende Kursbasis für RUS.TO» behoben: Der Server löste neue Zielkandidaten zwar mit aktuellem Kurs und CHF-FX auf, übergab diese geprüfte Bewertungsbasis aber nicht an die Rebalancing-Berechnung. Neue Zielwerte können nun ausschliesslich als Preisbasis verwendet werden, ohne den Ausgangsdepotwert zu verändern. RUS.TO wurde read-only mit CAD 84.51 geprüft; die Live-Vorschau und die unverbindliche Bestätigung zeigen 0.00 % → 3.78 % und Cash-Effekt −3.78 %-Punkte. Die verbindliche Bestätigung wurde bewusst nicht gedrückt: keine Position, Cashreserve, Buchung, Ledger oder Order geändert (2026-09-25)
+
+## Mami: einmaliger KGV-/PEG-/Sharpe-Vorschlag und Excel-Herleitung (2026-09-26)
+- [x] Rein lesende, cashneutrale 50%-Mischung aus Ist-Allokation und der zuvor qualifizierten Max.-Sharpe-Vorschau erstellt. Cash sowie Gold/Krypto bleiben unverändert; neue oder erhöhte Kandidaten mit Datenlücke wurden ausgeschlossen.
+- [x] Historischer 5J-Allokationsproxy mit 1'292 gemeinsamen qualifizierten Handelstagen: Volatilität 10.61% → 7.78%, Sharpe −0.13 → +0.11, Max.-Drawdown −25.11% → −18.72%. Gewichtete verfügbare Stammdaten-Proxies: KGV 25.53 → 23.39, PEG 2.58 → 2.33, Dividendenrendite 3.53% → 3.34%, Beta 0.72 → 0.72. KGV/PEG sind bewusst als teilweise abgedeckte Querschnittsproxies ausgewiesen und nicht mit dem Deep-Dive-/ETF-Look-through-Label vermischt.
+- [x] Separate Excel-Entscheidungsvorlage mit Zielgewichten, 1'292 Tageswerten, Excel-Formeln, Annahmen und Datenqualitätsgrenzen erstellt; keine Portfolioposition, Cashreserve, Transaktion, Buchung, Preisreihe oder Handelsaktion verändert.
+- [x] Regulärer Excel-Export ergänzt und live validiert: Blatt «Sharpe Ratio» enthält Risikofenster, 2.00% risikofreien Jahreszins, 252 Handelstage, 1'291 Renditebeobachtungen sowie die prüfbaren `AVERAGE`, `STDEV.S` und Sharpe-Formeln.

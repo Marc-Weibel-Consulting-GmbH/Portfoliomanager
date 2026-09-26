@@ -422,6 +422,115 @@ export async function downloadPortfolioExcel(model: PortfolioExportModel): Promi
   drawdown.pageSetup.printArea = `B2:G${Math.max(drawdown.lastRow.number, 18)}`;
   drawdown.headerFooter.oddFooter = "Verlustrisiko · Seite &P von &N";
 
+  // Formula-driven audit sheet for the published Sharpe ratio. Like the
+  // drawdown sheet, source inputs stay visually separate from Excel formulas.
+  const sharpe = workbook.addWorksheet("Sharpe Ratio", { views: [{ showGridLines: false }] });
+  sharpe.pageSetup = { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+  sharpe.columns = [
+    { key: "gutter1", width: 20 },
+    { key: "gutter2", width: 20 },
+    { key: "label", width: 31 },
+    { key: "value", width: 20 },
+    { key: "formula", width: 28 },
+    { key: "note", width: 28 },
+  ];
+  sharpe.mergeCells("C3:F3");
+  const sharpeTitle = sharpe.getCell("C3");
+  sharpeTitle.value = `Sharpe Ratio · ${model.title}`;
+  sharpeTitle.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "135B44" } };
+  sharpeTitle.font = { name: "Aptos", size: 16, bold: true, color: { argb: "FFFFFF" } };
+  sharpeTitle.alignment = { vertical: "middle" };
+  sharpe.getRow(3).height = 26;
+  sharpe.mergeCells("C5:F5");
+  sharpe.getCell("C5").value = "Sharpe = [Ø tägliche Portfoliorendite − (risikofreier Jahreszins / Handelstage p.a.)] ÷ Stdabw. täglicher Renditen × √Handelstage p.a.";
+  sharpe.getCell("C5").font = { name: "Aptos", size: 10, bold: true, color: { argb: "000000" } };
+  sharpe.getCell("C5").alignment = { wrapText: true };
+  sharpe.getRow(5).height = 30;
+
+  const sharpeSourceComment = "Source: Portfoliomanager, dashboard.getRiskMetrics; identische qualifizierte CHF-Tagesreihe wie die sichtbare 5J-Risikoanalyse. Datenstand gemäss Exportzeitpunkt.";
+  const sharpeInputRows: Array<[string, number | string | null, string]> = [
+    ["Risikofreier Jahreszins", model.sharpeCalculation.riskFreeRateAnnual, "extern festgelegte Modellannahme"],
+    ["Handelstage p.a.", model.sharpeCalculation.tradingDaysPerYear, "Annualisierungskonvention"],
+    ["Qualifizierte Renditebeobachtungen", model.sharpeCalculation.observationCount, "Anzahl täglicher Renditen (Wertreihe minus eins)"],
+    ["Risikofenster", model.sharpeCalculation.riskWindowStart && model.sharpeCalculation.riskWindowEnd ? `${model.sharpeCalculation.riskWindowStart} bis ${model.sharpeCalculation.riskWindowEnd}` : null, "Fünfjahresfenster gemäss Risiko-Gate"],
+  ];
+  const sharpeInputStart = 7;
+  for (const [index, [label, value, note]] of sharpeInputRows.entries()) {
+    const rowNumber = sharpeInputStart + index;
+    sharpe.getCell(`C${rowNumber}`).value = label;
+    sharpe.getCell(`C${rowNumber}`).font = { name: "Aptos", bold: true, color: { argb: "000000" } };
+    const valueCell = sharpe.getCell(`D${rowNumber}`);
+    valueCell.value = value ?? "—";
+    valueCell.font = { name: "Aptos", color: { argb: "0000FF" } };
+    valueCell.note = `${sharpeSourceComment} ${note}.`;
+    valueCell.alignment = { horizontal: typeof value === "number" ? "right" : "left" };
+    if (index === 0) valueCell.numFmt = "0.00%";
+    if (index === 1 || index === 2) valueCell.numFmt = "#,##0";
+  }
+
+  const sharpeDataStart = 19;
+  const sharpeDataEnd = sharpeDataStart + model.sharpeCalculation.points.length - 1;
+  sharpe.mergeCells("C12:F12");
+  sharpe.getCell("C12").value = "FORMELHERLEITUNG";
+  sharpe.getCell("C12").fill = { type: "pattern", pattern: "solid", fgColor: { argb: "CFE9E0" } };
+  sharpe.getCell("C12").font = { name: "Aptos", size: 11, bold: true, color: { argb: "000000" } };
+  const sharpeSummary = [
+    ["Ø tägliche Rendite", "D13"],
+    ["Risikofreier Tageszins", "D14"],
+    ["Stdabw. tägliche Renditen", "D15"],
+    ["Sharpe Ratio (5J)", "D16"],
+  ] as const;
+  for (const [index, [label, cellAddress]] of sharpeSummary.entries()) {
+    const rowNumber = 13 + index;
+    sharpe.getCell(`C${rowNumber}`).value = label;
+    sharpe.getCell(`C${rowNumber}`).font = { name: "Aptos", bold: index === 3, color: { argb: "000000" } };
+    const valueCell = sharpe.getCell(cellAddress);
+    if (model.sharpeCalculation.points.length >= 2) {
+      if (index === 0) {
+        valueCell.value = { formula: `AVERAGE(E${sharpeDataStart + 1}:E${sharpeDataEnd})`, result: model.sharpeCalculation.meanDailyReturn ?? 0 };
+      } else if (index === 1) {
+        valueCell.value = { formula: "D7/D8", result: (model.sharpeCalculation.riskFreeRateAnnual ?? 0) / (model.sharpeCalculation.tradingDaysPerYear ?? 1) };
+      } else if (index === 2) {
+        valueCell.value = { formula: `STDEV.S(E${sharpeDataStart + 1}:E${sharpeDataEnd})`, result: model.sharpeCalculation.dailyReturnStandardDeviation ?? 0 };
+      } else {
+        valueCell.value = { formula: "IF(D15>0,(D13-D14)/D15*SQRT(D8),0)", result: model.kpis.find((kpi) => kpi.key === "sharpe")?.value ?? 0 };
+      }
+      valueCell.font = { name: "Aptos", color: { argb: "000000" }, bold: index === 3 };
+      valueCell.alignment = { horizontal: "right" };
+      valueCell.numFmt = index === 3 ? "0.00x;[Red]-0.00x;—" : "0.0000%";
+    } else {
+      valueCell.value = "—";
+      valueCell.font = { name: "Aptos", color: { argb: COLORS.gray } };
+    }
+  }
+  const sharpeHeader = sharpe.getRow(18);
+  sharpeHeader.values = ["", "", "Datum", "Portfolio-Wert CHF", "Tägliche Rendite", "Überschussrendite"];
+  applyHeader(sharpeHeader, "135B44");
+  for (const [index, point] of model.sharpeCalculation.points.entries()) {
+    const rowNumber = sharpeDataStart + index;
+    const row = sharpe.getRow(rowNumber);
+    row.getCell(3).value = point.date;
+    row.getCell(4).value = point.portfolioValueCHF;
+    row.getCell(5).value = index === 0
+      ? "n/a"
+      : { formula: `IF(D${rowNumber - 1}>0,D${rowNumber}/D${rowNumber - 1}-1,0)` };
+    row.getCell(6).value = index === 0 ? "n/a" : { formula: `E${rowNumber}-$D$14` };
+    for (const column of [3, 4]) {
+      row.getCell(column).font = { name: "Aptos", color: { argb: "0000FF" } };
+      row.getCell(column).note = sharpeSourceComment;
+    }
+    for (const column of [5, 6]) row.getCell(column).font = { name: "Aptos", color: { argb: "000000" } };
+    row.getCell(4).numFmt = "CHF #,##0;[Red]-CHF #,##0;—";
+    row.getCell(5).numFmt = "0.0000%;[Red]-0.0000%;—";
+    row.getCell(6).numFmt = "0.0000%;[Red]-0.0000%;—";
+  }
+  if (model.sharpeCalculation.points.length >= 2) {
+    applyTableBorders(sharpe, sharpeDataStart, sharpeDataEnd, 3, 6);
+    sharpe.autoFilter = `C18:F${sharpeDataEnd}`;
+  }
+  sharpe.pageSetup.printArea = `B2:F${Math.max(sharpe.lastRow.number, 19)}`;
+  sharpe.headerFooter.oddFooter = "Sharpe Ratio · Seite &P von &N";
+
   const buffer = await workbook.xlsx.writeBuffer();
   downloadBlob(new Blob([buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${portfolioExportFilenameStem(model)}-portfolio.xlsx`);
 }

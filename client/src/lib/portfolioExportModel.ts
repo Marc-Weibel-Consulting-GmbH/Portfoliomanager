@@ -70,6 +70,18 @@ export type PortfolioDrawdownExport = {
   points: PortfolioDrawdownExportPoint[];
 };
 
+export type PortfolioSharpeCalculationExport = {
+  riskFreeRateAnnual: number | null;
+  tradingDaysPerYear: number | null;
+  observationCount: number | null;
+  meanDailyReturn: number | null;
+  dailyReturnStandardDeviation: number | null;
+  riskWindowStart: string | null;
+  riskWindowEnd: string | null;
+  /** Identische qualifizierte CHF-Tagesreihe wie für die publizierte 5J-Risikokennzahl. */
+  points: Array<{ date: string; portfolioValueCHF: number }>;
+};
+
 export type PortfolioBenchmarkComparisonPoint = {
   date: string;
   portfolioReturnPct: number | null;
@@ -107,6 +119,7 @@ export type PortfolioExportModel = {
   indexedReturnSeries: Array<{ date: string; cumulativeReturnPct: number }>;
   depotValueSeriesKind: "actual" | "indexed" | "unavailable";
   drawdown: PortfolioDrawdownExport;
+  sharpeCalculation: PortfolioSharpeCalculationExport;
   benchmarkComparisons: PortfolioBenchmarkComparison[];
   dataQualityNotes: string[];
 };
@@ -378,6 +391,16 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
     },
     points: drawdownPoints,
   };
+  const sharpeCalculation: PortfolioSharpeCalculationExport = {
+    riskFreeRateAnnual: firstNumber(input.risk?.riskFreeRateAnnual),
+    tradingDaysPerYear: firstNumber(input.risk?.tradingDaysPerYear),
+    observationCount: firstNumber(input.risk?.sharpeObservationCount),
+    meanDailyReturn: firstNumber(input.risk?.meanDailyReturn),
+    dailyReturnStandardDeviation: firstNumber(input.risk?.dailyReturnStandardDeviation),
+    riskWindowStart: typeof input.risk?.riskWindowStart === "string" ? input.risk.riskWindowStart : null,
+    riskWindowEnd: typeof input.risk?.riskWindowEnd === "string" ? input.risk.riskWindowEnd : null,
+    points: drawdownPoints.map((point) => ({ date: point.date, portfolioValueCHF: point.portfolioValueCHF })),
+  };
 
   const portfolioStartDate = asDateText(portfolio.liveStartDate, asDateText(portfolio.createdAt));
   const portfolioStartReturnPct = summary.totalInvestedCHF && summary.totalInvestedCHF > 0
@@ -448,6 +471,7 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
     indexedReturnSeries,
     depotValueSeriesKind: depotValueSeries.length >= 2 ? "actual" : indexedReturnSeries.length >= 2 ? "indexed" : "unavailable",
     drawdown,
+    sharpeCalculation,
     benchmarkComparisons,
     dataQualityNotes,
   };

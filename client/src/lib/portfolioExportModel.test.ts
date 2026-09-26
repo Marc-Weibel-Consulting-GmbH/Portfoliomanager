@@ -134,6 +134,33 @@ describe("buildPortfolioExportModel", () => {
     });
   });
 
+  it("gibt Annahmen und Beobachtungsbasis der Sharpe-Berechnung an den Excel-Export weiter", () => {
+    const model = buildPortfolioExportModel({
+      ...base,
+      risk: {
+        ...base.risk,
+        riskFreeRateAnnual: 0.02,
+        tradingDaysPerYear: 252,
+        sharpeObservationCount: 3,
+        meanDailyReturn: 0.0005,
+        dailyReturnStandardDeviation: 0.01,
+      },
+    });
+
+    expect(model.sharpeCalculation).toEqual({
+      riskFreeRateAnnual: 0.02,
+      tradingDaysPerYear: 252,
+      observationCount: 3,
+      meanDailyReturn: 0.0005,
+      dailyReturnStandardDeviation: 0.01,
+      riskWindowStart: "2026-01-02",
+      riskWindowEnd: "2026-01-05",
+      points: expect.arrayContaining([
+        expect.objectContaining({ date: "2026-01-04", portfolioValueCHF: 102_740 }),
+      ]),
+    });
+  });
+
   it("weist fehlende Kurs- oder Wechselkurswerte als Datenlücke aus statt sie als Wert null zu behaupten", () => {
     const model = buildPortfolioExportModel({
       ...base,

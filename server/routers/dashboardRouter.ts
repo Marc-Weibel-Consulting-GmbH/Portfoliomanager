@@ -29,6 +29,11 @@ type PublishedRiskMetrics = {
   concentrationTop3: number;
   sharpeRatio: number | null;
   sharpeBenchmark: number | null;
+  riskFreeRateAnnual: number;
+  tradingDaysPerYear: number;
+  sharpeObservationCount: number;
+  meanDailyReturn: number | null;
+  dailyReturnStandardDeviation: number | null;
   beta: number | null;
   riskWindowStatus: RiskWindowStatus;
   riskWindowTarget: string;
@@ -2221,6 +2226,11 @@ export const dashboardRouter = router({
         concentrationTop3: Number(concentrationTop3.toFixed(1)),
         sharpeRatio: sharpeRatio === null ? null : Number(sharpeRatio.toFixed(2)),
         sharpeBenchmark: qualifiedForRisk ? Number(sharpeBenchmark.toFixed(2)) : null,
+        riskFreeRateAnnual: DEFAULT_RISK_FREE_RATE,
+        tradingDaysPerYear: 252,
+        sharpeObservationCount: dailyReturns.length,
+        meanDailyReturn: mean === null ? null : Number(mean.toFixed(10)),
+        dailyReturnStandardDeviation: variance === null ? null : Number(Math.sqrt(variance).toFixed(10)),
         beta: beta === null ? null : Number(beta.toFixed(2)),
         riskWindowStatus: riskWindow.status,
         riskWindowTarget: `${riskWindow.targetYears}Y`,
