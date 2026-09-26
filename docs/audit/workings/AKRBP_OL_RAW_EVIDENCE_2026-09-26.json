@@ -1,0 +1,134 @@
+{
+  "retrievedAt": "2026-09-26T09:35:18.704Z",
+  "eodhd": {
+    "fundamentalsHttpStatus": 200,
+    "dividendsHttpStatus": 200,
+    "fundamentals": {
+      "General": {
+        "Code": "AKRBP",
+        "Type": "Common Stock",
+        "Name": "Aker BP ASA",
+        "Exchange": "OL",
+        "CurrencyCode": "NOK",
+        "ISIN": "NO0010345853"
+      },
+      "Highlights": {
+        "DividendYield": 0.0072,
+        "DividendShare": 2.583,
+        "DividendPerShare": null,
+        "MarketCapitalization": 219872870400
+      },
+      "SplitsDividends": {
+        "ForwardAnnualDividendRate": 25.7,
+        "ForwardAnnualDividendYield": 0.0713,
+        "PayoutRatio": 0.0207,
+        "DividendDate": null,
+        "ExDividendDate": "2026-07-20",
+        "LastSplitFactor": "1.403328:1",
+        "LastSplitDate": "2009-12-23",
+        "NumberDividendsByYear": {
+          "0": {
+            "Year": 2016,
+            "Count": 1
+          },
+          "1": {
+            "Year": 2017,
+            "Count": 4
+          },
+          "2": {
+            "Year": 2018,
+            "Count": 4
+          },
+          "3": {
+            "Year": 2019,
+            "Count": 4
+          },
+          "4": {
+            "Year": 2020,
+            "Count": 4
+          },
+          "5": {
+            "Year": 2021,
+            "Count": 4
+          },
+          "6": {
+            "Year": 2022,
+            "Count": 5
+          },
+          "7": {
+            "Year": 2023,
+            "Count": 4
+          },
+          "8": {
+            "Year": 2024,
+            "Count": 4
+          },
+          "9": {
+            "Year": 2025,
+            "Count": 4
+          },
+          "10": {
+            "Year": 2026,
+            "Count": 3
+          }
+        }
+      }
+    },
+    "dividends": [
+      {
+        "date": "2025-10-27",
+        "declarationDate": "2025-10-22",
+        "recordDate": null,
+        "paymentDate": "2025-11-04",
+        "period": "Quarterly",
+        "value": 6.33194,
+        "unadjustedValue": 6.33194,
+        "currency": "NOK"
+      },
+      {
+        "date": "2026-02-16",
+        "declarationDate": "2026-02-11",
+        "recordDate": null,
+        "paymentDate": "2026-02-24",
+        "period": "Quarterly",
+        "value": 6.29417,
+        "unadjustedValue": 6.29417,
+        "currency": "NOK"
+      },
+      {
+        "date": "2026-05-12",
+        "declarationDate": "2026-05-07",
+        "recordDate": null,
+        "paymentDate": "2026-05-21",
+        "period": "Quarterly",
+        "value": 6.12853,
+        "unadjustedValue": 6.12853,
+        "currency": "NOK"
+      },
+      {
+        "date": "2026-07-20",
+        "declarationDate": "2026-07-15",
+        "recordDate": null,
+        "paymentDate": "2026-07-28",
+        "period": "Quarterly",
+        "value": 6.42588,
+        "unadjustedValue": 6.42588,
+        "currency": "NOK"
+      }
+    ]
+  },
+  "localStocks": [
+    {
+      "id": 720056,
+      "ticker": "AKRBP.OL",
+      "companyName": "Aker BP",
+      "currentPrice": "348.6",
+      "currency": "NOK",
+      "dividendYield": "7.13",
+      "eodhdTicker": null,
+      "dataQualityNotes": null,
+      "lastMetricsUpdate": "2026-09-26T09:28:09.000Z",
+      "updatedAt": "2026-09-26T09:29:57.000Z"
+    }
+  ]
+}

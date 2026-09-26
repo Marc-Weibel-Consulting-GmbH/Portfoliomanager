@@ -35,6 +35,7 @@ export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult>
     const { stocks: stocksTable, historicalPrices: hpTable } = await import("../../drizzle/schema");
     const { eq, gte, sql: sqlFn } = await import("drizzle-orm");
     const { fetchEODHDFundamentals } = await import("../_core/eodhdApi");
+    const { resolveDividendYieldEnrichment } = await import("../_core/dividendYieldEnrichment");
 
     const db = await getDb();
     if (!db) {
@@ -110,10 +111,17 @@ export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult>
           low52w = range.low52;
         }
 
-        // `fetchEODHDFundamentals` liefert bereits Prozent (eodhdApi.ts rechnet
-        // den EODHD-Bruch um). Hier NICHT nochmals mit 100 multiplizieren —
-        // genau das erzeugte die 151 für ABBs 1.51 %.
-        const divYield = alsProzent(fundamentals.dividendYield, "signalScoreRefresh/EODHD");
+        // TTM-Brutto aus datierten, währungsgleichen Ausschüttungen hat Vorrang.
+        // Nur bei einer Datenlücke fällt der Resolver explizit auf EODHDs
+        // Forward-/Anbieterfeld zurück. Die Rendite bleibt ein Prozentwert und
+        // wird daher nie ein zweites Mal mit 100 skaliert.
+        const dividend = await resolveDividendYieldEnrichment({
+          ticker: stock.ticker,
+          currentPrice,
+          currency: stock.currency,
+          fundamentals,
+        });
+        const divYield = alsProzent(dividend.dividendYield, "signalScoreRefresh/dividend-enrichment");
 
         // K2: reine Kennzahlen-Auffrischung — signalScore/signalType/aiReason
         // gehören dem Drei-Score-Signal und werden hier nicht mehr geschrieben.
@@ -121,6 +129,12 @@ export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult>
           peRatio: fundamentals.peRatio?.toString() ?? stock.peRatio,
           pegRatio: fundamentals.pegRatio?.toString() ?? stock.pegRatio,
           dividendYield: divYield != null ? divYield.toFixed(4) : stock.dividendYield,
+          dividendYieldBasis: dividend.dividendYieldBasis ?? stock.dividendYieldBasis,
+          dividendAnnualAmount: dividend.dividendAnnualAmount != null ? dividend.dividendAnnualAmount.toFixed(6) : stock.dividendAnnualAmount,
+          dividendCurrency: dividend.dividendCurrency ?? stock.dividendCurrency,
+          dividendEventCount: dividend.dividendEventCount ?? stock.dividendEventCount,
+          dividendAsOfDate: dividend.dividendAsOfDate || stock.dividendAsOfDate,
+          dividendYieldSource: dividend.dividendYieldSource ?? stock.dividendYieldSource,
           week52High: high52w?.toString() ?? stock.week52High,
           week52Low: low52w?.toString() ?? stock.week52Low,
           lastMetricsUpdate: new Date(),

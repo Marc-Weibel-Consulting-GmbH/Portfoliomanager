@@ -43,7 +43,7 @@ const chartPeriodOptions: Array<{ value: TimePeriod; label: string }> = [
 ];
 
 // Metric card component with rating
-function MetricCard({ label, value, suffix = "", rating }: { label: string; value: string | number; suffix?: string; rating?: "good" | "neutral" | "bad" }) {
+function MetricCard({ label, value, suffix = "", rating, title }: { label: string; value: string | number; suffix?: string; rating?: "good" | "neutral" | "bad"; title?: string }) {
   const getRatingColor = () => {
     if (!rating) return "text-white";
     switch (rating) {
@@ -65,7 +65,7 @@ function MetricCard({ label, value, suffix = "", rating }: { label: string; valu
   };
   
   return (
-    <div className={`bg-[#1a1f2e] rounded-lg p-3 border ${getRatingBorder()}`}>
+    <div className={`bg-[#1a1f2e] rounded-lg p-3 border ${getRatingBorder()}`} title={title}>
       <div className="text-xs text-gray-400 mb-1">{label}</div>
       <div className={`text-lg font-bold ${getRatingColor()}`}>
         {value}{suffix}
@@ -422,6 +422,13 @@ export default function StockDetail() {
 
   const currentPrice = parseFloat(stock.currentPrice || "0");
   const currency = stock.currency || "CHF";
+  const dividendYieldTitle = stock.dividendYieldBasis === "ttm_gross"
+    ? `TTM-Brutto: ${stock.dividendEventCount ?? "?"} reguläre Ausschüttungen, ${stock.dividendAnnualAmount ?? "—"} ${stock.dividendCurrency ?? currency} je Aktie, Stichtag ${stock.dividendAsOfDate ?? "—"}. Sonderdividenden sind ausgeschlossen. Quelle: ${stock.dividendYieldSource ?? "EODHD /api/div"}.`
+    : stock.dividendYieldBasis === "forward_indicated"
+      ? `Forward/indicated: ${stock.dividendAnnualAmount ?? "—"} ${stock.dividendCurrency ?? currency} je Aktie, Datenstand ${stock.dividendAsOfDate ?? "—"}. Quelle: ${stock.dividendYieldSource ?? "EODHD fundamentals"}.`
+      : stock.dividendYieldBasis === "provider_highlights"
+        ? `Anbieterkennzahl; keine vollständige währungsgleiche Ereignisreihe verfügbar. Datenstand ${stock.dividendAsOfDate ?? "—"}. Quelle: ${stock.dividendYieldSource ?? "EODHD fundamentals"}.`
+        : "Keine dokumentierte Dividendenbasis verfügbar.";
   // Kein Fallback auf erfundene Werte: fehlt der Score, wird keiner angezeigt
   const score = stock.score ?? null;
   
@@ -863,10 +870,11 @@ export default function StockDetail() {
                     <PegBadge ticker={stock.ticker} />
                   </div>
                   <MetricCard 
-                    label="Dividendenrendite" 
+                    label={stock.dividendYieldBasis === "ttm_gross" ? "Div.-Rendite (TTM)" : stock.dividendYieldBasis === "forward_indicated" ? "Div.-Rendite (Forward)" : "Dividendenrendite"}
                     value={stock.dividendYield ? parseFloat(stock.dividendYield).toFixed(1) : "-"} 
                     suffix="%" 
                     rating={getRating("dividendYield", stock.dividendYield)}
+                    title={dividendYieldTitle}
                   />
                   <MetricCard 
                     label="Beta" 

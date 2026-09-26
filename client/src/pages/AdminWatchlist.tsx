@@ -18,6 +18,28 @@ import { Plus, Trash2, RefreshCw, Sparkles, Search, TrendingUp, TrendingDown, Mi
 import { Breadcrumb } from "@/components/Breadcrumb";
 import { downloadWatchlistPdf } from "@/lib/watchlistPdfExport";
 
+function dividendYieldDisclosure(stock: any): { label: string | null; title: string } {
+  if (stock.dividendYieldBasis === "ttm_gross") {
+    return {
+      label: "TTM",
+      title: `TTM-Brutto: ${stock.dividendEventCount ?? "?"} reguläre Ereignisse, ${stock.dividendAnnualAmount ?? "—"} ${stock.dividendCurrency ?? stock.currency ?? ""} je Aktie, Stichtag ${stock.dividendAsOfDate ?? "—"}. Sonderdividenden ausgeschlossen. Quelle: ${stock.dividendYieldSource ?? "EODHD /api/div"}.`,
+    };
+  }
+  if (stock.dividendYieldBasis === "forward_indicated") {
+    return {
+      label: "Forward",
+      title: `Forward/indicated: ${stock.dividendAnnualAmount ?? "—"} ${stock.dividendCurrency ?? stock.currency ?? ""} je Aktie, Datenstand ${stock.dividendAsOfDate ?? "—"}. Quelle: ${stock.dividendYieldSource ?? "EODHD fundamentals"}.`,
+    };
+  }
+  if (stock.dividendYieldBasis === "provider_highlights") {
+    return {
+      label: "Anbieter",
+      title: `Anbieterkennzahl; keine vollständige währungsgleiche Ereignisreihe verfügbar. Datenstand ${stock.dividendAsOfDate ?? "—"}. Quelle: ${stock.dividendYieldSource ?? "EODHD fundamentals"}.`,
+    };
+  }
+  return { label: null, title: "Keine dokumentierte Dividendenbasis verfügbar." };
+}
+
 export default function AdminWatchlist() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
@@ -686,7 +708,17 @@ export default function AdminWatchlist() {
                           ) : "—"}
                         </td>
                         <td className="p-3 text-right font-mono">{Number.isFinite(Number(stock.peRatio)) ? Number(stock.peRatio).toFixed(1) : "—"}</td>
-                        <td className="p-3 text-right font-mono">{Number.isFinite(Number(stock.dividendYield)) ? `${Number(stock.dividendYield).toFixed(1)}%` : "—"}</td>
+                        <td className="p-3 text-right font-mono">
+                          {Number.isFinite(Number(stock.dividendYield)) ? (() => {
+                            const disclosure = dividendYieldDisclosure(stock);
+                            return (
+                              <span title={disclosure.title} className="cursor-help">
+                                {Number(stock.dividendYield).toFixed(1)}%
+                                {disclosure.label && <span className="block text-[10px] text-muted-foreground font-sans">{disclosure.label}</span>}
+                              </span>
+                            );
+                          })() : "—"}
+                        </td>
                         <td className="p-3 text-center">{getSignalBadge(stock.signalType)}</td>
                         <td className="p-3 text-center">
                           {/* K2/K9: ohne Kernsignal ehrlich «—» statt irreführender 0 */}

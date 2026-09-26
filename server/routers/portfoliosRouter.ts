@@ -874,6 +874,12 @@ export const portfoliosRouter = router({
                 };
               })(),
               dividendYield: dbStock?.dividendYield ?? stock.dividendYield ?? null,
+              dividendYieldBasis: dbStock?.dividendYieldBasis ?? null,
+              dividendAnnualAmount: dbStock?.dividendAnnualAmount ?? null,
+              dividendCurrency: dbStock?.dividendCurrency ?? null,
+              dividendEventCount: dbStock?.dividendEventCount ?? null,
+              dividendAsOfDate: dbStock?.dividendAsOfDate ?? null,
+              dividendYieldSource: dbStock?.dividendYieldSource ?? null,
               companyName: dbStock?.companyName || stock.companyName || ticker,
               category: dbStock?.category || stock.category || 'Aktien',
               // Fundamentals + composite score — drive the Konstellation view.

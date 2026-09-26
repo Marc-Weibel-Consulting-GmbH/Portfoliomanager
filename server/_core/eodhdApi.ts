@@ -22,6 +22,10 @@ export interface EODHDFundamentals {
   pegRatio: number | null;
   peRatio: number | null;
   dividendYield: number | null;
+  /** Datenbasis des nicht ereignisbasierten EODHD-Fallbacks. */
+  dividendYieldBasis: "forward_indicated" | "provider_highlights" | null;
+  forwardAnnualDividendRate: number | null;
+  forwardAnnualDividendYield: number | null;
   marketCap: number | null;
   beta: number | null;
   eps: number | null;
@@ -103,6 +107,9 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       pegRatio: null,
       peRatio: null,
       dividendYield: null,
+      dividendYieldBasis: null,
+      forwardAnnualDividendRate: null,
+      forwardAnnualDividendYield: null,
       marketCap: null,
       beta: null,
       eps: null,
@@ -135,6 +142,9 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
         pegRatio: null,
         peRatio: null,
         dividendYield: null,
+        dividendYieldBasis: null,
+        forwardAnnualDividendRate: null,
+        forwardAnnualDividendYield: null,
         marketCap: null,
         beta: null,
         eps: null,
@@ -154,6 +164,9 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       pegRatio: null,
       peRatio: null,
       dividendYield: null,
+      dividendYieldBasis: null,
+      forwardAnnualDividendRate: null,
+      forwardAnnualDividendYield: null,
       marketCap: null,
       beta: null,
       eps: null,
@@ -203,6 +216,7 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       if (highlights.DividendYield !== undefined && highlights.DividendYield !== null) {
         // EODHD returns dividend yield as decimal (0.03 = 3%)
         fundamentals.dividendYield = pf(highlights.DividendYield) * 100;
+        fundamentals.dividendYieldBasis = "provider_highlights";
       }
       
       if (highlights.MarketCapitalization !== undefined && highlights.MarketCapitalization !== null) {
@@ -219,6 +233,23 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       
       if (highlights.BookValue !== undefined && highlights.BookValue !== null) {
         fundamentals.bookValue = pf(highlights.BookValue);
+      }
+    }
+
+    // `Highlights.DividendYield` is not consistently comparable across listings:
+    // AKRBP.OL exposes 0.72 %, although EODHD itself provides the 7.13 % annual
+    // indicated yield in SplitsDividends. Prefer the explicitly annual provider
+    // field here; dated cash events later supersede it with TTM gross yield.
+    if (data.SplitsDividends) {
+      const splitsDividends = data.SplitsDividends;
+      if (splitsDividends.ForwardAnnualDividendRate !== undefined && splitsDividends.ForwardAnnualDividendRate !== null) {
+        fundamentals.forwardAnnualDividendRate = pf(splitsDividends.ForwardAnnualDividendRate);
+      }
+      if (splitsDividends.ForwardAnnualDividendYield !== undefined && splitsDividends.ForwardAnnualDividendYield !== null) {
+        const forwardYield = pf(splitsDividends.ForwardAnnualDividendYield);
+        fundamentals.forwardAnnualDividendYield = forwardYield * 100;
+        fundamentals.dividendYield = forwardYield * 100;
+        fundamentals.dividendYieldBasis = "forward_indicated";
       }
     }
 
@@ -283,6 +314,9 @@ export async function fetchEODHDFundamentals(ticker: string): Promise<EODHDFunda
       pegRatio: null,
       peRatio: null,
       dividendYield: null,
+      dividendYieldBasis: null,
+      forwardAnnualDividendRate: null,
+      forwardAnnualDividendYield: null,
       marketCap: null,
       beta: null,
       eps: null,

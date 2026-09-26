@@ -2063,7 +2063,7 @@ export default function PortfolioDetailsPage() {
 
           {/* DIV. RENDITE */}
           <div className="bg-[#0f1420] p-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Durchschnittliche Dividendenrendite der Portfoliopositionen">ERTRAG · DIV. RENDITE</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Gewichteter Durchschnitt der hinterlegten Brutto-Dividendenrenditen. Pro Titel zeigt der Tooltip TTM-Brutto (bevorzugt) oder klar gelabelt Forward/Anbieterbasis.">ERTRAG · DIV. RENDITE</p>
             <p className="text-2xl font-bold font-mono text-[#00CFC1]">
               {avgDividendYield > 0 ? `${avgDividendYield.toFixed(2)}%` : '—'}
             </p>
@@ -2471,7 +2471,7 @@ export default function PortfolioDetailsPage() {
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="YTD = seit Jahresbeginn" onClick={() => handleSort('ytd')}>
                         <span className={sortKey === 'ytd' ? 'text-[#00CFC1]' : 'text-gray-400'}>YTD {sortKey === 'ytd' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
-                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Brutto-Dividendenrendite gemäss aktuellem Instrumentdatensatz. «—» bedeutet: keine verlässliche Ausschüttungsrendite vorhanden. Klicken zum Sortieren." onClick={() => handleSort('dividendYield')}>
+                      <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="TTM-Brutto aus regulären, währungsgleichen Ausschüttungen (bevorzugt), sonst sichtbar als Forward/indicated oder Anbieterkennzahl. «—» bedeutet: keine verlässliche Ausschüttungsrendite. Klicken zum Sortieren." onClick={() => handleSort('dividendYield')}>
                         <span className={sortKey === 'dividendYield' ? 'text-[#00CFC1]' : 'text-gray-400'}>DIV. RENDITE {sortKey === 'dividendYield' ? (sortDir === 'desc' ? '↓' : '↑') : ''}</span>
                       </th>
                       <th className="text-right px-3 py-3 text-xs font-semibold uppercase tracking-wider cursor-pointer select-none hover:text-white transition-colors" title="Annualisierte Volatilität über fünf volle Kalenderjahre (252 Handelstage p.a.). Pro Titel wird exakt eine Basis verwendet: vollständige EODHD-adjusted-close-Gesamtrendite oder eine vollständige Rohkursserie ohne Split-Hinweis. «—» bedeutet: unvollständige oder inkompatible Historie bzw. ein möglicher nicht bereinigter Split. Klicken zum Sortieren." onClick={() => handleSort('volatility5y')}>
@@ -2601,6 +2601,13 @@ export default function PortfolioDetailsPage() {
                         const today = Number.isFinite(todayNum) ? todayNum : null;
                         const dividendYieldRaw = h.dividendYield != null ? parseFloat(String(h.dividendYield)) : NaN;
                         const dividendYield = Number.isFinite(dividendYieldRaw) && dividendYieldRaw >= 0 ? dividendYieldRaw : null;
+                        const dividendYieldTitle = dividendYield === null
+                          ? 'Keine verlässliche Ausschüttungsrendite verfügbar.'
+                          : h.dividendYieldBasis === 'ttm_gross'
+                            ? `TTM-Brutto: ${h.dividendEventCount ?? '?'} reguläre Ereignisse, ${h.dividendAnnualAmount ?? '—'} ${h.dividendCurrency ?? h.currency ?? ''} je Aktie, Stichtag ${h.dividendAsOfDate ?? '—'}. Sonderdividenden ausgeschlossen. Quelle: ${h.dividendYieldSource ?? 'EODHD /api/div'}.`
+                            : h.dividendYieldBasis === 'forward_indicated'
+                              ? `Forward/indicated: ${h.dividendAnnualAmount ?? '—'} ${h.dividendCurrency ?? h.currency ?? ''} je Aktie, Datenstand ${h.dividendAsOfDate ?? '—'}. Quelle: ${h.dividendYieldSource ?? 'EODHD fundamentals'}.`
+                              : `Anbieterkennzahl; keine vollständige währungsgleiche Ereignisreihe verfügbar. Datenstand ${h.dividendAsOfDate ?? '—'}. Quelle: ${h.dividendYieldSource ?? 'EODHD fundamentals'}.`;
                         const volatility5yRaw = h.volatility5y != null ? parseFloat(String(h.volatility5y)) : NaN;
                         const volatility5y = Number.isFinite(volatility5yRaw) && volatility5yRaw >= 0 ? volatility5yRaw : null;
                         const volatility5yTitle = h.volatility5yDataQuality === 'incompatible_price_basis'
@@ -2794,7 +2801,7 @@ export default function PortfolioDetailsPage() {
                               </span>
                             </td>
                             <td className="px-3 py-3.5 text-right">
-                              <span className={`text-sm font-mono ${dividendYield === null ? 'text-gray-500' : 'text-emerald-400'}`} title={dividendYield === null ? 'Keine verlässliche Ausschüttungsrendite verfügbar.' : 'Brutto-Dividendenrendite gemäss aktuellem Instrumentdatensatz.'}>
+                              <span className={`text-sm font-mono ${dividendYield === null ? 'text-gray-500' : 'text-emerald-400'}`} title={dividendYieldTitle}>
                                 {dividendYield === null ? '—' : `${dividendYield.toFixed(2)}%`}
                               </span>
                             </td>

@@ -57,12 +57,25 @@ export const eodhdFundamentalsSchema = z.object({
       BookValue: numberLike.nullish(),
     })
     .nullish(),
+  SplitsDividends: z.object({
+    ForwardAnnualDividendRate: numberLike.nullish(),
+    ForwardAnnualDividendYield: numberLike.nullish(),
+  }).nullish(),
   Valuation: z.object({ TrailingPE: numberLike.nullish() }).nullish(),
   Technicals: z.object({ Beta: numberLike.nullish() }).nullish(),
   Earnings: z
     .object({ History: z.record(z.string(), z.unknown()).nullish() })
     .nullish(),
 });
+
+/** EODHD /api/div/{ticker} — dated cash events in the listing currency. */
+export const eodhdDividendResponseSchema = z.array(z.object({
+  date: z.string(),
+  value: numberLike.nullish(),
+  unadjustedValue: numberLike.nullish(),
+  currency: z.string().nullish(),
+  period: z.string().nullish(),
+}));
 
 /** Fiscal.ai daily P/E ratio response (fiscalApi.ts). */
 export const fiscalPEHistorySchema = z.array(

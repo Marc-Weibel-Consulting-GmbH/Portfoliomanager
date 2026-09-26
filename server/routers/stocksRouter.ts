@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { fetchStockMetrics } from "../_core/stockDataApi";
 import { fetchEODHDFundamentals, fetchEODHDRealTime } from "../_core/eodhdApi";
-import { fetchDividendYieldWithFallback } from "../_core/dividendYieldHelper";
+import { resolveDividendYieldEnrichment } from "../_core/dividendYieldEnrichment";
 import { recalculateWeights } from "../_core/portfolioWeightHelper";
 import { getStockLogoUrl } from "../_core/stockLogo";
 import { ENV } from "../_core/env";
@@ -101,6 +101,17 @@ export const stocksRouter = router({
           });
         }
 
+        // A manually hydrated title must use exactly the same dividend basis as
+        // the scheduled refresh: dated, währungsgleiche TTM cash events first;
+        // only then a labeled EODHD forward/provider fallback.
+        const fundamentals = await fetchEODHDFundamentals(ticker);
+        const dividend = await resolveDividendYieldEnrichment({
+          ticker,
+          currentPrice: snapshot.currentPrice,
+          currency: snapshot.currency,
+          fundamentals,
+        });
+
         const { getStockByTicker, insertStock, updateStock } = await import("../db");
         const existing = await getStockByTicker(ticker);
         const storedTicker = existing?.ticker ?? ticker;
@@ -111,7 +122,13 @@ export const stocksRouter = router({
           currency: snapshot.currency,
           peRatio: snapshot.peRatio,
           pegRatio: snapshot.pegRatio,
-          dividendYield: snapshot.dividendYield,
+          dividendYield: dividend.dividendYield != null ? dividend.dividendYield.toFixed(4) : snapshot.dividendYield,
+          dividendYieldBasis: dividend.dividendYieldBasis,
+          dividendAnnualAmount: dividend.dividendAnnualAmount != null ? dividend.dividendAnnualAmount.toFixed(6) : null,
+          dividendCurrency: dividend.dividendCurrency,
+          dividendEventCount: dividend.dividendEventCount,
+          dividendAsOfDate: dividend.dividendAsOfDate,
+          dividendYieldSource: dividend.dividendYieldSource,
           beta: snapshot.beta,
           marketCap: snapshot.marketCap,
           sector: snapshot.sector,
@@ -1173,10 +1190,20 @@ export const stocksRouter = router({
                 if (fundamentals.peRatio !== null && !isNaN(fundamentals.peRatio)) {
                   updateData.peRatio = fundamentals.peRatio.toFixed(2);
                 }
-                // Use helper function with 3-tier fallback
-                const dividendYield = await fetchDividendYieldWithFallback(stock.ticker, fundamentals.dividendYield);
-                if (dividendYield !== null) {
-                  updateData.dividendYield = dividendYield.toFixed(2);
+                const dividend = await resolveDividendYieldEnrichment({
+                  ticker: stock.ticker,
+                  currentPrice,
+                  currency: metrics.currency ?? fundamentals.currency ?? stock.currency,
+                  fundamentals,
+                });
+                if (dividend.dividendYield !== null) {
+                  updateData.dividendYield = dividend.dividendYield.toFixed(4);
+                  updateData.dividendYieldBasis = dividend.dividendYieldBasis;
+                  updateData.dividendAnnualAmount = dividend.dividendAnnualAmount != null ? dividend.dividendAnnualAmount.toFixed(6) : null;
+                  updateData.dividendCurrency = dividend.dividendCurrency;
+                  updateData.dividendEventCount = dividend.dividendEventCount;
+                  updateData.dividendAsOfDate = dividend.dividendAsOfDate;
+                  updateData.dividendYieldSource = dividend.dividendYieldSource;
                 }
                 
                 // Update risk metrics from Yahoo
@@ -1304,10 +1331,21 @@ export const stocksRouter = router({
           if (fundamentals.peRatio !== null && !isNaN(fundamentals.peRatio)) {
             updateData.peRatio = fundamentals.peRatio.toFixed(2);
           }
-          // Use helper function with 3-tier fallback
-          const dividendYield = await fetchDividendYieldWithFallback(stock.ticker, fundamentals.dividendYield);
-          if (dividendYield !== null) {
-            updateData.dividendYield = dividendYield.toFixed(2);
+          const effectivePrice = metrics.currentPrice ?? parseFloat(stock.currentPrice ?? "0");
+          const dividend = await resolveDividendYieldEnrichment({
+            ticker,
+            currentPrice: effectivePrice,
+            currency: metrics.currency ?? fundamentals.currency ?? stock.currency,
+            fundamentals,
+          });
+          if (dividend.dividendYield !== null) {
+            updateData.dividendYield = dividend.dividendYield.toFixed(4);
+            updateData.dividendYieldBasis = dividend.dividendYieldBasis;
+            updateData.dividendAnnualAmount = dividend.dividendAnnualAmount != null ? dividend.dividendAnnualAmount.toFixed(6) : null;
+            updateData.dividendCurrency = dividend.dividendCurrency;
+            updateData.dividendEventCount = dividend.dividendEventCount;
+            updateData.dividendAsOfDate = dividend.dividendAsOfDate;
+            updateData.dividendYieldSource = dividend.dividendYieldSource;
           }
           
           // Update risk metrics from Yahoo

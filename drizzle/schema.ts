@@ -87,6 +87,15 @@ export const stocks = mysqlTable("stocks", {
   peRatio: varchar("peRatio", { length: 50 }),
   pegRatio: varchar("pegRatio", { length: 50 }),
   dividendYield: varchar("dividendYield", { length: 50 }),
+  /** TTM-Brutto, Forward/indicated oder Anbieterbasis — nie still vermischen. */
+  dividendYieldBasis: varchar("dividendYieldBasis", { length: 32 }),
+  /** Jahresbetrag je Aktie in `dividendCurrency`; bei TTM die Summe regulärer Ereignisse. */
+  dividendAnnualAmount: varchar("dividendAnnualAmount", { length: 50 }),
+  dividendCurrency: varchar("dividendCurrency", { length: 3 }),
+  dividendEventCount: int("dividendEventCount"),
+  /** ISO-Datum der verwendeten TTM-/Forward-Basis. */
+  dividendAsOfDate: varchar("dividendAsOfDate", { length: 10 }),
+  dividendYieldSource: varchar("dividendYieldSource", { length: 80 }),
   sharpeRatio: varchar("sharpeRatio", { length: 50 }),
   volatility: varchar("volatility", { length: 50 }),
   beta: varchar("beta", { length: 50 }),

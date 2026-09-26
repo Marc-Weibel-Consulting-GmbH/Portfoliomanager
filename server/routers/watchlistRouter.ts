@@ -15,7 +15,7 @@ import { titelKategorie } from "../lib/titelKategorie";
 import YahooFinanceClass from "yahoo-finance2";
 import { calcWilderRSI } from "../lib/watchlistSignalScore";
 import { fetchEODHDFundamentals } from '../_core/eodhdApi';
-import { fetchDividendYieldWithFallback } from '../_core/dividendYieldHelper';
+import { resolveDividendYieldEnrichment } from '../_core/dividendYieldEnrichment';
 
 const yahooFinance: any = new (YahooFinanceClass as any)();
 
@@ -1018,10 +1018,20 @@ export const watchlistRouter = router({
             // Non-fatal: import proceeds without enrichment
           }
 
-          // Dividend yield with 3-tier fallback
+          // Same source order as portfolio positions: dated, währungsgleiche
+          // TTM events first, then clearly classified EODHD fallback fields.
           let dividendYield: number | null = null;
+          let dividendMeta: Awaited<ReturnType<typeof resolveDividendYieldEnrichment>> | null = null;
           try {
-            dividendYield = await fetchDividendYieldWithFallback(ticker, fundamentals?.dividendYield ?? null);
+            if (fundamentals) {
+              dividendMeta = await resolveDividendYieldEnrichment({
+                ticker,
+                currentPrice: item.close ?? null,
+                currency: fundamentals.currency,
+                fundamentals,
+              });
+              dividendYield = dividendMeta.dividendYield;
+            }
           } catch (_e) { /* ignore */ }
 
           const sector = fundamentals?.sector ?? null;
@@ -1056,6 +1066,14 @@ export const watchlistRouter = router({
               ...(peRatio ? { peRatio } : {}),
               ...(pegRatio ? { pegRatio } : {}),
               ...(divYieldStr ? { dividendYield: divYieldStr } : {}),
+              ...(dividendMeta?.dividendYieldBasis ? {
+                dividendYieldBasis: dividendMeta.dividendYieldBasis,
+                dividendAnnualAmount: dividendMeta.dividendAnnualAmount?.toFixed(6) ?? null,
+                dividendCurrency: dividendMeta.dividendCurrency,
+                dividendEventCount: dividendMeta.dividendEventCount,
+                dividendAsOfDate: dividendMeta.dividendAsOfDate,
+                dividendYieldSource: dividendMeta.dividendYieldSource,
+              } : {}),
               lastMetricsUpdate: new Date(),
             }).where(eq(watchlistStocks.ticker, ticker));
             imported++;
@@ -1076,6 +1094,14 @@ export const watchlistRouter = router({
             ...(peRatio ? { peRatio } : {}),
             ...(pegRatio ? { pegRatio } : {}),
             ...(divYieldStr ? { dividendYield: divYieldStr } : {}),
+            ...(dividendMeta?.dividendYieldBasis ? {
+              dividendYieldBasis: dividendMeta.dividendYieldBasis,
+              dividendAnnualAmount: dividendMeta.dividendAnnualAmount?.toFixed(6) ?? null,
+              dividendCurrency: dividendMeta.dividendCurrency,
+              dividendEventCount: dividendMeta.dividendEventCount,
+              dividendAsOfDate: dividendMeta.dividendAsOfDate,
+              dividendYieldSource: dividendMeta.dividendYieldSource,
+            } : {}),
             lastMetricsUpdate: new Date(),
           });
           imported++;
@@ -1138,9 +1164,21 @@ export const watchlistRouter = router({
             if (fundamentals.pegRatio != null && !isNaN(fundamentals.pegRatio) && fundamentals.pegRatio > 0 && !stock.pegRatio) {
               updateData.pegRatio = fundamentals.pegRatio.toFixed(2);
             }
-            dividendYield = await fetchDividendYieldWithFallback(stock.ticker, fundamentals?.dividendYield ?? null);
+            const dividend = await resolveDividendYieldEnrichment({
+              ticker: stock.ticker,
+              currentPrice: stock.currentPrice,
+              currency: stock.currency ?? fundamentals.currency,
+              fundamentals,
+            });
+            dividendYield = dividend.dividendYield;
             if (dividendYield != null && !stock.dividendYield) {
-              updateData.dividendYield = dividendYield.toFixed(2);
+              updateData.dividendYield = dividendYield.toFixed(4);
+              updateData.dividendYieldBasis = dividend.dividendYieldBasis;
+              updateData.dividendAnnualAmount = dividend.dividendAnnualAmount?.toFixed(6) ?? null;
+              updateData.dividendCurrency = dividend.dividendCurrency;
+              updateData.dividendEventCount = dividend.dividendEventCount;
+              updateData.dividendAsOfDate = dividend.dividendAsOfDate;
+              updateData.dividendYieldSource = dividend.dividendYieldSource;
             }
           } catch (_e) { /* EODHD failed, try Yahoo */ }
 
