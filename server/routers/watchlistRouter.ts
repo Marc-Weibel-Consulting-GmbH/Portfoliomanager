@@ -338,31 +338,49 @@ export const watchlistRouter = router({
         throw new TRPCError({ code: "CONFLICT", message: `${input.ticker} ist bereits in der Watchlist` });
       }
 
-      // Fetch live metrics from Yahoo Finance
+      // A title explicitly hydrated from the stock detail view already has a
+      // verified EODHD snapshot. Reuse it instead of overwriting it with the
+      // legacy Yahoo fallback (which may use a different basis or be incomplete).
       let metrics: any = {};
-      try {
-        const quote: any = await yahooFinance.quoteSummary(input.ticker, { modules: ["price", "summaryDetail", "defaultKeyStatistics"] });
-        const price = quote.price;
-        const summary = quote.summaryDetail;
-        const keyStats = quote.defaultKeyStatistics;
-
+      const hasExplicitEodhdHydration = existing.length > 0
+        && Boolean(existing[0].dataQualityNotes?.includes("EODHD-Kennzahlen und"));
+      if (hasExplicitEodhdHydration) {
         metrics = {
-          currentPrice: price?.regularMarketPrice?.toString(),
-          marketCap: price?.marketCap?.toString(),
-          currency: price?.currency,
-          peRatio: summary?.trailingPE?.toString() || keyStats?.trailingEps ? undefined : undefined,
-          pegRatio: keyStats?.pegRatio?.toString(),
-          dividendYield: summary?.dividendYield ? (summary.dividendYield * 100).toString() : undefined,
-          beta: summary?.beta?.toString(),
-          week52High: summary?.fiftyTwoWeekHigh?.toString(),
-          week52Low: summary?.fiftyTwoWeekLow?.toString(),
+          currentPrice: existing[0].currentPrice,
+          marketCap: existing[0].marketCap,
+          currency: existing[0].currency,
+          peRatio: existing[0].peRatio,
+          pegRatio: existing[0].pegRatio,
+          dividendYield: existing[0].dividendYield,
+          beta: existing[0].beta,
+          week52High: existing[0].week52High,
+          week52Low: existing[0].week52Low,
         };
-        // Get PE from trailingPE
-        if (summary?.trailingPE) {
-          metrics.peRatio = summary.trailingPE.toString();
+      } else {
+        try {
+          const quote: any = await yahooFinance.quoteSummary(input.ticker, { modules: ["price", "summaryDetail", "defaultKeyStatistics"] });
+          const price = quote.price;
+          const summary = quote.summaryDetail;
+          const keyStats = quote.defaultKeyStatistics;
+
+          metrics = {
+            currentPrice: price?.regularMarketPrice?.toString(),
+            marketCap: price?.marketCap?.toString(),
+            currency: price?.currency,
+            peRatio: summary?.trailingPE?.toString() || keyStats?.trailingEps ? undefined : undefined,
+            pegRatio: keyStats?.pegRatio?.toString(),
+            dividendYield: summary?.dividendYield ? (summary.dividendYield * 100).toString() : undefined,
+            beta: summary?.beta?.toString(),
+            week52High: summary?.fiftyTwoWeekHigh?.toString(),
+            week52Low: summary?.fiftyTwoWeekLow?.toString(),
+          };
+          // Get PE from trailingPE
+          if (summary?.trailingPE) {
+            metrics.peRatio = summary.trailingPE.toString();
+          }
+        } catch (err) {
+          console.warn(`[Watchlist] Failed to fetch metrics for ${input.ticker}:`, err);
         }
-      } catch (err) {
-        console.warn(`[Watchlist] Failed to fetch metrics for ${input.ticker}:`, err);
       }
 
       const curationValues = {

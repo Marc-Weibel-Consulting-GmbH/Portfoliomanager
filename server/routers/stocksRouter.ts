@@ -9,6 +9,7 @@ import { getStockLogoUrl } from "../_core/stockLogo";
 import { ENV } from "../_core/env";
 import { toEodhdSymbol } from "../lib/eodhdSymbol";
 import {
+  fetchEodhdInstrumentSnapshot,
   fetchTransientEodhdHistoricalChartSeries,
   selectEodhdHistoricalChartSeries,
 } from "../lib/eodhdInstrumentSearch";
@@ -25,25 +26,49 @@ async function computeRiskFromHistory(
     const { getDb } = await import("../db");
     const { historicalPrices } = await import("../../drizzle/schema");
     const { eq, gte, and, asc } = await import("drizzle-orm");
-    const { calcVolatility, calcSharpe } = await import("../analytics/riskStats");
+    const { calcSharpe } = await import("../analytics/riskStats");
+    const { calculateFiveYearAnnualizedVolatility } = await import("../lib/fiveYearVolatility");
+    const { selectFiveYearPriceVolatilitySeries } = await import("../lib/priceVolatilityBasis");
     const db = await getDb();
     if (!db) return null;
-    const from = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const asOf = new Date();
+    const fromDate = new Date(asOf);
+    fromDate.setUTCFullYear(fromDate.getUTCFullYear() - 5);
+    // Small grace buffer makes the complete five-calendar-year gate robust to
+    // holidays around the start date, without pretending a shorter window is 5Y.
+    fromDate.setUTCDate(fromDate.getUTCDate() - 12);
+    const from = fromDate.toISOString().split("T")[0];
     const rows = await db
       .select({ close: historicalPrices.close, adj: historicalPrices.adjustedClose, date: historicalPrices.date })
       .from(historicalPrices)
       .where(and(eq(historicalPrices.ticker, ticker), gte(historicalPrices.date, from)))
       .orderBy(asc(historicalPrices.date));
-    const closes = rows
-      .map((r: any) => parseFloat((r.adj ?? r.close) as any))
-      .filter((v: number) => Number.isFinite(v) && v > 0);
-    if (closes.length < 30) return null;
+
+    const points = rows.map((row: any) => ({
+      date: String(row.date).slice(0, 10),
+      close: row.close,
+      adjustedClose: row.adj,
+    }));
+    const volatility = calculateFiveYearAnnualizedVolatility(points, asOf);
+    if (volatility.annualizedVolatilityPct === null) return null;
+
+    const cutoff = new Date(asOf);
+    cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 5);
+    const cutoffKey = cutoff.toISOString().slice(0, 10);
+    const selected = selectFiveYearPriceVolatilitySeries(
+      points.filter((point) => point.date >= cutoffKey),
+      asOf,
+      { minimumObservations: 1_000 },
+    );
+    if (selected.basis === null || selected.prices.length < 1_001) return null;
+
     const returns: number[] = [];
-    for (let i = 1; i < closes.length; i++) returns.push((closes[i] - closes[i - 1]) / closes[i - 1]);
-    const vol = calcVolatility(returns); // dezimal → als Prozent speichern
+    for (let index = 1; index < selected.prices.length; index += 1) {
+      returns.push(selected.prices[index] / selected.prices[index - 1] - 1);
+    }
     const sharpe = calcSharpe(returns);
     return {
-      volatility: Number.isFinite(vol) ? (vol * 100).toFixed(2) : null,
+      volatility: volatility.annualizedVolatilityPct.toFixed(2),
       sharpe: Number.isFinite(sharpe) ? sharpe.toFixed(2) : null,
     };
   } catch (e) {
@@ -57,6 +82,99 @@ export const stocksRouter = router({
       const { getAllStocks } = await import("../db");
       return await getAllStocks();
     }),
+
+    /**
+     * Explicit, user-initiated enrichment for a searched instrument. It writes
+     * verified EODHD master data and adds up to five years of prices, but never
+     * creates a watchlist entry, portfolio position, cash movement, ledger entry
+     * or order. Existing historical dates are intentionally left untouched.
+     */
+    hydrateHistoricalData: protectedProcedure
+      .input(z.object({ ticker: z.string().trim().min(1).max(50) }))
+      .mutation(async ({ input }) => {
+        const ticker = input.ticker.toUpperCase();
+        const snapshot = await fetchEodhdInstrumentSnapshot(ticker);
+        if (!snapshot?.currentPrice) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `EODHD liefert keine belastbare Kursbasis für ${ticker}.`,
+          });
+        }
+
+        const { getStockByTicker, insertStock, updateStock } = await import("../db");
+        const existing = await getStockByTicker(ticker);
+        const storedTicker = existing?.ticker ?? ticker;
+        const now = new Date();
+        const snapshotFields = {
+          companyName: snapshot.companyName,
+          currentPrice: snapshot.currentPrice,
+          currency: snapshot.currency,
+          peRatio: snapshot.peRatio,
+          pegRatio: snapshot.pegRatio,
+          dividendYield: snapshot.dividendYield,
+          beta: snapshot.beta,
+          marketCap: snapshot.marketCap,
+          sector: snapshot.sector,
+          industry: snapshot.industry,
+          eodhdTicker: toEodhdSymbol(ticker),
+          lastDataRefresh: now,
+          lastMetricsUpdate: now,
+          dataQualityStatus: "prüfung nötig",
+          dataQualityNotes: "EODHD-Kennzahlen und Nutzer-Historienimport; fehlende Lieferantenfelder bleiben Datenlücken.",
+        };
+
+        if (existing) {
+          await updateStock(storedTicker, snapshotFields);
+        } else {
+          await insertStock({
+            ticker,
+            ...snapshotFields,
+            category: snapshot.category ?? "Aktie",
+            portfolioWeight: "0",
+            isManualWeight: 0,
+          });
+        }
+
+        const fromDate = new Date(now);
+        fromDate.setUTCFullYear(fromDate.getUTCFullYear() - 5);
+        // Exchange holidays at the window boundary require a short read-only
+        // grace range; the five-year calculation itself remains calendar-gated.
+        fromDate.setUTCDate(fromDate.getUTCDate() - 12);
+        const from = fromDate.toISOString().slice(0, 10);
+        const to = now.toISOString().slice(0, 10);
+        const { importHistoricalPricesForTicker } = await import("../jobs/importHistoricalPrices");
+        const history = await importHistoricalPricesForTicker(storedTicker, from, to);
+        if (!history.success) {
+          throw new TRPCError({
+            code: "BAD_GATEWAY",
+            message: `Die EODHD-Kurshistorie für ${storedTicker} konnte nicht geladen werden.`,
+          });
+        }
+
+        const risk = await computeRiskFromHistory(storedTicker);
+        if (risk) {
+          await updateStock(storedTicker, {
+            volatility: risk.volatility,
+            sharpeRatio: risk.sharpe,
+            dataQualityStatus: "geprüft",
+            dataQualityNotes: "EODHD-Kennzahlen und fünfjährige, homogene Kurshistorie auf Nutzeraktion geladen; fehlende Lieferantenfelder bleiben Datenlücken.",
+            lastMetricsUpdate: new Date(),
+          });
+        }
+
+        return {
+          success: true as const,
+          ticker: storedTicker,
+          priceRowsReceived: history.pricesImported,
+          fiveYearRiskAvailable: risk !== null,
+          volatility5y: risk?.volatility ?? null,
+          sharpe5y: risk?.sharpe ?? null,
+          // Disclosure guard: the operation only hydrates the local instrument
+          // record and history; it must not be mistaken for an investment action.
+          portfolioChanged: false as const,
+          watchlistChanged: false as const,
+        };
+      }),
 
     getDailyPerformance: publicProcedure.query(async () => {
       const { getAllStocks, getDb } = await import("../db");

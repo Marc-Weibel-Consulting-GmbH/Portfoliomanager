@@ -120,9 +120,71 @@ export type EodhdHistoricalChartSeries = {
   points: Array<{ date: string; close: number }>;
 };
 
+type EodhdInstrumentFundamentals = {
+  companyName: string | null;
+  sector: string | null;
+  industry: string | null;
+  currency: string | null;
+  peRatio: number | null;
+  pegRatio: number | null;
+  /** Already normalized: 1.7 means 1.7 %, not 170 %. */
+  dividendYield: number | null;
+  /** Absolute currency amount, e.g. 82_670_000_000 USD. */
+  marketCap: number | null;
+  beta: number | null;
+  eps: number | null;
+  bookValue: number | null;
+  earningsGrowth: number | null;
+};
+
+type EodhdInstrumentQuote = {
+  close: number | null;
+  previousClose: number | null;
+  changePercent: number | null;
+};
+
 function positiveNumber(value: number | string | null | undefined): number | null {
   const result = Number(value);
   return Number.isFinite(result) && result > 0 ? result : null;
+}
+
+function asDecimal(value: number | null, digits = 2): string | null {
+  return value == null || !Number.isFinite(value) ? null : value.toFixed(digits);
+}
+
+/**
+ * Converts EODHD fundamentals and quote source payloads to the detail contract.
+ * Values arrive normalized already: applying a second percent/billion conversion
+ * silently turns WM.US from 1.70 % to 170 % and USD 82.67 B to USD 83.
+ */
+export function createEodhdInstrumentSnapshot(
+  ticker: string,
+  fundamentals: EodhdInstrumentFundamentals,
+  quote: EodhdInstrumentQuote,
+) {
+  const normalizedTicker = ticker.trim().toUpperCase();
+  return {
+    ticker: normalizedTicker,
+    companyName: fundamentals.companyName ?? normalizedTicker,
+    currentPrice: asDecimal(quote.close, 4),
+    currency: fundamentals.currency,
+    peRatio: asDecimal(fundamentals.peRatio),
+    pegRatio: asDecimal(fundamentals.pegRatio),
+    dividendYield: asDecimal(fundamentals.dividendYield),
+    beta: asDecimal(fundamentals.beta),
+    marketCap: asDecimal(fundamentals.marketCap, 0),
+    week52High: null,
+    week52Low: null,
+    sector: fundamentals.sector,
+    industry: fundamentals.industry,
+    category: null,
+    volatility: null,
+    sharpeRatio: null,
+    ytdPerformance: null,
+    chartData: null,
+    score: null,
+    dataSource: "EODHD" as const,
+  };
 }
 
 /**
@@ -250,30 +312,5 @@ export async function fetchEodhdInstrumentSnapshot(ticker: string) {
   ]);
 
   if (!fundamentals.companyName && !(quote.close && quote.close > 0)) return undefined;
-
-  const asDecimal = (value: number | null, digits = 2) =>
-    value == null || !Number.isFinite(value) ? null : value.toFixed(digits);
-
-  return {
-    ticker: normalizedTicker,
-    companyName: fundamentals.companyName ?? normalizedTicker,
-    currentPrice: asDecimal(quote.close, 4),
-    currency: fundamentals.currency,
-    peRatio: asDecimal(fundamentals.peRatio),
-    pegRatio: asDecimal(fundamentals.pegRatio),
-    dividendYield: fundamentals.dividendYield == null ? null : asDecimal(fundamentals.dividendYield * 100),
-    beta: asDecimal(fundamentals.beta),
-    marketCap: fundamentals.marketCap == null ? null : asDecimal(fundamentals.marketCap / 1_000_000_000),
-    week52High: null,
-    week52Low: null,
-    sector: fundamentals.sector,
-    industry: fundamentals.industry,
-    category: null,
-    volatility: null,
-    sharpeRatio: null,
-    ytdPerformance: null,
-    chartData: null,
-    score: null,
-    dataSource: "EODHD" as const,
-  };
+  return createEodhdInstrumentSnapshot(normalizedTicker, fundamentals, quote);
 }

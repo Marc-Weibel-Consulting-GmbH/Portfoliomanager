@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Plus, ExternalLink, X, Info, Newspaper, BarChart3, Activity, DollarSign } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, Shield, Users, Lightbulb, Bell, Plus, ExternalLink, X, Info, Newspaper, BarChart3, Activity, DollarSign, DatabaseZap, BookmarkPlus } from "lucide-react";
 import { StockLogo } from "@/components/StockLogo";
 import { formatMarketCap } from "@/lib/format";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -180,6 +180,49 @@ export default function StockDetail() {
     { enabled: !!ticker, staleTime: 300000, retry: false },
   );
   const utils = trpc.useUtils();
+
+  const hydrateHistoricalData = trpc.stocks.hydrateHistoricalData.useMutation({
+    onSuccess: async (result) => {
+      await Promise.all([
+        utils.stocks.byTicker.invalidate(ticker),
+        utils.stocks.getHistoricalPrices.invalidate({ ticker, period: selectedPeriod }),
+        utils.analytics.dreiScores.invalidate({ ticker }),
+      ]);
+      const riskHint = result.fiveYearRiskAvailable
+        ? ` 5J-Volatilität ${result.volatility5y} %, Sharpe ${result.sharpe5y}.`
+        : " Die fünfjährige Risikoabdeckung bleibt als Datenlücke gekennzeichnet.";
+      toast.success(`${result.priceRowsReceived} EODHD-Preiszeilen geladen.${riskHint}`);
+    },
+    onError: (error) => toast.error(`Historische Daten konnten nicht geladen werden: ${error.message}`),
+  });
+
+  const addToWatchlist = trpc.watchlist.add.useMutation({
+    onSuccess: async (result) => {
+      await Promise.all([
+        utils.watchlist.list.invalidate(),
+        utils.watchlist.stats.invalidate(),
+      ]);
+      toast.success(result.message);
+    },
+    onError: (error) => toast.error(`Watchlistaufnahme fehlgeschlagen: ${error.message}`),
+  });
+
+  const handleAddToWatchlistWithHistory = async () => {
+    try {
+      const hydrated = await hydrateHistoricalData.mutateAsync({ ticker });
+      addToWatchlist.mutate({
+        ticker: hydrated.ticker,
+        companyName: stock?.companyName || hydrated.ticker,
+        sector: stock?.sector || undefined,
+        industry: stock?.industry || undefined,
+        category: stock?.category || undefined,
+        currency: stock?.currency || undefined,
+        notes: "EODHD-Historie vor Watchlistaufnahme auf Nutzeraktion geladen.",
+      });
+    } catch {
+      // The hydrate mutation already reports the data-quality error to the user.
+    }
+  };
 
   // Das Signal kommt aus `dreiScores.signal` — derselben Rechnung, die auch
   // die Empfehlung im Signal-Cache bestimmt. Vorher las der Header hier
@@ -734,7 +777,7 @@ export default function StockDetail() {
             </div>
 
             {/* Action Buttons - Only show "Add to Portfolio" if not already in portfolio */}
-            <div className={`grid grid-cols-1 ${isInPortfolio ? 'md:grid-cols-1' : 'md:grid-cols-2'} gap-4`}>
+            <div className={`grid grid-cols-1 ${isInPortfolio ? 'md:grid-cols-3' : 'md:grid-cols-2 xl:grid-cols-4'} gap-4`}>
               {!isInPortfolio && (
                 <Button 
                   onClick={() => setShowAddToPortfolio(true)}
@@ -745,13 +788,44 @@ export default function StockDetail() {
                 </Button>
               )}
               <Button
+                type="button"
+                onClick={() => hydrateHistoricalData.mutate({ ticker })}
+                disabled={hydrateHistoricalData.isPending}
+                variant="outline"
+                className="border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/10 h-12"
+              >
+                {hydrateHistoricalData.isPending ? (
+                  <span className="w-4 h-4 mr-2 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <DatabaseZap className="w-4 h-4 mr-2" />
+                )}
+                {hydrateHistoricalData.isPending ? "Lade EODHD-Daten…" : "Historische Daten laden (5J)"}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleAddToWatchlistWithHistory}
+                disabled={hydrateHistoricalData.isPending || addToWatchlist.isPending}
+                variant="outline"
+                className="border-[#00CFC1]/40 text-[#00CFC1] hover:bg-[#00CFC1]/10 h-12"
+              >
+                {hydrateHistoricalData.isPending || addToWatchlist.isPending ? (
+                  <span className="w-4 h-4 mr-2 border-2 border-[#00CFC1] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <BookmarkPlus className="w-4 h-4 mr-2" />
+                )}
+                Zur Watchlist
+              </Button>
+              <Button
                 onClick={() => setShowPriceAlert(true)}
                 variant="outline"
                 className="border-white/20 text-white hover:bg-white/10 h-12"
               >
                 <Bell className="w-4 h-4 mr-2" />
-                Preisalarm erstellen
-              </Button>
+                  Preisalarm erstellen
+                </Button>
+                <p className={`text-xs text-gray-500 ${isInPortfolio ? 'md:col-span-3' : 'md:col-span-2 xl:col-span-4'}`}>
+                  «Historische Daten laden» aktualisiert nur die lokale EODHD-Datenbasis. «Zur Watchlist» lädt dieselbe Basis zuerst und fügt den Titel danach ausdrücklich zur Watchlist hinzu. Keine Portfolio-, Cash- oder Handelsänderung; fehlende Anbieterfelder bleiben sichtbar.
+                </p>
               {/* UX2-1: toter «Factsheet ansehen»-Button entfernt — es gibt (noch)
                   keine Factsheet-Funktion; ein Button ohne Wirkung untergräbt Vertrauen. */}
             </div>

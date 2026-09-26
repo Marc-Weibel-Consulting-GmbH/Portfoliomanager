@@ -38,6 +38,27 @@ function toEodhdTicker(dbTicker: string): string | null {
 type EODHDHistoricalPrice = EodhdEodRow;
 
 /**
+ * Maps EODHD rows without deciding whether existing local rows may be changed.
+ * The store remains additive by default; adjusted close is recorded only when a
+ * date is first inserted so later provider responses cannot silently rewrite a
+ * historical basis.
+ */
+export function buildHistoricalPriceInsertRows(
+  ticker: string,
+  prices: EODHDHistoricalPrice[],
+) {
+  return prices.map((price) => ({
+    ticker,
+    date: price.date,
+    close: price.close.toString(),
+    adjustedClose: price.adjusted_close != null && Number.isFinite(price.adjusted_close) && price.adjusted_close > 0
+      ? price.adjusted_close.toString()
+      : null,
+    source: "eodhd" as const,
+  }));
+}
+
+/**
  * Fetch historical prices from EODHD API
  * @param ticker Stock ticker symbol (e.g., "AAPL.US", "NOVN.SW")
  * @param fromDate Start date in YYYY-MM-DD format
@@ -247,12 +268,7 @@ async function storeHistoricalPrices(
   }
 
   // Prepare batch insert data
-  const insertData = prices.map((price) => ({
-    ticker,
-    date: price.date,
-    close: price.close.toString(),
-    source: "eodhd" as const,
-  }));
+  const insertData = buildHistoricalPriceInsertRows(ticker, prices);
 
   try {
     // Historische Preisreihen sind standardmässig additiv. Ein bestehender

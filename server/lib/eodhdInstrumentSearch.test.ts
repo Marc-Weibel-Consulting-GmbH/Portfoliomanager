@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildEodhdSearchQueries,
+  createEodhdInstrumentSnapshot,
   normalizeEodhdSearchInstrument,
   selectEodhdHistoricalChartSeries,
   type EodhdSearchRawInstrument,
@@ -73,5 +74,36 @@ describe("selectEodhdHistoricalChartSeries", () => {
       { date: "2026-04-30", close: 140, adjustedClose: null },
       { date: "2026-05-01", close: 27.34, adjustedClose: null },
     ])).toEqual({ status: "incompatible", points: [] });
+  });
+});
+
+describe("createEodhdInstrumentSnapshot", () => {
+  it("preserves already-percent dividend yield and absolute market capitalization", () => {
+    expect(createEodhdInstrumentSnapshot("WM.US", {
+      companyName: "Waste Management Inc",
+      sector: "Industrials",
+      industry: "Waste Management",
+      currency: "USD",
+      peRatio: 29.2546,
+      pegRatio: 1.9016,
+      // fetchEODHDFundamentals normalizes EODHD's 0.017 once to 1.7 percent.
+      dividendYield: 1.7,
+      marketCap: 82_670_000_000,
+      beta: 0.431,
+      eps: null,
+      bookValue: null,
+      earningsGrowth: 0.0676,
+    }, {
+      close: 206.83,
+      previousClose: 205.72,
+      changePercent: 0.54,
+    })).toMatchObject({
+      ticker: "WM.US",
+      dividendYield: "1.70",
+      marketCap: "82670000000",
+      peRatio: "29.25",
+      pegRatio: "1.90",
+      beta: "0.43",
+    });
   });
 });
