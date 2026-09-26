@@ -489,8 +489,20 @@ export function extractMetrics(d: any, ticker: string, options: ExtractMetricsOp
   const quartalsGewinne = Object.keys(isQuarterly).sort()
     .map((k) => ({ datum: k, gewinn: parseFloatOrNull(isQuarterly[k]?.netIncome) }))
     .filter((q): q is { datum: string; gewinn: number } => q.gewinn !== null);
+  const latestQuarterlyKey = Object.keys(isQuarterly).sort().at(-1);
+  const latestYearlyKey = isKeys.at(-1);
+  const currencyCode = typeof d.General?.CurrencyCode === "string"
+    ? d.General.CurrencyCode.toUpperCase()
+    : null;
+  const incomeCurrency = typeof isQuarterly[latestQuarterlyKey ?? ""]?.currency_symbol === "string"
+    ? isQuarterly[latestQuarterlyKey ?? ""].currency_symbol.toUpperCase()
+    : typeof isYearly[latestYearlyKey ?? ""]?.currency_symbol === "string"
+      ? isYearly[latestYearlyKey ?? ""].currency_symbol.toUpperCase()
+      : null;
   const selbstKgv = kgvSelbst({
     marktkapitalisierung,
+    marktkapitalisierungsWaehrung: currencyCode,
+    gewinnWaehrung: incomeCurrency,
     quartalsGewinne,
     jahresGewinn: isKeys.length > 0 ? parseFloatOrNull(isYearly[isKeys.at(-1)!]?.netIncome) : null,
   });

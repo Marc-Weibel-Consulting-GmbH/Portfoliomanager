@@ -74,6 +74,21 @@ describe("kgvSelbst", () => {
     expect(leer.kgv).toBeNull();
     expect(leer.hinweis).toContain("keine Gewinnbasis");
   });
+
+  it("verwirft eine Selbstrechnung über unterschiedliche Währungen statt USD-Marktkapitalisierung durch CHF-Gewinn zu teilen", () => {
+    const r = kgvSelbst({
+      marktkapitalisierung: 10_000,
+      marktkapitalisierungsWaehrung: "USD",
+      gewinnWaehrung: "CHF",
+      quartalsGewinne: [
+        q("2025-09-30", 100), q("2025-12-31", 100),
+        q("2026-03-31", 100), q("2026-06-30", 100),
+      ],
+      jahresGewinn: 400,
+    });
+    expect(r.kgv).toBeNull();
+    expect(r.hinweis).toContain("Währungsbasis");
+  });
 });
 
 /**

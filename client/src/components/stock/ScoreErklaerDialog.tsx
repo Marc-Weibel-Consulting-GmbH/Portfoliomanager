@@ -333,7 +333,7 @@ export default function ScoreErklaerDialog({
                   >
                     <div className="w-2 h-2 rounded-full bg-[#00CFC1] mt-1.5 flex-shrink-0"></div>
                     <span>
-                      <strong>{f.name}{f.gewicht > 0 ? ` (${Math.round(f.gewicht * 100)}%)` : ""}:</strong>{" "}
+                      <strong>{f.name === "PEG (bereinigt)" ? "PEG (Risiko-adjustiert, nicht Standard-PEG)" : f.name}{f.gewicht > 0 ? ` (${Math.round(f.gewicht * 100)}%)` : ""}:</strong>{" "}
                       {f.hinweis}
                       {f.punkte !== null && <span className="text-gray-500"> — {Math.round(f.punkte)} Punkte</span>}
                       {faktorRechnung === `b:${f.name}` && f.rechnung && (
@@ -350,6 +350,12 @@ export default function ScoreErklaerDialog({
             Bei Banken, Versicherern und Immobilien zählt der Buchwert; dort besteht das
             Vermögen aus bilanzierten Forderungen und Objekten. Bei allen übrigen trägt das
             PEG — die Bewertung im Verhältnis zum Gewinnwachstum.
+          </p>
+          <p className="text-xs text-amber-300/90">
+            <strong>Vergleich mit Bloomberg/FactSet:</strong> Die dort ausgewiesene PEG Ratio ist
+            eine Standard- bzw. Schätzkennzahl. Der obige Risiko-Faktor ist bewusst nicht
+            identisch: Er prüft Vendor-PEG und eigene Herleitung gegeneinander und berücksichtigt
+            zusätzlich Gewinnvolatilität. Die Standard-PEG steht separat in der Kennzahlenkarte.
           </p>
           <p className="text-xs text-gray-400">
             Ein sehr hohes KGV <strong>begrenzt</strong> den Score, auch wenn das PEG günstig

@@ -974,3 +974,12 @@
 ## Aker BP – Dividendenrendite: laufende Ursachenanalyse (2026-09-26)
 
 - [x] **Ursache belegt und korrigiert:** AKRBP.OL ist die Oslo-Primärlinie in NOK. EODHD liefert die vier regulären quartalsweisen NOK-Ereignisse (27.10.2025 6,33194; 16.02.2026 6,29417; 12.05.2026 6,12853; 20.07.2026 6,42588) und zusätzlich `SplitsDividends.ForwardAnnualDividendYield = 0,0713`. Die allgemeine EODHD-Highlights-Kennzahl ist dagegen nur `DividendYield = 0,0072`; der alte Pfad übernahm sie blind. Der zentrale Pfad berechnet jetzt bevorzugt TTM-Brutto aus regulären, währungsgleichen Ereignissen; für AKRBP.OL NOK 25,180520 / NOK 348,60 = 7,2233 %, live als 7,22 % inklusive Basis-Tooltip. Forward/indicated und Anbieterfelder bleiben getrennte, beschriftete Fallbacks. Vollständiger Nachweis: `docs/audit/AKRBP_OL_DIVIDEND_YIELD_CORRECTION_2026-09-26.md`. Keine Portfolio-, Cash-, Ledger-, Transaktions-, Preis- oder Handelsmutation.
+
+
+## ONON.US – KGV/PEG, Timing und KI-Briefing (2026-09-26)
+- [x] EODHD-Rohdaten mit Bloomberg-Referenz abgeglichen: P/E 21,2482, Vendor-PEG 0,4943 vs. Bloomberg PEG 0,52.
+- [x] KGV-Währungsgrenze repariert: USD-Marktkapitalisierung und CHF-Ergebnisreihe werden ohne belegte FX-Umrechnung nicht mehr dividiert.
+- [x] Standard-PEG von internem risiko-adjustiertem Score-Faktor getrennt und klar beschriftet.
+- [x] Manuelle 5J-Historienladung aktualisiert Timing und Signal unmittelbar; Watchlistaktion bleibt separat.
+- [x] KI-Briefing auf Manus Standard-KI vereinheitlicht; ONON live erfolgreich erzeugt.
+- [x] Vollständige Regression, finaler Diff-Check und Checkpoint.

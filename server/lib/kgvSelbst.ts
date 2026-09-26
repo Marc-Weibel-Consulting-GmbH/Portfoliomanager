@@ -27,6 +27,10 @@ const MIN_ABDECKUNG_TAGE = 300;
 
 export function kgvSelbst(e: {
   marktkapitalisierung: number | null;
+  /** Handelswährung der Marktkapitalisierung; fehlt bei älteren Payloads. */
+  marktkapitalisierungsWaehrung?: string | null;
+  /** Währung der Ergebnisreihe; fehlt bei älteren Payloads. */
+  gewinnWaehrung?: string | null;
   /** Berichtsperioden-Nettogewinne, chronologisch (ältester zuerst). */
   quartalsGewinne: Array<{ datum: string; gewinn: number }>;
   /** Nettogewinn des letzten Geschäftsjahres — Rückfall ohne volles TTM-Fenster. */
@@ -35,6 +39,20 @@ export function kgvSelbst(e: {
   const mk = e.marktkapitalisierung;
   if (mk === null || !Number.isFinite(mk) || mk <= 0) {
     return { kgv: null, hinweis: "keine Marktkapitalisierung" };
+  }
+
+  // Ein KGV ist dimensionslos, aber nur nachdem Zähler und Nenner in dieselbe
+  // Währung gebracht wurden. EODHD kann bei ausländischen Listings (ONON.US:
+  // USD-Marktkapitalisierung, CHF-Abschluss) beide Serien ohne FX-Konversion
+  // nebeneinander liefern. Ohne zeitgerecht belegte Umrechnung wäre daraus ein
+  // künstliches KGV — daher bewusst Datenlücke statt Zahl.
+  const capCurrency = e.marktkapitalisierungsWaehrung?.trim().toUpperCase() || null;
+  const incomeCurrency = e.gewinnWaehrung?.trim().toUpperCase() || null;
+  if (capCurrency !== null && incomeCurrency !== null && capCurrency !== incomeCurrency) {
+    return {
+      kgv: null,
+      hinweis: `abweichende Währungsbasis: Marktkapitalisierung ${capCurrency}, Gewinn ${incomeCurrency}`,
+    };
   }
 
   const gueltige = e.quartalsGewinne.filter(

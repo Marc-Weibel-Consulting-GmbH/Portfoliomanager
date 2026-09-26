@@ -191,7 +191,10 @@ export default function StockDetail() {
       const riskHint = result.fiveYearRiskAvailable
         ? ` 5J-Volatilität ${result.volatility5y} %, Sharpe ${result.sharpe5y}.`
         : " Die fünfjährige Risikoabdeckung bleibt als Datenlücke gekennzeichnet.";
-      toast.success(`${result.priceRowsReceived} EODHD-Preiszeilen geladen.${riskHint}`);
+      const scoreHint = result.scoreRefreshed
+        ? ` Timing ${result.timingScore != null ? result.timingScore.toFixed(0) : "—"}/100${result.signalLabel ? ` · Signal ${result.signalLabel}` : ""}.`
+        : ` ${result.timingHint ?? "Timing bleibt bis zum nächsten Signallauf als Datenlücke sichtbar."}`;
+      toast.success(`${result.priceRowsReceived} EODHD-Preiszeilen geladen.${riskHint}${scoreHint} Nicht zur Watchlist hinzugefügt.`);
     },
     onError: (error) => toast.error(`Historische Daten konnten nicht geladen werden: ${error.message}`),
   });
@@ -820,7 +823,7 @@ export default function StockDetail() {
                 ) : (
                   <BookmarkPlus className="w-4 h-4 mr-2" />
                 )}
-                Zur Watchlist
+                Zur Watchlist (mit 5J-Daten)
               </Button>
               <Button
                 onClick={() => setShowPriceAlert(true)}
@@ -831,7 +834,7 @@ export default function StockDetail() {
                   Preisalarm erstellen
                 </Button>
                 <p className={`text-xs text-gray-500 ${isInPortfolio ? 'md:col-span-3' : 'md:col-span-2 xl:col-span-4'}`}>
-                  «Historische Daten laden» aktualisiert nur die lokale EODHD-Datenbasis. «Zur Watchlist» lädt dieselbe Basis zuerst und fügt den Titel danach ausdrücklich zur Watchlist hinzu. Keine Portfolio-, Cash- oder Handelsänderung; fehlende Anbieterfelder bleiben sichtbar.
+                  «Historische Daten laden» aktualisiert nur die lokale EODHD-Datenbasis und berechnet Timing/Signal daraus sofort neu. «Zur Watchlist (mit 5J-Daten)» ist eine separate Aktion: Sie lädt dieselbe Basis zuerst und fügt den Titel danach ausdrücklich zur Watchlist hinzu. Keine Portfolio-, Cash- oder Handelsänderung; fehlende Anbieterfelder bleiben sichtbar.
                 </p>
               {/* UX2-1: toter «Factsheet ansehen»-Button entfernt — es gibt (noch)
                   keine Factsheet-Funktion; ein Button ohne Wirkung untergräbt Vertrauen. */}
@@ -866,7 +869,7 @@ export default function StockDetail() {
                     );
                   })()}
                   <div className="bg-[#1a1f2e] rounded-lg p-3 border border-white/10">
-                    <div className="text-xs text-gray-400 mb-1">PEG Ratio</div>
+                    <div className="text-xs text-gray-400 mb-1">PEG Ratio (Standard)</div>
                     <PegBadge ticker={stock.ticker} />
                   </div>
                   <MetricCard 

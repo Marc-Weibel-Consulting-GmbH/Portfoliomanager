@@ -37,16 +37,16 @@ export interface ProposalModelConfig {
 
 export const DEFAULT_PROPOSAL_MODELS: ProposalModelConfig = {
   ensemble: false,
-  analysis: "omniroute",
+  analysis: "gemini",
   challengerB: "gemini",
-  synthesis: "omniroute",
+  synthesis: "gemini",
   text: "gemini",
   autoApply: true, // Challenger-/Synthese-Anpassungen immer automatisch übernehmen
 };
 
 export const PROVIDER_LABELS: Record<ProposalProvider, string> = {
   kimi: "Kimi K3 (Moonshot)",
-  gemini: "Gemini 2.5 Flash (Manus)",
+  gemini: "Manus Standard-KI",
   claude: "Claude (Anthropic)",
   perplexity: "Perplexity Sonar",
   groq: "Groq Llama 3.3 70B (gratis)",
@@ -127,9 +127,10 @@ async function callKimiJson(system: string, user: string, schema: JsonSchema, ma
 }
 
 async function callGeminiJson(system: string, user: string, schema: JsonSchema, maxTokens: number): Promise<any> {
-  // invokeKimi wird bevorzugt: kein 'thinking'-Feld, das mit json_schema inkompatibel ist.
-  // Falls KIMI_API_KEY fehlt, fällt invokeKimi automatisch auf invokeLLM zurück.
-  const res = await invokeKimi({
+  // Die Rolle «Gemini (Manus)» muss den im Projekt enthaltenen Manus-Forge-Pfad
+  // direkt verwenden. Ein Kimi- oder Drittanbieter-Key darf diese Wahl nicht
+  // still überschreiben; json_schema ist mit dem Forge-Standardmodell kompatibel.
+  const res = await invokeLLM({
     messages: [{ role: "system", content: system }, { role: "user", content: user }],
     max_tokens: maxTokens,
     response_format: { type: "json_schema", json_schema: schema },
@@ -270,6 +271,10 @@ export async function invokeProposalAgent(
   args: ProposalAgentArgs,
 ): Promise<ProposalAgentOutcome> {
   const maxTokens = args.maxTokens ?? 4096;
+  // Der Benutzer hat Manus Standard-KI als verbindlichen Weg gewählt. Der
+  // Parameter bleibt für die Rückwärtskompatibilität im Vertrag, darf aber
+  // keinen kostenpflichtigen Drittanbieter-Aufruf mehr auslösen.
+  const selectedProvider: ProposalProvider = "gemini";
   const run = (p: ProposalProvider) => {
     switch (p) {
       case "gemini": return callGeminiJson(args.system, args.user, args.schema, maxTokens);
@@ -293,10 +298,11 @@ export async function invokeProposalAgent(
   // Vollständige Fallback-Kaskade: gewählter Anbieter → alle weiteren in
   // absteigender Präferenz. So bleibt jeder Schritt auch dann robust, wenn
   // der bevorzugte Anbieter ausfällt, kein Key hinterlegt ist oder leer antwortet.
-  // Reihenfolge: kimi (1M-Kontext) → gemini (Manus-intern, immer verfügbar) →
-  // claude (stärkstes Reasoning) → omniroute (271 Modelle) → groq (gratis) → perplexity.
-  const FULL_FALLBACK_ORDER: ProposalProvider[] = ["kimi", "gemini", "claude", "omniroute", "groq", "perplexity"];
-  const chain = [...new Set<ProposalProvider>([provider, ...FULL_FALLBACK_ORDER])];
+  // Für Vorschläge und Briefings gilt der explizite Standard: ausschließlich
+  // Manus Forge. Ein abgelaufener Drittanbieter-Credit darf weder den Abruf
+  // auslösen noch den Weg zu einer kostenpflichtigen Ersatzquelle öffnen.
+  const FULL_FALLBACK_ORDER: ProposalProvider[] = ["gemini"];
+  const chain = [...new Set<ProposalProvider>([selectedProvider, ...FULL_FALLBACK_ORDER])];
   const runFallbackChain = async (): Promise<ProposalAgentOutcome> => {
     let lastErr: any;
     for (const p of chain) {

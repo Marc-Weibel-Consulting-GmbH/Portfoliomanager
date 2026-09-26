@@ -77,6 +77,117 @@ async function computeRiskFromHistory(
   }
 }
 
+/**
+ * Rechnet die drei Scores auf einer gerade explizit importierten Preisbasis
+ * sofort nach. Der stündliche Cache bleibt der Batch-Pfad; diese Funktion
+ * verhindert nur die falsche Zwischenmeldung «Timing wird berechnet», obwohl
+ * ausreichend lokale EODHD-Daten bereits vorhanden sind.
+ */
+async function refreshScoresAfterHistoricalImport(ticker: string) {
+  const { getDb } = await import("../db");
+  const db = await getDb();
+  if (!db) return null;
+
+  const { stocks, historicalPrices } = await import("../../drizzle/schema");
+  const { and, asc, eq, gte } = await import("drizzle-orm");
+  const [stock] = await db.select().from(stocks).where(eq(stocks.ticker, ticker)).limit(1);
+  if (!stock) return null;
+
+  const from = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const rows = await db
+    .select({ date: historicalPrices.date, close: historicalPrices.close, adjustedClose: historicalPrices.adjustedClose })
+    .from(historicalPrices)
+    .where(and(eq(historicalPrices.ticker, ticker), gte(historicalPrices.date, from)))
+    .orderBy(asc(historicalPrices.date));
+
+  const { berechneTimingAusPreisreihe } = await import("../lib/scoreRefreshFromHistory");
+  const price = Number(stock.currentPrice);
+  const timingResult = berechneTimingAusPreisreihe(
+    rows.map((row) => ({
+      date: row.date,
+      close: Number(row.adjustedClose ?? row.close),
+    })),
+    Number.isFinite(price) && price > 0 ? price : null,
+  );
+
+  if (!timingResult.ready) {
+    return {
+      timingScore: null,
+      signalLabel: null,
+      scoreRefreshed: false,
+      timingHint: timingResult.hinweis,
+    };
+  }
+
+  const { getQualityMetrics } = await import("../lib/qualityMetricsService");
+  const { berechneQualitaet, berechneBewertung, bewertungsBand, qualitaetsBand } = await import("../lib/dreiScores");
+  const { rechneSignal } = await import("../lib/dreiScoreSignal");
+  const { haltefestScores } = await import("../lib/dreiScoresStore");
+  const metrics = await getQualityMetrics(ticker);
+  const asNumber = (value: unknown): number | null => {
+    const parsed = typeof value === "number" ? value : Number.parseFloat(String(value));
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const qualitaet = berechneQualitaet({
+    roic: metrics.roic,
+    betriebsmarge: metrics.operatingMargin,
+    bruttomarge: metrics.grossMargin,
+    ertragsdeckung: metrics.ertragsdeckung,
+    gewinnwachstum: metrics.epsWachstumRobust,
+    epsStabilitaet: metrics.epsStabilityScore,
+    epsStabilitaetHinweis: metrics.epsStabilitaetHinweis,
+    netDebtToEbitda: metrics.netDebtToEbitda,
+  }, metrics.piotroski);
+  const bewertung = berechneBewertung({
+    adjustedPeg: metrics.adjustedPeg,
+    pegHinweis: metrics.adjustedPegHinweis,
+    pegRechnung: metrics.adjustedPegRechnung,
+    kgv: metrics.kgvFuerBewertung,
+    kgvHinweis: metrics.kgvFuerBewertungHinweis,
+    fcfRendite: metrics.fcfYield,
+    dividendenrendite: asNumber(stock.dividendYield),
+    kursBuchwert: metrics.priceToBook,
+    epsWachstumTTM: metrics.epsGrowthTTM,
+    epsWachstum5j: metrics.epsGrowth5y,
+    sektor: stock.sector,
+  });
+  const signal = rechneSignal({
+    qualitaet: qualitaet.gesamt,
+    bewertung: bewertung.score,
+    timing: timingResult.timing.score,
+    regime: timingResult.regime,
+  });
+
+  await haltefestScores([{
+    ticker,
+    qualitaet: qualitaet.gesamt,
+    qualitaetBand: qualitaetsBand(qualitaet.gesamt),
+    niveau: qualitaet.niveau.score,
+    richtung: qualitaet.richtung.score,
+    fScore: qualitaet.richtung.fScore,
+    fScoreBerechenbar: qualitaet.richtung.berechenbar,
+    bewertung: bewertung.score,
+    bewertungBand: bewertungsBand(bewertung.score),
+    abdeckungNiveau: qualitaet.niveau.abdeckung,
+    abdeckungBewertung: bewertung.abdeckung,
+    timing: timingResult.timing.score,
+    timingAbdeckung: timingResult.timing.abdeckung,
+    regime: timingResult.regime,
+    signalScore: signal.score,
+    signalLabel: signal.label,
+    qualitaetFaktoren: qualitaet.niveau.faktoren,
+    bewertungFaktoren: bewertung.faktoren,
+    timingFaktoren: timingResult.timing.faktoren,
+  }]);
+
+  return {
+    timingScore: timingResult.timing.score,
+    signalLabel: signal.label,
+    scoreRefreshed: true,
+    timingHint: timingResult.hinweis,
+  };
+}
+
 export const stocksRouter = router({
     getAll: publicProcedure.query(async () => {
       const { getAllStocks } = await import("../db");
@@ -179,6 +290,17 @@ export const stocksRouter = router({
           });
         }
 
+        // Der manuelle Import ist ausdrücklich eine vollständige, lokale
+        // Datenanreicherung. Timing und Signal dürfen deshalb nicht künstlich
+        // bis zum nächsten Stundenlauf fehlen. Ein nicht berechenbarer
+        // technische Score bleibt dagegen als Datenlücke sichtbar.
+        let scoreRefresh: Awaited<ReturnType<typeof refreshScoresAfterHistoricalImport>> = null;
+        try {
+          scoreRefresh = await refreshScoresAfterHistoricalImport(storedTicker);
+        } catch (error) {
+          console.warn(`[stocks.hydrateHistoricalData] Score-Refresh fehlgeschlagen für ${storedTicker}:`, (error as Error).message);
+        }
+
         return {
           success: true as const,
           ticker: storedTicker,
@@ -186,6 +308,10 @@ export const stocksRouter = router({
           fiveYearRiskAvailable: risk !== null,
           volatility5y: risk?.volatility ?? null,
           sharpe5y: risk?.sharpe ?? null,
+          timingScore: scoreRefresh?.timingScore ?? null,
+          signalLabel: scoreRefresh?.signalLabel ?? null,
+          scoreRefreshed: scoreRefresh?.scoreRefreshed ?? false,
+          timingHint: scoreRefresh?.timingHint ?? "Timing wird beim nächsten regulären Signallauf ergänzt.",
           // Disclosure guard: the operation only hydrates the local instrument
           // record and history; it must not be mistaken for an investment action.
           portfolioChanged: false as const,

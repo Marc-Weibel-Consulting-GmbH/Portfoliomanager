@@ -251,12 +251,12 @@ export function PegBadge({ ticker }: { ticker: string }) {
   if (isLoading) return <span className="text-gray-500 text-sm">—</span>;
   if (!data) return <span className="text-gray-500 text-sm">—</span>;
 
-  // KEIN Rückfall auf das rohe Vendor-Feld: Wenn die Wächter das PEG
-  // ausblenden (adjustedPeg null), zeigte die Kennzahl vorher trotzdem den
-  // EODHD-Rohwert — also genau den Datenschrott, den die Rechnung soeben
-  // aussortiert hatte (Sanofi: ~50 statt «keine Aussage»).
-  const peg = data.adjustedPeg;
-  const label = peg === null ? "ausgeblendet" : data.pegQuadrantLabel;
+  // Die schnelle Kennzahlenkarte zeigt absichtlich das vergleichbare
+  // Standard-PEG der Quelle, nicht den internen Risiko-Faktor. Bloomberg,
+  // FactSet und EODHD-PEG lassen sich nur auf dieser Ebene vergleichen. Die
+  // abweichende Score-Logik bleibt im Tooltip transparent nachvollziehbar.
+  const peg = data.trailingPeg;
+  const label = peg === null ? "nicht verfügbar" : "EODHD · Standard";
 
   return (
     <Tooltip>
@@ -273,12 +273,11 @@ export function PegBadge({ ticker }: { ticker: string }) {
       </TooltipTrigger>
       <TooltipContent className="max-w-xs bg-[#1a1f2e] border-[#00CFC1]/20 text-white">
         <div className="space-y-1 text-xs">
-          <div className="font-semibold text-[#00CFC1]">Adjusted PEG</div>
-          {data.adjustedPegHinweis && (
-            <div className="text-amber-300">{data.adjustedPegHinweis}</div>
-          )}
-          <div>Trailing PEG (roh, EODHD): {fmt(data.trailingPeg, "", 2)}</div>
-          <div>Forward PEG: {fmt(data.forwardPeg, "", 2)}</div>
+          <div className="font-semibold text-[#00CFC1]">PEG Ratio · Standardkennzahl</div>
+          <div>Trailing PEG (EODHD): {fmt(data.trailingPeg, "", 2)}</div>
+          <div>Forward PEG (eigene Formel): {fmt(data.forwardPeg, "", 2)}</div>
+          <div className="pt-1 text-amber-300">Interner Risiko-Faktor: {fmt(data.adjustedPeg, "", 2)} — nicht mit Bloomberg-PEG vergleichbar.</div>
+          {data.adjustedPegHinweis && <div className="text-gray-300">{data.adjustedPegHinweis}</div>}
           <div>EPS-Stabilität: {data.epsStabilityScore === null ? "—" : `${data.epsStabilityScore}/100`}</div>
           <div>ROIC: {fmt(data.roic, "%")}</div>
         </div>
