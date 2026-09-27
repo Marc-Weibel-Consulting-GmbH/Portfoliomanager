@@ -166,6 +166,11 @@ const PROXY_CURRENCY: Record<string, string> = {
  * @returns Die korrekte Währung für die historicalPrices-Einträge
  */
 export function getHistoricalPriceCurrency(dbTicker: string, nativeCurrency: string): string {
+  // EODHD's LSE EOD endpoint quotes in GBp (pence), while the stock master
+  // correctly identifies the economic currency as GBP.  Keeping the quote unit
+  // here lets the risk engine use the existing GBpCHF = GBPCHF / 100 conversion
+  // rather than valuing every pence as one pound.
+  if (dbTicker.toUpperCase().endsWith('.L')) return 'GBp';
   return PROXY_CURRENCY[dbTicker] ?? nativeCurrency;
 }
 
@@ -177,7 +182,12 @@ export function getHistoricalPriceCurrency(dbTicker: string, nativeCurrency: str
  * bewusst eine Datenlücke und werden nicht stillschweigend umgerechnet.
  */
 export function isHistoricalPriceSeriesCompatible(dbTicker: string, nativeCurrency: string): boolean {
-  return getHistoricalPriceCurrency(dbTicker, nativeCurrency) === nativeCurrency;
+  const quoteCurrency = getHistoricalPriceCurrency(dbTicker, nativeCurrency);
+  // GBp and GBP denote the same London market currency at different quote
+  // scales.  The price values still require GBpCHF, but the listing identity is
+  // native and therefore remains eligible for risk analysis.
+  return quoteCurrency === nativeCurrency
+    || (quoteCurrency === 'GBp' && nativeCurrency.toUpperCase() === 'GBP');
 }
 
 /**

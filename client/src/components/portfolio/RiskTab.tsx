@@ -239,7 +239,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
       value: annualizedReturn === null ? "—" : `${annualizedReturn >= 0 ? "+" : ""}${annualizedReturn.toFixed(1)}%`,
       sub: riskRequestFailed ? "Risikodaten nicht verfügbar" : annualizedReturn === null ? "5J-Gate erforderlich" : "Kurs + reinvestierte Dividenden",
       tone: annualizedReturn !== null && annualizedReturn > 0 ? "good" : annualizedReturn !== null ? "bad" : "neutral",
-      tooltip: "Geometrisch annualisierte CHF-Brutto-Gesamtrendite der exakt gleichen qualifizierten Fünfjahres-Allokationsreihe wie Sharpe, Volatilität und Max.-Drawdown. Anbieter-adjusted close enthält reinvestierte Dividenden und Splits; keine tatsächliche Depotperformance vor Portfolio-Start.",
+      tooltip: "Geometrisch annualisierte CHF-Brutto-Gesamtrendite der exakt gleichen qualifizierten Fünfjahres-Allokationsreihe wie Sharpe, Volatilität und Max.-Drawdown. Vorrangig Provider-adjusted close; bei belegter materieller Abweichung rekonstruiert aus datierten Cash-Dividenden und Rohschlüssen. Keine tatsächliche Depotperformance vor Portfolio-Start.",
     },
     {
       label: "Volatilität (5J p.a.)",

@@ -63,6 +63,16 @@ describe("selectRiskHistorySeries", () => {
     })).toMatchObject({ source: "eodhd_primary", currency: "CHF", rows });
   });
 
+  it("keeps the native LSE listing but exposes its GBp quote unit for historical FX conversion", () => {
+    expect(selectRiskHistorySeries({
+      ticker: "MNG.L",
+      nativeCurrency: "GBP",
+      isin: null,
+      eodhdRows: rows,
+      secondaryRows: [],
+    })).toMatchObject({ source: "eodhd_primary", currency: "GBp", rows });
+  });
+
   it("uses a native secondary series instead of an incompatible ADR proxy", () => {
     expect(selectRiskHistorySeries({
       ticker: "D05.SI",

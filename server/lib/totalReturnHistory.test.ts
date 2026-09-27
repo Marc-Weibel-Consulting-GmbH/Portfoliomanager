@@ -10,6 +10,7 @@ describe("selectTotalReturnHistorySeries", () => {
         { date: "2021-09-27", adjustedClose: 90 },
         { date: "2026-09-25", adjustedClose: 120 },
       ],
+      eodhdEventRows: [],
       nativeRows: [
         { date: "2021-09-27", adjustedClose: 99 },
       ],
@@ -32,6 +33,7 @@ describe("selectTotalReturnHistorySeries", () => {
       eodhdRows: [
         { date: "2021-09-27", adjustedClose: 90 },
       ],
+      eodhdEventRows: [],
       nativeRows: [
         { date: "2021-09-27", adjustedClose: 70 },
         { date: "2026-09-25", adjustedClose: 120 },
@@ -53,6 +55,7 @@ describe("selectTotalReturnHistorySeries", () => {
       priceSource: "eodhd_primary",
       nativeCurrency: "USD",
       eodhdRows: [],
+      eodhdEventRows: [],
       nativeRows: [{ date: "2021-09-27", adjustedClose: 100 }],
     });
 
@@ -69,6 +72,7 @@ describe("selectTotalReturnHistorySeries", () => {
       priceSource: "yahoo_primary_equivalent",
       nativeCurrency: "SEK",
       eodhdRows: [],
+      eodhdEventRows: [],
       nativeRows: [
         { date: "2026-09-25", adjustedClose: 120 },
         { date: "2021-09-27", adjustedClose: 70 },
@@ -82,5 +86,25 @@ describe("selectTotalReturnHistorySeries", () => {
       { date: "2021-09-27", adjustedClose: 71 },
       { date: "2026-09-25", adjustedClose: 120 },
     ]);
+  });
+
+  it("prefers a validated cash-event reconstruction over a materially divergent provider adjusted series", () => {
+    const selection = selectTotalReturnHistorySeries({
+      priceSource: "eodhd_primary",
+      nativeCurrency: "GBp",
+      eodhdRows: [
+        { date: "2021-09-27", adjustedClose: 199.4 },
+        { date: "2026-09-25", adjustedClose: 326.7 },
+      ],
+      eodhdEventRows: [
+        { date: "2021-09-27", adjustedClose: 199.4 },
+        { date: "2026-09-25", adjustedClose: 440.0 },
+      ],
+      nativeRows: [],
+    });
+
+    expect(selection.source).toBe("eodhd_events_total_return");
+    expect(selection.currency).toBe("GBp");
+    expect(selection.rows.at(-1)?.adjustedClose).toBe(440.0);
   });
 });

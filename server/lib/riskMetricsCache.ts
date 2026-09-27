@@ -37,6 +37,15 @@ export function invalidateCachedRiskMetricsForUser(userId: number): void {
   }
 }
 
+/**
+ * Historical price and total-return snapshots are shared source data and do
+ * not carry a user id.  Any verified change therefore invalidates the tiny
+ * process-local cache globally; the next request rebuilds an exact series.
+ */
+export function invalidateAllCachedRiskMetrics(): void {
+  entries.clear();
+}
+
 /** Test-only reset. */
 export function __resetRiskMetricsCache(): void {
   entries.clear();

@@ -6,7 +6,7 @@ export type TotalReturnPriceRow = {
 };
 
 export type TotalReturnHistorySelection = {
-  source: "eodhd_adjusted" | "yahoo_adjusted" | "unavailable";
+  source: "eodhd_adjusted" | "eodhd_events_total_return" | "yahoo_adjusted" | "unavailable";
   currency: string | null;
   rows: TotalReturnPriceRow[];
   reason?: "missing_adjusted_history";
@@ -32,10 +32,20 @@ export function selectTotalReturnHistorySeries(input: {
   priceSource: RiskHistorySelection["source"];
   nativeCurrency: string;
   eodhdRows: TotalReturnPriceRow[];
+  eodhdEventRows: TotalReturnPriceRow[];
   nativeRows: TotalReturnPriceRow[];
 }): TotalReturnHistorySelection {
-  const currency = String(input.nativeCurrency || "").trim().toUpperCase() || null;
+  const requestedCurrency = String(input.nativeCurrency || "").trim();
+  // GBp is a quote unit rather than a separate economic currency. Do not
+  // uppercase it to GBP: downstream historical FX must divide GBPCHF by 100.
+  const currency = requestedCurrency === "GBp"
+    ? "GBp"
+    : requestedCurrency.toUpperCase() || null;
   if (input.priceSource === "eodhd_primary") {
+    const eventRows = normaliseRows(input.eodhdEventRows);
+    if (eventRows.length > 0) {
+      return { source: "eodhd_events_total_return", currency, rows: eventRows };
+    }
     const rows = normaliseRows(input.eodhdRows);
     return rows.length > 0
       ? { source: "eodhd_adjusted", currency, rows }

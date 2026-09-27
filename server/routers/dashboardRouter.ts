@@ -2103,9 +2103,15 @@ export const dashboardRouter = router({
         }
         const totalReturnSelection = selectTotalReturnHistorySeries({
           priceSource: selection.source,
-          nativeCurrency,
+          // The value is the selected quote currency: MNG.L is a GBP economic
+          // line but its historical closes are in GBp, so its adjusted snapshot
+          // must be read and converted as GBp too.
+          nativeCurrency: selection.currency ?? nativeCurrency,
           eodhdRows: totalReturnPricesResult
-            .filter((row) => row.ticker === ticker && row.source === "eodhd_adjusted" && String(row.currency).toUpperCase() === nativeCurrency)
+            .filter((row) => row.ticker === ticker && row.source === "eodhd_adjusted" && String(row.currency).toUpperCase() === (selection.currency ?? nativeCurrency).toUpperCase())
+            .map((row) => ({ date: String(row.date).slice(0, 10), adjustedClose: parseFloat(row.adjustedClose) })),
+          eodhdEventRows: totalReturnPricesResult
+            .filter((row) => row.ticker === ticker && row.source === "eodhd_events_total_return" && String(row.currency).toUpperCase() === (selection.currency ?? nativeCurrency).toUpperCase())
             .map((row) => ({ date: String(row.date).slice(0, 10), adjustedClose: parseFloat(row.adjustedClose) })),
           nativeRows: totalReturnPricesResult
             .filter((row) => row.ticker === ticker && row.source === "yahoo_adjusted" && source && row.sourceSymbol === source.sourceSymbol && String(row.currency).toUpperCase() === source.sourceCurrency)

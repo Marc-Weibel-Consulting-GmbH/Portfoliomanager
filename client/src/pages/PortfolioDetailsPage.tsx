@@ -2039,7 +2039,7 @@ export default function PortfolioDetailsPage() {
           {/* Total return and risk statistics share one dividend-adjusted 5Y basis. */}
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Geometrische annualisierte CHF-Brutto-Gesamtrendite derselben qualifizierten Fünfjahres-Allokationsreihe wie Sharpe, Volatilität und Drawdown. Anbieter-adjusted close berücksichtigt ausgeschüttete Dividenden und Splits; Dividenden werden rechnerisch reinvestiert. Keine tatsächliche Depotperformance vor Portfolio-Start.">RENDITE · TOTAL P.A. (5J)</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Geometrische annualisierte CHF-Brutto-Gesamtrendite derselben qualifizierten Fünfjahres-Allokationsreihe wie Sharpe, Volatilität und Drawdown. Vorrangig nutzt sie Provider-adjusted close (Dividenden und Splits); bei einer belegten materiellen Abweichung wird sie aus datierten Cash-Dividenden und Rohschlüssen rekonstruiert. Dividenden werden rechnerisch reinvestiert. Keine tatsächliche Depotperformance vor Portfolio-Start.">RENDITE · TOTAL P.A. (5J)</p>
             <p className={`${riskHeader.status === 'loading' ? 'text-lg' : 'text-2xl'} font-bold font-mono ${riskMetrics?.annualizedReturn != null && riskMetrics.annualizedReturn < 0 ? 'text-negative' : 'text-white'}`}>
               {riskHeader.annualReturn.value}
             </p>

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   __resetRiskMetricsCache,
   getCachedRiskMetrics,
+  invalidateAllCachedRiskMetrics,
   invalidateCachedRiskMetricsForUser,
   setCachedRiskMetrics,
 } from "./riskMetricsCache";
@@ -35,5 +36,15 @@ describe("riskMetricsCache", () => {
 
     expect(getCachedRiskMetrics("risk:42:portfolio-7:2026-09-25:revision")).toBeNull();
     expect(getCachedRiskMetrics("risk:84:portfolio-7:2026-09-25:revision")).toEqual({ sharpeRatio: 2 });
+  });
+
+  it("clears all cached risk results after an underlying historical snapshot changes", () => {
+    setCachedRiskMetrics("risk:42:portfolio-7:2026-09-25:revision", { sharpeRatio: 1 }, 60_000);
+    setCachedRiskMetrics("risk:84:portfolio-8:2026-09-25:revision", { sharpeRatio: 2 }, 60_000);
+
+    invalidateAllCachedRiskMetrics();
+
+    expect(getCachedRiskMetrics("risk:42:portfolio-7:2026-09-25:revision")).toBeNull();
+    expect(getCachedRiskMetrics("risk:84:portfolio-8:2026-09-25:revision")).toBeNull();
   });
 });

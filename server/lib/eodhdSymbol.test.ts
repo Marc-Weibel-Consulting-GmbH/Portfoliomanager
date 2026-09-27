@@ -44,4 +44,9 @@ describe("toEodhdSymbol", () => {
     expect(getHistoricalPriceCurrency("D05.SI", "SGD")).toBe("USD");
     expect(isHistoricalPriceSeriesCompatible("D05.SI", "SGD")).toBe(false);
   });
+
+  it("behält für eine native LSE-Linie die Pence-Kursnotierung bei", () => {
+    expect(getHistoricalPriceCurrency("MNG.L", "GBP")).toBe("GBp");
+    expect(isHistoricalPriceSeriesCompatible("MNG.L", "GBP")).toBe(true);
+  });
 });

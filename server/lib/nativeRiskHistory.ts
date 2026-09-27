@@ -1,4 +1,4 @@
-import { isHistoricalPriceSeriesCompatible } from "./eodhdSymbol";
+import { getHistoricalPriceCurrency, isHistoricalPriceSeriesCompatible } from "./eodhdSymbol";
 
 /**
  * A single native daily close. These rows are intentionally separate from the
@@ -141,7 +141,10 @@ export function selectRiskHistorySeries(input: {
   if (isHistoricalPriceSeriesCompatible(ticker, nativeCurrency) && eodhdRows.length > 0) {
     return {
       source: "eodhd_primary",
-      currency: nativeCurrency,
+      // The economic currency of a London line is GBP, but its EOD price is
+      // quoted in GBp.  Preserve the quote unit so downstream CHF conversion
+      // applies GBPCHF / 100 rather than treating a pence price as a pound.
+      currency: getHistoricalPriceCurrency(ticker, nativeCurrency),
       sourceSymbol: ticker,
       sourceLabel: "EODHD native listing",
       identity: "same_listing",

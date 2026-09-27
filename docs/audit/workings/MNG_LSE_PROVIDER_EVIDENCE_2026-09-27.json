@@ -1,0 +1,98 @@
+{
+  "retrievedAt": "2026-09-27T12:31:09.689Z",
+  "instrument": "MNG.LSE — M&G plc primary London Stock Exchange line",
+  "eodhdEndpoints": [
+    "/eod/MNG.LSE",
+    "/div/MNG.LSE"
+  ],
+  "eodRows": 1267,
+  "sampleEodRows": [
+    {
+      "date": "2021-09-20",
+      "close": 199.4,
+      "adjusted_close": 199.4
+    },
+    {
+      "date": "2026-09-25",
+      "close": 326.7,
+      "adjusted_close": 326.7
+    }
+  ],
+  "dividendEvents": [
+    {
+      "date": "2022-03-17",
+      "period": "Final",
+      "value": 0.122,
+      "unadjustedValue": 0.122,
+      "currency": "GBP"
+    },
+    {
+      "date": "2022-08-18",
+      "period": "Interim",
+      "value": 0.062,
+      "unadjustedValue": 0.062,
+      "currency": "GBP"
+    },
+    {
+      "date": "2023-03-16",
+      "period": "Final",
+      "value": 0.134,
+      "unadjustedValue": 0.134,
+      "currency": "GBP"
+    },
+    {
+      "date": "2023-09-28",
+      "period": "Interim",
+      "value": 0.065,
+      "unadjustedValue": 0.065,
+      "currency": "GBP"
+    },
+    {
+      "date": "2024-03-28",
+      "period": "Final",
+      "value": 0.132,
+      "unadjustedValue": 0.132,
+      "currency": "GBP"
+    },
+    {
+      "date": "2024-09-12",
+      "period": "Interim",
+      "value": 0.066,
+      "unadjustedValue": 0.066,
+      "currency": "GBP"
+    },
+    {
+      "date": "2025-03-27",
+      "period": "Interim",
+      "value": 0.135,
+      "unadjustedValue": 0.135,
+      "currency": "GBP"
+    },
+    {
+      "date": "2025-09-11",
+      "period": "Interim",
+      "value": 0.067,
+      "unadjustedValue": 0.067,
+      "currency": "GBP"
+    },
+    {
+      "date": "2026-03-19",
+      "period": "Interim",
+      "value": 0.138,
+      "unadjustedValue": 0.138,
+      "currency": "GBP"
+    },
+    {
+      "date": "2026-09-10",
+      "period": "Interim",
+      "value": 0.068,
+      "unadjustedValue": 0.068,
+      "currency": "GBP"
+    }
+  ],
+  "notes": [
+    "EODHD documents its LSE EOD close in GBp (pence), not GBP.",
+    "EODHD documents adjusted_close as split- and dividend-adjusted.",
+    "Risk series must therefore use GBpCHF, which fxHelper converts via GBPCHF / 100."
+  ]
+}

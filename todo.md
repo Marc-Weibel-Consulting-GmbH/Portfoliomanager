@@ -1007,3 +1007,9 @@
 - [x] Sharpe, Volatilität, VaR, Beta und Max.-Drawdown auf die Total-Return-Basis mit Gesamtrendite-Benchmark vereinheitlicht.
 - [x] Testportfolio 5160001 kontrolliert angereichert: 26/26 Reihen, 32’800 Snapshotzeilen; live geprüft (Kurs +4,9 % p.a., Brutto-Gesamtrendite +6,4 % p.a., Sharpe 0,33).
 - [x] Snapshotaktualisierung ist bei Einzeltitel-Historienimport/Backfill integriert; der Tagesimport aktualisiert nur gespeicherte Portfolio-Positionen, wenn ihr Snapshot mindestens 24 Stunden alt ist.
+
+- [x] Plausibilitätsnachprüfung nach Nutzerhinweis: Die zuvor nur rund 1,5 Prozentpunkte hohe Differenz war nicht plausibel gegen die 3,60 % aktuelle Portfoliodividendenrendite.
+- [x] Zwei Ursachen belegt und korrigiert: MNG.L LSE-Quoteinheit `GBp` blieb im Total-Return-Pfad fälschlich als `GBP` erhalten; zusätzlich enthielt die EODHD-adjusted-close-Reihe für MNG trotz zehn Cash-Dividendenereignissen keine Dividendenanpassung.
+- [x] Cash-Event-Rekonstruktion nur bei mindestens 50 bp Providerabweichung umgesetzt; Dividendenevents werden in der Handelsquote reinvestiert (GBP→GBp ohne FX-Schätzung). Rohkurse bleiben unverändert.
+- [x] Risikocache wird nach jeder Snapshotaktualisierung global invalidiert, damit kein bis zu fünf Minuten alter Sharpe-/Gesamtrenditewert sichtbar bleibt.
+- [x] Live am Testportfolio geprüft: Kurs +3,4 % p.a., Brutto-Gesamtrendite +7,4 % p.a. (Differenz +4,0 PP), Volatilität 10,4 %, Sharpe 0,52, Max.-Drawdown −17,1 %, 1’302 Beobachtungen.
