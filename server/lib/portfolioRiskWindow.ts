@@ -15,6 +15,8 @@ export type RiskWindowStatus =
 export type RiskCoverageItem = {
   key: string;
   kind: "price" | "fx";
+  /** Bei ADR-/Auslandsproxies verhindert die Instrument- oder Währungsbasis eine CHF-Risikoreihe. */
+  reason?: "incompatible_price_basis";
   supportsWindowStart: boolean;
   supportsWindowEnd: boolean;
 };
@@ -118,6 +120,7 @@ export function assessPortfolioRiskWindow(input: PortfolioRiskWindowInput): Port
   const historyEnd = dates.at(-1) ?? null;
   const coverageIssues = input.coverage.filter((item) => !item.supportsWindowStart || !item.supportsWindowEnd);
   const hasFxCoverageIssue = coverageIssues.some((item) => item.kind === "fx");
+  const hasIncompatiblePriceBasis = coverageIssues.some((item) => item.reason === "incompatible_price_basis");
   const hasPriceCoverageIssue = coverageIssues.some((item) => item.kind === "price");
   const hasFiveCalendarYears = Boolean(
     historyStart
@@ -146,7 +149,7 @@ export function assessPortfolioRiskWindow(input: PortfolioRiskWindowInput): Port
   };
 
   let status: RiskWindowStatus;
-  if (hasFxCoverageIssue) {
+  if (hasFxCoverageIssue || hasIncompatiblePriceBasis) {
     status = "incompatible_history";
   } else if (hasPriceCoverageIssue || !hasFiveCalendarYears || !hasMinimumObservations) {
     status = "insufficient_history";

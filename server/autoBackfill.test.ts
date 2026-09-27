@@ -9,15 +9,11 @@ vi.mock('./db', () => ({
   }),
 }));
 
-// Mock the backfillHistoricalPrices module
-vi.mock('./backfillHistoricalPrices', () => ({
-  backfillHistoricalPrices: vi.fn().mockResolvedValue({
+// Mock the additive historical import module
+vi.mock('./jobs/importHistoricalPrices', () => ({
+  importHistoricalPricesForTicker: vi.fn().mockResolvedValue({
     success: true,
-    tickersProcessed: 1,
-    pricesInserted: 1250,
-    pricesUpdated: 0,
-    missingTickers: [],
-    errors: [],
+    pricesImported: 1250,
   }),
 }));
 
@@ -34,10 +30,11 @@ import {
   autoBackfillNewSymbols,
   getBackfillQueueStatus,
   clearBackfillCache,
+  requiresFiveYearRiskBackfill,
   BackfillStatus,
   AutoBackfillResult,
 } from './autoBackfill';
-import { backfillHistoricalPrices } from './backfillHistoricalPrices';
+import { importHistoricalPricesForTicker } from './jobs/importHistoricalPrices';
 
 describe('Auto-Backfill Module', () => {
   beforeEach(() => {
@@ -64,6 +61,24 @@ describe('Auto-Backfill Module', () => {
       
       expect(status.ticker).toBe('AAPL.US');
     });
+
+    it('marks a two-year series as incomplete even when it has more than 100 rows', () => {
+      expect(requiresFiveYearRiskBackfill({
+        dataPoints: 551,
+        minDate: '2024-07-12',
+        maxDate: '2026-09-22',
+        asOf: '2026-09-27',
+      })).toBe(true);
+    });
+
+    it('accepts only a current, complete five-year series for a risk-ready symbol', () => {
+      expect(requiresFiveYearRiskBackfill({
+        dataPoints: 1_260,
+        minDate: '2021-09-20',
+        maxDate: '2026-09-25',
+        asOf: '2026-09-27',
+      })).toBe(false);
+    });
   });
 
   describe('triggerMaxBackfillForSymbol', () => {
@@ -75,7 +90,7 @@ describe('Auto-Backfill Module', () => {
       expect(result.success).toBe(true);
       expect(result.pricesInserted).toBe(1250);
       expect(result.duration).toBeGreaterThanOrEqual(0); // duration can be 0ms with mocked backfill
-      expect(backfillHistoricalPrices).toHaveBeenCalled();
+      expect(importHistoricalPricesForTicker).toHaveBeenCalled();
     });
 
     it('should not trigger duplicate backfill for same symbol', async () => {
@@ -98,7 +113,7 @@ describe('Auto-Backfill Module', () => {
       const result = await triggerMaxBackfillForSymbol('ROG.SW', true);
       
       expect(result.success).toBe(true);
-      expect(backfillHistoricalPrices).toHaveBeenCalledTimes(2);
+      expect(importHistoricalPricesForTicker).toHaveBeenCalledTimes(2);
     });
   });
 

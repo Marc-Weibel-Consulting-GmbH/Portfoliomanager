@@ -7,6 +7,7 @@ describe("getPortfolioPdfKpiKeys", () => {
       "current_value",
       "absolute_gain",
       "ttwror",
+      "annualized_risk_return",
       "dividend_yield",
       "sharpe",
       "volatility",

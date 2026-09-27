@@ -983,3 +983,13 @@
 - [x] Manuelle 5J-Historienladung aktualisiert Timing und Signal unmittelbar; Watchlistaktion bleibt separat.
 - [x] KI-Briefing auf Manus Standard-KI vereinheitlicht; ONON live erfolgreich erzeugt.
 - [x] Vollständige Regression, finaler Diff-Check und Checkpoint.
+
+
+## Portfolio 5160001 – 5J-Risiko und Jahreskennzahlen (27.09.2026)
+
+- [x] Ursache belegt: Auto-Backfill behandelte bisher 100 Beobachtungen als ausreichend; DINO, MO, PM und O verfügten dadurch nur über rund zwei Jahre Historie.
+- [x] Additive EODHD-Nachladung ausgeführt: vier Reihen jetzt jeweils 1’260 Beobachtungen (20.09.2021–25.09.2026); keine bestehenden Kurs- oder adjusted-close-Werte überschrieben.
+- [x] Auto-Backfill auf vollständiges 5J-Gate (mind. 1’000 Beobachtungen, Start-/Endabdeckung) und additiven Speicherpfad korrigiert.
+- [x] Rendite p.a. (5J) und Volatilität p.a. (5J) auf identischer CHF-Allokationsproxy-Basis wie Sharpe und Drawdown in UI/Export ergänzt.
+- [x] Vier verifizierte Proxy-Inkompatibilitäten transparent ausgewiesen: 6856.T, D05.SI, SE0007491303.SG und SRG.MI. Keine Schein-Umrechnung und keine Portfolioänderung.
+- [x] Portfolio-Builder sperrt künftig ADR-/Auslandsproxies ohne kompatible historische Preisbasis.

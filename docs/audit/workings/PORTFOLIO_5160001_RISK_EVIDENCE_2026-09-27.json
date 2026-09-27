@@ -1,0 +1,543 @@
+{
+  "retrievedAt": "2026-09-27T06:04:25.218Z",
+  "portfolio": {
+    "id": 5160001,
+    "name": "Test",
+    "createdAt": "2026-09-27T05:54:48.000Z",
+    "isLive": 0,
+    "positionCount": 26
+  },
+  "riskWindow": {
+    "requestedStart": "2021-09-27",
+    "asOf": "2026-09-27",
+    "minObservations": 1000
+  },
+  "positions": [
+    {
+      "ticker": "LOGN.SW",
+      "canonicalHistoricalKey": "LOGN.SW",
+      "nativeCurrency": "CHF",
+      "historicalPriceCurrency": "CHF",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "LOGN.SW",
+        "observations": 1261,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-24"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "LOGN.SW",
+        "observations": 1261,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-24"
+      }
+    },
+    {
+      "ticker": "PST.MI",
+      "canonicalHistoricalKey": "7PI.F",
+      "nativeCurrency": "EUR",
+      "historicalPriceCurrency": "EUR",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "PST.MI",
+        "observations": 1280,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "7PI.F",
+        "observations": 0,
+        "firstDate": null,
+        "lastDate": null
+      }
+    },
+    {
+      "ticker": "RO.SW",
+      "canonicalHistoricalKey": "RO.SW",
+      "nativeCurrency": "CHF",
+      "historicalPriceCurrency": "CHF",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "RO.SW",
+        "observations": 1262,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "RO.SW",
+        "observations": 1262,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      }
+    },
+    {
+      "ticker": "DINO",
+      "canonicalHistoricalKey": "DINO",
+      "nativeCurrency": "USD",
+      "historicalPriceCurrency": "USD",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "DINO",
+        "observations": 540,
+        "firstDate": "2024-07-29",
+        "lastDate": "2026-09-22"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "DINO",
+        "observations": 540,
+        "firstDate": "2024-07-29",
+        "lastDate": "2026-09-22"
+      }
+    },
+    {
+      "ticker": "6856.T",
+      "canonicalHistoricalKey": "01H.F",
+      "nativeCurrency": "JPY",
+      "historicalPriceCurrency": "EUR",
+      "historicalSeriesCompatibleWithNativePosition": false,
+      "rawTickerSeries": {
+        "ticker": "6856.T",
+        "observations": 1276,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-21"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "01H.F",
+        "observations": 0,
+        "firstDate": null,
+        "lastDate": null
+      }
+    },
+    {
+      "ticker": "SIKA.SW",
+      "canonicalHistoricalKey": "SIKA.SW",
+      "nativeCurrency": "CHF",
+      "historicalPriceCurrency": "CHF",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "SIKA.SW",
+        "observations": 1260,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-23"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "SIKA.SW",
+        "observations": 1260,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-23"
+      }
+    },
+    {
+      "ticker": "KAP.IL",
+      "canonicalHistoricalKey": "KAP.IL",
+      "nativeCurrency": "USD",
+      "historicalPriceCurrency": "USD",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "KAP.IL",
+        "observations": 1266,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-24"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "KAP.IL",
+        "observations": 1266,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-24"
+      }
+    },
+    {
+      "ticker": "ZURN.SW",
+      "canonicalHistoricalKey": "ZURN.SW",
+      "nativeCurrency": "CHF",
+      "historicalPriceCurrency": "CHF",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "ZURN.SW",
+        "observations": 1262,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "ZURN.SW",
+        "observations": 1262,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      }
+    },
+    {
+      "ticker": "D05.SI",
+      "canonicalHistoricalKey": "DBSDY.US",
+      "nativeCurrency": "SGD",
+      "historicalPriceCurrency": "USD",
+      "historicalSeriesCompatibleWithNativePosition": false,
+      "rawTickerSeries": {
+        "ticker": "D05.SI",
+        "observations": 1255,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-21"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "DBSDY.US",
+        "observations": 0,
+        "firstDate": null,
+        "lastDate": null
+      }
+    },
+    {
+      "ticker": "SE0007491303.SG",
+      "canonicalHistoricalKey": "BRAV.ST",
+      "nativeCurrency": "EUR",
+      "historicalPriceCurrency": "SEK",
+      "historicalSeriesCompatibleWithNativePosition": false,
+      "rawTickerSeries": {
+        "ticker": "SE0007491303.SG",
+        "observations": 1259,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-22"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "BRAV.ST",
+        "observations": 0,
+        "firstDate": null,
+        "lastDate": null
+      }
+    },
+    {
+      "ticker": "NOVN.SW",
+      "canonicalHistoricalKey": "NOVN.SW",
+      "nativeCurrency": "CHF",
+      "historicalPriceCurrency": "CHF",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "NOVN.SW",
+        "observations": 1260,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-23"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "NOVN.SW",
+        "observations": 1260,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-23"
+      }
+    },
+    {
+      "ticker": "BION.SW",
+      "canonicalHistoricalKey": "BION.SW",
+      "nativeCurrency": "CHF",
+      "historicalPriceCurrency": "CHF",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "BION.SW",
+        "observations": 1262,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "BION.SW",
+        "observations": 1262,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      }
+    },
+    {
+      "ticker": "SRG.MI",
+      "canonicalHistoricalKey": "SNMRF.US",
+      "nativeCurrency": "EUR",
+      "historicalPriceCurrency": "USD",
+      "historicalSeriesCompatibleWithNativePosition": false,
+      "rawTickerSeries": {
+        "ticker": "SRG.MI",
+        "observations": 199,
+        "firstDate": "2021-10-04",
+        "lastDate": "2026-09-21"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "SNMRF.US",
+        "observations": 0,
+        "firstDate": null,
+        "lastDate": null
+      }
+    },
+    {
+      "ticker": "CHDVD.SW",
+      "canonicalHistoricalKey": "CHDVD.SW",
+      "nativeCurrency": "CHF",
+      "historicalPriceCurrency": "CHF",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "CHDVD.SW",
+        "observations": 1262,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "CHDVD.SW",
+        "observations": 1262,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      }
+    },
+    {
+      "ticker": "PSK.TO",
+      "canonicalHistoricalKey": "PSK.TO",
+      "nativeCurrency": "CAD",
+      "historicalPriceCurrency": "CAD",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "PSK.TO",
+        "observations": 1257,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-22"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "PSK.TO",
+        "observations": 1257,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-22"
+      }
+    },
+    {
+      "ticker": "OFN.SW",
+      "canonicalHistoricalKey": "OFN.SW",
+      "nativeCurrency": "CHF",
+      "historicalPriceCurrency": "CHF",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "OFN.SW",
+        "observations": 1262,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "OFN.SW",
+        "observations": 1262,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      }
+    },
+    {
+      "ticker": "BAER.SW",
+      "canonicalHistoricalKey": "BAER.SW",
+      "nativeCurrency": "CHF",
+      "historicalPriceCurrency": "CHF",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "BAER.SW",
+        "observations": 1261,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-24"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "BAER.SW",
+        "observations": 1261,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-24"
+      }
+    },
+    {
+      "ticker": "SCMN.SW",
+      "canonicalHistoricalKey": "SCMN.SW",
+      "nativeCurrency": "CHF",
+      "historicalPriceCurrency": "CHF",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "SCMN.SW",
+        "observations": 1262,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "SCMN.SW",
+        "observations": 1262,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-25"
+      }
+    },
+    {
+      "ticker": "BTI",
+      "canonicalHistoricalKey": "BTI",
+      "nativeCurrency": "USD",
+      "historicalPriceCurrency": "USD",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "BTI",
+        "observations": 1256,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-21"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "BTI",
+        "observations": 1256,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-21"
+      }
+    },
+    {
+      "ticker": "MO",
+      "canonicalHistoricalKey": "MO",
+      "nativeCurrency": "USD",
+      "historicalPriceCurrency": "USD",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "MO",
+        "observations": 551,
+        "firstDate": "2024-07-12",
+        "lastDate": "2026-09-22"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "MO",
+        "observations": 551,
+        "firstDate": "2024-07-12",
+        "lastDate": "2026-09-22"
+      }
+    },
+    {
+      "ticker": "BRKN.SW",
+      "canonicalHistoricalKey": "BRKN.SW",
+      "nativeCurrency": "CHF",
+      "historicalPriceCurrency": "CHF",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "BRKN.SW",
+        "observations": 1258,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-21"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "BRKN.SW",
+        "observations": 1258,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-21"
+      }
+    },
+    {
+      "ticker": "PM",
+      "canonicalHistoricalKey": "PM",
+      "nativeCurrency": "USD",
+      "historicalPriceCurrency": "USD",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "PM",
+        "observations": 551,
+        "firstDate": "2024-07-12",
+        "lastDate": "2026-09-22"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "PM",
+        "observations": 551,
+        "firstDate": "2024-07-12",
+        "lastDate": "2026-09-22"
+      }
+    },
+    {
+      "ticker": "SGY.TO",
+      "canonicalHistoricalKey": "SGY.TO",
+      "nativeCurrency": "CAD",
+      "historicalPriceCurrency": "CAD",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "SGY.TO",
+        "observations": 1257,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-22"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "SGY.TO",
+        "observations": 1257,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-22"
+      }
+    },
+    {
+      "ticker": "EEM.US",
+      "canonicalHistoricalKey": "EEM.US",
+      "nativeCurrency": "USD",
+      "historicalPriceCurrency": "USD",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "EEM.US",
+        "observations": 1257,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-22"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "EEM.US",
+        "observations": 1257,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-22"
+      }
+    },
+    {
+      "ticker": "MNG.L",
+      "canonicalHistoricalKey": "MNG.LSE",
+      "nativeCurrency": "GBp",
+      "historicalPriceCurrency": "GBp",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "MNG.L",
+        "observations": 1265,
+        "firstDate": "2021-09-20",
+        "lastDate": "2026-09-23"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "MNG.LSE",
+        "observations": 0,
+        "firstDate": null,
+        "lastDate": null
+      }
+    },
+    {
+      "ticker": "O",
+      "canonicalHistoricalKey": "O",
+      "nativeCurrency": "USD",
+      "historicalPriceCurrency": "USD",
+      "historicalSeriesCompatibleWithNativePosition": true,
+      "rawTickerSeries": {
+        "ticker": "O",
+        "observations": 551,
+        "firstDate": "2024-07-12",
+        "lastDate": "2026-09-22"
+      },
+      "canonicalTickerSeries": {
+        "ticker": "O",
+        "observations": 551,
+        "firstDate": "2024-07-12",
+        "lastDate": "2026-09-22"
+      }
+    }
+  ],
+  "fxCoverage": [
+    {
+      "currency": "EUR",
+      "startRateExists": true,
+      "endRateExists": true
+    },
+    {
+      "currency": "USD",
+      "startRateExists": true,
+      "endRateExists": true
+    },
+    {
+      "currency": "JPY",
+      "startRateExists": true,
+      "endRateExists": true
+    },
+    {
+      "currency": "SGD",
+      "startRateExists": true,
+      "endRateExists": true
+    },
+    {
+      "currency": "CAD",
+      "startRateExists": true,
+      "endRateExists": true
+    },
+    {
+      "currency": "GBp",
+      "startRateExists": true,
+      "endRateExists": true
+    }
+  ]
+}

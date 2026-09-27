@@ -1925,8 +1925,8 @@ export default function PortfolioDetailsPage() {
           </div>
         )}
         
-        {/* KPI Row — WERT | YTD | SEIT KAUF | (SHARPE nur detailliert) | DIV. RENDITE */}
-        <div className={`grid grid-cols-2 gap-0 border border-white/10 rounded-lg overflow-hidden ${detailed ? "lg:grid-cols-6" : "lg:grid-cols-4"}`}>
+        {/* KPI Row — WERT | YTD | SEIT KAUF | 5J-Proxy-Kennzahlen | DIV. RENDITE */}
+        <div className={`grid grid-cols-2 gap-0 border border-white/10 rounded-lg overflow-hidden ${detailed ? "lg:grid-cols-4 xl:grid-cols-8" : "lg:grid-cols-4"}`}>
           {/* WERT */}
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2">WERT</p>
@@ -2024,6 +2024,30 @@ export default function PortfolioDetailsPage() {
           </div>
 
           {/* SHARPE — fortgeschrittene Kennzahl, nur in «detailliert» */}
+          {detailed && (
+          <div className="bg-[#0f1420] p-5 border-r border-white/10">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Geometrische annualisierte CHF-Rendite derselben qualifizierten Fünfjahres-Allokationsreihe wie Sharpe, Volatilität und Drawdown. Keine tatsächliche Depotperformance vor Portfolio-Start.">RENDITE · P.A. (5J)</p>
+            <p className={`${riskHeader.status === 'loading' ? 'text-lg' : 'text-2xl'} font-bold font-mono ${riskMetrics?.annualizedReturn != null && riskMetrics.annualizedReturn < 0 ? 'text-negative' : 'text-white'}`}>
+              {riskHeader.annualReturn.value}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {riskHeader.annualReturn.sub}
+            </p>
+          </div>
+          )}
+
+          {detailed && (
+          <div className="bg-[#0f1420] p-5 border-r border-white/10">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Annualisierte Volatilität der täglichen CHF-Renditen derselben qualifizierten Fünfjahres-Allokationsreihe. Keine tatsächliche Depotvolatilität vor Portfolio-Start.">RISIKO · VOLATILITÄT (5J)</p>
+            <p className={`${riskHeader.status === 'loading' ? 'text-lg' : 'text-2xl'} font-bold font-mono text-white`}>
+              {riskHeader.volatility.value}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {riskHeader.volatility.sub}
+            </p>
+          </div>
+          )}
+
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Fünfjähriger Sharpe des historischen Allokationsproxys: annualisierte tägliche CHF-Rendite abzüglich 2 % risikofreiem Satz, dividiert durch die annualisierte Volatilität. Keine reale Depotperformance vor Portfolio-Start.">RISIKO · SHARPE (5J)</p>

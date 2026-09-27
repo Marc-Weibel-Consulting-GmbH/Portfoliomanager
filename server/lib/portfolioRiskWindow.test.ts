@@ -105,6 +105,30 @@ describe("assessPortfolioRiskWindow", () => {
     expect(assessment.canPublishMaxDrawdown).toBe(false);
   });
 
+  it("classifies an ADR or foreign-price proxy as incompatible instead of mixing it with the native holding", () => {
+    const assessment = assessPortfolioRiskWindow({
+      asOfDate: "2026-09-24",
+      qualifiedDates: fiveYearDates,
+      coverage: [
+        ...completeCoverage,
+        {
+          key: "D05.SI",
+          kind: "price",
+          reason: "incompatible_price_basis",
+          supportsWindowStart: false,
+          supportsWindowEnd: false,
+        },
+      ],
+      benchmark: { key: "SMI", points: [] },
+    });
+
+    expect(assessment.status).toBe("incompatible_history");
+    expect(assessment.coverageIssues).toContainEqual(expect.objectContaining({
+      key: "D05.SI",
+      reason: "incompatible_price_basis",
+    }));
+  });
+
   it("rejects a shortened observation count even when the endpoints span five calendar years", () => {
     const assessment = assessPortfolioRiskWindow({
       asOfDate: "2026-09-24",

@@ -170,6 +170,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
   const riskDetail = riskData as any;
   const hasValidatedFiveYearRisk = riskDetail?.riskWindowStatus === "five_year_with_stress";
   const numberOrNull = (value: unknown): number | null => typeof value === "number" && Number.isFinite(value) ? value : null;
+  const annualizedReturn = numberOrNull(riskData?.annualizedReturn);
   const volatility = numberOrNull(riskData?.volatility);
   const benchmarkVolatility = numberOrNull(riskData?.volBenchmark);
   const maxDrawdown = numberOrNull(riskData?.maxDrawdown);
@@ -178,7 +179,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
   const sharpeRatio = numberOrNull(riskData?.sharpeRatio);
   const benchmarkSharpe = numberOrNull(riskData?.sharpeBenchmark);
   const riskWindowStatus: string | null = typeof riskDetail?.riskWindowStatus === "string" ? riskDetail.riskWindowStatus : null;
-  const coverageIssues: Array<{ key: string; kind: "price" | "fx" }> = Array.isArray(riskDetail?.coverage?.issues)
+  const coverageIssues: Array<{ key: string; kind: "price" | "fx"; reason?: "incompatible_price_basis" }> = Array.isArray(riskDetail?.coverage?.issues)
     ? riskDetail.coverage.issues
     : [];
   const benchmarkOutlierCount = numberOrNull(riskDetail?.coverage?.benchmarkOutlierCount) ?? 0;
@@ -199,8 +200,8 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     ? `5 Jahre qualifizierte Historie inklusive Marktstress über ${stressEvidence?.benchmark ?? "Benchmark"}.`
     : riskWindowStatus === "five_year_without_stress"
       ? "Die Fünfjahresreihe enthält keine objektiv bestätigte Stressphase; deshalb wird kein Max.-Drawdown ausgewiesen."
-      : riskWindowStatus === "incompatible_history"
-        ? "Für mindestens eine Fremdwährungsposition fehlt eine kompatible historische FX-Reihe. Es wird keine CHF-Risikokennzahl geschätzt."
+    : riskWindowStatus === "incompatible_history"
+        ? "Für mindestens eine Position ist die historische Preis- oder FX-Basis nicht mit dem nativen Instrument vergleichbar. Es wird keine CHF-Risikokennzahl geschätzt."
         : riskWindowStatus === "insufficient_history"
           ? "Die vollständige Fünfjahresreihe ist noch nicht nachgewiesen. Es wird bewusst kein verkürzter Max.-Drawdown angezeigt."
           : "Für die Risikoberechnung liegt noch keine ausreichende Kurshistorie vor.";
@@ -215,6 +216,13 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     benchmark?: string;
     benchmarkTone?: "good" | "bad" | "neutral";
   }[] = [
+    {
+      label: "Rendite (5J p.a.)",
+      value: annualizedReturn === null ? "—" : `${annualizedReturn >= 0 ? "+" : ""}${annualizedReturn.toFixed(1)}%`,
+      sub: riskRequestFailed ? "Risikodaten nicht verfügbar" : annualizedReturn === null ? "5J-Gate erforderlich" : "Geometrische CHF-Rendite",
+      tone: annualizedReturn !== null && annualizedReturn > 0 ? "good" : annualizedReturn !== null ? "bad" : "neutral",
+      tooltip: "Geometrisch annualisierte CHF-Rendite der exakt gleichen qualifizierten Fünfjahres-Allokationsreihe wie Sharpe, Volatilität und Max.-Drawdown; keine tatsächliche Depotperformance vor Portfolio-Start.",
+    },
     {
       label: "Volatilität (5J p.a.)",
       value: volatility === null ? "—" : `${volatility.toFixed(1)}%`,
@@ -414,7 +422,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
           )}
           {!hasValidatedFiveYearRisk && coverageIssues.length > 0 && (
             <p className="mt-2 text-xs text-amber-200/90">
-              Fehlende Fünfjahresabdeckung: {coverageIssues.map((issue) => `${issue.key}${issue.kind === "fx" ? " (FX)" : ""}`).join(", ")}.
+              Fehlende Fünfjahresabdeckung: {coverageIssues.map((issue) => `${issue.key}${issue.reason === "incompatible_price_basis" ? " (Preis-/Instrumentbasis)" : issue.kind === "fx" ? " (FX)" : ""}`).join(", ")}.
             </p>
           )}
         </div>

@@ -331,6 +331,29 @@ export const startProposalProcedure = protectedProcedure
           if (ranked.length < rules.minTitles) { qualityTier = 'basis'; ranked = stableSort(allCandidates.filter((x) => x.signal !== 'SELL')); }
           if (qualityTier !== 'kaufkandidaten') notes.push(qualityTier === 'erweitert' ? 'Zu wenige klare Kaufkandidaten (Score ≥ 55) — die Auswahl enthält auch neutrale Titel mit Score ≥ 45.' : 'Sehr wenige geeignete Kandidaten — die Auswahl umfasst alle Titel ohne Verkaufssignal, unabhängig vom Score.');
 
+          // Ein Vorschlag darf keine lokale JPY-/SGD-/EUR-Position über eine
+          // anders lautende ADR- oder Auslandsproxyreihe einschleusen. Ohne
+          // dokumentierte Ratio wären sonst seine 5J-Rendite, Volatilität,
+          // Sharpe und Drawdown bewusst nicht prüfbar. Fehlende Historie wird
+          // separat additiv nachgeladen; eine inkompatible Preisbasis wird nie
+          // durch FX-Umrechnung als gleiches Instrument ausgegeben.
+          const { isHistoricalPriceSeriesCompatible } = await import('../lib/eodhdSymbol');
+          const riskEligibleRanked = ranked.filter((candidate: any) => {
+            const ticker = String(candidate.stock?.ticker ?? '').toUpperCase();
+            const nativeCurrency = String(candidate.stock?.currency ?? 'CHF').toUpperCase();
+            return Boolean(ticker) && isHistoricalPriceSeriesCompatible(ticker, nativeCurrency);
+          });
+          const riskIneligibleTickers = ranked
+            .filter((candidate: any) => !riskEligibleRanked.includes(candidate))
+            .map((candidate: any) => String(candidate.stock?.ticker ?? ''));
+          if (riskEligibleRanked.length < rules.minTitles) {
+            throw new Error(`Zu wenige Titel mit kompatibler historischer Preisbasis für die 5J-Risikokennzahlen: ${riskEligibleRanked.length} verfügbar, mindestens ${rules.minTitles} erforderlich.`);
+          }
+          if (riskIneligibleTickers.length > 0) {
+            ranked = riskEligibleRanked;
+            notes.push(`Risikodaten-Gate: ${riskIneligibleTickers.length} ADR-/Auslandsproxy-Titel ohne kompatible Preisbasis ausgeschlossen (${riskIneligibleTickers.join(', ')}).`);
+          }
+
           // Die optionale Dividenden-Qualitätsrechnung lässt nur Titel mit
           // nachweisbarer Preisbeobachtung vor exakt zehn Kalenderjahren zu.
           // Es wird nicht versucht, fehlende Historie nachträglich zu schätzen

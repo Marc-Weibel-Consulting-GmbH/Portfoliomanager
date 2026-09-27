@@ -48,6 +48,7 @@ describe("buildPortfolioExportModel", () => {
     },
     risk: {
       dataAvailable: true,
+      annualizedReturn: 7.4,
       sharpeRatio: 1.24,
       volatility: 12.5,
       maxDrawdown: -8.3,
@@ -99,6 +100,7 @@ describe("buildPortfolioExportModel", () => {
     expect(model.depotValueSeriesKind).toBe("actual");
     expect(model.kpis).toEqual(expect.arrayContaining([
       expect.objectContaining({ key: "ttwror", value: 0.052 }),
+      expect.objectContaining({ key: "annualized_risk_return", value: 7.4 }),
       expect.objectContaining({ key: "sharpe", value: 1.24 }),
     ]));
   });

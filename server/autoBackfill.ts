@@ -16,11 +16,13 @@ import { getDb } from "./db";
 import { historicalPrices } from "../drizzle/schema";
 import { eq, sql, and, gte, lte } from "drizzle-orm";
 import { normalizeTickerForDb, getTickerVariants } from "./tickerNormalization";
-import { backfillHistoricalPrices } from "./backfillHistoricalPrices";
+import { importHistoricalPricesForTicker } from "./jobs/importHistoricalPrices";
 
 // Configuration
 const MAX_BACKFILL_YEARS = 15; // How many years of data to fetch for new symbols (extended from 5 to 15)
-const MIN_REQUIRED_DATA_POINTS = 100; // Minimum data points to consider a symbol "backfilled"
+const MIN_QUALIFIED_RISK_OBSERVATIONS = 1_000;
+const RISK_WINDOW_YEARS = 5;
+const RISK_COVERAGE_GRACE_DAYS = 7;
 const BACKFILL_QUEUE_DELAY_MS = 500; // Delay between processing queue items
 
 // In-memory tracking of pending backfills to avoid duplicate requests
@@ -45,6 +47,41 @@ export interface AutoBackfillResult {
   pricesInserted: number;
   message: string;
   duration: number; // milliseconds
+}
+
+function isoDate(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * A symbol is "backfilled" only when it supports the same five-calendar-year
+ * window that the portfolio risk contract requires. The former 100-row gate
+ * treated roughly two years of prices as sufficient and therefore caused newly
+ * created portfolios to remain permanently stuck behind the 5Y risk gate.
+ */
+export function requiresFiveYearRiskBackfill(input: {
+  dataPoints: number;
+  minDate: string | null;
+  maxDate: string | null;
+  asOf?: string | Date;
+}): boolean {
+  const asOf = input.asOf instanceof Date
+    ? new Date(input.asOf)
+    : new Date(`${String(input.asOf ?? new Date()).slice(0, 10)}T00:00:00.000Z`);
+  if (Number.isNaN(asOf.getTime())) return true;
+
+  const targetStart = new Date(asOf);
+  targetStart.setUTCFullYear(targetStart.getUTCFullYear() - RISK_WINDOW_YEARS);
+  const latestStart = new Date(targetStart);
+  latestStart.setUTCDate(latestStart.getUTCDate() + RISK_COVERAGE_GRACE_DAYS);
+  const earliestEnd = new Date(asOf);
+  earliestEnd.setUTCDate(earliestEnd.getUTCDate() - RISK_COVERAGE_GRACE_DAYS);
+
+  return input.dataPoints < MIN_QUALIFIED_RISK_OBSERVATIONS
+    || !input.minDate
+    || !input.maxDate
+    || input.minDate.slice(0, 10) > isoDate(latestStart)
+    || input.maxDate.slice(0, 10) < isoDate(earliestEnd);
 }
 
 /**
@@ -96,7 +133,11 @@ export async function checkSymbolDataStatus(ticker: string): Promise<BackfillSta
   }
 
   const hasData = maxDataPoints > 0;
-  const needsBackfill = maxDataPoints < MIN_REQUIRED_DATA_POINTS;
+  const needsBackfill = requiresFiveYearRiskBackfill({
+    dataPoints: maxDataPoints,
+    minDate,
+    maxDate,
+  });
   const isBackfilling = pendingBackfills.has(normalizedTicker);
 
   return {
@@ -179,24 +220,25 @@ export async function triggerMaxBackfillForSymbol(
 
     console.log(`[AutoBackfill] Fetching data for ${normalizedTicker} from ${fromDateStr} to ${toDateStr}`);
 
-    // Execute backfill
-    const result = await backfillHistoricalPrices([normalizedTicker], fromDateStr, toDateStr);
+    // Historical market data is only enriched: existing daily source values are
+    // not overwritten by a later provider response.
+    const result = await importHistoricalPricesForTicker(normalizedTicker, fromDateStr, toDateStr);
 
     // Mark as completed
     completedBackfills.set(normalizedTicker, new Date());
 
     const duration = Date.now() - startTime;
     
-    if (result.success && result.pricesInserted > 0) {
-      console.log(`[AutoBackfill] Successfully backfilled ${normalizedTicker}: ${result.pricesInserted} prices in ${duration}ms`);
+    if (result.success && result.pricesImported > 0) {
+      console.log(`[AutoBackfill] Successfully backfilled ${normalizedTicker}: ${result.pricesImported} EODHD rows processed additively in ${duration}ms`);
       return {
         ticker: normalizedTicker,
         success: true,
-        pricesInserted: result.pricesInserted,
-        message: `Successfully backfilled ${result.pricesInserted} historical prices`,
+        pricesInserted: result.pricesImported,
+        message: `Successfully enriched historical prices from EODHD`,
         duration
       };
-    } else if (result.missingTickers.includes(normalizedTicker)) {
+    } else if (!result.success) {
       console.warn(`[AutoBackfill] No data available for ${normalizedTicker}`);
       // Register as permanently failed so admin can see it
       permanentlyFailedBackfills.set(normalizedTicker, { date: new Date(), reason: 'No historical data available from EODHD API' });

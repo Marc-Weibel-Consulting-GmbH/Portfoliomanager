@@ -4,6 +4,7 @@ export function getPortfolioPdfKpiKeys(): string[] {
     "current_value",
     "absolute_gain",
     "ttwror",
+    "annualized_risk_return",
     "dividend_yield",
     "sharpe",
     "volatility",

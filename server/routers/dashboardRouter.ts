@@ -6,7 +6,7 @@ import { ENV } from "../_core/env";
 // replaces the previously inline re-implemented per-router replay loops.
 import { buildHoldings } from "../lib/holdings";
 import { DEFAULT_RISK_FREE_RATE } from "../analytics/riskStats";
-import { getHistoricalPriceCurrency } from "../lib/eodhdSymbol";
+import { getHistoricalPriceCurrency, isHistoricalPriceSeriesCompatible } from "../lib/eodhdSymbol";
 import { buildPortfolioDrawdownAnalysis, calculateDailyReturns, type PortfolioDrawdownPoint } from "../lib/portfolioDrawdown";
 import { alignReturnsByDate, calculateDatedReturns, calculatePairedBeta } from "../lib/benchmarkReturnSeries";
 import {
@@ -18,9 +18,12 @@ import {
 } from "../lib/portfolioRiskWindow";
 import { createRiskPriceLookup } from "../lib/riskPriceLookup";
 import { getCachedRiskMetrics, setCachedRiskMetrics } from "../lib/riskMetricsCache";
+import { calculateAnnualizedAllocationReturn } from "../lib/portfolioRiskAnalytics";
 
 type PublishedRiskMetrics = {
   dataAvailable: true;
+  /** Geometrische CHF-Rendite p.a. derselben qualifizierten 5J-Allokationsreihe. */
+  annualizedReturn: number | null;
   volatility: number | null;
   volBenchmark: number | null;
   maxDrawdown: number | null;
@@ -1921,7 +1924,7 @@ export const dashboardRouter = router({
       const { inArray, and, gte, lte } = await import("drizzle-orm");
 
       const db = await getDb();
-      if (!db) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (!db) return { dataAvailable: false, annualizedReturn: null, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       // The personal aggregate intentionally remains owner-only. A numerical
       // scope may additionally be a specifically shared read-only portfolio.
@@ -1932,7 +1935,7 @@ export const dashboardRouter = router({
         const readAccess = await getPortfolioReadAccess(input.scope, ctx.user.id);
         targetPortfolios = readAccess ? [readAccess.portfolio] : [];
       }
-      if (targetPortfolios.length === 0) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (targetPortfolios.length === 0) return { dataAvailable: false, annualizedReturn: null, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       // Risikovertrag: Der sichtbare Max.-Drawdown braucht mindestens fünf
       // Kalenderjahre sowie eine belegte Stressphase. Vor dem Portfolio-Start
@@ -1988,7 +1991,7 @@ export const dashboardRouter = router({
         }
       }
 
-      if (allTickers.size === 0) return { dataAvailable: false, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (allTickers.size === 0) return { dataAvailable: false, annualizedReturn: null, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       const stocksMap = await batchGetStocks(Array.from(allTickers));
 
@@ -2054,11 +2057,14 @@ export const dashboardRouter = router({
 
       const priceCoverage = Array.from(allTickers).map((ticker) => {
         const dates = Array.from(priceMap.get(ticker)?.keys() ?? []).sort();
+        const nativeCurrency = String((stocksMap.get(ticker) as any)?.currency || "CHF").toUpperCase();
+        const compatiblePriceBasis = isHistoricalPriceSeriesCompatible(ticker, nativeCurrency);
         return {
           key: ticker,
           kind: "price" as const,
-          supportsWindowStart: dates.some((date) => date >= riskQueryStartStr && date <= riskWindowStartCeilingStr),
-          supportsWindowEnd: dates.some((date) => date >= riskWindowEndFloorStr),
+          reason: compatiblePriceBasis ? undefined : "incompatible_price_basis" as const,
+          supportsWindowStart: compatiblePriceBasis && dates.some((date) => date >= riskQueryStartStr && date <= riskWindowStartCeilingStr),
+          supportsWindowEnd: compatiblePriceBasis && dates.some((date) => date >= riskWindowEndFloorStr),
         };
       });
       const fxCoverage = await Promise.all(Array.from(uniqueCurrencies)
@@ -2089,6 +2095,7 @@ export const dashboardRouter = router({
               if (shares <= 0) continue;
               const price = priceAtOrBefore(ticker, date);
               const currency = (stocksMap.get(ticker) as any)?.currency || "CHF";
+              if (!isHistoricalPriceSeriesCompatible(ticker, currency)) { completeValuation = false; break; }
               const priceCHF = price === null ? null : tryConvertToCHFSync(price, currency, date);
               if (priceCHF === null) { completeValuation = false; break; }
               totalValueCHF += shares * priceCHF;
@@ -2098,6 +2105,7 @@ export const dashboardRouter = router({
             for (const [ticker, shares] of Array.from(sharesMap.entries())) {
               const price = priceAtOrBefore(ticker, date);
               const currency = (stocksMap.get(ticker) as any)?.currency || "CHF";
+              if (!isHistoricalPriceSeriesCompatible(ticker, currency)) { completeValuation = false; break; }
               const priceCHF = price === null ? null : tryConvertToCHFSync(price, currency, date);
               if (priceCHF === null) { completeValuation = false; break; }
               totalValueCHF += shares * priceCHF;
@@ -2128,6 +2136,7 @@ export const dashboardRouter = router({
       const qualifiedBenchmarkPoints = riskWindow.benchmarkPoints;
       const qualifiedForRisk = riskWindow.canPublishMaxDrawdown;
       const dailyReturns = qualifiedForRisk ? calculateDailyReturns(dailyValues.map((value) => value.portfolioValueCHF)) : [];
+      const annualizedReturn = qualifiedForRisk ? calculateAnnualizedAllocationReturn(dailyValues) : null;
       const mean = dailyReturns.length > 0 ? dailyReturns.reduce((sum, value) => sum + value, 0) / dailyReturns.length : null;
       const variance = dailyReturns.length > 1 && mean !== null
         ? dailyReturns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (dailyReturns.length - 1)
@@ -2218,6 +2227,7 @@ export const dashboardRouter = router({
 
       const riskMetrics: PublishedRiskMetrics = {
         dataAvailable: true,
+        annualizedReturn: annualizedReturn === null ? null : Number((annualizedReturn * 100).toFixed(1)),
         volatility: volatility === null ? null : Number(volatility.toFixed(1)),
         volBenchmark: qualifiedForRisk ? Number(volBenchmark.toFixed(1)) : null,
         maxDrawdown: maxDrawdown === null ? null : Number(maxDrawdown.toFixed(1)),

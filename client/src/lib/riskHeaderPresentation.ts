@@ -1,5 +1,7 @@
 type RiskHeaderMetricInput = {
   dataAvailable?: unknown;
+  annualizedReturn?: unknown;
+  volatility?: unknown;
   sharpeRatio?: unknown;
   sharpeBenchmark?: unknown;
   maxDrawdown?: unknown;
@@ -12,6 +14,8 @@ export type RiskHeaderStatus = "loading" | "error" | "unavailable" | "gate" | "r
 export type RiskHeaderPresentation = {
   status: RiskHeaderStatus;
   canRetry: boolean;
+  annualReturn: { value: string; sub: string };
+  volatility: { value: string; sub: string };
   sharpe: { value: string; sub: string };
   maxDrawdown: { value: string; sub: string };
 };
@@ -43,12 +47,16 @@ function unavailablePresentation(status: "error" | "unavailable"): RiskHeaderPre
     ? {
         status,
         canRetry: true,
+        annualReturn: { value: "—", sub: "Risikoanalyse vorübergehend nicht verfügbar" },
+        volatility: { value: "—", sub: "Risikoanalyse vorübergehend nicht verfügbar" },
         sharpe: { value: "—", sub: "Risikoanalyse vorübergehend nicht verfügbar" },
         maxDrawdown: { value: "—", sub: "Abruf fehlgeschlagen – erneut versuchen" },
       }
     : {
         status,
         canRetry: true,
+        annualReturn: { value: "—", sub: "Keine qualifizierte Risikoreihe" },
+        volatility: { value: "—", sub: "Keine qualifizierte Risikoreihe" },
         sharpe: { value: "—", sub: "Keine qualifizierte Risikoreihe" },
         maxDrawdown: { value: "—", sub: "Risikodaten nicht verfügbar" },
       };
@@ -68,6 +76,8 @@ export function getRiskHeaderPresentation(
     return {
       status: "loading",
       canRetry: false,
+      annualReturn: { value: "Wird berechnet…", sub: "5J-Allokationsproxy lädt" },
+      volatility: { value: "Wird berechnet…", sub: "5J-Allokationsproxy lädt" },
       sharpe: { value: "Wird berechnet…", sub: "5J-Risikoanalyse lädt" },
       maxDrawdown: { value: "Wird berechnet…", sub: "5J-Fenster wird geprüft" },
     };
@@ -82,6 +92,8 @@ export function getRiskHeaderPresentation(
   }
 
   const sharpeRatio = finiteNumber(risk.sharpeRatio);
+  const annualizedReturn = finiteNumber(risk.annualizedReturn);
+  const volatility = finiteNumber(risk.volatility);
   const sharpeBenchmark = finiteNumber(risk.sharpeBenchmark);
   const maxDrawdown = finiteNumber(risk.maxDrawdown);
   const drawdownBenchmark = finiteNumber(risk.drawdownBenchmark);
@@ -90,6 +102,14 @@ export function getRiskHeaderPresentation(
   return {
     status: isValidatedGate ? "ready" : "gate",
     canRetry: false,
+    annualReturn: {
+      value: annualizedReturn === null ? "—" : `${annualizedReturn >= 0 ? "+" : ""}${annualizedReturn.toFixed(1)}%`,
+      sub: annualizedReturn === null ? missingRiskSub(risk.riskWindowStatus, "sharpe") : "5J-Proxy · p.a.",
+    },
+    volatility: {
+      value: volatility === null ? "—" : `${volatility.toFixed(1)}%`,
+      sub: volatility === null ? missingRiskSub(risk.riskWindowStatus, "sharpe") : "5J-Proxy · p.a.",
+    },
     sharpe: {
       value: sharpeRatio === null ? "—" : sharpeRatio.toFixed(2),
       sub: sharpeBenchmark === null

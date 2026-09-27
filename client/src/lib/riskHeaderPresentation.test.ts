@@ -6,6 +6,8 @@ describe("getRiskHeaderPresentation", () => {
     expect(getRiskHeaderPresentation(undefined, { isLoading: true })).toEqual({
       status: "loading",
       canRetry: false,
+      annualReturn: { value: "Wird berechnet…", sub: "5J-Allokationsproxy lädt" },
+      volatility: { value: "Wird berechnet…", sub: "5J-Allokationsproxy lädt" },
       sharpe: { value: "Wird berechnet…", sub: "5J-Risikoanalyse lädt" },
       maxDrawdown: { value: "Wird berechnet…", sub: "5J-Fenster wird geprüft" },
     });
@@ -15,6 +17,8 @@ describe("getRiskHeaderPresentation", () => {
     expect(getRiskHeaderPresentation(undefined, { isLoading: false, isError: true })).toEqual({
       status: "error",
       canRetry: true,
+      annualReturn: { value: "—", sub: "Risikoanalyse vorübergehend nicht verfügbar" },
+      volatility: { value: "—", sub: "Risikoanalyse vorübergehend nicht verfügbar" },
       sharpe: { value: "—", sub: "Risikoanalyse vorübergehend nicht verfügbar" },
       maxDrawdown: { value: "—", sub: "Abruf fehlgeschlagen – erneut versuchen" },
     });
@@ -28,6 +32,8 @@ describe("getRiskHeaderPresentation", () => {
     }, { isLoading: false })).toEqual({
       status: "unavailable",
       canRetry: true,
+      annualReturn: { value: "—", sub: "Keine qualifizierte Risikoreihe" },
+      volatility: { value: "—", sub: "Keine qualifizierte Risikoreihe" },
       sharpe: { value: "—", sub: "Keine qualifizierte Risikoreihe" },
       maxDrawdown: { value: "—", sub: "Risikodaten nicht verfügbar" },
     });
@@ -37,6 +43,8 @@ describe("getRiskHeaderPresentation", () => {
     expect(getRiskHeaderPresentation({ riskWindowStatus: "insufficient_history" }, { isLoading: false })).toEqual({
       status: "gate",
       canRetry: false,
+      annualReturn: { value: "—", sub: "5J-Historie unvollständig" },
+      volatility: { value: "—", sub: "5J-Historie unvollständig" },
       sharpe: { value: "—", sub: "5J-Historie unvollständig" },
       maxDrawdown: { value: "—", sub: "5J-Gate nicht erfüllt" },
     });
@@ -45,6 +53,8 @@ describe("getRiskHeaderPresentation", () => {
   it("formats calculated values and their benchmark values", () => {
     expect(getRiskHeaderPresentation({
       dataAvailable: true,
+      annualizedReturn: 7.4,
+      volatility: 10.8,
       sharpeRatio: -0.11,
       sharpeBenchmark: 0.1,
       maxDrawdown: -25.6,
@@ -53,6 +63,8 @@ describe("getRiskHeaderPresentation", () => {
     }, { isLoading: false })).toEqual({
       status: "ready",
       canRetry: false,
+      annualReturn: { value: "+7.4%", sub: "5J-Proxy · p.a." },
+      volatility: { value: "10.8%", sub: "5J-Proxy · p.a." },
       sharpe: { value: "-0.11", sub: "Bench 0.10" },
       maxDrawdown: { value: "-25.6%", sub: "Bench -29.3%" },
     });
