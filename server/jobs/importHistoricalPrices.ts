@@ -362,8 +362,19 @@ export async function importHistoricalPrices(
       }
     }
 
+    // EODHD remains primary. The secondary provider is only queried for the
+    // small, explicit native-line allow-list and stores rows in its separate
+    // source table. This keeps the daily continuation current without ever
+    // mixing providers inside historical_prices.
+    const { importVerifiedNativeRiskHistoryForTickers } = await import("../lib/nativeRiskHistoryProvider");
+    const nativeResults = await importVerifiedNativeRiskHistoryForTickers({ tickers, from, to });
+    const nativeErrors = nativeResults
+      .filter((result) => result.status === "error" || result.status === "invalid_response")
+      .map((result) => `Native history ${result.ticker}: ${result.message}`);
+    errors.push(...nativeErrors);
+
     console.log(
-      `[importHistoricalPrices] Import completed: ${tickersProcessed} tickers processed, ${totalPricesImported} prices imported`
+      `[importHistoricalPrices] Import completed: ${tickersProcessed} EODHD tickers, ${totalPricesImported} EODHD rows, ${nativeResults.filter((result) => result.status === "imported").length} verified native series`
     );
 
     return {
@@ -418,6 +429,8 @@ export async function importHistoricalPricesForTicker(
 
     // Store prices using the original DB ticker (not the EODHD ticker)
     const imported = await storeHistoricalPrices(ticker, prices, options);
+    const { importVerifiedNativeRiskHistoryForTickers } = await import("../lib/nativeRiskHistoryProvider");
+    await importVerifiedNativeRiskHistoryForTickers({ tickers: [ticker], from, to });
     console.log(`[importHistoricalPrices] Stored ${imported} prices for ${ticker}`);
     return { success: true, pricesImported: imported };
   } catch (error) {

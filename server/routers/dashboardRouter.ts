@@ -19,6 +19,11 @@ import {
 import { createRiskPriceLookup } from "../lib/riskPriceLookup";
 import { getCachedRiskMetrics, setCachedRiskMetrics } from "../lib/riskMetricsCache";
 import { calculateAnnualizedAllocationReturn } from "../lib/portfolioRiskAnalytics";
+import {
+  resolveVerifiedNativeRiskSource,
+  selectRiskHistorySeries,
+  type RiskHistorySelection,
+} from "../lib/nativeRiskHistory";
 
 type PublishedRiskMetrics = {
   dataAvailable: true;
@@ -51,6 +56,15 @@ type PublishedRiskMetrics = {
     complete: boolean;
     issues: RiskCoverageItem[];
     benchmarkOutlierCount: number;
+    /** Only non-EODHD exceptions; regular primary series need no noisy disclosure. */
+    secondaryNativeSeries: Array<{
+      ticker: string;
+      source: "yahoo_native" | "yahoo_primary_equivalent";
+      sourceSymbol: string;
+      currency: string;
+      identity: "same_listing" | "same_isin_primary_listing";
+      conversionRatio: number;
+    }>;
   };
   stressEvidence: StressEvidence;
   benchmark: { key: string; label: string };
@@ -1997,6 +2011,7 @@ export const dashboardRouter = router({
 
       // Read the entire target window. Historical rows remain additive; the
       // risk path is read-only and never initiates an import or price rewrite.
+      const { nativeHistoricalPrices } = await import("../../drizzle/schema");
       const pricesResult = await db.select({
         ticker: historicalPrices.ticker,
         date: historicalPrices.date,
@@ -2008,10 +2023,62 @@ export const dashboardRouter = router({
           lte(historicalPrices.date, todayStr)
         ));
 
-      const priceMap = new Map<string, Map<string, number>>();
+      const nativePricesResult = await db.select({
+        ticker: nativeHistoricalPrices.ticker,
+        date: nativeHistoricalPrices.date,
+        close: nativeHistoricalPrices.close,
+        currency: nativeHistoricalPrices.currency,
+        source: nativeHistoricalPrices.source,
+        sourceSymbol: nativeHistoricalPrices.sourceSymbol,
+      }).from(nativeHistoricalPrices)
+        .where(and(
+          inArray(nativeHistoricalPrices.ticker, Array.from(allTickers)),
+          gte(nativeHistoricalPrices.date, riskQueryStartStr),
+          lte(nativeHistoricalPrices.date, todayStr)
+        ));
+
+      // EODHD remains the default. A secondary series is visible only through
+      // an explicit verified native-source contract and replaces the provider
+      // series wholesale; never day-by-day and never as an ADR approximation.
+      const eodhdPriceMap = new Map<string, Map<string, number>>();
       for (const p of pricesResult) {
-        if (!priceMap.has(p.ticker)) priceMap.set(p.ticker, new Map());
-        priceMap.get(p.ticker)!.set(p.date, parseFloat(p.close));
+        if (!eodhdPriceMap.has(p.ticker)) eodhdPriceMap.set(p.ticker, new Map());
+        eodhdPriceMap.get(p.ticker)!.set(p.date, parseFloat(p.close));
+      }
+
+      const priceMap = new Map<string, Map<string, number>>();
+      const riskPriceCurrencyByTicker = new Map<string, string>();
+      const riskHistorySelectionByTicker = new Map<string, RiskHistorySelection>();
+      for (const ticker of allTickers) {
+        const stock = stocksMap.get(ticker) as any;
+        const nativeCurrency = String(stock?.currency || "CHF").toUpperCase();
+        const source = resolveVerifiedNativeRiskSource({
+          ticker,
+          nativeCurrency,
+          isin: stock?.isin ?? null,
+        });
+        const eodhdRows = Array.from(eodhdPriceMap.get(ticker)?.entries() ?? [])
+          .map(([date, close]) => ({ date, close }));
+        const secondaryRows = source
+          ? nativePricesResult
+            .filter((row) => row.ticker === ticker
+              && row.source === source.source
+              && row.sourceSymbol === source.sourceSymbol
+              && String(row.currency).toUpperCase() === source.sourceCurrency)
+            .map((row) => ({ date: String(row.date).slice(0, 10), close: parseFloat(row.close) }))
+          : [];
+        const selection = selectRiskHistorySeries({
+          ticker,
+          nativeCurrency,
+          isin: stock?.isin ?? null,
+          eodhdRows,
+          secondaryRows,
+        });
+        riskHistorySelectionByTicker.set(ticker, selection);
+        if (selection.source !== "unavailable") {
+          priceMap.set(ticker, new Map(selection.rows.map((row) => [row.date, row.close])));
+          riskPriceCurrencyByTicker.set(ticker, selection.currency ?? nativeCurrency);
+        }
       }
 
       // Get all unique dates
@@ -2021,9 +2088,11 @@ export const dashboardRouter = router({
       }
       const sortedDates = Array.from(allDates).sort();
 
-      // Pre-warm FX
+      // Pre-warm exact FX crosses for the selected risk series. Bravida's
+      // verified primary Stockholm series, for example, is converted via
+      // SEKCHF while the stored Stuttgart valuation in EUR remains untouched.
       const uniqueCurrencies = new Set<string>();
-      for (const s of Array.from(stocksMap.values())) { if ((s as any).currency) uniqueCurrencies.add((s as any).currency); }
+      for (const currency of Array.from(riskPriceCurrencyByTicker.values())) uniqueCurrencies.add(currency);
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
         convertToCHF(1, c, todayStr)
       ));
@@ -2057,14 +2126,14 @@ export const dashboardRouter = router({
 
       const priceCoverage = Array.from(allTickers).map((ticker) => {
         const dates = Array.from(priceMap.get(ticker)?.keys() ?? []).sort();
-        const nativeCurrency = String((stocksMap.get(ticker) as any)?.currency || "CHF").toUpperCase();
-        const compatiblePriceBasis = isHistoricalPriceSeriesCompatible(ticker, nativeCurrency);
+        const selection = riskHistorySelectionByTicker.get(ticker);
+        const hasQualifiedSource = selection?.source !== "unavailable";
         return {
           key: ticker,
           kind: "price" as const,
-          reason: compatiblePriceBasis ? undefined : "incompatible_price_basis" as const,
-          supportsWindowStart: compatiblePriceBasis && dates.some((date) => date >= riskQueryStartStr && date <= riskWindowStartCeilingStr),
-          supportsWindowEnd: compatiblePriceBasis && dates.some((date) => date >= riskWindowEndFloorStr),
+          reason: selection?.reason === "unverified_instrument_identity" ? "incompatible_price_basis" as const : undefined,
+          supportsWindowStart: hasQualifiedSource && dates.some((date) => date >= riskQueryStartStr && date <= riskWindowStartCeilingStr),
+          supportsWindowEnd: hasQualifiedSource && dates.some((date) => date >= riskWindowEndFloorStr),
         };
       });
       const fxCoverage = await Promise.all(Array.from(uniqueCurrencies)
@@ -2094,8 +2163,8 @@ export const dashboardRouter = router({
             for (const [ticker, { shares }] of Array.from(holdingsMap.entries())) {
               if (shares <= 0) continue;
               const price = priceAtOrBefore(ticker, date);
-              const currency = (stocksMap.get(ticker) as any)?.currency || "CHF";
-              if (!isHistoricalPriceSeriesCompatible(ticker, currency)) { completeValuation = false; break; }
+              const currency = riskPriceCurrencyByTicker.get(ticker);
+              if (!currency) { completeValuation = false; break; }
               const priceCHF = price === null ? null : tryConvertToCHFSync(price, currency, date);
               if (priceCHF === null) { completeValuation = false; break; }
               totalValueCHF += shares * priceCHF;
@@ -2104,8 +2173,8 @@ export const dashboardRouter = router({
             const sharesMap = demoSharesCalc.get(portfolio.id) || new Map();
             for (const [ticker, shares] of Array.from(sharesMap.entries())) {
               const price = priceAtOrBefore(ticker, date);
-              const currency = (stocksMap.get(ticker) as any)?.currency || "CHF";
-              if (!isHistoricalPriceSeriesCompatible(ticker, currency)) { completeValuation = false; break; }
+              const currency = riskPriceCurrencyByTicker.get(ticker);
+              if (!currency) { completeValuation = false; break; }
               const priceCHF = price === null ? null : tryConvertToCHFSync(price, currency, date);
               if (priceCHF === null) { completeValuation = false; break; }
               totalValueCHF += shares * priceCHF;
@@ -2261,6 +2330,16 @@ export const dashboardRouter = router({
           complete: qualifiedForRisk,
           issues: riskWindow.coverageIssues,
           benchmarkOutlierCount: riskWindow.benchmarkOutlierCount,
+          secondaryNativeSeries: Array.from(riskHistorySelectionByTicker.entries())
+            .filter(([, selection]) => selection.source === "yahoo_native" || selection.source === "yahoo_primary_equivalent")
+            .map(([ticker, selection]) => ({
+              ticker,
+              source: selection.source as "yahoo_native" | "yahoo_primary_equivalent",
+              sourceSymbol: selection.sourceSymbol ?? ticker,
+              currency: selection.currency ?? "",
+              identity: selection.identity as "same_listing" | "same_isin_primary_listing",
+              conversionRatio: selection.conversionRatio ?? 1,
+            })),
         },
         stressEvidence: riskWindow.stressEvidence,
         benchmark: {

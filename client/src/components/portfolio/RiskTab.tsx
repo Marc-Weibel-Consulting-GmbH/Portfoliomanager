@@ -183,6 +183,16 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     ? riskDetail.coverage.issues
     : [];
   const benchmarkOutlierCount = numberOrNull(riskDetail?.coverage?.benchmarkOutlierCount) ?? 0;
+  const secondaryNativeSeries: Array<{
+    ticker: string;
+    source: "yahoo_native" | "yahoo_primary_equivalent";
+    sourceSymbol: string;
+    currency: string;
+    identity: "same_listing" | "same_isin_primary_listing";
+    conversionRatio: number;
+  }> = Array.isArray(riskDetail?.coverage?.secondaryNativeSeries)
+    ? riskDetail.coverage.secondaryNativeSeries
+    : [];
   const stressEvidence = riskDetail?.stressEvidence as {
     qualified?: boolean;
     benchmark?: string;
@@ -410,6 +420,20 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
               ? "Demoportfolio: Die Reihe bewertet die heutige Allokation mit festen Stückzahlen und konstanter Cash-Reserve rückwirkend in CHF. Sie ist ein historischer Allokations-/Risikoproxy und keine tatsächliche Depot- oder Transaktionshistorie vor dem Portfolio-Start."
               : "Die Reihe basiert auf verfügbaren historischen Marktwerten und ersetzt keine fehlende Transaktions- oder Cash-Historie."}
           </p>
+          {secondaryNativeSeries.length > 0 && (
+            <p className="mt-2 text-xs leading-relaxed text-gray-400">
+              <span className="font-medium text-gray-300">Quellenhinweis:</span>{" "}
+              {secondaryNativeSeries.map((series) => (
+                <span key={`${series.ticker}:${series.sourceSymbol}`} className="mr-1">
+                  {series.ticker}: {series.identity === "same_isin_primary_listing"
+                    ? `verifizierte Primärlinie ${series.sourceSymbol} (${series.currency}, identische ISIN, 1:1)`
+                    : `native Handelslinie ${series.sourceSymbol} (${series.currency})`}
+                  {"; "}
+                </span>
+              ))}
+              {" "}ausschliesslich für die historische Risikoreihe. Aktuelle Bewertung, Bestände, Cash und Buchungen bleiben unverändert.
+            </p>
+          )}
           {hasValidatedFiveYearRisk && stressEvidence?.qualified && (
             <p className="mt-2 text-xs text-gray-300">
               Krisennachweis: {stressEvidence.benchmark} erreichte vom {stressEvidence.peakDate ?? "—"} bis {stressEvidence.troughDate ?? "—"} einen Drawdown von {stressEvidence.observedDrawdownPct?.toFixed(1) ?? "—"}% (Gate: höchstens {stressEvidence.requiredDrawdownPct ?? -15}%).

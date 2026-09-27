@@ -501,6 +501,37 @@ export type InsertHistoricalPrice = typeof historicalPrices.$inferInsert;
 
 // Note: Table name is 'historical_prices' (snake_case) to follow MySQL conventions
 
+/**
+ * Verified secondary-native price rows for portfolio-risk analysis.
+ *
+ * `historical_prices` has a unique `(ticker, date)` key and is deliberately
+ * EODHD-first. Native fallback rows must therefore live separately: otherwise
+ * an ADR/proxy day could be silently overwritten or two providers could be
+ * stitched into one return series. The risk engine selects exactly one source
+ * for an instrument, records its identity, and never changes the position's
+ * current valuation or ledger from these rows.
+ */
+export const nativeHistoricalPrices = mysqlTable("native_historical_prices", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(),
+  close: decimal("close", { precision: 20, scale: 6 }).notNull(),
+  currency: varchar("currency", { length: 10 }).notNull(),
+  source: varchar("source", { length: 50 }).notNull(),
+  sourceSymbol: varchar("sourceSymbol", { length: 50 }).notNull(),
+  identity: varchar("identity", { length: 40 }).notNull(),
+  conversionRatio: decimal("conversionRatio", { precision: 20, scale: 8 }).notNull().default("1"),
+  retrievedAt: timestamp("retrievedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  tickerSourceDateUnique: unique("uq_native_historical_prices_source_date").on(t.ticker, t.source, t.date),
+  tickerDateIdx: index("ix_native_historical_prices_ticker_date").on(t.ticker, t.date),
+}));
+
+export type NativeHistoricalPrice = typeof nativeHistoricalPrices.$inferSelect;
+export type InsertNativeHistoricalPrice = typeof nativeHistoricalPrices.$inferInsert;
+
 
 // App secrets table for encrypted storage of API keys and credentials
 export const appSecrets = mysqlTable("appSecrets", {

@@ -17,6 +17,7 @@ import { historicalPrices } from "../drizzle/schema";
 import { eq, sql, and, gte, lte } from "drizzle-orm";
 import { normalizeTickerForDb, getTickerVariants } from "./tickerNormalization";
 import { importHistoricalPricesForTicker } from "./jobs/importHistoricalPrices";
+import { importVerifiedNativeRiskHistoryForTickers } from "./lib/nativeRiskHistoryProvider";
 
 // Configuration
 const MAX_BACKFILL_YEARS = 15; // How many years of data to fetch for new symbols (extended from 5 to 15)
@@ -223,19 +224,32 @@ export async function triggerMaxBackfillForSymbol(
     // Historical market data is only enriched: existing daily source values are
     // not overwritten by a later provider response.
     const result = await importHistoricalPricesForTicker(normalizedTicker, fromDateStr, toDateStr);
+    // EODHD remains primary. Known EODHD gaps may additionally receive a
+    // verified native series in its own table; never an ADR/foreign proxy and
+    // never mixed into historical_prices. A successful native series is a
+    // risk-ready backfill even when EODHD has no suitable native line.
+    const [nativeResult] = await importVerifiedNativeRiskHistoryForTickers({
+      tickers: [normalizedTicker],
+      from: fromDateStr,
+      to: toDateStr,
+    });
+    const nativeHistoryReady = nativeResult?.status === "imported";
+    const totalInserted = result.pricesImported + (nativeResult?.rowsStored ?? 0);
 
     // Mark as completed
     completedBackfills.set(normalizedTicker, new Date());
 
     const duration = Date.now() - startTime;
     
-    if (result.success && result.pricesImported > 0) {
-      console.log(`[AutoBackfill] Successfully backfilled ${normalizedTicker}: ${result.pricesImported} EODHD rows processed additively in ${duration}ms`);
+    if ((result.success && result.pricesImported > 0) || nativeHistoryReady) {
+      console.log(`[AutoBackfill] Successfully enriched ${normalizedTicker}: ${result.pricesImported} EODHD rows and ${nativeResult?.rowsStored ?? 0} verified native rows processed additively in ${duration}ms`);
       return {
         ticker: normalizedTicker,
         success: true,
-        pricesInserted: result.pricesImported,
-        message: `Successfully enriched historical prices from EODHD`,
+        pricesInserted: totalInserted,
+        message: nativeHistoryReady
+          ? "Successfully enriched historical prices from EODHD and a verified native source"
+          : "Successfully enriched historical prices from EODHD",
         duration
       };
     } else if (!result.success) {

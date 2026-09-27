@@ -993,3 +993,7 @@
 - [x] Rendite p.a. (5J) und Volatilität p.a. (5J) auf identischer CHF-Allokationsproxy-Basis wie Sharpe und Drawdown in UI/Export ergänzt.
 - [x] Vier verifizierte Proxy-Inkompatibilitäten transparent ausgewiesen: 6856.T, D05.SI, SE0007491303.SG und SRG.MI. Keine Schein-Umrechnung und keine Portfolioänderung.
 - [x] Portfolio-Builder sperrt künftig ADR-/Auslandsproxies ohne kompatible historische Preisbasis.
+- [x] Phase A umgesetzt: verifizierte native Reihen für Horiba (JPY), DBS (SGD) und Snam (EUR) separat/additiv gespeichert; EODHD bleibt Primärquelle, Mischreihen und ADR-Proxies bleiben gesperrt.
+- [x] Phase B umgesetzt: Bravida über exakte ISIN `SE0007491303` und 1:1-Primärlinie `BRAV.ST` verifiziert; ausschliesslich für die historische SEK-Risikoreihe via zeitgerechtem SEKCHF verwendet. EUR-Bewertung, Bestand, Cash und Buchungen blieben unverändert.
+- [x] Testportfolio live geprüft: vollständiges 5J-Fenster mit 1’302 Beobachtungen, Rendite p.a. +4,9 %, Volatilität 16,0 %, Sharpe 0,24, Max.-Drawdown −26,2 %, VaR −1,6 % und Beta 0,73.
+- [x] Quellenhinweis im Risiko-Tab sowie Implementierungs-Audit ergänzt; fokussierte Tests und TypeScript fehlerfrei.
