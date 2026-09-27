@@ -1031,3 +1031,11 @@
 - [x] Chart nutzt bei vorhandenen Stückzahlen dieselbe feste Stückzahl-/Cash-Allokation wie die 5J-Risikoreihe; nur ältere Bestände ohne Stückzahl bleiben im sichtbaren Gewichts-Fallback.
 - [x] Mami kontrolliert aktualisiert: 25/25 Split-/Gesamtrenditereihen, 31’635 Kurszeilen; keine Rohkurs-, Portfolio-, Cash-, Ledger-, Transaktions- oder Handelsmutation.
 - [x] Live-Abgleich: Chart Gesamt +31,06 % über fünf Jahre entspricht annualisiert Kursrendite +5,6 % p.a.; Brutto-Gesamtrendite +9,0 % p.a. enthält zusätzlich reinvestierte Bruttodividenden.
+
+
+## Mami – Excel-Nachvollzug der Übersichtskennzahlen — 27.09.2026
+
+- [x] Formelbasierte Excel bis auf Titel- und Handelstagebene erstellt: 25 Positionen, 1’293 qualifizierte 5J-Tage und 32’325 Titel-/Tageswerte.
+- [x] Aktueller Wert, Start-, YTD-, Kurs- und Brutto-Gesamtrendite, Volatilität, Sharpe, Max Drawdown, Beta und Dividendenrendite gegen das Portal abgeglichen; alle Abweichungen sind ausschließlich Portalrundungen.
+- [x] Kurse, FX, historische Kurs-/Totalreihen, Quellenentscheidungen, Dividendenbasis, das Chart sowie explizite Formeln sind in getrennten Tabellenblättern sichtbar.
+- [x] Alle Formeln mit LibreOffice Calc berechnet und auf Fehlerwerte geprüft; keine Portfolio-, Cash-, Ledger-, Transaktions- oder Handelsmutation.
