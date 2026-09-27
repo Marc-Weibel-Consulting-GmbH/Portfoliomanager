@@ -68,7 +68,7 @@ describe("getRiskHeaderPresentation", () => {
     }, { isLoading: false })).toEqual({
       status: "ready",
       canRetry: false,
-      priceReturn: { value: "+5.8%", sub: "5J-Proxy · p.a. · ohne Div." },
+      priceReturn: { value: "+5.8%", sub: "5J-Proxy · p.a. · ohne Div. · splitsbereinigt" },
       annualReturn: { value: "+7.4%", sub: "5J-Proxy · p.a. · inkl. Div." },
       volatility: { value: "10.8%", sub: "5J-Proxy · p.a." },
       sharpe: { value: "-0.11", sub: "Bench 0.10" },

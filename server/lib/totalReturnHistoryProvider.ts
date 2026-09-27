@@ -1,13 +1,14 @@
 import YahooFinanceClass from "yahoo-finance2";
-import { inArray, sql } from "drizzle-orm";
-import { savedPortfolios, totalReturnHistoricalPrices, stocks } from "../../drizzle/schema";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { savedPortfolios, splitAdjustedHistoricalPrices, totalReturnHistoricalPrices, stocks } from "../../drizzle/schema";
 import { getDb } from "../db";
 import { getEodhdApiKey } from "../_core/env";
-import { eodhdDividendResponseSchema, eodhdEodResponseSchema, payloadSample } from "../_core/externalSchemas";
+import { eodhdDividendResponseSchema, eodhdEodResponseSchema, eodhdSplitResponseSchema, payloadSample } from "../_core/externalSchemas";
 import { getHistoricalPriceCurrency, toEodhdSymbol, isHistoricalPriceSeriesCompatible } from "./eodhdSymbol";
 import { resolveVerifiedNativeRiskSource } from "./nativeRiskHistory";
 import {
   buildEventReconstructedTotalReturnRows,
+  buildSplitAdjustedPriceRows,
   hasMaterialTotalReturnMismatch,
 } from "./totalReturnFromEvents";
 
@@ -26,6 +27,11 @@ type EodhdPriceFeed = {
   rawRows: Array<{ date: string; close: number }>;
 };
 
+type YahooPriceFeed = {
+  adjustedRows: SnapshotRow[];
+  splitAdjustedRows: SnapshotRow[];
+};
+
 export type TotalReturnSnapshotResult = {
   ticker: string;
   status: "refreshed" | "no_source" | "invalid_response" | "no_prices" | "error";
@@ -34,6 +40,7 @@ export type TotalReturnSnapshotResult = {
   currency: string | null;
   rowsFetched: number;
   rowsStored: number;
+  priceRowsStored: number;
   message: string;
 };
 
@@ -101,13 +108,36 @@ async function fetchEodhdCashDividends(ticker: string, from: string, to: string)
     .filter((event) => Number.isFinite(event.amount) && event.amount > 0);
 }
 
-async function fetchYahooAdjustedRows(symbol: string, expectedCurrency: string, from: string, to: string): Promise<SnapshotRow[] | null> {
+async function fetchEodhdSplits(ticker: string, from: string, to: string): Promise<Array<{ date: string; split: string }>|null> {
+  const apiKey = await getEodhdApiKey();
+  if (!apiKey) return null;
+  const symbol = toEodhdSymbol(ticker);
+  const response = await fetch(`${EODHD_BASE_URL}/splits/${encodeURIComponent(symbol)}?api_token=${apiKey}&fmt=json&from=${from}&to=${to}`);
+  if (!response.ok) return null;
+  const raw: unknown = await response.json();
+  const parsed = eodhdSplitResponseSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.warn(`[totalReturnHistory] Invalid EODHD split response for ${ticker}: ${payloadSample(raw)}`);
+    return null;
+  }
+  return parsed.data.map((event) => ({ date: event.date, split: event.split }));
+}
+
+async function fetchYahooPriceFeed(symbol: string, expectedCurrency: string, from: string, to: string): Promise<YahooPriceFeed | null> {
   const response = await yahooFinance.chart(symbol, { period1: from, period2: to, interval: "1d" }, { validateResult: false });
   if (normaliseCurrency(response?.meta?.currency) !== expectedCurrency) return null;
-  return normaliseRows((response?.quotes ?? []).map((quote: any) => ({
-    date: toIsoDate(quote?.date) ?? "",
-    adjustedClose: Number(quote?.adjclose),
-  })));
+  return {
+    // Yahoo's `close` is split-adjusted but does not reinvest cash dividends;
+    // `adjclose` additionally incorporates those dividends.
+    splitAdjustedRows: normaliseRows((response?.quotes ?? []).map((quote: any) => ({
+      date: toIsoDate(quote?.date) ?? "",
+      adjustedClose: Number(quote?.close),
+    }))),
+    adjustedRows: normaliseRows((response?.quotes ?? []).map((quote: any) => ({
+      date: toIsoDate(quote?.date) ?? "",
+      adjustedClose: Number(quote?.adjclose),
+    }))),
+  };
 }
 
 /**
@@ -136,21 +166,26 @@ export async function refreshTotalReturnHistoryForTicker(input: {
   // risk router can apply the correct historical FX conversion.
   const sourceCurrency = useEodhd ? getHistoricalPriceCurrency(ticker, currency) : nativeSource?.sourceCurrency ?? null;
   if (!source || !sourceSymbol || !sourceCurrency) {
-    return { ticker, status: "no_source", source: null, sourceSymbol: null, currency: null, rowsFetched: 0, rowsStored: 0, message: "Keine verifizierte Total-Return-Quelle für die native Handelslinie." };
+    return { ticker, status: "no_source", source: null, sourceSymbol: null, currency: null, rowsFetched: 0, rowsStored: 0, priceRowsStored: 0, message: "Keine verifizierte Total-Return-Quelle für die native Handelslinie." };
   }
 
   try {
     let rows: SnapshotRow[] | null;
+    let splitAdjustedRows: SnapshotRow[] | null;
     if (useEodhd) {
-      const [priceFeed, dividends] = await Promise.all([
+      const [priceFeed, dividends, splits] = await Promise.all([
         fetchEodhdPriceFeed(ticker, input.from, input.to),
         fetchEodhdCashDividends(ticker, input.from, input.to),
+        fetchEodhdSplits(ticker, input.from, input.to),
       ]);
       rows = priceFeed?.providerRows ?? null;
-      if (priceFeed && dividends && dividends.length > 0) {
+      splitAdjustedRows = priceFeed
+        ? buildSplitAdjustedPriceRows({ rawRows: priceFeed.rawRows, splits: splits ?? [] })
+        : null;
+      if (priceFeed && splitAdjustedRows && dividends && dividends.length > 0) {
         const reconstructedRows = buildEventReconstructedTotalReturnRows({
           quoteCurrency: sourceCurrency,
-          rawRows: priceFeed.rawRows,
+          rawRows: splitAdjustedRows.map((row) => ({ date: row.date, close: row.adjustedClose })),
           dividends,
         });
         if (hasMaterialTotalReturnMismatch({
@@ -162,18 +197,29 @@ export async function refreshTotalReturnHistoryForTicker(input: {
         }
       }
     } else {
-      rows = await fetchYahooAdjustedRows(sourceSymbol, sourceCurrency, input.from, input.to);
+      const priceFeed = await fetchYahooPriceFeed(sourceSymbol, sourceCurrency, input.from, input.to);
+      rows = priceFeed?.adjustedRows ?? null;
+      splitAdjustedRows = priceFeed?.splitAdjustedRows ?? null;
     }
     if (rows === null) {
-      return { ticker, status: "invalid_response", source, sourceSymbol, currency: sourceCurrency, rowsFetched: 0, rowsStored: 0, message: "Die Quelle lieferte keine valide, währungskonsistente Adjusted-Close-Reihe." };
+      return { ticker, status: "invalid_response", source, sourceSymbol, currency: sourceCurrency, rowsFetched: 0, rowsStored: 0, priceRowsStored: 0, message: "Die Quelle lieferte keine valide, währungskonsistente Adjusted-Close-Reihe." };
     }
     if (rows.length === 0) {
-      return { ticker, status: "no_prices", source, sourceSymbol, currency: sourceCurrency, rowsFetched: 0, rowsStored: 0, message: "Keine gültigen dividendenbereinigten Schlusskurse im angeforderten Zeitraum." };
+      return { ticker, status: "no_prices", source, sourceSymbol, currency: sourceCurrency, rowsFetched: 0, rowsStored: 0, priceRowsStored: 0, message: "Keine gültigen dividendenbereinigten Schlusskurse im angeforderten Zeitraum." };
     }
 
     const db = await getDb();
     if (!db) throw new Error("Datenbankverbindung nicht verfügbar");
     const retrievedAt = new Date();
+    // The table is a refreshable derived snapshot, not an audit log. A prior
+    // refresh may have selected `eodhd_events_total_return` while a later
+    // split-aware validation confirms `eodhd_adjusted` (or vice versa). Keeping
+    // both would make the selector pick stale rows based solely on source
+    // priority. Retain exactly the current, fully recalculated basis per ticker.
+    await db.delete(totalReturnHistoricalPrices).where(and(
+      eq(totalReturnHistoricalPrices.ticker, ticker),
+      ne(totalReturnHistoricalPrices.source, source),
+    ));
     await db.insert(totalReturnHistoricalPrices).values(rows.map((row) => ({
       ticker,
       date: row.date,
@@ -187,14 +233,33 @@ export async function refreshTotalReturnHistoryForTicker(input: {
       // this dedicated snapshot is intentional and does not overwrite raw prices.
       set: { adjustedClose: sql`VALUES(adjustedClose)`, retrievedAt },
     });
+    const priceRowsStored = splitAdjustedRows?.length ?? 0;
+    if (splitAdjustedRows && splitAdjustedRows.length > 0) {
+      const priceSource = useEodhd ? "eodhd_split_adjusted" : "yahoo_close_split_adjusted";
+      await db.delete(splitAdjustedHistoricalPrices).where(and(
+        eq(splitAdjustedHistoricalPrices.ticker, ticker),
+        ne(splitAdjustedHistoricalPrices.source, priceSource),
+      ));
+      await db.insert(splitAdjustedHistoricalPrices).values(splitAdjustedRows.map((row) => ({
+        ticker,
+        date: row.date,
+        adjustedClose: row.adjustedClose.toString(),
+        currency: sourceCurrency,
+        source: priceSource,
+        sourceSymbol,
+        retrievedAt,
+      }))).onDuplicateKeyUpdate({
+        set: { adjustedClose: sql`VALUES(adjustedClose)`, retrievedAt },
+      });
+    }
     // Historical snapshots feed every user's portfolio-risk proxy. They change
     // rarely (daily), so globally invalidating the small in-process cache is
     // preferable to showing a five-minute stale Sharpe/total-return result.
     const { invalidateAllCachedRiskMetrics } = await import("./riskMetricsCache");
     invalidateAllCachedRiskMetrics();
-    return { ticker, status: "refreshed", source, sourceSymbol, currency: sourceCurrency, rowsFetched: rows.length, rowsStored: rows.length, message: `${rows.length} Total-Return-Snapshotzeilen aktualisiert.` };
+    return { ticker, status: "refreshed", source, sourceSymbol, currency: sourceCurrency, rowsFetched: rows.length, rowsStored: rows.length, priceRowsStored, message: `${rows.length} Total-Return- und ${priceRowsStored} splitbereinigte Kurszeilen aktualisiert.` };
   } catch (error) {
-    return { ticker, status: "error", source, sourceSymbol, currency: sourceCurrency, rowsFetched: 0, rowsStored: 0, message: error instanceof Error ? error.message : String(error) };
+    return { ticker, status: "error", source, sourceSymbol, currency: sourceCurrency, rowsFetched: 0, rowsStored: 0, priceRowsStored: 0, message: error instanceof Error ? error.message : String(error) };
   }
 }
 
@@ -207,7 +272,7 @@ export async function refreshTotalReturnHistoryForTickers(input: {
   const tickers = Array.from(new Set(input.tickers.map((ticker) => ticker.trim()).filter(Boolean)));
   if (tickers.length === 0) return [];
   const db = await getDb();
-  if (!db) return tickers.map((ticker) => ({ ticker, status: "error" as const, source: null, sourceSymbol: null, currency: null, rowsFetched: 0, rowsStored: 0, message: "Datenbankverbindung nicht verfügbar" }));
+  if (!db) return tickers.map((ticker) => ({ ticker, status: "error" as const, source: null, sourceSymbol: null, currency: null, rowsFetched: 0, rowsStored: 0, priceRowsStored: 0, message: "Datenbankverbindung nicht verfügbar" }));
   const masters = await db.select({ ticker: stocks.ticker, currency: stocks.currency, isin: stocks.isin })
     .from(stocks).where(inArray(stocks.ticker, tickers));
   const byTicker = new Map(masters.map((master) => [master.ticker, master]));
@@ -215,6 +280,14 @@ export async function refreshTotalReturnHistoryForTickers(input: {
   for (const ticker of tickers) {
     const master = byTicker.get(ticker);
     results.push(await refreshTotalReturnHistoryForTicker({ ticker, nativeCurrency: master?.currency ?? "", isin: master?.isin, from: input.from, to: input.to }));
+  }
+  // The overview chart consumes the same split-adjusted snapshots as the risk
+  // proxy. Do not let its 15-minute cache show pre-refresh raw-close history.
+  // Only derived cache data is invalidated; no portfolio or price source row is
+  // deleted by this operation.
+  if (results.some((result) => result.status === "refreshed")) {
+    const { perfCache } = await import("../_core/perfCache");
+    await perfCache.invalidate("perf:hist:");
   }
   return results;
 }

@@ -2026,7 +2026,7 @@ export default function PortfolioDetailsPage() {
           {/* Vergleichbare historische Kurs- und Gesamtrendite — nur in «detailliert». */}
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Geometrische annualisierte CHF-Kursrendite derselben qualifizierten Fünfjahres-Allokationsreihe. Ausschüttungen sind nicht enthalten; deshalb ist diese Zahl direkt von der Brutto-Gesamtrendite getrennt ausgewiesen.">RENDITE · KURS P.A. (5J)</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Geometrische annualisierte CHF-Kursrendite derselben qualifizierten Fünfjahres-Allokationsreihe. Die eigene Splitkursreihe neutralisiert Aktiensplits, enthält aber keine Ausschüttungen; deshalb ist sie direkt von der Brutto-Gesamtrendite getrennt ausgewiesen.">RENDITE · KURS P.A. (5J)</p>
             <p className={`${riskHeader.status === 'loading' ? 'text-lg' : 'text-2xl'} font-bold font-mono ${riskMetrics?.annualizedPriceReturn != null && riskMetrics.annualizedPriceReturn < 0 ? 'text-negative' : 'text-white'}`}>
               {riskHeader.priceReturn.value}
             </p>
@@ -2174,7 +2174,12 @@ export default function PortfolioDetailsPage() {
                 <div className="bg-gradient-to-br from-[#1a1f2e] to-[#0f1420] border border-[#00CFC1]/20 rounded-lg p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <h3 className="text-sm font-semibold text-white">Wertentwicklung seit Ersterfassung</h3>
+                      <h3
+                        className="text-sm font-semibold text-white"
+                        title="Historische CHF-Kursentwicklung der heutigen festen Stückzahlen. Aktiensplits sind bereinigt; Ausschüttungen sind nicht enthalten. Für die inklusive Dividenden berechnete Langfristkennzahl siehe «Rendite · Total p.a. (5J)»."
+                      >
+                        Kursentwicklung seit Ersterfassung
+                      </h3>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="flex items-center gap-1 text-xs text-gray-400">
                           <span className="inline-block w-4 h-0.5 bg-[#00CFC1]" />
@@ -2198,7 +2203,9 @@ export default function PortfolioDetailsPage() {
                           <button
                             key={v}
                             onClick={() => setIncludeCash(v === 'total')}
-                            title={v === 'total' ? 'Gesamtportfolio inkl. Cash (Cash = 0% Rendite)' : 'Nur Aktien-Rendite (ohne Cash)'}
+                            title={v === 'total'
+                              ? 'Gesamtportfolio inkl. Cash (Cash = 0% Rendite). Diese Linie entspricht der 5J-Kursrendite-Kachel.'
+                              : 'Nur Aktien-Kursentwicklung ohne Cash. Für den direkten Vergleich mit der 5J-Kursrendite-Kachel «Gesamt» wählen.'}
                             className={`px-2 py-1 text-xs rounded transition-colors ${
                               (includeCash ? v === 'total' : v === 'stocks')
                                 ? 'bg-[#00CFC1]/20 text-[#00CFC1] font-medium'

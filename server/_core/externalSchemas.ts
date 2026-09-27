@@ -77,6 +77,12 @@ export const eodhdDividendResponseSchema = z.array(z.object({
   period: z.string().nullish(),
 }));
 
+/** EODHD /api/splits/{ticker} — ex-split date and new-shares/old-shares ratio. */
+export const eodhdSplitResponseSchema = z.array(z.object({
+  date: z.string(),
+  split: z.string(),
+}));
+
 /** Fiscal.ai daily P/E ratio response (fiscalApi.ts). */
 export const fiscalPEHistorySchema = z.array(
   z.object({

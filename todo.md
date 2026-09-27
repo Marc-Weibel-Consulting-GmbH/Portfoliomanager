@@ -1022,3 +1022,12 @@
 - [x] Sämtliche 67 Brutto-Gesamtrendite-Snapshots für 20.09.2021–27.09.2026 aktualisiert; keine fehlgeschlagene Handelslinie, Risikocache invalidiert.
 - [x] Risikoergebnis geprüft: Test KI, Mami und Test bestehen das strenge 5J-/Stress-Gate. Test Wachstum bleibt ausschließlich wegen ASOL.SW transparent gesperrt; keine synthetische Pre-Inception-Historie erfunden.
 - [x] Dauerhafter, eigentümergebundener und nicht-destruktiver Gesamtlauf mit Test für kanonische Preisreihen ergänzt; Audit `ALL_EXISTING_PORTFOLIOS_RISK_RECALCULATION_2026-09-27.md` erstellt.
+
+
+## Mami – Chart- und 5J-Kursrendite-Abgleich (27.09.2026)
+
+- [x] Ursachen belegt: Der Chart bewertete rückwirkend mit aktuellen Gewichten, während die Risikokachel feste Stückzahlen und Cash verwendete; zusätzlich verfälschten unbereinigte Rohkurse Aktiensplits.
+- [x] Splitbereinigte Kurs-Snapshotreihe wird nun für Chart und Kursrendite verwendet; Dividenden bleiben für die Kursrendite ausdrücklich ausgeschlossen.
+- [x] Chart nutzt bei vorhandenen Stückzahlen dieselbe feste Stückzahl-/Cash-Allokation wie die 5J-Risikoreihe; nur ältere Bestände ohne Stückzahl bleiben im sichtbaren Gewichts-Fallback.
+- [x] Mami kontrolliert aktualisiert: 25/25 Split-/Gesamtrenditereihen, 31’635 Kurszeilen; keine Rohkurs-, Portfolio-, Cash-, Ledger-, Transaktions- oder Handelsmutation.
+- [x] Live-Abgleich: Chart Gesamt +31,06 % über fünf Jahre entspricht annualisiert Kursrendite +5,6 % p.a.; Brutto-Gesamtrendite +9,0 % p.a. enthält zusätzlich reinvestierte Bruttodividenden.

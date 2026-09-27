@@ -235,9 +235,9 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     {
       label: "Kursrendite (5J p.a.)",
       value: annualizedPriceReturn === null ? "—" : `${annualizedPriceReturn >= 0 ? "+" : ""}${annualizedPriceReturn.toFixed(1)}%`,
-      sub: riskRequestFailed ? "Risikodaten nicht verfügbar" : annualizedPriceReturn === null ? "5J-Gate erforderlich" : "Ohne Ausschüttungen",
+      sub: riskRequestFailed ? "Risikodaten nicht verfügbar" : annualizedPriceReturn === null ? "5J-Gate erforderlich" : "Ohne Ausschüttungen · splitsbereinigt",
       tone: annualizedPriceReturn !== null && annualizedPriceReturn > 0 ? "good" : annualizedPriceReturn !== null ? "bad" : "neutral",
-      tooltip: "Geometrisch annualisierte CHF-Kursrendite der qualifizierten Fünfjahres-Allokation, ohne Dividenden. Keine tatsächliche Depotperformance vor Portfolio-Start.",
+      tooltip: "Geometrisch annualisierte CHF-Kursrendite der qualifizierten Fünfjahres-Allokation. Eigene Splitkursreihen neutralisieren Aktiensplits, Ausschüttungen sind nicht enthalten. Keine tatsächliche Depotperformance vor Portfolio-Start.",
     },
     {
       label: "Brutto-Gesamtrendite (5J p.a.)",

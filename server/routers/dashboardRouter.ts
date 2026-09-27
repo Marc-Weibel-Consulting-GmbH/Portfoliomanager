@@ -1937,7 +1937,7 @@ export const dashboardRouter = router({
       const { batchGetStocks } = await import("../db-optimized");
       const { convertToCHF, tryConvertToCHFSync, tryGetFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
-      const { historicalPrices, totalReturnHistoricalPrices } = await import("../../drizzle/schema");
+      const { historicalPrices, splitAdjustedHistoricalPrices, totalReturnHistoricalPrices } = await import("../../drizzle/schema");
       const { inArray, and, gte, lte } = await import("drizzle-orm");
 
       const db = await getDb();
@@ -2057,6 +2057,23 @@ export const dashboardRouter = router({
           lte(totalReturnHistoricalPrices.date, todayStr)
         ));
 
+      // Split-adjusted price return is a separate snapshot. It excludes cash
+      // dividends but removes share-count changes, so a split never appears as
+      // a loss in the labelled "Kurs p.a." metric.
+      const splitAdjustedPricesResult = await db.select({
+        ticker: splitAdjustedHistoricalPrices.ticker,
+        date: splitAdjustedHistoricalPrices.date,
+        adjustedClose: splitAdjustedHistoricalPrices.adjustedClose,
+        currency: splitAdjustedHistoricalPrices.currency,
+        source: splitAdjustedHistoricalPrices.source,
+        sourceSymbol: splitAdjustedHistoricalPrices.sourceSymbol,
+      }).from(splitAdjustedHistoricalPrices)
+        .where(and(
+          inArray(splitAdjustedHistoricalPrices.ticker, Array.from(allTickers)),
+          gte(splitAdjustedHistoricalPrices.date, riskQueryStartStr),
+          lte(splitAdjustedHistoricalPrices.date, todayStr)
+        ));
+
       // EODHD remains the default. A secondary series is visible only through
       // an explicit verified native-source contract and replaces the provider
       // series wholesale; never day-by-day and never as an ADR approximation.
@@ -2066,8 +2083,8 @@ export const dashboardRouter = router({
         eodhdPriceMap.get(p.ticker)!.set(p.date, parseFloat(p.close));
       }
 
-      const priceMap = new Map<string, Map<string, number>>();
-      const riskPriceCurrencyByTicker = new Map<string, string>();
+      const priceReturnPriceMap = new Map<string, Map<string, number>>();
+      const priceReturnCurrencyByTicker = new Map<string, string>();
       const riskHistorySelectionByTicker = new Map<string, RiskHistorySelection>();
       const totalReturnPriceMap = new Map<string, Map<string, number>>();
       const totalReturnCurrencyByTicker = new Map<string, string>();
@@ -2097,10 +2114,6 @@ export const dashboardRouter = router({
           secondaryRows,
         });
         riskHistorySelectionByTicker.set(ticker, selection);
-        if (selection.source !== "unavailable") {
-          priceMap.set(ticker, new Map(selection.rows.map((row) => [row.date, row.close])));
-          riskPriceCurrencyByTicker.set(ticker, selection.currency ?? nativeCurrency);
-        }
         const totalReturnSelection = selectTotalReturnHistorySeries({
           priceSource: selection.source,
           // The value is the selected quote currency: MNG.L is a GBP economic
@@ -2121,11 +2134,32 @@ export const dashboardRouter = router({
           totalReturnPriceMap.set(ticker, new Map(totalReturnSelection.rows.map((row) => [row.date, row.adjustedClose])));
           totalReturnCurrencyByTicker.set(ticker, totalReturnSelection.currency ?? nativeCurrency);
         }
+
+        const quoteCurrency = selection.currency ?? nativeCurrency;
+        const splitAdjustedRows = selection.source === "eodhd_primary"
+          ? splitAdjustedPricesResult
+            .filter((row) => row.ticker === ticker
+              && row.source === "eodhd_split_adjusted"
+              && String(row.currency).toUpperCase() === quoteCurrency.toUpperCase())
+          : (selection.source === "yahoo_native" || selection.source === "yahoo_primary_equivalent")
+            ? splitAdjustedPricesResult
+              .filter((row) => row.ticker === ticker
+                && row.source === "yahoo_close_split_adjusted"
+                && row.sourceSymbol === selection.sourceSymbol
+                && String(row.currency).toUpperCase() === quoteCurrency.toUpperCase())
+            : [];
+        if (splitAdjustedRows.length > 0) {
+          priceReturnPriceMap.set(ticker, new Map(splitAdjustedRows.map((row) => [
+            String(row.date).slice(0, 10),
+            parseFloat(row.adjustedClose),
+          ])));
+          priceReturnCurrencyByTicker.set(ticker, quoteCurrency);
+        }
       }
 
       // Get all unique dates
       const allDates = new Set<string>();
-      for (const tp of Array.from(priceMap.values())) {
+      for (const tp of Array.from(priceReturnPriceMap.values())) {
         for (const d of Array.from(tp.keys())) allDates.add(d);
       }
       for (const tp of Array.from(totalReturnPriceMap.values())) {
@@ -2137,7 +2171,7 @@ export const dashboardRouter = router({
       // verified primary Stockholm series, for example, is converted via
       // SEKCHF while the stored Stuttgart valuation in EUR remains untouched.
       const uniqueCurrencies = new Set<string>();
-      for (const currency of Array.from(riskPriceCurrencyByTicker.values())) uniqueCurrencies.add(currency);
+      for (const currency of Array.from(priceReturnCurrencyByTicker.values())) uniqueCurrencies.add(currency);
       for (const currency of Array.from(totalReturnCurrencyByTicker.values())) uniqueCurrencies.add(currency);
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
         convertToCHF(1, c, todayStr)
@@ -2204,7 +2238,7 @@ export const dashboardRouter = router({
 
       // FX is fully prewarmed above. Prepare each price series once instead of
       // repeatedly sorting it for every constituent and calendar day.
-      const priceAtOrBefore = createRiskPriceLookup(priceMap, MAX_PRICE_STALENESS_DAYS);
+      const priceReturnAtOrBefore = createRiskPriceLookup(priceReturnPriceMap, MAX_PRICE_STALENESS_DAYS);
       const totalReturnPriceAtOrBefore = createRiskPriceLookup(totalReturnPriceMap, MAX_PRICE_STALENESS_DAYS);
 
       const buildDailyAllocationValues = (
@@ -2251,7 +2285,7 @@ export const dashboardRouter = router({
       // different holidays, so a price may only be carried forward for seven
       // days after every constituent has proven coverage at the five-year start.
       // Missing price or FX points exclude a day; no amount becomes CHF 1:1.
-      const dailyPriceValues = buildDailyAllocationValues(priceAtOrBefore, riskPriceCurrencyByTicker);
+      const dailyPriceValues = buildDailyAllocationValues(priceReturnAtOrBefore, priceReturnCurrencyByTicker);
       const dailyValues = buildDailyAllocationValues(totalReturnPriceAtOrBefore, totalReturnCurrencyByTicker);
 
       const configuredBenchmark = targetPortfolios.length === 1 ? targetPortfolios[0]?.benchmark : null;

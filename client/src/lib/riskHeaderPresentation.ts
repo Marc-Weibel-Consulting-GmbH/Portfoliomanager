@@ -110,7 +110,7 @@ export function getRiskHeaderPresentation(
     canRetry: false,
     priceReturn: {
       value: annualizedPriceReturn === null ? "—" : `${annualizedPriceReturn >= 0 ? "+" : ""}${annualizedPriceReturn.toFixed(1)}%`,
-      sub: annualizedPriceReturn === null ? missingRiskSub(risk.riskWindowStatus, "sharpe") : "5J-Proxy · p.a. · ohne Div.",
+      sub: annualizedPriceReturn === null ? missingRiskSub(risk.riskWindowStatus, "sharpe") : "5J-Proxy · p.a. · ohne Div. · splitsbereinigt",
     },
     annualReturn: {
       value: annualizedReturn === null ? "—" : `${annualizedReturn >= 0 ? "+" : ""}${annualizedReturn.toFixed(1)}%`,

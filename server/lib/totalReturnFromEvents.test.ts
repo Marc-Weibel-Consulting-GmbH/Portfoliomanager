@@ -1,10 +1,46 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildSplitAdjustedPriceRows,
   buildEventReconstructedTotalReturnRows,
   hasMaterialTotalReturnMismatch,
 } from "./totalReturnFromEvents";
 
 describe("event-reconstructed total-return history", () => {
+  it("removes a 20-for-1 split from the price-only series without adding a dividend", () => {
+    const rows = buildSplitAdjustedPriceRows({
+      rawRows: [
+        { date: "2022-07-15", close: 2250 },
+        { date: "2022-07-18", close: 112.5 },
+        { date: "2022-07-19", close: 115 },
+      ],
+      splits: [{ date: "2022-07-18", split: "20.000000/1.000000" }],
+    });
+
+    expect(rows).toEqual([
+      { date: "2022-07-15", adjustedClose: 112.5 },
+      { date: "2022-07-18", adjustedClose: 112.5 },
+      { date: "2022-07-19", adjustedClose: 115 },
+    ]);
+  });
+
+  it("uses the split-adjusted price series as the dividend-reinvestment base", () => {
+    const splitAdjusted = buildSplitAdjustedPriceRows({
+      rawRows: [
+        { date: "2022-07-15", close: 2250 },
+        { date: "2022-07-18", close: 112.5 },
+        { date: "2022-07-19", close: 110 },
+      ],
+      splits: [{ date: "2022-07-18", split: "20/1" }],
+    });
+    const totalReturn = buildEventReconstructedTotalReturnRows({
+      quoteCurrency: "USD",
+      rawRows: splitAdjusted.map((row) => ({ date: row.date, close: row.adjustedClose })),
+      dividends: [{ date: "2022-07-19", amount: 2.5, currency: "USD" }],
+    });
+
+    expect(totalReturn.at(-1)?.adjustedClose).toBeCloseTo(112.5, 10);
+  });
+
   it("reinvests a cash dividend on the ex-date into the raw price series", () => {
     const rows = buildEventReconstructedTotalReturnRows({
       quoteCurrency: "USD",

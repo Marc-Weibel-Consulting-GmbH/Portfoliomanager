@@ -9,6 +9,13 @@ export type CashDividendEvent = {
   currency: string | null | undefined;
 };
 
+export type StockSplitEvent = {
+  /** Ex-split date: the first session already quoted with the new share count. */
+  date: string;
+  /** EODHD format: new shares / old shares, for example `20.000000/1.000000`. */
+  split: string;
+};
+
 export type ReconstructedTotalReturnRow = {
   date: string;
   adjustedClose: number;
@@ -50,6 +57,51 @@ function normalizeRawRows(rows: RawCloseRow[]): RawCloseRow[] {
     byDate.set(row.date, { date: row.date, close: row.close });
   }
   return Array.from(byDate.values()).sort((left, right) => left.date.localeCompare(right.date));
+}
+
+function splitFactor(value: string): number | null {
+  const parts = String(value ?? "").split("/");
+  if (parts.length !== 2) return null;
+  const numerator = Number(parts[0]);
+  const denominator = Number(parts[1]);
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || numerator <= 0 || denominator <= 0) return null;
+  const factor = numerator / denominator;
+  return Number.isFinite(factor) && factor > 0 ? factor : null;
+}
+
+/**
+ * Converts raw closes into a split-adjusted **price** series. Cash dividends
+ * are intentionally excluded. EODHD records the first session already quoted
+ * with the new share count as the ex-split date, so an event adjusts only rows
+ * before that date. This avoids treating a 20-for-1 split as a −95% loss.
+ */
+export function buildSplitAdjustedPriceRows(input: {
+  rawRows: RawCloseRow[];
+  splits: StockSplitEvent[];
+}): ReconstructedTotalReturnRow[] {
+  const rawRows = normalizeRawRows(input.rawRows);
+  if (rawRows.length === 0) return [];
+
+  const splitFactorByEffectiveDate = new Map<string, number>();
+  for (const event of input.splits) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(event.date)) continue;
+    const effectiveRow = rawRows.find((row) => row.date >= event.date);
+    const factor = splitFactor(event.split);
+    if (!effectiveRow || factor === null) continue;
+    splitFactorByEffectiveDate.set(
+      effectiveRow.date,
+      (splitFactorByEffectiveDate.get(effectiveRow.date) ?? 1) * factor,
+    );
+  }
+
+  const rowsDescending: ReconstructedTotalReturnRow[] = [];
+  let cumulativeShareFactor = 1;
+  for (let index = rawRows.length - 1; index >= 0; index -= 1) {
+    const row = rawRows[index];
+    rowsDescending.push({ date: row.date, adjustedClose: row.close / cumulativeShareFactor });
+    cumulativeShareFactor *= splitFactorByEffectiveDate.get(row.date) ?? 1;
+  }
+  return rowsDescending.reverse();
 }
 
 /**

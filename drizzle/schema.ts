@@ -528,6 +528,33 @@ export type TotalReturnHistoricalPrice = typeof totalReturnHistoricalPrices.$inf
 export type InsertTotalReturnHistoricalPrice = typeof totalReturnHistoricalPrices.$inferInsert;
 
 /**
+ * Re-fetched split-adjusted closes without cash-dividend reinvestment.
+ *
+ * This dedicated snapshot is the only valid basis for a labelled price return
+ * across a corporate action. It is separate from immutable raw closes and from
+ * the gross-total-return snapshot so that a stock split never masquerades as a
+ * gain or loss while dividends remain explicitly excluded.
+ */
+export const splitAdjustedHistoricalPrices = mysqlTable("split_adjusted_historical_prices", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD
+  adjustedClose: decimal("adjustedClose", { precision: 20, scale: 6 }).notNull(),
+  currency: varchar("currency", { length: 10 }).notNull(),
+  source: varchar("source", { length: 50 }).notNull(), // eodhd_split_adjusted | yahoo_close_split_adjusted
+  sourceSymbol: varchar("sourceSymbol", { length: 50 }).notNull(),
+  retrievedAt: timestamp("retrievedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  tickerSourceDateUnique: unique("uq_split_adjusted_prices_source_date").on(t.ticker, t.source, t.date),
+  tickerDateIdx: index("ix_split_adjusted_prices_ticker_date").on(t.ticker, t.date),
+}));
+
+export type SplitAdjustedHistoricalPrice = typeof splitAdjustedHistoricalPrices.$inferSelect;
+export type InsertSplitAdjustedHistoricalPrice = typeof splitAdjustedHistoricalPrices.$inferInsert;
+
+/**
  * Verified secondary-native price rows for portfolio-risk analysis.
  *
  * `historical_prices` has a unique `(ticker, date)` key and is deliberately

@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { perfCache, PERF_CACHE_TTL } from "../_core/perfCache";
 import { z } from "zod";
 import { computeWeightedReturnSeries } from "../lib/weightedReturnSeries";
+import { computeFixedShareReturnSeries } from "../lib/fixedShareReturnSeries";
 import { applyCashDrag } from "../lib/cashAdjust";
 import { toChfPriceMap as toChfPriceMapCore, deriveStocksValueChf } from "../lib/performanceCore";
 import { calculateInitialPortfolioCapitalBasis } from "../../shared/portfolioCapitalBasis";
@@ -2525,7 +2526,7 @@ export const portfoliosRouter = router({
         
         // --- perfCache: return cached result if available (skip for debug requests) ---
         const histCacheDateStr = new Date().toISOString().split('T')[0];
-        const histCacheKey = `perf:hist:${portfolioId}:${period}:${benchmark}:${histCacheDateStr}`;
+        const histCacheKey = `perf:hist:split-v2:${portfolioId}:${period}:${benchmark}:${histCacheDateStr}`;
         if (!debugEnabled) {
           const histCached = await perfCache.get(histCacheKey);
           if (histCached !== null) {
@@ -2650,7 +2651,7 @@ export const portfoliosRouter = router({
         const db = await getDb();
         if (!db) return { chartData: [], totalValueHistory: [] };
         
-        const { historicalPrices } = await import("../../drizzle/schema");
+        const { historicalPrices, splitAdjustedHistoricalPrices } = await import("../../drizzle/schema");
         const { eq, and, gte, lte, asc } = await import("drizzle-orm");
         
         // Calculate start date based on period
@@ -3335,17 +3336,34 @@ export const portfoliosRouter = router({
         const lastKnownPrices: Record<string, number> = {};
         
         for (const ticker of tickers) {
-          const prices = await db
-            .select()
-            .from(historicalPrices)
-            .where(
-              and(
-                eq(historicalPrices.ticker, ticker),
-                gte(historicalPrices.date, ytdStartDate),
-                lte(historicalPrices.date, todayStr)
+          const [rawPrices, splitPrices] = await Promise.all([
+            db.select()
+              .from(historicalPrices)
+              .where(
+                and(
+                  eq(historicalPrices.ticker, ticker),
+                  gte(historicalPrices.date, ytdStartDate),
+                  lte(historicalPrices.date, todayStr)
+                )
               )
-            )
-            .orderBy(asc(historicalPrices.date));
+              .orderBy(asc(historicalPrices.date)),
+            db.select()
+              .from(splitAdjustedHistoricalPrices)
+              .where(
+                and(
+                  eq(splitAdjustedHistoricalPrices.ticker, ticker),
+                  gte(splitAdjustedHistoricalPrices.date, ytdStartDate),
+                  lte(splitAdjustedHistoricalPrices.date, todayStr)
+                )
+              )
+              .orderBy(asc(splitAdjustedHistoricalPrices.date)),
+          ]);
+          // Keep exactly one price basis per instrument. A materially complete
+          // split-adjusted snapshot has priority, otherwise preserve the old raw
+          // close series and make no synthetic blend from the two providers.
+          const prices = splitPrices.length >= Math.max(1, Math.floor(rawPrices.length * 0.98))
+            ? splitPrices.map((row) => ({ date: row.date, close: row.adjustedClose }))
+            : rawPrices;
           
           pricesMap[ticker] = {};
           prices.forEach((p: any) => {
@@ -3529,6 +3547,31 @@ export const portfoliosRouter = router({
             .map((p) => [p.date, p.portfolio])
         );
 
+        // A chart must not retrospectively rebalance into today's winners. When
+        // every stored demo position has an explicit share count, construct the
+        // exact same fixed-share, fixed-cash allocation proxy as the 5J risk
+        // engine. This makes the chart and the risk cards comparable. Older
+        // portfolios without position sizes retain the labelled weight fallback.
+        const fixedShareInputs = weightedSeriesStocks.map((stock: any) => {
+          const input = weightedSeriesInputs.find((candidate) => candidate.ticker === stock.ticker);
+          return {
+            ticker: stock.ticker,
+            shares: parseFloat(stock.shares || "0"),
+            prices: input?.prices ?? {},
+          };
+        });
+        const hasCompleteFixedShares = fixedShareInputs.length > 0
+          && fixedShareInputs.every((input) => input.shares > 0 && Object.keys(input.prices).length > 0);
+        const fixedShareSeries = hasCompleteFixedShares
+          ? computeFixedShareReturnSeries({
+              inputs: fixedShareInputs,
+              dates: sampledDates,
+              startDate: ytdStartDate,
+              cashCHF: parseFloat((portfolio as any).cashBalance || "0"),
+            })
+          : [];
+        const fixedShareSeriesMap = new Map(fixedShareSeries.map((point) => [point.date, point]));
+
         // Current cash weight for the optional total-portfolio (incl. cash) line.
         const chartInvestmentAmount = parseFloat((portfolio as any).investmentAmount || '0');
         const chartCashBalance = parseFloat((portfolio as any).cashBalance || '0');
@@ -3690,10 +3733,13 @@ export const portfoliosRouter = router({
               : 0;
           }
           
-          // Use the weighted per-stock series so the portfolio line is identical in
-          // methodology to the displayed numbers. Falls back to the legacy value only
-          // if the series has no entry for this date.
-          if (weightedSeriesMap.has(date)) {
+          // Prefer the fixed-share allocation proxy. It is split-adjusted and
+          // cash-aware, matching the portfolio risk cards. The weight-based
+          // fallback is reserved for legacy portfolios without stored shares.
+          const fixedSharePoint = fixedShareSeriesMap.get(date);
+          if (fixedSharePoint) {
+            portfolioPerformance = fixedSharePoint.stocksReturnPct;
+          } else if (weightedSeriesMap.has(date)) {
             portfolioPerformance = weightedSeriesMap.get(date) as number;
           }
 
@@ -3720,7 +3766,9 @@ export const portfoliosRouter = router({
             chartData.push({
               date,
               portfolio: parseFloat(portfolioPerformance.toFixed(2)),
-              portfolioInclCash: parseFloat((portfolioPerformance * (1 - chartCashWeight)).toFixed(2)),
+              portfolioInclCash: parseFloat((fixedSharePoint
+                ? fixedSharePoint.totalReturnPct
+                : portfolioPerformance * (1 - chartCashWeight)).toFixed(2)),
               benchmark: parseFloat(benchmarkPerformance.toFixed(2)),
             });
           }
