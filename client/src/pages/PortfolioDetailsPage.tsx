@@ -2178,7 +2178,7 @@ export default function PortfolioDetailsPage() {
                         className="text-sm font-semibold text-white"
                         title="Historische CHF-Kursentwicklung der heutigen festen Stückzahlen. Aktiensplits sind bereinigt; Ausschüttungen sind nicht enthalten. Für die inklusive Dividenden berechnete Langfristkennzahl siehe «Rendite · Total p.a. (5J)»."
                       >
-                        Kursentwicklung seit Ersterfassung
+                        Historische Kursentwicklung der aktuellen Allokation
                       </h3>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="flex items-center gap-1 text-xs text-gray-400">
