@@ -2174,10 +2174,21 @@ export const dashboardRouter = router({
         const dates = Array.from(totalReturnPriceMap.get(ticker)?.keys() ?? []).sort();
         const selection = riskHistorySelectionByTicker.get(ticker);
         const hasQualifiedSource = selection?.source !== "unavailable" && totalReturnPriceMap.has(ticker);
+        const firstAvailableDate = dates[0] ?? null;
+        const startsAfterWindow = Boolean(
+          hasQualifiedSource
+          && firstAvailableDate
+          && firstAvailableDate > riskWindowStartCeilingStr,
+        );
         return {
           key: ticker,
           kind: "price" as const,
-          reason: selection?.reason === "unverified_instrument_identity" ? "incompatible_price_basis" as const : undefined,
+          reason: selection?.reason === "unverified_instrument_identity"
+            ? "incompatible_price_basis" as const
+            : startsAfterWindow
+              ? "history_starts_after_window" as const
+              : undefined,
+          firstAvailableDate,
           supportsWindowStart: hasQualifiedSource && dates.some((date) => date >= riskQueryStartStr && date <= riskWindowStartCeilingStr),
           supportsWindowEnd: hasQualifiedSource && dates.some((date) => date >= riskWindowEndFloorStr),
         };

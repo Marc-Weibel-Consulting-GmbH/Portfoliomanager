@@ -180,7 +180,12 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
   const sharpeRatio = numberOrNull(riskData?.sharpeRatio);
   const benchmarkSharpe = numberOrNull(riskData?.sharpeBenchmark);
   const riskWindowStatus: string | null = typeof riskDetail?.riskWindowStatus === "string" ? riskDetail.riskWindowStatus : null;
-  const coverageIssues: Array<{ key: string; kind: "price" | "fx"; reason?: "incompatible_price_basis" }> = Array.isArray(riskDetail?.coverage?.issues)
+  const coverageIssues: Array<{
+    key: string;
+    kind: "price" | "fx";
+    reason?: "incompatible_price_basis" | "history_starts_after_window";
+    firstAvailableDate?: string | null;
+  }> = Array.isArray(riskDetail?.coverage?.issues)
     ? riskDetail.coverage.issues
     : [];
   const benchmarkOutlierCount = numberOrNull(riskDetail?.coverage?.benchmarkOutlierCount) ?? 0;
@@ -454,7 +459,13 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
           )}
           {!hasValidatedFiveYearRisk && coverageIssues.length > 0 && (
             <p className="mt-2 text-xs text-amber-200/90">
-              Fehlende Fünfjahresabdeckung: {coverageIssues.map((issue) => `${issue.key}${issue.reason === "incompatible_price_basis" ? " (Preis-/Instrumentbasis)" : issue.kind === "fx" ? " (FX)" : ""}`).join(", ")}.
+              Fehlende Fünfjahresabdeckung: {coverageIssues.map((issue) => {
+                if (issue.reason === "incompatible_price_basis") return `${issue.key} (Preis-/Instrumentbasis)`;
+                if (issue.reason === "history_starts_after_window") {
+                  return `${issue.key} (qualifizierte Handelslinie erst ab ${issue.firstAvailableDate ?? "späterem Datum"})`;
+                }
+                return `${issue.key}${issue.kind === "fx" ? " (FX)" : ""}`;
+              }).join(", ")}.
             </p>
           )}
         </div>

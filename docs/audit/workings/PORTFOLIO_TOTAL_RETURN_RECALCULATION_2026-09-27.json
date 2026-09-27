@@ -1,0 +1,733 @@
+{
+  "generatedAt": "2026-09-27T14:38:42.283Z",
+  "scope": {
+    "userId": 4082029,
+    "portfolios": [
+      {
+        "id": 3120001,
+        "name": "Test Wachstum",
+        "isLive": false,
+        "positionCount": 32
+      },
+      {
+        "id": 3510001,
+        "name": "Test KI",
+        "isLive": false,
+        "positionCount": 28
+      },
+      {
+        "id": 4020001,
+        "name": "Mami",
+        "isLive": false,
+        "positionCount": 25
+      },
+      {
+        "id": 5160001,
+        "name": "Test",
+        "isLive": false,
+        "positionCount": 26
+      }
+    ],
+    "uniqueTickers": 67,
+    "range": {
+      "from": "2021-09-20",
+      "to": "2026-09-27"
+    },
+    "rawBackfillPlan": [
+      {
+        "ticker": "AAPL",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-12"
+      },
+      {
+        "ticker": "ASOL.SW",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2022-03-14"
+      },
+      {
+        "ticker": "CMDY",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-30"
+      },
+      {
+        "ticker": "FLXS",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-29"
+      },
+      {
+        "ticker": "GOOG",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-12"
+      },
+      {
+        "ticker": "MSFT",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2022-12-30"
+      },
+      {
+        "ticker": "MU",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2022-12-30"
+      },
+      {
+        "ticker": "OII",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-29"
+      },
+      {
+        "ticker": "PG",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-12"
+      },
+      {
+        "ticker": "REET",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-30"
+      },
+      {
+        "ticker": "VZ",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-12"
+      },
+      {
+        "ticker": "XOM",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-12"
+      }
+    ],
+    "rule": "Nur nicht-Snapshot-Portfolios des angegebenen Eigentümers; Rohpreise, Bestände, Cash, Ledger und Transaktionen sind ausserhalb des Schreibumfangs."
+  },
+  "mode": "refresh",
+  "result": {
+    "rawBackfill": [
+      {
+        "ticker": "AAPL",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-12",
+        "success": true,
+        "pricesImported": 1260
+      },
+      {
+        "ticker": "ASOL.SW",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2022-03-14",
+        "success": true,
+        "pricesImported": 1139
+      },
+      {
+        "ticker": "CMDY",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-30",
+        "success": true,
+        "pricesImported": 1260
+      },
+      {
+        "ticker": "FLXS",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-29",
+        "success": true,
+        "pricesImported": 1260
+      },
+      {
+        "ticker": "GOOG",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-12",
+        "success": true,
+        "pricesImported": 1260
+      },
+      {
+        "ticker": "MSFT",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2022-12-30",
+        "success": true,
+        "pricesImported": 1260
+      },
+      {
+        "ticker": "MU",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2022-12-30",
+        "success": true,
+        "pricesImported": 1260
+      },
+      {
+        "ticker": "OII",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-29",
+        "success": true,
+        "pricesImported": 1260
+      },
+      {
+        "ticker": "PG",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-12",
+        "success": true,
+        "pricesImported": 1260
+      },
+      {
+        "ticker": "REET",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-30",
+        "success": true,
+        "pricesImported": 1260
+      },
+      {
+        "ticker": "VZ",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-12",
+        "success": true,
+        "pricesImported": 1260
+      },
+      {
+        "ticker": "XOM",
+        "reason": "starts_after_requested_window",
+        "firstDate": "2024-07-12",
+        "success": true,
+        "pricesImported": 1260
+      }
+    ],
+    "refreshedTickers": 67,
+    "fetchedRows": 84417,
+    "storedSnapshotRowsByTicker": {
+      "DINO": 1260,
+      "SPICHA.SW": 1262,
+      "VONN.SW": 1262,
+      "MSFT": 1260,
+      "D05.SI": 1262,
+      "6856.T": 1225,
+      "AAPL": 1260,
+      "TSM": 1260,
+      "ACA.PA": 1286,
+      "PM": 1260,
+      "ASOL.SW": 1139,
+      "BRKN.SW": 2524,
+      "ABTC.SW": 1262,
+      "MO": 1260,
+      "NESN.SW": 1262,
+      "NOVN.SW": 1262,
+      "OII": 1260,
+      "CSBGC0.SW": 1262,
+      "FLXS": 1260,
+      "KREATE.HE": 1262,
+      "RO.SW": 1262,
+      "CMDY": 1260,
+      "SCMN.SW": 1262,
+      "SGY.TO": 1260,
+      "PST.MI": 1280,
+      "CHDVD.SW": 1262,
+      "PG": 1260,
+      "EEM.US": 1260,
+      "XLE.US": 1265,
+      "AKRBP.OL": 1262,
+      "BTI": 1260,
+      "KAP.IL": 2532,
+      "VNP.TO": 1260,
+      "XOM": 1260,
+      "GIVN.SW": 1262,
+      "CMBN.SW": 1262,
+      "ZURN.SW": 1262,
+      "SIKA.SW": 1262,
+      "IG.MI": 1280,
+      "ABX.TO": 1260,
+      "SRG.MI": 1276,
+      "OFN.SW": 2524,
+      "LOGN.SW": 1262,
+      "FHZN.SW": 1262,
+      "PLTR": 1260,
+      "BION.SW": 1262,
+      "MNG.L": 2534,
+      "SLHN.SW": 1262,
+      "BAER.SW": 1262,
+      "GOOG": 1265,
+      "GOOGL": 1265,
+      "RUS.TO": 1260,
+      "JNJ": 1260,
+      "PSK.TO": 1260,
+      "VZ": 1260,
+      "O": 2520,
+      "SE0007491303.SG": 1262,
+      "MU": 1260,
+      "HOLN.SW": 1262,
+      "ZGLD.SW": 1262,
+      "NOVO-B.CO": 1263,
+      "SGKN.SW": 1262,
+      "CHSPI.SW": 1262,
+      "ABBN.SW": 1262,
+      "NVDA": 1265,
+      "SREN.SW": 1262,
+      "REET": 1260
+    },
+    "failures": [],
+    "sources": [
+      {
+        "ticker": "6856.T",
+        "status": "refreshed",
+        "source": "yahoo_adjusted",
+        "currency": "JPY",
+        "rowsFetched": 1225
+      },
+      {
+        "ticker": "AAPL",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "ABBN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "ABTC.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "ABX.TO",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CAD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "ACA.PA",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "EUR",
+        "rowsFetched": 1286
+      },
+      {
+        "ticker": "AKRBP.OL",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "NOK",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "ASOL.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1139
+      },
+      {
+        "ticker": "BAER.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "BION.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "BRKN.SW",
+        "status": "refreshed",
+        "source": "eodhd_events_total_return",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "BTI",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "CHDVD.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "CHSPI.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "CMBN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "CMDY",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "CSBGC0.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "D05.SI",
+        "status": "refreshed",
+        "source": "yahoo_adjusted",
+        "currency": "SGD",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "DINO",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "EEM.US",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "FHZN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "FLXS",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "GIVN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "GOOG",
+        "status": "refreshed",
+        "source": "eodhd_events_total_return",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "GOOGL",
+        "status": "refreshed",
+        "source": "eodhd_events_total_return",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "HOLN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "IG.MI",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "EUR",
+        "rowsFetched": 1280
+      },
+      {
+        "ticker": "JNJ",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "KAP.IL",
+        "status": "refreshed",
+        "source": "eodhd_events_total_return",
+        "currency": "USD",
+        "rowsFetched": 1266
+      },
+      {
+        "ticker": "KREATE.HE",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "EUR",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "LOGN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "MNG.L",
+        "status": "refreshed",
+        "source": "eodhd_events_total_return",
+        "currency": "GBp",
+        "rowsFetched": 1267
+      },
+      {
+        "ticker": "MO",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "MSFT",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "MU",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "NESN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "NOVN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "NOVO-B.CO",
+        "status": "refreshed",
+        "source": "eodhd_events_total_return",
+        "currency": "DKK",
+        "rowsFetched": 1258
+      },
+      {
+        "ticker": "NVDA",
+        "status": "refreshed",
+        "source": "eodhd_events_total_return",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "O",
+        "status": "refreshed",
+        "source": "eodhd_events_total_return",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "OFN.SW",
+        "status": "refreshed",
+        "source": "eodhd_events_total_return",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "OII",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "PG",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "PLTR",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "PM",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "PSK.TO",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CAD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "PST.MI",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "EUR",
+        "rowsFetched": 1280
+      },
+      {
+        "ticker": "REET",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "RO.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "RUS.TO",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CAD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "SCMN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "SE0007491303.SG",
+        "status": "refreshed",
+        "source": "yahoo_adjusted",
+        "currency": "SEK",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "SGKN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "SGY.TO",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CAD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "SIKA.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "SLHN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "SPICHA.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "SREN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "SRG.MI",
+        "status": "refreshed",
+        "source": "yahoo_adjusted",
+        "currency": "EUR",
+        "rowsFetched": 1276
+      },
+      {
+        "ticker": "TSM",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "VNP.TO",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CAD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "VONN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "VZ",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "XLE.US",
+        "status": "refreshed",
+        "source": "eodhd_events_total_return",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "XOM",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "USD",
+        "rowsFetched": 1260
+      },
+      {
+        "ticker": "ZGLD.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      },
+      {
+        "ticker": "ZURN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "currency": "CHF",
+        "rowsFetched": 1262
+      }
+    ],
+    "cache": "Alle in-memory Risiko-Snapshots invalidiert; die Risikokennzahlen werden über die normalen geschützten Portfolioabfragen neu aufgebaut."
+  }
+}

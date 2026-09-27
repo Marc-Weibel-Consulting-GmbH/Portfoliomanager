@@ -1013,3 +1013,12 @@
 - [x] Cash-Event-Rekonstruktion nur bei mindestens 50 bp Providerabweichung umgesetzt; Dividendenevents werden in der Handelsquote reinvestiert (GBP→GBp ohne FX-Schätzung). Rohkurse bleiben unverändert.
 - [x] Risikocache wird nach jeder Snapshotaktualisierung global invalidiert, damit kein bis zu fünf Minuten alter Sharpe-/Gesamtrenditewert sichtbar bleibt.
 - [x] Live am Testportfolio geprüft: Kurs +3,4 % p.a., Brutto-Gesamtrendite +7,4 % p.a. (Differenz +4,0 PP), Volatilität 10,4 %, Sharpe 0,52, Max.-Drawdown −17,1 %, 1’302 Beobachtungen.
+
+
+## Gesamtlauf: bestehende Portfolios neu berechnen — 27.09.2026
+
+- [x] Alle vier nicht-Snapshot-Portfolios des Eigentümers inventarisiert: 111 Positionen, 67 eindeutige Handelslinien.
+- [x] 12 verkürzte kanonische Rohkursreihen geprüft und kontrolliert nachgeladen; 11 reichen nun bis 20.09.2021 zurück. ASOL.SW beginnt belegbar erst mit der Produktinzeption am 14.03.2022.
+- [x] Sämtliche 67 Brutto-Gesamtrendite-Snapshots für 20.09.2021–27.09.2026 aktualisiert; keine fehlgeschlagene Handelslinie, Risikocache invalidiert.
+- [x] Risikoergebnis geprüft: Test KI, Mami und Test bestehen das strenge 5J-/Stress-Gate. Test Wachstum bleibt ausschließlich wegen ASOL.SW transparent gesperrt; keine synthetische Pre-Inception-Historie erfunden.
+- [x] Dauerhafter, eigentümergebundener und nicht-destruktiver Gesamtlauf mit Test für kanonische Preisreihen ergänzt; Audit `ALL_EXISTING_PORTFOLIOS_RISK_RECALCULATION_2026-09-27.md` erstellt.

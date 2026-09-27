@@ -90,6 +90,32 @@ describe("assessPortfolioRiskWindow", () => {
     expect(assessment.coverageIssues).toContainEqual(expect.objectContaining({ key: "NVDA", kind: "price" }));
   });
 
+  it("keeps a post-window qualified history start visible instead of calling it a generic data defect", () => {
+    const assessment = assessPortfolioRiskWindow({
+      asOfDate: "2026-09-24",
+      qualifiedDates: calendarDays("2022-03-14", MIN_QUALIFIED_RISK_DAYS),
+      coverage: [
+        ...completeCoverage,
+        {
+          key: "ASOL.SW",
+          kind: "price",
+          reason: "history_starts_after_window",
+          firstAvailableDate: "2022-03-14",
+          supportsWindowStart: false,
+          supportsWindowEnd: true,
+        },
+      ],
+      benchmark: { key: "SMI", points: [] },
+    });
+
+    expect(assessment.status).toBe("insufficient_history");
+    expect(assessment.coverageIssues).toContainEqual(expect.objectContaining({
+      key: "ASOL.SW",
+      reason: "history_starts_after_window",
+      firstAvailableDate: "2022-03-14",
+    }));
+  });
+
   it("classifies an FX gap as incompatible rather than valuing foreign currency at par", () => {
     const assessment = assessPortfolioRiskWindow({
       asOfDate: "2026-09-24",

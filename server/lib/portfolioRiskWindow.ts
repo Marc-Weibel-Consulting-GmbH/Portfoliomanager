@@ -16,7 +16,9 @@ export type RiskCoverageItem = {
   key: string;
   kind: "price" | "fx";
   /** Bei ADR-/Auslandsproxies verhindert die Instrument- oder Währungsbasis eine CHF-Risikoreihe. */
-  reason?: "incompatible_price_basis";
+  reason?: "incompatible_price_basis" | "history_starts_after_window";
+  /** Erster nachweisbarer Handelstag der gewählten, qualifizierten Handelslinie. */
+  firstAvailableDate?: string | null;
   supportsWindowStart: boolean;
   supportsWindowEnd: boolean;
 };
