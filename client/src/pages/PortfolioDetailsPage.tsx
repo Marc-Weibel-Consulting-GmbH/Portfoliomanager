@@ -2023,10 +2023,23 @@ export default function PortfolioDetailsPage() {
             })()}
           </div>
 
-          {/* SHARPE — fortgeschrittene Kennzahl, nur in «detailliert» */}
+          {/* Vergleichbare historische Kurs- und Gesamtrendite — nur in «detailliert». */}
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Geometrische annualisierte CHF-Rendite derselben qualifizierten Fünfjahres-Allokationsreihe wie Sharpe, Volatilität und Drawdown. Keine tatsächliche Depotperformance vor Portfolio-Start.">RENDITE · P.A. (5J)</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Geometrische annualisierte CHF-Kursrendite derselben qualifizierten Fünfjahres-Allokationsreihe. Ausschüttungen sind nicht enthalten; deshalb ist diese Zahl direkt von der Brutto-Gesamtrendite getrennt ausgewiesen.">RENDITE · KURS P.A. (5J)</p>
+            <p className={`${riskHeader.status === 'loading' ? 'text-lg' : 'text-2xl'} font-bold font-mono ${riskMetrics?.annualizedPriceReturn != null && riskMetrics.annualizedPriceReturn < 0 ? 'text-negative' : 'text-white'}`}>
+              {riskHeader.priceReturn.value}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {riskHeader.priceReturn.sub}
+            </p>
+          </div>
+          )}
+
+          {/* Total return and risk statistics share one dividend-adjusted 5Y basis. */}
+          {detailed && (
+          <div className="bg-[#0f1420] p-5 border-r border-white/10">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Geometrische annualisierte CHF-Brutto-Gesamtrendite derselben qualifizierten Fünfjahres-Allokationsreihe wie Sharpe, Volatilität und Drawdown. Anbieter-adjusted close berücksichtigt ausgeschüttete Dividenden und Splits; Dividenden werden rechnerisch reinvestiert. Keine tatsächliche Depotperformance vor Portfolio-Start.">RENDITE · TOTAL P.A. (5J)</p>
             <p className={`${riskHeader.status === 'loading' ? 'text-lg' : 'text-2xl'} font-bold font-mono ${riskMetrics?.annualizedReturn != null && riskMetrics.annualizedReturn < 0 ? 'text-negative' : 'text-white'}`}>
               {riskHeader.annualReturn.value}
             </p>
@@ -2038,7 +2051,7 @@ export default function PortfolioDetailsPage() {
 
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Annualisierte Volatilität der täglichen CHF-Renditen derselben qualifizierten Fünfjahres-Allokationsreihe. Keine tatsächliche Depotvolatilität vor Portfolio-Start.">RISIKO · VOLATILITÄT (5J)</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Annualisierte Volatilität der täglichen CHF-Brutto-Gesamtrenditen derselben qualifizierten Fünfjahres-Allokationsreihe. Dividenden sind enthalten; keine tatsächliche Depotvolatilität vor Portfolio-Start.">RISIKO · VOLATILITÄT (5J)</p>
             <p className={`${riskHeader.status === 'loading' ? 'text-lg' : 'text-2xl'} font-bold font-mono text-white`}>
               {riskHeader.volatility.value}
             </p>
@@ -2050,7 +2063,7 @@ export default function PortfolioDetailsPage() {
 
           {detailed && (
           <div className="bg-[#0f1420] p-5 border-r border-white/10">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Fünfjähriger Sharpe des historischen Allokationsproxys: annualisierte tägliche CHF-Rendite abzüglich 2 % risikofreiem Satz, dividiert durch die annualisierte Volatilität. Keine reale Depotperformance vor Portfolio-Start.">RISIKO · SHARPE (5J)</p>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2" title="Fünfjähriger Sharpe des historischen Allokationsproxys: annualisierte tägliche CHF-Brutto-Gesamtrendite (Kurs plus reinvestierte Dividenden) abzüglich 2 % risikofreiem Satz, dividiert durch die annualisierte Volatilität. Das entspricht der Gesamtrenditebasis des SPI-Benchmarks; keine reale Depotperformance vor Portfolio-Start.">RISIKO · SHARPE (5J)</p>
             <p className={`${riskHeader.status === 'loading' ? 'text-lg' : 'text-2xl'} font-bold font-mono text-white`}>
               {riskHeader.sharpe.value}
             </p>

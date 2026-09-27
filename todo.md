@@ -997,3 +997,13 @@
 - [x] Phase B umgesetzt: Bravida über exakte ISIN `SE0007491303` und 1:1-Primärlinie `BRAV.ST` verifiziert; ausschliesslich für die historische SEK-Risikoreihe via zeitgerechtem SEKCHF verwendet. EUR-Bewertung, Bestand, Cash und Buchungen blieben unverändert.
 - [x] Testportfolio live geprüft: vollständiges 5J-Fenster mit 1’302 Beobachtungen, Rendite p.a. +4,9 %, Volatilität 16,0 %, Sharpe 0,24, Max.-Drawdown −26,2 %, VaR −1,6 % und Beta 0,73.
 - [x] Quellenhinweis im Risiko-Tab sowie Implementierungs-Audit ergänzt; fokussierte Tests und TypeScript fehlerfrei.
+
+
+## Kurs- und Brutto-Gesamtrendite (5J) — 27.09.2026
+
+- [x] Datenbasis geklärt: Rohkurs und `adjusted_close` sind fachlich unterschiedliche Reihen; historische adjusted-close-Werte können nach einer neuen Dividende rückwirkend durch den Anbieter geändert werden.
+- [x] Separate, zeitgestempelte `total_return_historical_prices`-Snapshots umgesetzt; Rohpreise, Portfolio-, Cash-, Ledger- und Transaktionsdaten bleiben unverändert.
+- [x] Kursrendite p.a. und Brutto-Gesamtrendite p.a. (inkl. reinvestierter Dividenden) im Portfolio-Kopf, Risiko-Tab, Excel- und PDF-Export klar getrennt beschriftet.
+- [x] Sharpe, Volatilität, VaR, Beta und Max.-Drawdown auf die Total-Return-Basis mit Gesamtrendite-Benchmark vereinheitlicht.
+- [x] Testportfolio 5160001 kontrolliert angereichert: 26/26 Reihen, 32’800 Snapshotzeilen; live geprüft (Kurs +4,9 % p.a., Brutto-Gesamtrendite +6,4 % p.a., Sharpe 0,33).
+- [x] Snapshotaktualisierung ist bei Einzeltitel-Historienimport/Backfill integriert; der Tagesimport aktualisiert nur gespeicherte Portfolio-Positionen, wenn ihr Snapshot mindestens 24 Stunden alt ist.

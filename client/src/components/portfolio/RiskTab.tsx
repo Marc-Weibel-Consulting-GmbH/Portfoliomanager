@@ -171,6 +171,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
   const hasValidatedFiveYearRisk = riskDetail?.riskWindowStatus === "five_year_with_stress";
   const numberOrNull = (value: unknown): number | null => typeof value === "number" && Number.isFinite(value) ? value : null;
   const annualizedReturn = numberOrNull(riskData?.annualizedReturn);
+  const annualizedPriceReturn = numberOrNull(riskData?.annualizedPriceReturn);
   const volatility = numberOrNull(riskData?.volatility);
   const benchmarkVolatility = numberOrNull(riskData?.volBenchmark);
   const maxDrawdown = numberOrNull(riskData?.maxDrawdown);
@@ -227,11 +228,18 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
     benchmarkTone?: "good" | "bad" | "neutral";
   }[] = [
     {
-      label: "Rendite (5J p.a.)",
+      label: "Kursrendite (5J p.a.)",
+      value: annualizedPriceReturn === null ? "—" : `${annualizedPriceReturn >= 0 ? "+" : ""}${annualizedPriceReturn.toFixed(1)}%`,
+      sub: riskRequestFailed ? "Risikodaten nicht verfügbar" : annualizedPriceReturn === null ? "5J-Gate erforderlich" : "Ohne Ausschüttungen",
+      tone: annualizedPriceReturn !== null && annualizedPriceReturn > 0 ? "good" : annualizedPriceReturn !== null ? "bad" : "neutral",
+      tooltip: "Geometrisch annualisierte CHF-Kursrendite der qualifizierten Fünfjahres-Allokation, ohne Dividenden. Keine tatsächliche Depotperformance vor Portfolio-Start.",
+    },
+    {
+      label: "Brutto-Gesamtrendite (5J p.a.)",
       value: annualizedReturn === null ? "—" : `${annualizedReturn >= 0 ? "+" : ""}${annualizedReturn.toFixed(1)}%`,
-      sub: riskRequestFailed ? "Risikodaten nicht verfügbar" : annualizedReturn === null ? "5J-Gate erforderlich" : "Geometrische CHF-Rendite",
+      sub: riskRequestFailed ? "Risikodaten nicht verfügbar" : annualizedReturn === null ? "5J-Gate erforderlich" : "Kurs + reinvestierte Dividenden",
       tone: annualizedReturn !== null && annualizedReturn > 0 ? "good" : annualizedReturn !== null ? "bad" : "neutral",
-      tooltip: "Geometrisch annualisierte CHF-Rendite der exakt gleichen qualifizierten Fünfjahres-Allokationsreihe wie Sharpe, Volatilität und Max.-Drawdown; keine tatsächliche Depotperformance vor Portfolio-Start.",
+      tooltip: "Geometrisch annualisierte CHF-Brutto-Gesamtrendite der exakt gleichen qualifizierten Fünfjahres-Allokationsreihe wie Sharpe, Volatilität und Max.-Drawdown. Anbieter-adjusted close enthält reinvestierte Dividenden und Splits; keine tatsächliche Depotperformance vor Portfolio-Start.",
     },
     {
       label: "Volatilität (5J p.a.)",
@@ -271,7 +279,7 @@ export default function RiskTab({ portfolioId }: { portfolioId: number }) {
       value: sharpeRatio === null ? "—" : sharpeRatio.toFixed(2),
       sub: riskRequestFailed ? "Abruf fehlgeschlagen – erneut versuchen" : benchmarkSharpe === null ? "5J-Gate erforderlich" : `Bench ${benchmarkSharpe.toFixed(2)}`,
       tone: sharpeRatio !== null && sharpeRatio >= 1 ? "good" : "neutral",
-      tooltip: "Rendite pro Risikoeinheit im qualifizierten Fünfjahresfenster.",
+      tooltip: "Rendite pro Risikoeinheit auf derselben dividendenbereinigten Brutto-Gesamtrenditereihe wie der SPI-Benchmark.",
       kpiKey: "sharpe",
     },
     {

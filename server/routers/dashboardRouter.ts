@@ -24,11 +24,14 @@ import {
   selectRiskHistorySeries,
   type RiskHistorySelection,
 } from "../lib/nativeRiskHistory";
+import { selectTotalReturnHistorySeries } from "../lib/totalReturnHistory";
 
 type PublishedRiskMetrics = {
   dataAvailable: true;
-  /** Geometrische CHF-Rendite p.a. derselben qualifizierten 5J-Allokationsreihe. */
+  /** Geometrische Brutto-Gesamtrendite p.a. (Kurs plus reinvestierte Ausschüttungen). */
   annualizedReturn: number | null;
+  /** Geometrische Kursrendite p.a. derselben fünfjährigen Allokation, ohne Ausschüttungen. */
+  annualizedPriceReturn: number | null;
   volatility: number | null;
   volBenchmark: number | null;
   maxDrawdown: number | null;
@@ -1934,11 +1937,11 @@ export const dashboardRouter = router({
       const { batchGetStocks } = await import("../db-optimized");
       const { convertToCHF, tryConvertToCHFSync, tryGetFxRate } = await import("../fxHelper");
       const { getDb } = await import("../db");
-      const { historicalPrices } = await import("../../drizzle/schema");
+      const { historicalPrices, totalReturnHistoricalPrices } = await import("../../drizzle/schema");
       const { inArray, and, gte, lte } = await import("drizzle-orm");
 
       const db = await getDb();
-      if (!db) return { dataAvailable: false, annualizedReturn: null, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (!db) return { dataAvailable: false, annualizedReturn: null, annualizedPriceReturn: null, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       // The personal aggregate intentionally remains owner-only. A numerical
       // scope may additionally be a specifically shared read-only portfolio.
@@ -1949,7 +1952,7 @@ export const dashboardRouter = router({
         const readAccess = await getPortfolioReadAccess(input.scope, ctx.user.id);
         targetPortfolios = readAccess ? [readAccess.portfolio] : [];
       }
-      if (targetPortfolios.length === 0) return { dataAvailable: false, annualizedReturn: null, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (targetPortfolios.length === 0) return { dataAvailable: false, annualizedReturn: null, annualizedPriceReturn: null, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       // Risikovertrag: Der sichtbare Max.-Drawdown braucht mindestens fünf
       // Kalenderjahre sowie eine belegte Stressphase. Vor dem Portfolio-Start
@@ -2005,7 +2008,7 @@ export const dashboardRouter = router({
         }
       }
 
-      if (allTickers.size === 0) return { dataAvailable: false, annualizedReturn: null, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
+      if (allTickers.size === 0) return { dataAvailable: false, annualizedReturn: null, annualizedPriceReturn: null, volatility: 0, volBenchmark: 0, maxDrawdown: 0, drawdownBenchmark: 0, var95: 0, concentrationTop3: 0, sharpeRatio: 0, sharpeBenchmark: 0, beta: 0 };
 
       const stocksMap = await batchGetStocks(Array.from(allTickers));
 
@@ -2037,6 +2040,23 @@ export const dashboardRouter = router({
           lte(nativeHistoricalPrices.date, todayStr)
         ));
 
+      // `historical_prices.close` remains the immutable raw-price basis. Gross
+      // total return comes only from a separately refreshed provider snapshot;
+      // it is never assembled from stale adjusted values or mixed sources.
+      const totalReturnPricesResult = await db.select({
+        ticker: totalReturnHistoricalPrices.ticker,
+        date: totalReturnHistoricalPrices.date,
+        adjustedClose: totalReturnHistoricalPrices.adjustedClose,
+        currency: totalReturnHistoricalPrices.currency,
+        source: totalReturnHistoricalPrices.source,
+        sourceSymbol: totalReturnHistoricalPrices.sourceSymbol,
+      }).from(totalReturnHistoricalPrices)
+        .where(and(
+          inArray(totalReturnHistoricalPrices.ticker, Array.from(allTickers)),
+          gte(totalReturnHistoricalPrices.date, riskQueryStartStr),
+          lte(totalReturnHistoricalPrices.date, todayStr)
+        ));
+
       // EODHD remains the default. A secondary series is visible only through
       // an explicit verified native-source contract and replaces the provider
       // series wholesale; never day-by-day and never as an ADR approximation.
@@ -2049,6 +2069,8 @@ export const dashboardRouter = router({
       const priceMap = new Map<string, Map<string, number>>();
       const riskPriceCurrencyByTicker = new Map<string, string>();
       const riskHistorySelectionByTicker = new Map<string, RiskHistorySelection>();
+      const totalReturnPriceMap = new Map<string, Map<string, number>>();
+      const totalReturnCurrencyByTicker = new Map<string, string>();
       for (const ticker of allTickers) {
         const stock = stocksMap.get(ticker) as any;
         const nativeCurrency = String(stock?.currency || "CHF").toUpperCase();
@@ -2079,11 +2101,28 @@ export const dashboardRouter = router({
           priceMap.set(ticker, new Map(selection.rows.map((row) => [row.date, row.close])));
           riskPriceCurrencyByTicker.set(ticker, selection.currency ?? nativeCurrency);
         }
+        const totalReturnSelection = selectTotalReturnHistorySeries({
+          priceSource: selection.source,
+          nativeCurrency,
+          eodhdRows: totalReturnPricesResult
+            .filter((row) => row.ticker === ticker && row.source === "eodhd_adjusted" && String(row.currency).toUpperCase() === nativeCurrency)
+            .map((row) => ({ date: String(row.date).slice(0, 10), adjustedClose: parseFloat(row.adjustedClose) })),
+          nativeRows: totalReturnPricesResult
+            .filter((row) => row.ticker === ticker && row.source === "yahoo_adjusted" && source && row.sourceSymbol === source.sourceSymbol && String(row.currency).toUpperCase() === source.sourceCurrency)
+            .map((row) => ({ date: String(row.date).slice(0, 10), adjustedClose: parseFloat(row.adjustedClose) })),
+        });
+        if (totalReturnSelection.source !== "unavailable") {
+          totalReturnPriceMap.set(ticker, new Map(totalReturnSelection.rows.map((row) => [row.date, row.adjustedClose])));
+          totalReturnCurrencyByTicker.set(ticker, totalReturnSelection.currency ?? nativeCurrency);
+        }
       }
 
       // Get all unique dates
       const allDates = new Set<string>();
       for (const tp of Array.from(priceMap.values())) {
+        for (const d of Array.from(tp.keys())) allDates.add(d);
+      }
+      for (const tp of Array.from(totalReturnPriceMap.values())) {
         for (const d of Array.from(tp.keys())) allDates.add(d);
       }
       const sortedDates = Array.from(allDates).sort();
@@ -2093,6 +2132,7 @@ export const dashboardRouter = router({
       // SEKCHF while the stored Stuttgart valuation in EUR remains untouched.
       const uniqueCurrencies = new Set<string>();
       for (const currency of Array.from(riskPriceCurrencyByTicker.values())) uniqueCurrencies.add(currency);
+      for (const currency of Array.from(totalReturnCurrencyByTicker.values())) uniqueCurrencies.add(currency);
       await Promise.all(Array.from(uniqueCurrencies).filter(c => c !== 'CHF').map(c =>
         convertToCHF(1, c, todayStr)
       ));
@@ -2125,9 +2165,9 @@ export const dashboardRouter = router({
       }
 
       const priceCoverage = Array.from(allTickers).map((ticker) => {
-        const dates = Array.from(priceMap.get(ticker)?.keys() ?? []).sort();
+        const dates = Array.from(totalReturnPriceMap.get(ticker)?.keys() ?? []).sort();
         const selection = riskHistorySelectionByTicker.get(ticker);
-        const hasQualifiedSource = selection?.source !== "unavailable";
+        const hasQualifiedSource = selection?.source !== "unavailable" && totalReturnPriceMap.has(ticker);
         return {
           key: ticker,
           kind: "price" as const,
@@ -2148,44 +2188,54 @@ export const dashboardRouter = router({
       // FX is fully prewarmed above. Prepare each price series once instead of
       // repeatedly sorting it for every constituent and calendar day.
       const priceAtOrBefore = createRiskPriceLookup(priceMap, MAX_PRICE_STALENESS_DAYS);
+      const totalReturnPriceAtOrBefore = createRiskPriceLookup(totalReturnPriceMap, MAX_PRICE_STALENESS_DAYS);
+
+      const buildDailyAllocationValues = (
+        lookup: (ticker: string, date: string) => number | null,
+        currencyByTicker: Map<string, string>,
+      ): Array<{ date: string; portfolioValueCHF: number }> => {
+        const values: Array<{ date: string; portfolioValueCHF: number }> = [];
+        for (const date of sortedDates.filter((candidate) => candidate >= riskTargetStartStr && candidate <= todayStr)) {
+          let totalValueCHF = 0;
+          let completeValuation = true;
+          for (const portfolio of targetPortfolios) {
+            if (portfolio.isLive === 1 && portfolio.liveStartDate) {
+              const holdingsMap = buildHoldings(txByPortfolio.get(portfolio.id) || [], date);
+              for (const [ticker, { shares }] of Array.from(holdingsMap.entries())) {
+                if (shares <= 0) continue;
+                const price = lookup(ticker, date);
+                const currency = currencyByTicker.get(ticker);
+                if (!currency) { completeValuation = false; break; }
+                const priceCHF = price === null ? null : tryConvertToCHFSync(price, currency, date);
+                if (priceCHF === null) { completeValuation = false; break; }
+                totalValueCHF += shares * priceCHF;
+              }
+            } else {
+              const sharesMap = demoSharesCalc.get(portfolio.id) || new Map();
+              for (const [ticker, shares] of Array.from(sharesMap.entries())) {
+                const price = lookup(ticker, date);
+                const currency = currencyByTicker.get(ticker);
+                if (!currency) { completeValuation = false; break; }
+                const priceCHF = price === null ? null : tryConvertToCHFSync(price, currency, date);
+                if (priceCHF === null) { completeValuation = false; break; }
+                totalValueCHF += shares * priceCHF;
+              }
+              const cashBalance = parseFloat(portfolio.cashBalance || "0");
+              if (Number.isFinite(cashBalance) && cashBalance > 0) totalValueCHF += cashBalance;
+            }
+            if (!completeValuation) break;
+          }
+          if (completeValuation && totalValueCHF > 0) values.push({ date, portfolioValueCHF: totalValueCHF });
+        }
+        return values;
+      };
 
       // Build a daily CHF allocation proxy. Different exchanges close on
       // different holidays, so a price may only be carried forward for seven
       // days after every constituent has proven coverage at the five-year start.
       // Missing price or FX points exclude a day; no amount becomes CHF 1:1.
-      const dailyValues: Array<{ date: string; portfolioValueCHF: number }> = [];
-      for (const date of sortedDates.filter((candidate) => candidate >= riskTargetStartStr && candidate <= todayStr)) {
-        let totalValueCHF = 0;
-        let completeValuation = true;
-        for (const portfolio of targetPortfolios) {
-          if (portfolio.isLive === 1 && portfolio.liveStartDate) {
-            const holdingsMap = buildHoldings(txByPortfolio.get(portfolio.id) || [], date);
-            for (const [ticker, { shares }] of Array.from(holdingsMap.entries())) {
-              if (shares <= 0) continue;
-              const price = priceAtOrBefore(ticker, date);
-              const currency = riskPriceCurrencyByTicker.get(ticker);
-              if (!currency) { completeValuation = false; break; }
-              const priceCHF = price === null ? null : tryConvertToCHFSync(price, currency, date);
-              if (priceCHF === null) { completeValuation = false; break; }
-              totalValueCHF += shares * priceCHF;
-            }
-          } else {
-            const sharesMap = demoSharesCalc.get(portfolio.id) || new Map();
-            for (const [ticker, shares] of Array.from(sharesMap.entries())) {
-              const price = priceAtOrBefore(ticker, date);
-              const currency = riskPriceCurrencyByTicker.get(ticker);
-              if (!currency) { completeValuation = false; break; }
-              const priceCHF = price === null ? null : tryConvertToCHFSync(price, currency, date);
-              if (priceCHF === null) { completeValuation = false; break; }
-              totalValueCHF += shares * priceCHF;
-            }
-            const cashBalance = parseFloat(portfolio.cashBalance || "0");
-            if (Number.isFinite(cashBalance) && cashBalance > 0) totalValueCHF += cashBalance;
-          }
-          if (!completeValuation) break;
-        }
-        if (completeValuation && totalValueCHF > 0) dailyValues.push({ date, portfolioValueCHF: totalValueCHF });
-      }
+      const dailyPriceValues = buildDailyAllocationValues(priceAtOrBefore, riskPriceCurrencyByTicker);
+      const dailyValues = buildDailyAllocationValues(totalReturnPriceAtOrBefore, totalReturnCurrencyByTicker);
 
       const configuredBenchmark = targetPortfolios.length === 1 ? targetPortfolios[0]?.benchmark : null;
       const benchmarkKey = configuredBenchmark === "SP500" || configuredBenchmark === "MSCI_WORLD" || configuredBenchmark === "SMI"
@@ -2206,6 +2256,7 @@ export const dashboardRouter = router({
       const qualifiedForRisk = riskWindow.canPublishMaxDrawdown;
       const dailyReturns = qualifiedForRisk ? calculateDailyReturns(dailyValues.map((value) => value.portfolioValueCHF)) : [];
       const annualizedReturn = qualifiedForRisk ? calculateAnnualizedAllocationReturn(dailyValues) : null;
+      const annualizedPriceReturn = qualifiedForRisk ? calculateAnnualizedAllocationReturn(dailyPriceValues) : null;
       const mean = dailyReturns.length > 0 ? dailyReturns.reduce((sum, value) => sum + value, 0) / dailyReturns.length : null;
       const variance = dailyReturns.length > 1 && mean !== null
         ? dailyReturns.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (dailyReturns.length - 1)
@@ -2297,6 +2348,7 @@ export const dashboardRouter = router({
       const riskMetrics: PublishedRiskMetrics = {
         dataAvailable: true,
         annualizedReturn: annualizedReturn === null ? null : Number((annualizedReturn * 100).toFixed(1)),
+        annualizedPriceReturn: annualizedPriceReturn === null ? null : Number((annualizedPriceReturn * 100).toFixed(1)),
         volatility: volatility === null ? null : Number(volatility.toFixed(1)),
         volBenchmark: qualifiedForRisk ? Number(volBenchmark.toFixed(1)) : null,
         maxDrawdown: maxDrawdown === null ? null : Number(maxDrawdown.toFixed(1)),

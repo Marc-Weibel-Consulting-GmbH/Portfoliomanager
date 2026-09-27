@@ -373,8 +373,19 @@ export async function importHistoricalPrices(
       .map((result) => `Native history ${result.ticker}: ${result.message}`);
     errors.push(...nativeErrors);
 
+    // Only saved-portfolio constituents receive a daily adjusted-close refresh.
+    // The raw-price job also serves a much larger screener universe, for which
+    // total-return snapshots would be needless provider traffic. The snapshot
+    // itself is separate from (and never rewrites) raw historical prices.
+    const { refreshStaleTotalReturnHistoryForPortfolioHoldings } = await import("../lib/totalReturnHistoryProvider");
+    const totalReturnResults = await refreshStaleTotalReturnHistoryForPortfolioHoldings({ from, to });
+    const totalReturnErrors = totalReturnResults
+      .filter((result) => result.status === "error" || result.status === "invalid_response")
+      .map((result) => `Total-return history ${result.ticker}: ${result.message}`);
+    errors.push(...totalReturnErrors);
+
     console.log(
-      `[importHistoricalPrices] Import completed: ${tickersProcessed} EODHD tickers, ${totalPricesImported} EODHD rows, ${nativeResults.filter((result) => result.status === "imported").length} verified native series`
+      `[importHistoricalPrices] Import completed: ${tickersProcessed} EODHD tickers, ${totalPricesImported} EODHD rows, ${nativeResults.filter((result) => result.status === "imported").length} verified native series, ${totalReturnResults.filter((result) => result.status === "refreshed").length} total-return snapshots`
     );
 
     return {
@@ -431,6 +442,11 @@ export async function importHistoricalPricesForTicker(
     const imported = await storeHistoricalPrices(ticker, prices, options);
     const { importVerifiedNativeRiskHistoryForTickers } = await import("../lib/nativeRiskHistoryProvider");
     await importVerifiedNativeRiskHistoryForTickers({ tickers: [ticker], from, to });
+    // Raw close rows are additive and never rewritten. The separately stored
+    // adjusted-close snapshot may be refreshed because providers recalculate
+    // its full dividend history after each new cash event.
+    const { refreshTotalReturnHistoryForTickers } = await import("../lib/totalReturnHistoryProvider");
+    await refreshTotalReturnHistoryForTickers({ tickers: [ticker], from, to });
     console.log(`[importHistoricalPrices] Stored ${imported} prices for ${ticker}`);
     return { success: true, pricesImported: imported };
   } catch (error) {

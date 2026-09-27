@@ -242,7 +242,7 @@ export async function triggerMaxBackfillForSymbol(
     const duration = Date.now() - startTime;
     
     if ((result.success && result.pricesImported > 0) || nativeHistoryReady) {
-      console.log(`[AutoBackfill] Successfully enriched ${normalizedTicker}: ${result.pricesImported} EODHD rows and ${nativeResult?.rowsStored ?? 0} verified native rows processed additively in ${duration}ms`);
+      console.log(`[AutoBackfill] Successfully enriched ${normalizedTicker}: ${result.pricesImported} EODHD rows and ${nativeResult?.rowsStored ?? 0} verified native rows processed in ${duration}ms`);
       return {
         ticker: normalizedTicker,
         success: true,

@@ -6,6 +6,7 @@ describe("getRiskHeaderPresentation", () => {
     expect(getRiskHeaderPresentation(undefined, { isLoading: true })).toEqual({
       status: "loading",
       canRetry: false,
+      priceReturn: { value: "Wird berechnet…", sub: "5J-Kursreihe lädt" },
       annualReturn: { value: "Wird berechnet…", sub: "5J-Allokationsproxy lädt" },
       volatility: { value: "Wird berechnet…", sub: "5J-Allokationsproxy lädt" },
       sharpe: { value: "Wird berechnet…", sub: "5J-Risikoanalyse lädt" },
@@ -17,6 +18,7 @@ describe("getRiskHeaderPresentation", () => {
     expect(getRiskHeaderPresentation(undefined, { isLoading: false, isError: true })).toEqual({
       status: "error",
       canRetry: true,
+      priceReturn: { value: "—", sub: "Risikoanalyse vorübergehend nicht verfügbar" },
       annualReturn: { value: "—", sub: "Risikoanalyse vorübergehend nicht verfügbar" },
       volatility: { value: "—", sub: "Risikoanalyse vorübergehend nicht verfügbar" },
       sharpe: { value: "—", sub: "Risikoanalyse vorübergehend nicht verfügbar" },
@@ -32,6 +34,7 @@ describe("getRiskHeaderPresentation", () => {
     }, { isLoading: false })).toEqual({
       status: "unavailable",
       canRetry: true,
+      priceReturn: { value: "—", sub: "Keine qualifizierte Risikoreihe" },
       annualReturn: { value: "—", sub: "Keine qualifizierte Risikoreihe" },
       volatility: { value: "—", sub: "Keine qualifizierte Risikoreihe" },
       sharpe: { value: "—", sub: "Keine qualifizierte Risikoreihe" },
@@ -43,6 +46,7 @@ describe("getRiskHeaderPresentation", () => {
     expect(getRiskHeaderPresentation({ riskWindowStatus: "insufficient_history" }, { isLoading: false })).toEqual({
       status: "gate",
       canRetry: false,
+      priceReturn: { value: "—", sub: "5J-Historie unvollständig" },
       annualReturn: { value: "—", sub: "5J-Historie unvollständig" },
       volatility: { value: "—", sub: "5J-Historie unvollständig" },
       sharpe: { value: "—", sub: "5J-Historie unvollständig" },
@@ -54,6 +58,7 @@ describe("getRiskHeaderPresentation", () => {
     expect(getRiskHeaderPresentation({
       dataAvailable: true,
       annualizedReturn: 7.4,
+      annualizedPriceReturn: 5.8,
       volatility: 10.8,
       sharpeRatio: -0.11,
       sharpeBenchmark: 0.1,
@@ -63,7 +68,8 @@ describe("getRiskHeaderPresentation", () => {
     }, { isLoading: false })).toEqual({
       status: "ready",
       canRetry: false,
-      annualReturn: { value: "+7.4%", sub: "5J-Proxy · p.a." },
+      priceReturn: { value: "+5.8%", sub: "5J-Proxy · p.a. · ohne Div." },
+      annualReturn: { value: "+7.4%", sub: "5J-Proxy · p.a. · inkl. Div." },
       volatility: { value: "10.8%", sub: "5J-Proxy · p.a." },
       sharpe: { value: "-0.11", sub: "Bench 0.10" },
       maxDrawdown: { value: "-25.6%", sub: "Bench -29.3%" },

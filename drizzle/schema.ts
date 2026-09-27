@@ -502,6 +502,32 @@ export type InsertHistoricalPrice = typeof historicalPrices.$inferInsert;
 // Note: Table name is 'historical_prices' (snake_case) to follow MySQL conventions
 
 /**
+ * Re-fetched, dividend- and split-adjusted daily closes used only for the
+ * labelled gross-total-return view. Unlike `historical_prices.adjustedClose`,
+ * these values are intentionally refreshed because providers recompute the
+ * full adjusted history after every new dividend. Raw closes stay immutable in
+ * `historical_prices` and no portfolio, cash or ledger data is touched.
+ */
+export const totalReturnHistoricalPrices = mysqlTable("total_return_historical_prices", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  date: varchar("date", { length: 10 }).notNull(), // YYYY-MM-DD
+  adjustedClose: decimal("adjustedClose", { precision: 20, scale: 6 }).notNull(),
+  currency: varchar("currency", { length: 10 }).notNull(),
+  source: varchar("source", { length: 50 }).notNull(), // eodhd_adjusted | yahoo_adjusted
+  sourceSymbol: varchar("sourceSymbol", { length: 50 }).notNull(),
+  retrievedAt: timestamp("retrievedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (t) => ({
+  tickerSourceDateUnique: unique("uq_total_return_prices_source_date").on(t.ticker, t.source, t.date),
+  tickerDateIdx: index("ix_total_return_prices_ticker_date").on(t.ticker, t.date),
+}));
+
+export type TotalReturnHistoricalPrice = typeof totalReturnHistoricalPrices.$inferSelect;
+export type InsertTotalReturnHistoricalPrice = typeof totalReturnHistoricalPrices.$inferInsert;
+
+/**
  * Verified secondary-native price rows for portfolio-risk analysis.
  *
  * `historical_prices` has a unique `(ticker, date)` key and is deliberately
