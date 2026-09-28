@@ -14,7 +14,8 @@ import { stockSignalCache, stocks } from "../../drizzle/schema";
 import { activeCurated } from "../lib/stockUniverse";
 import { detectAssetClass, generateAssetClassSignal, istBewertbar, ASSET_CLASS_LABEL } from "../lib/assetClassSignal";
 import { rsiWilder } from "../lib/rsi";
-
+import { assessSignalDataQuality } from "../lib/signalDataQualityGate";
+import { assessRawPriceSeriesIntegrity } from "../lib/priceSeriesIntegrity";
 let isRunning = false;
 
 /**
@@ -45,8 +46,7 @@ export async function refreshSignalCache(): Promise<void> {
         currentPrice: stocks.currentPrice,
       })
       .from(stocks)
-      .where(activeCurated())
-      .limit(250);
+      .where(activeCurated());
 
     console.log(`[signalCacheCron] Processing ${allStocks.length} stocks...`);
 
@@ -182,18 +182,46 @@ export async function refreshSignalCache(): Promise<void> {
             let currentPrice = num(stockRow?.currentPrice) ?? num(stock.currentPrice) ?? 0;
 
             // 2. Get historical prices from DB
-            const { historicalPrices } = await import("../../drizzle/schema");
+            const { historicalPrices, splitAdjustedHistoricalPrices } = await import("../../drizzle/schema");
             const { gte, and, asc } = await import("drizzle-orm");
             const from = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
             const priceRows = await db
-              .select({ date: historicalPrices.date, close: historicalPrices.close, adj: historicalPrices.adjustedClose })
+              .select({ date: historicalPrices.date, close: historicalPrices.close })
               .from(historicalPrices)
               .where(and(eq(historicalPrices.ticker, ticker), gte(historicalPrices.date, from)))
               .orderBy(asc(historicalPrices.date));
 
-            const series = priceRows
-              .map((r: any) => ({ date: r.date as string, close: parseFloat((r.adj ?? r.close) as any) }))
+            const rawSeries = priceRows
+              .map((r: any) => ({ date: r.date as string, close: parseFloat(r.close as any) }))
               .filter((p: { date: string; close: number }) => Number.isFinite(p.close) && p.close > 0);
+
+            // A split-adjusted series excludes cash-dividend reinvestment and
+            // is therefore suitable for technical timing. Never mix sources:
+            // pick one complete source or retain the raw series only when it
+            // has no unresolved mechanical corporate-action jump.
+            const splitRows = await db
+              .select({ source: splitAdjustedHistoricalPrices.source, date: splitAdjustedHistoricalPrices.date, close: splitAdjustedHistoricalPrices.adjustedClose })
+              .from(splitAdjustedHistoricalPrices)
+              .where(and(eq(splitAdjustedHistoricalPrices.ticker, ticker), gte(splitAdjustedHistoricalPrices.date, from)))
+              .orderBy(asc(splitAdjustedHistoricalPrices.date));
+            const bySource = new Map<string, Array<{ date: string; close: number }>>();
+            for (const row of splitRows) {
+              const close = Number(row.close);
+              if (!Number.isFinite(close) || close <= 0) continue;
+              const rows = bySource.get(row.source) ?? [];
+              rows.push({ date: row.date, close });
+              bySource.set(row.source, rows);
+            }
+            const splitSeries = [...bySource.entries()]
+              .sort((left, right) => right[1].length - left[1].length || left[0].localeCompare(right[0]))[0]?.[1] ?? [];
+            const rawIntegrity = assessRawPriceSeriesIntegrity(rawSeries);
+            const usesVerifiedSplitSeries = splitSeries.length >= 60;
+            const series = usesVerifiedSplitSeries
+              ? splitSeries
+              : rawIntegrity.valid ? rawSeries : [];
+            const corporateActionReason = usesVerifiedSplitSeries || rawIntegrity.valid
+              ? null
+              : rawIntegrity.reason ?? "Ungeklärte Corporate Action in der Rohkursreihe.";
 
             const prices = series.map((p: { date: string; close: number }) => p.close);
 
@@ -531,9 +559,9 @@ export async function refreshSignalCache(): Promise<void> {
                   // zur bisherigen Anordnung, gleiches Muster wie beim
                   // Qualitaets-Score.
                   //
-                  // Faellt das neue Signal aus (Fundamentaldaten fehlen, oder
-                  // die Abdeckung reicht nicht), traegt weiter die alte
-                  // Mischung. Kein Titel verliert dadurch sein Signal.
+                  // Die ältere Mischung bleibt nur Schattenrechnung. Bei
+                  // Datenlücken blockiert das zentrale Gate vor Persistenz die
+                  // resultierende Kauf-/Verkaufsempfehlung explizit.
                   const massgeblich = dreiSignal?.label ?? blended.signalLabel;
                   if (massgeblich === 'STRONG BUY' || massgeblich === 'BUY') {
                     signalType = 'buy';
@@ -594,6 +622,23 @@ export async function refreshSignalCache(): Promise<void> {
                   }
                 } catch { /* silent */ }
               }
+            }
+
+            const signalDataQuality = assessSignalDataQuality({
+              rawPriceRows: rawSeries.length,
+              qualityScore: qNeu,
+              valuationScore: bNeu,
+              timingScore,
+              corporateActionReason,
+            });
+            if (!signalDataQuality.allowed) {
+              signalType = "hold";
+              signalStrength = "weak";
+              targetPrice = 0;
+              combinedScore = undefined;
+              combinedSignal = undefined;
+              overallGrade = undefined;
+              reason = `Keine Kauf-/Verkaufsempfehlung – Datenbasis nicht freigegeben: ${signalDataQuality.reasons.join(" · ")}.`;
             }
 
             // 5. Upsert into cache

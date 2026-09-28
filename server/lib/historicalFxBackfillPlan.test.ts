@@ -45,4 +45,21 @@ describe("historical FX backfill plan", () => {
       { date: "2016-09-07", rate: 0.97 },
     ]);
   });
+
+  it("importiert keine plausibilitätswidrigen Faktor-100-FX-Zeilen", () => {
+    expect(filterNewHistoricalFxRates({
+      rows: [
+        { date: "2022-11-03", close: 0.095754 },
+        { date: "2022-11-04", close: 0.000957 },
+        { date: "2022-11-07", close: 0.0968 },
+      ],
+      existingDates: new Set(),
+      from: "2022-11-01",
+      to: "2022-11-10",
+      currencyPair: "NOKCHF",
+    })).toEqual([
+      { date: "2022-11-03", rate: 0.095754 },
+      { date: "2022-11-07", rate: 0.0968 },
+    ]);
+  });
 });

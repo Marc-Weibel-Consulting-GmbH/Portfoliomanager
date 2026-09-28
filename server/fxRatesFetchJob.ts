@@ -9,6 +9,8 @@ import cron from 'node-cron';
 import { getDb } from './db';
 import { exchangeRates, stocks } from '../drizzle/schema';
 import { eq, and, inArray, desc } from 'drizzle-orm';
+import { isPlausibleChfFxRate } from './lib/fxRateValidity';
+import { invalidateAllCachedRiskMetrics } from './lib/riskMetricsCache';
 
 const CURRENCY_PAIRS = [
   'USDCHF', 'EURCHF', 'GBPCHF',
@@ -56,24 +58,24 @@ async function fetchFxRateEodhd(currencyPair: string): Promise<number | null> {
 }
 
 /**
- * Fetch current FX rate: tries Yahoo Finance first, falls back to EODHD.
+ * Fetch current FX rate: EODHD is the primary source; Yahoo is only a
+ * secondary continuity fallback.
  */
 async function fetchFxRate(currencyPair: string): Promise<{ rate: number; source: string } | null> {
-  // Primary: Yahoo Finance
-  const yahooRate = await fetchFxRateYahoo(currencyPair);
-  if (yahooRate !== null) {
-    return { rate: yahooRate, source: 'yahoo' };
-  }
-  console.warn(`[FxRates] Yahoo Finance failed for ${currencyPair}, trying EODHD fallback...`);
-  
-  // Fallback: EODHD
+  // Primary: EODHD
   const eodhdRate = await fetchFxRateEodhd(currencyPair);
-  if (eodhdRate !== null) {
-    console.log(`[FxRates] EODHD fallback succeeded for ${currencyPair}: ${eodhdRate}`);
+  if (eodhdRate !== null && isPlausibleChfFxRate(currencyPair, eodhdRate)) {
+    console.log(`[FxRates] EODHD rate for ${currencyPair}: ${eodhdRate}`);
     return { rate: eodhdRate, source: 'eodhd' };
   }
-  
-  console.error(`[FxRates] Both Yahoo Finance and EODHD failed for ${currencyPair}`);
+  console.warn(`[FxRates] EODHD failed or returned an implausible rate for ${currencyPair}, trying Yahoo fallback...`);
+
+  const yahooRate = await fetchFxRateYahoo(currencyPair);
+  if (yahooRate !== null && isPlausibleChfFxRate(currencyPair, yahooRate)) {
+    return { rate: yahooRate, source: 'yahoo_fallback' };
+  }
+
+  console.error(`[FxRates] EODHD and Yahoo Finance failed for ${currencyPair}`);
   return null;
 }
 
@@ -134,6 +136,7 @@ async function updateFxRates() {
   
   // Also update exchangeRateToChf in stocks table
   await syncStockFxRates();
+  invalidateAllCachedRiskMetrics();
 }
 
 /**
@@ -156,10 +159,11 @@ export async function syncStockFxRates() {
     const rateMap: Record<string, number> = { CHF: 1 };
     const seen = new Set<string>();
     for (const r of latestRates) {
-      if (!seen.has(r.currencyPair)) {
+      const parsed = parseFloat(r.rate);
+      if (!seen.has(r.currencyPair) && isPlausibleChfFxRate(r.currencyPair, parsed)) {
         seen.add(r.currencyPair);
         const currency = r.currencyPair.replace('CHF', '');
-        rateMap[currency] = parseFloat(r.rate);
+        rateMap[currency] = parsed;
       }
     }
     // GBp (pence) = GBP / 100
@@ -242,7 +246,7 @@ export async function backfillFxRates(startDate: string) {
         const data = await response.json();
         const quote = data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close?.[0];
         
-        if (!quote) {
+        if (!quote || !isPlausibleChfFxRate(pair, quote)) {
           console.error(`[FxRates] No quote found for ${pair} on ${dateStr}`);
           continue;
         }
@@ -265,6 +269,7 @@ export async function backfillFxRates(startDate: string) {
   }
   
   console.log('[FxRates] Backfill completed');
+  invalidateAllCachedRiskMetrics();
 }
 
 /**

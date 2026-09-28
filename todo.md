@@ -1039,3 +1039,12 @@
 - [x] Aktueller Wert, Start-, YTD-, Kurs- und Brutto-Gesamtrendite, Volatilität, Sharpe, Max Drawdown, Beta und Dividendenrendite gegen das Portal abgeglichen; alle Abweichungen sind ausschließlich Portalrundungen.
 - [x] Kurse, FX, historische Kurs-/Totalreihen, Quellenentscheidungen, Dividendenbasis, das Chart sowie explizite Formeln sind in getrennten Tabellenblättern sichtbar.
 - [x] Alle Formeln mit LibreOffice Calc berechnet und auf Fehlerwerte geprüft; keine Portfolio-, Cash-, Ledger-, Transaktions- oder Handelsmutation.
+
+
+## Globaler historischer Watchlist-Audit – 28.09.2026
+- [x] 268 Titel / 516'188 Rohkurszeilen inventarisiert; getrennte Rohkurs-, Splitkurs- und Brutto-Gesamtrenditebasis dokumentiert.
+- [x] Externe 25-Titel-Stichprobe samt Identitäts-/Corporate-Action-Prüfung abgeschlossen; Abweichungen nicht pauschal überschrieben.
+- [x] Drei belegte FX-Faktorfehler kontrolliert bereinigt (NOKCHF 04.11.2022 ersetzt; ungültige Sonntagseinträge JPYCHF/DKKCHF entfernt) und EODHD als Primärquelle für tägliches FX etabliert.
+- [x] Universumsweite Signalberechnung mit Corporate-Action-Guard ausgeführt: 203 freigegeben, 64 mit nachvollziehbarer Signalgate-Datenlücke blockiert; keine Handels-, Cash-, Ledger- oder Transaktionsmutation.
+- [x] Alert-Refresh schützt EODHD-KGV/PEG/Dividendenrendite vor sekundären Yahoo-Überschreibungen.
+- [x] Audit: `docs/audit/WATCHLIST_HISTORICAL_DATA_AUDIT_2026-09-28.md`.

@@ -1,0 +1,6861 @@
+{
+  "generatedAt": "2026-09-28T03:28:38.916Z",
+  "range": {
+    "from": "2021-09-20",
+    "to": "2026-09-26"
+  },
+  "tolerancePercent": 0.5,
+  "comparisonBasis": "Workbook raw close and total-return fields are compared separately. Provider close/adjusted-close values are never intermingled.",
+  "results": [
+    {
+      "ticker": "ABBN.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "ABBN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "ABBN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 30.8837,
+            "expected": 30.8837,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 26.2845,
+            "expected": 26.2845,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 30.8837,
+            "expected": 30.8837,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 26.2845,
+            "expected": 26.2845,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 30.697681427001953,
+            "expected": 30.8837,
+            "diffPct": -0.6023195828156802,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooAdjusted": {
+            "actual": 27.487903594970703,
+            "expected": 26.2845,
+            "diffPct": 4.5783773515596815,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 28.17,
+            "expected": 28.17,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 25.9217,
+            "expected": 25.9217,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 28.17,
+            "expected": 28.17,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 25.9217,
+            "expected": 25.9217,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 28.170000076293945,
+            "expected": 28.17,
+            "diffPct": 2.708340218759986e-7,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 25.921737670898438,
+            "expected": 25.9217,
+            "diffPct": 0.000145325724920653,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 42.22,
+            "expected": 42.22,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 40.807,
+            "expected": 40.807,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 42.22,
+            "expected": 42.22,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 40.807,
+            "expected": 40.807,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 42.220001220703125,
+            "expected": 42.22,
+            "diffPct": 0.0000028912911620437853,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 40.80696105957031,
+            "expected": 40.807,
+            "diffPct": -0.00009542585754918065,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 45.83,
+            "expected": 45.83,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 45.1617,
+            "expected": 45.1617,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 45.83,
+            "expected": 45.83,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 45.1617,
+            "expected": 45.1617,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 45.83000183105469,
+            "expected": 45.83,
+            "diffPct": 0.00000399531898676031,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 45.161678314208984,
+            "expected": 45.1617,
+            "diffPct": -0.00004801810166155107,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 80.18,
+            "expected": 80.18,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 80.18,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 80.18,
+            "expected": 80.18,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 80.18,
+            "expected": 80.18,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 80.18000030517578,
+            "expected": 80.18,
+            "diffPct": 3.806133408446044e-7,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 80.18000030517578,
+            "expected": 80.18,
+            "diffPct": 3.806133408446044e-7,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 2,
+      "missingCount": 1
+    },
+    {
+      "ticker": "ABTC.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "ABTC.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "ABTC.SW",
+        "currency": "CHF",
+        "rowCount": 1260
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 11.206,
+            "expected": 11.206,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 11.206,
+            "expected": 11.206,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 11.206,
+            "expected": 11.206,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 11.206,
+            "expected": 11.206,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 11.206000328063965,
+            "expected": 11.206,
+            "diffPct": 0.0000029275742052803366,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 11.206000328063965,
+            "expected": 11.206,
+            "diffPct": 0.0000029275742052803366,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 4.848,
+            "expected": 4.848,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 4.848,
+            "expected": 4.848,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 4.848,
+            "expected": 4.848,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 4.848,
+            "expected": 4.848,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 4.8480000495910645,
+            "expected": 4.848,
+            "diffPct": 0.0000010229179947529587,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 4.8480000495910645,
+            "expected": 4.848,
+            "diffPct": 0.0000010229179947529587,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 19.158,
+            "expected": 19.158,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 19.158,
+            "expected": 19.158,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 19.158,
+            "expected": 19.158,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 19.158,
+            "expected": 19.158,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 19.158000946044922,
+            "expected": 19.158,
+            "diffPct": 0.000004938119424480192,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 19.158000946044922,
+            "expected": 19.158,
+            "diffPct": 0.000004938119424480192,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 26.125,
+            "expected": 26.125,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 26.125,
+            "expected": 26.125,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 26.125,
+            "expected": 26.125,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 26.125,
+            "expected": 26.125,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 26.125,
+            "expected": 26.125,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 26.125,
+            "expected": 26.125,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 22.91,
+            "expected": 22.91,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 22.91,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 22.91,
+            "expected": 22.91,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 22.91,
+            "expected": 22.91,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 20.829999923706055,
+            "expected": 22.91,
+            "diffPct": -9.079005134412677,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooAdjusted": {
+            "actual": 20.829999923706055,
+            "expected": 22.91,
+            "diffPct": -9.079005134412677,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        }
+      ],
+      "mismatchCount": 2,
+      "missingCount": 1
+    },
+    {
+      "ticker": "AKRBP.OL",
+      "workbookQuoteCurrency": "NOK",
+      "eodhd": {
+        "symbol": "AKRBP.OL",
+        "currency": "NOK",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "AKRBP.OL",
+        "currency": "NOK",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 270.2,
+            "expected": 270.2,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 176.2785,
+            "expected": 176.2785,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 270.2,
+            "expected": 270.2,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 176.2785,
+            "expected": 176.2785,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 270.20001220703125,
+            "expected": 270.2,
+            "diffPct": 0.000004517776197587864,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 176.04026794433594,
+            "expected": 176.2785,
+            "diffPct": -0.1351452705032452,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 309.6,
+            "expected": 309.6,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 217.4337,
+            "expected": 217.4337,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 309.6,
+            "expected": 309.6,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 217.4337,
+            "expected": 217.4337,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 309.6000061035156,
+            "expected": 309.6,
+            "diffPct": 0.000001971419760771198,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 216.99517822265625,
+            "expected": 217.4337,
+            "diffPct": -0.2016806858107678,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 272,
+            "expected": 272,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 212.7514,
+            "expected": 212.7514,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 272,
+            "expected": 272,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 212.7514,
+            "expected": 212.7514,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 272,
+            "expected": 272,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 212.7513427734375,
+            "expected": 212.7514,
+            "diffPct": -0.000026898324756441383,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 256.3,
+            "expected": 256.3,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 229.335,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 256.3,
+            "expected": 256.3,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 229.335,
+            "expected": 229.335,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 256.29998779296875,
+            "expected": 256.3,
+            "diffPct": -0.000004762790195567135,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 229.3349609375,
+            "expected": 229.335,
+            "diffPct": -0.000017032943078199025,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 348.6,
+            "expected": 348.6,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 348.6,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 348.6,
+            "expected": 348.6,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 348.6,
+            "expected": 348.6,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 348.6000061035156,
+            "expected": 348.6,
+            "diffPct": 0.0000017508650529407532,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 348.6000061035156,
+            "expected": 348.6,
+            "diffPct": 0.0000017508650529407532,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 0,
+      "missingCount": 2
+    },
+    {
+      "ticker": "BION.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "BION.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "BION.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 87.6,
+            "expected": 87.6,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 67.5006,
+            "expected": 67.5006,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 87.6,
+            "expected": 87.6,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 67.5006,
+            "expected": 67.5006,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 87.5999984741211,
+            "expected": 87.6,
+            "diffPct": -0.0000017418708919691994,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 67.50060272216797,
+            "expected": 67.5006,
+            "diffPct": 0.0000040328055783689365,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 56.6,
+            "expected": 56.6,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 46.1479,
+            "expected": 46.1479,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 56.6,
+            "expected": 56.6,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 46.1479,
+            "expected": 46.1479,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 56.599998474121094,
+            "expected": 56.6,
+            "diffPct": -0.000002695899126159418,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 46.147911071777344,
+            "expected": 46.1479,
+            "diffPct": 0.000023991941877632428,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 45.35,
+            "expected": 45.35,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 40.8634,
+            "expected": 40.8634,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 45.35,
+            "expected": 45.35,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 40.8634,
+            "expected": 40.8634,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 45.349998474121094,
+            "expected": 45.35,
+            "diffPct": -0.0000033646723407443346,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 40.86338806152344,
+            "expected": 40.8634,
+            "diffPct": -0.00002921557324953028,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 30.45,
+            "expected": 30.45,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 28.9409,
+            "expected": 28.9409,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 30.45,
+            "expected": 30.45,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 28.9409,
+            "expected": 28.9409,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 30.450000762939453,
+            "expected": 30.45,
+            "diffPct": 0.000002505548279962966,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 28.940914154052734,
+            "expected": 28.9409,
+            "diffPct": 0.0000489067469855442,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 51.1,
+            "expected": 51.1,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 51.1,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 51.1,
+            "expected": 51.1,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 51.1,
+            "expected": 51.1,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 51.099998474121094,
+            "expected": 51.1,
+            "diffPct": -0.0000029860643957491106,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 51.099998474121094,
+            "expected": 51.1,
+            "diffPct": -0.0000029860643957491106,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 0,
+      "missingCount": 1
+    },
+    {
+      "ticker": "CHDVD.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "CHDVD.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "CHDVD.SW",
+        "currency": "CHF",
+        "rowCount": 1261
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 154.12,
+            "expected": 154.12,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 130.3738,
+            "expected": 129.8581,
+            "diffPct": 0.3971257857615207,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 154.12,
+            "expected": 154.12,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 129.8581,
+            "expected": 129.8581,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 154.1199951171875,
+            "expected": 154.12,
+            "diffPct": -0.000003168188755786616,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 119.71279907226562,
+            "expected": 129.8581,
+            "diffPct": -7.8126053959933,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 142.72,
+            "expected": 142.72,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 124.6669,
+            "expected": 124.1738,
+            "diffPct": 0.39710470324658687,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 142.72,
+            "expected": 142.72,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 124.1738,
+            "expected": 124.1738,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 142.72000122070312,
+            "expected": 142.72,
+            "diffPct": 8.553132868627245e-7,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 116.22125244140625,
+            "expected": 124.1738,
+            "diffPct": -6.404368359987167,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 155.94,
+            "expected": 155.94,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 142.6346,
+            "expected": 142.0704,
+            "diffPct": 0.39712705813454985,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 155.94,
+            "expected": 155.94,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 142.0704,
+            "expected": 142.0704,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 155.94000244140625,
+            "expected": 155.94,
+            "diffPct": 0.0000015656061558289025,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 136.75994873046875,
+            "expected": 142.0704,
+            "diffPct": -3.73790125848259,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 164.72,
+            "expected": 164.72,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 159.5084,
+            "expected": 158.8775,
+            "diffPct": 0.39709839341630637,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 164.72,
+            "expected": 164.72,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 158.8775,
+            "expected": 158.8775,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 164.72000122070312,
+            "expected": 164.72,
+            "diffPct": 7.410776659000362e-7,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 157.72482299804688,
+            "expected": 158.8775,
+            "diffPct": -0.7255130537383359,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 188.14,
+            "expected": 188.14,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 188.14,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 188.14,
+            "expected": 188.14,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 188.14,
+            "expected": 188.14,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 188.13999938964844,
+            "expected": 188.14,
+            "diffPct": -3.244134960667111e-7,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 188.13999938964844,
+            "expected": 188.14,
+            "diffPct": -3.244134960667111e-7,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 4,
+      "missingCount": 1
+    },
+    {
+      "ticker": "CMBN.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "CMBN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "CMBN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 65.15,
+            "expected": 65.15,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 50.6713,
+            "expected": 50.6713,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 65.15,
+            "expected": 65.15,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 50.6713,
+            "expected": 50.6713,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 65.1500015258789,
+            "expected": 65.15,
+            "diffPct": 0.0000023421011574598083,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 50.147857666015625,
+            "expected": 50.6713,
+            "diffPct": -1.033015403165849,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 77.4,
+            "expected": 77.4,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 63.4841,
+            "expected": 63.4841,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 77.4,
+            "expected": 77.4,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 63.4841,
+            "expected": 63.4841,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 77.4000015258789,
+            "expected": 77.4,
+            "diffPct": 0.000001971419760771198,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 62.82823181152344,
+            "expected": 63.4841,
+            "diffPct": -1.0331219761744448,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 74.7,
+            "expected": 74.7,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 64.6099,
+            "expected": 64.6099,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 74.7,
+            "expected": 74.7,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 64.6099,
+            "expected": 64.6099,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 74.69999694824219,
+            "expected": 74.7,
+            "diffPct": -0.000004085351823501782,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 63.942474365234375,
+            "expected": 64.6099,
+            "diffPct": -1.0330083079615027,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 98.85,
+            "expected": 98.85,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 94.3657,
+            "expected": 94.3657,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 98.85,
+            "expected": 98.85,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 94.3657,
+            "expected": 94.3657,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 98.8499984741211,
+            "expected": 98.85,
+            "diffPct": -0.0000015436306566307678,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 93.39083099365234,
+            "expected": 94.3657,
+            "diffPct": -1.0330755839755956,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 87.05,
+            "expected": 87.05,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 87.05,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 87.05,
+            "expected": 87.05,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 87.05,
+            "expected": 87.05,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 87.05000305175781,
+            "expected": 87.05,
+            "diffPct": 0.0000035057527991710913,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 87.05000305175781,
+            "expected": 87.05,
+            "diffPct": 0.0000035057527991710913,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 4,
+      "missingCount": 1
+    },
+    {
+      "ticker": "D05.SI",
+      "workbookQuoteCurrency": "SGD",
+      "eodhd": {
+        "symbol": "DBSDY.US",
+        "currency": "USD",
+        "rowCount": 1259
+      },
+      "yahoo": {
+        "symbol": "D05.SI",
+        "currency": "SGD",
+        "rowCount": 1262
+      },
+      "localRowCount": 1259,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 89,
+            "expected": 27.272726,
+            "diffPct": 226.33334856222294,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "dbTotal": {
+            "actual": 60.6484,
+            "expected": 20.624454,
+            "diffPct": 194.06063307178948,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 89,
+            "expected": 27.272726,
+            "diffPct": 226.33334856222294,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdAdjusted": {
+            "actual": 60.6484,
+            "expected": 20.624454,
+            "diffPct": 194.06063307178948,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 27.27272605895996,
+            "expected": 27.272726,
+            "diffPct": 2.1618653534005716e-7,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 20.624446868896484,
+            "expected": 20.624454,
+            "diffPct": -0.000034575962670757576,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 101.35,
+            "expected": 30.945454,
+            "diffPct": 227.5117566541437,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "dbTotal": {
+            "actual": 73.6621,
+            "expected": 24.676134,
+            "diffPct": 198.5155616353842,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 101.35,
+            "expected": 30.945454,
+            "diffPct": 227.5117566541437,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdAdjusted": {
+            "actual": 73.6621,
+            "expected": 24.676134,
+            "diffPct": 198.5155616353842,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 30.945453643798828,
+            "expected": 30.945454,
+            "diffPct": -0.0000011510613906473566,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 24.67613410949707,
+            "expected": 24.676134,
+            "diffPct": 4.437367362442046e-7,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 107.13,
+            "expected": 32.799999,
+            "diffPct": 226.6158636163373,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "dbTotal": {
+            "actual": 83.5083,
+            "expected": 28.048037,
+            "diffPct": 197.73313547753807,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 107.13,
+            "expected": 32.799999,
+            "diffPct": 226.6158636163373,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdAdjusted": {
+            "actual": 83.5083,
+            "expected": 28.048037,
+            "diffPct": 197.73313547753807,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 32.79999923706055,
+            "expected": 32.799999,
+            "diffPct": 7.227455967040441e-7,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 28.04804039001465,
+            "expected": 28.048037,
+            "diffPct": 0.000012086459544313755,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 139.7,
+            "expected": 44.419998,
+            "diffPct": 214.49798804583463,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 41.535503,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 139.7,
+            "expected": 44.419998,
+            "diffPct": 214.49798804583463,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdAdjusted": {
+            "actual": 131.0689,
+            "expected": 41.535503,
+            "diffPct": 215.55871611811227,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 44.41999816894531,
+            "expected": 44.419998,
+            "diffPct": 3.803361625642765e-7,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 41.53550338745117,
+            "expected": 41.535503,
+            "diffPct": 9.328192662749757e-7,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 244.38,
+            "expected": 78,
+            "diffPct": 213.3076923076923,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "dbTotal": {
+            "actual": 244.38,
+            "expected": 78,
+            "diffPct": 213.3076923076923,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 244.38,
+            "expected": 78,
+            "diffPct": 213.3076923076923,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdAdjusted": {
+            "actual": 244.38,
+            "expected": 78,
+            "diffPct": 213.3076923076923,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 78,
+            "expected": 78,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 78,
+            "expected": 78,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 19,
+      "missingCount": 1
+    },
+    {
+      "ticker": "FHZN.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "FHZN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "FHZN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 173.7,
+            "expected": 173.7,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 164.3677,
+            "expected": 164.3677,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 173.7,
+            "expected": 173.7,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 164.3677,
+            "expected": 164.3677,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 173.6999969482422,
+            "expected": 173.7,
+            "diffPct": -0.000001756912959560708,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 155.39830017089844,
+            "expected": 164.3677,
+            "diffPct": -5.456911442516732,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 146.7,
+            "expected": 146.7,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 138.8183,
+            "expected": 138.8183,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 146.7,
+            "expected": 146.7,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 138.8183,
+            "expected": 138.8183,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 146.6999969482422,
+            "expected": 146.7,
+            "diffPct": -0.0000020802711664380524,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 131.2431182861328,
+            "expected": 138.8183,
+            "diffPct": -5.456904251000905,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 205.2,
+            "expected": 205.2,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 195.4078,
+            "expected": 195.4078,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 205.2,
+            "expected": 205.2,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 195.4078,
+            "expected": 195.4078,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 205.1999969482422,
+            "expected": 205.2,
+            "diffPct": -0.000001487211409578748,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 187.33900451660156,
+            "expected": 195.4078,
+            "diffPct": -4.129208498022319,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 223.4,
+            "expected": 223.4,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 215.6367,
+            "expected": 215.6367,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 223.4,
+            "expected": 223.4,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 215.6367,
+            "expected": 215.6367,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 223.39999389648438,
+            "expected": 223.4,
+            "diffPct": -0.0000027321018891690585,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 215.63671875,
+            "expected": 215.6367,
+            "diffPct": 0.00000869518037571737,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 201.8,
+            "expected": 201.8,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 201.8,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 201.8,
+            "expected": 201.8,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 201.8,
+            "expected": 201.8,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 201.8000030517578,
+            "expected": 201.8,
+            "diffPct": 0.0000015122684882129533,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 201.8000030517578,
+            "expected": 201.8,
+            "diffPct": 0.0000015122684882129533,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 3,
+      "missingCount": 1
+    },
+    {
+      "ticker": "GOOGL",
+      "workbookQuoteCurrency": "USD",
+      "eodhd": {
+        "symbol": "GOOGL",
+        "currency": "USD",
+        "rowCount": 1260
+      },
+      "yahoo": {
+        "symbol": "GOOGL",
+        "currency": "USD",
+        "rowCount": 1260
+      },
+      "localRowCount": 1260,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 2821.44,
+            "expected": 141.072,
+            "diffPct": 1900,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "dbTotal": {
+            "actual": 139.7423,
+            "expected": 139.7423,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 2821.44,
+            "expected": 141.072,
+            "diffPct": 1900,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdAdjusted": {
+            "actual": 139.7423,
+            "expected": 139.7423,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 141.07200622558594,
+            "expected": 141.072,
+            "diffPct": 0.0000044130556986488045,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 139.7422637939453,
+            "expected": 139.7423,
+            "diffPct": -0.00002590915899602919,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 89.23,
+            "expected": 89.23,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 88.3889,
+            "expected": 88.3889,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 89.23,
+            "expected": 89.23,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 88.3889,
+            "expected": 88.3889,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 89.2300033569336,
+            "expected": 89.23,
+            "diffPct": 0.000003762113176541959,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 88.38892364501953,
+            "expected": 88.3889,
+            "diffPct": 0.000026751118653578487,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 150.67,
+            "expected": 150.67,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 149.2498,
+            "expected": 149.2498,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 150.67,
+            "expected": 150.67,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 149.2498,
+            "expected": 149.2498,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 150.6699981689453,
+            "expected": 150.67,
+            "diffPct": -0.0000012152748918303757,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 149.24978637695312,
+            "expected": 149.2498,
+            "diffPct": -0.000009127681821485822,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 173.54,
+            "expected": 173.54,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 172.9352,
+            "expected": 172.9352,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 173.54,
+            "expected": 173.54,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 172.9352,
+            "expected": 172.9352,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 173.5399932861328,
+            "expected": 173.54,
+            "diffPct": -0.0000038687721470864744,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 172.93516540527344,
+            "expected": 172.9352,
+            "diffPct": -0.00002000444476735197,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 343.92,
+            "expected": 343.92,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 343.92,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 343.92,
+            "expected": 343.92,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 343.92,
+            "expected": 343.92,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 343.9200134277344,
+            "expected": 343.92,
+            "diffPct": 0.00000390431913466216,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 343.9200134277344,
+            "expected": 343.92,
+            "diffPct": 0.00000390431913466216,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 2,
+      "missingCount": 1
+    },
+    {
+      "ticker": "HOLN.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "HOLN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "HOLN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 23.4748,
+            "expected": 23.4748,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 19.6021,
+            "expected": 19.6021,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 23.4748,
+            "expected": 23.4748,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 19.6021,
+            "expected": 19.6021,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 46.20000076293945,
+            "expected": 23.4748,
+            "diffPct": 96.80679180627504,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooAdjusted": {
+            "actual": 38.57817077636719,
+            "expected": 19.6021,
+            "diffPct": 96.80631552929117,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 24.4352,
+            "expected": 24.4352,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 21.3886,
+            "expected": 21.3886,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 24.4352,
+            "expected": 24.4352,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 21.3886,
+            "expected": 21.3886,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 48.09000015258789,
+            "expected": 24.4352,
+            "diffPct": 96.80624735049395,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooAdjusted": {
+            "actual": 42.09416961669922,
+            "expected": 21.3886,
+            "diffPct": 96.80656806288965,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 41.1165,
+            "expected": 41.1165,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 37.5506,
+            "expected": 37.5506,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 41.1165,
+            "expected": 41.1165,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 37.5506,
+            "expected": 37.5506,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 80.91999816894531,
+            "expected": 41.1165,
+            "diffPct": 96.80663035264507,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooAdjusted": {
+            "actual": 73.90200805664062,
+            "expected": 37.5506,
+            "diffPct": 96.80646396233514,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 57.68,
+            "expected": 57.68,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 56.3256,
+            "expected": 56.3256,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 57.68,
+            "expected": 57.68,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 56.3256,
+            "expected": 56.3256,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 57.68000030517578,
+            "expected": 57.68,
+            "diffPct": 5.290842208793833e-7,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 56.32563781738281,
+            "expected": 56.3256,
+            "diffPct": 0.00006714066571600341,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 67.26,
+            "expected": 67.26,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 67.26,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 67.26,
+            "expected": 67.26,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 67.26,
+            "expected": 67.26,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 67.26000213623047,
+            "expected": 67.26,
+            "diffPct": 0.000003176078600120036,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 67.26000213623047,
+            "expected": 67.26,
+            "diffPct": 0.000003176078600120036,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 6,
+      "missingCount": 1
+    },
+    {
+      "ticker": "JNJ",
+      "workbookQuoteCurrency": "USD",
+      "eodhd": {
+        "symbol": "JNJ",
+        "currency": "USD",
+        "rowCount": 1260
+      },
+      "yahoo": {
+        "symbol": "JNJ",
+        "currency": "USD",
+        "rowCount": 1260
+      },
+      "localRowCount": 1260,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 163.17,
+            "expected": 163.17,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 141.8929,
+            "expected": 141.8929,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 163.17,
+            "expected": 163.17,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 141.8929,
+            "expected": 141.8929,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 163.1699981689453,
+            "expected": 163.17,
+            "diffPct": -0.0000011221760631840993,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 141.90525817871094,
+            "expected": 141.8929,
+            "diffPct": 0.008709511688698157,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 177.48,
+            "expected": 177.48,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 159.4294,
+            "expected": 159.4294,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 177.48,
+            "expected": 177.48,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 159.4294,
+            "expected": 159.4294,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 177.47999572753906,
+            "expected": 177.48,
+            "diffPct": -0.000002407291488371044,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 159.44320678710938,
+            "expected": 159.4294,
+            "diffPct": 0.008660126118131828,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 155.77,
+            "expected": 155.77,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 145.2682,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 155.77,
+            "expected": 155.77,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 145.2682,
+            "expected": 145.2682,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 155.77000427246094,
+            "expected": 155.77,
+            "diffPct": 0.000002742800875310536,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 145.28079223632812,
+            "expected": 145.2682,
+            "diffPct": 0.008668267609923674,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 152.01,
+            "expected": 152.01,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 147.5613,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 152.01,
+            "expected": 152.01,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 147.5613,
+            "expected": 147.5613,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 152.00999450683594,
+            "expected": 152.01,
+            "diffPct": -0.000003613685972680969,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 147.5766143798828,
+            "expected": 147.5613,
+            "diffPct": 0.010378317270731685,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 271.22,
+            "expected": 271.22,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 271.22,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 271.22,
+            "expected": 271.22,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 271.22,
+            "expected": 271.22,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 271.2200012207031,
+            "expected": 271.22,
+            "diffPct": 4.5007857440992893e-7,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 271.2200012207031,
+            "expected": 271.22,
+            "diffPct": 4.5007857440992893e-7,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 0,
+      "missingCount": 3
+    },
+    {
+      "ticker": "KAP.IL",
+      "workbookQuoteCurrency": "USD",
+      "eodhd": {
+        "symbol": "KAP.IL",
+        "currency": "USD",
+        "rowCount": 1266
+      },
+      "yahoo": {
+        "symbol": "KAP.IL",
+        "currency": "USD",
+        "rowCount": 1267
+      },
+      "localRowCount": 1266,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 35,
+            "expected": 35,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 27.0889,
+            "expected": 35,
+            "diffPct": -22.603142857142856,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 35,
+            "expected": 35,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 26.0405,
+            "expected": 35,
+            "diffPct": -25.598571428571425,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 35,
+            "expected": 35,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 26.08007049560547,
+            "expected": 35,
+            "diffPct": -25.485512869698656,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 27.4,
+            "expected": 27.4,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 22.7838,
+            "expected": 29.376527,
+            "diffPct": -22.442159347154956,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 27.4,
+            "expected": 27.4,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 21.902,
+            "expected": 29.376527,
+            "diffPct": -25.443875649425806,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 27.399999618530273,
+            "expected": 27.4,
+            "diffPct": -0.0000013922252795062207,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 21.935312271118164,
+            "expected": 29.376527,
+            "diffPct": -25.330478068022934,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 39.5,
+            "expected": 39.5,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 35.0511,
+            "expected": 45.140743,
+            "diffPct": -22.35152177269214,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 39.5,
+            "expected": 39.5,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 33.6945,
+            "expected": 45.140743,
+            "diffPct": -25.35678909848693,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 39.5,
+            "expected": 39.5,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 33.74584197998047,
+            "expected": 45.140743,
+            "diffPct": -25.24305153776386,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 42.5,
+            "expected": 42.5,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 40.1269,
+            "expected": 51.633156,
+            "diffPct": -22.28462656824619,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 42.5,
+            "expected": 42.5,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 38.5738,
+            "expected": 51.633156,
+            "diffPct": -25.29257750581816,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 42.5,
+            "expected": 42.5,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 38.6325798034668,
+            "expected": 51.633156,
+            "diffPct": -25.178736307602822,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": null,
+            "expected": 68,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 90.772458,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 68,
+            "expected": 68,
+            "diffPct": 0,
+            "sourceDate": "2026-09-24",
+            "lagDays": 1,
+            "status": "calendar_carried"
+          },
+          "eodhdAdjusted": {
+            "actual": 68,
+            "expected": 90.772458,
+            "diffPct": -25.08740922274023,
+            "sourceDate": "2026-09-24",
+            "lagDays": 1,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 67.5,
+            "expected": 68,
+            "diffPct": -0.7352941176470562,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooAdjusted": {
+            "actual": 67.5,
+            "expected": 90.772458,
+            "diffPct": -25.638237096102433,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        }
+      ],
+      "mismatchCount": 15,
+      "missingCount": 2
+    },
+    {
+      "ticker": "NESN.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "NESN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "NESN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 111.5,
+            "expected": 111.5,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 95.3666,
+            "expected": 95.3666,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 111.5,
+            "expected": 111.5,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 95.3666,
+            "expected": 95.3666,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 111.5,
+            "expected": 111.5,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 95.4188461303711,
+            "expected": 95.3666,
+            "diffPct": 0.054784516142003525,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 107.82,
+            "expected": 107.82,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 94.3408,
+            "expected": 94.3408,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 107.82,
+            "expected": 107.82,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 94.3408,
+            "expected": 94.3408,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 107.81999969482422,
+            "expected": 107.82,
+            "diffPct": -2.8304190102801385e-7,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 94.39247131347656,
+            "expected": 94.3408,
+            "diffPct": 0.054770908744217195,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 95.48,
+            "expected": 95.48,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 85.7178,
+            "expected": 85.7178,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 95.48,
+            "expected": 95.48,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 85.7178,
+            "expected": 85.7178,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 95.4800033569336,
+            "expected": 95.48,
+            "diffPct": 0.000003515850011126531,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 85.76472473144531,
+            "expected": 85.7178,
+            "diffPct": 0.05474327554524372,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 78.99,
+            "expected": 78.99,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 75.8912,
+            "expected": 75.8912,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 78.99,
+            "expected": 78.99,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 75.8912,
+            "expected": 75.8912,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 78.98999786376953,
+            "expected": 78.99,
+            "diffPct": -0.0000027044315231705696,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 75.89117431640625,
+            "expected": 75.8912,
+            "diffPct": -0.000033842650726256807,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 77.17,
+            "expected": 77.17,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 77.17,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 77.17,
+            "expected": 77.17,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 77.17,
+            "expected": 77.17,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 77.16999816894531,
+            "expected": 77.17,
+            "diffPct": -0.000002372754548396472,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 77.16999816894531,
+            "expected": 77.17,
+            "diffPct": -0.000002372754548396472,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 0,
+      "missingCount": 1
+    },
+    {
+      "ticker": "NOVO-B.CO",
+      "workbookQuoteCurrency": "DKK",
+      "eodhd": {
+        "symbol": "NOVO-B.CO",
+        "currency": "DKK",
+        "rowCount": 1258
+      },
+      "yahoo": {
+        "symbol": "NOVO-B.CO",
+        "currency": "DKK",
+        "rowCount": 1257
+      },
+      "localRowCount": 1258,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 631.8,
+            "expected": 315.9,
+            "diffPct": 100,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "dbTotal": {
+            "actual": 282.0596,
+            "expected": 315.9,
+            "diffPct": -10.712377334599555,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 631.8,
+            "expected": 315.9,
+            "diffPct": 100,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdAdjusted": {
+            "actual": 282.0596,
+            "expected": 315.9,
+            "diffPct": -10.712377334599555,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 315.8999938964844,
+            "expected": 315.9,
+            "diffPct": -0.0000019321036992536733,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 282.0596008300781,
+            "expected": 315.9,
+            "diffPct": -10.712377071833446,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 934.5,
+            "expected": 467.25,
+            "diffPct": 100,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "dbTotal": {
+            "actual": 423.4523,
+            "expected": 481.492723,
+            "diffPct": -12.05426795204131,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 934.5,
+            "expected": 467.25,
+            "diffPct": 100,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdAdjusted": {
+            "actual": 423.4523,
+            "expected": 481.492723,
+            "diffPct": -12.05426795204131,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 467.25,
+            "expected": 467.25,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 423.4522705078125,
+            "expected": 481.492723,
+            "diffPct": -12.054274077198778,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 888.3,
+            "expected": 888.3,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 821.1421,
+            "expected": 945.286655,
+            "diffPct": -13.133006199056096,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 888.3,
+            "expected": 888.3,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 821.1421,
+            "expected": 945.286655,
+            "diffPct": -13.133006199056096,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 888.2999877929688,
+            "expected": 888.3,
+            "diffPct": -0.0000013742014193240948,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 821.1420288085938,
+            "expected": 945.286655,
+            "diffPct": -13.13301373025373,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 430.95,
+            "expected": 430.95,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 406.5906,
+            "expected": 467.997049,
+            "diffPct": -13.121118847054959,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 430.95,
+            "expected": 430.95,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 406.5906,
+            "expected": 467.997049,
+            "diffPct": -13.121118847054959,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 430.95001220703125,
+            "expected": 430.95,
+            "diffPct": 0.0000028325864320777328,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 406.5905456542969,
+            "expected": 467.997049,
+            "diffPct": -13.121130459457909,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 253,
+            "expected": 253,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 291.239336,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 253,
+            "expected": 253,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 253,
+            "expected": 291.239336,
+            "diffPct": -13.129866495781318,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 253,
+            "expected": 253,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 253,
+            "expected": 291.239336,
+            "diffPct": -13.129866495781318,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        }
+      ],
+      "mismatchCount": 18,
+      "missingCount": 1
+    },
+    {
+      "ticker": "NVDA",
+      "workbookQuoteCurrency": "USD",
+      "eodhd": {
+        "symbol": "NVDA",
+        "currency": "USD",
+        "rowCount": 1260
+      },
+      "yahoo": {
+        "symbol": "NVDA",
+        "currency": "USD",
+        "rowCount": 1260
+      },
+      "localRowCount": 1260,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 216.6,
+            "expected": 21.66,
+            "diffPct": 900,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "dbTotal": {
+            "actual": 21.565,
+            "expected": 21.66,
+            "diffPct": -0.43859649122806044,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 216.6,
+            "expected": 21.66,
+            "diffPct": 900,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdAdjusted": {
+            "actual": 21.565,
+            "expected": 21.66,
+            "diffPct": -0.43859649122806044,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 21.65999984741211,
+            "expected": 21.66,
+            "diffPct": -7.044685612633828e-7,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 21.565013885498047,
+            "expected": 21.66,
+            "diffPct": -0.43853238458888555,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 152.06,
+            "expected": 15.206,
+            "diffPct": 900,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "dbTotal": {
+            "actual": 15.1553,
+            "expected": 15.364013,
+            "diffPct": -1.3584536800378855,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 152.06,
+            "expected": 15.206,
+            "diffPct": 900,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdAdjusted": {
+            "actual": 15.1553,
+            "expected": 15.364013,
+            "diffPct": -1.3584536800378855,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 15.206000328063965,
+            "expected": 15.206,
+            "diffPct": 0.0000021574639408328267,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 15.155327796936035,
+            "expected": 15.364013,
+            "diffPct": -1.3582727576705644,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 925.61,
+            "expected": 92.561,
+            "diffPct": 900,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "dbTotal": {
+            "actual": 92.2978,
+            "expected": 93.987533,
+            "diffPct": -1.7978267394251124,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 925.61,
+            "expected": 92.561,
+            "diffPct": 900,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdAdjusted": {
+            "actual": 92.2978,
+            "expected": 93.987533,
+            "diffPct": -1.7978267394251124,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 92.56099700927734,
+            "expected": 92.561,
+            "diffPct": -0.000003231082923438322,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 92.2978286743164,
+            "expected": 93.987533,
+            "diffPct": -1.7977962307868967,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 155.02,
+            "expected": 155.02,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 154.6408,
+            "expected": 157.470852,
+            "diffPct": -1.7971910128485202,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 155.02,
+            "expected": 155.02,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 154.6408,
+            "expected": 157.470852,
+            "diffPct": -1.7971910128485202,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 155.02000427246094,
+            "expected": 155.02,
+            "diffPct": 0.000002756070771603447,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 154.6407470703125,
+            "expected": 157.470852,
+            "diffPct": -1.797224625219851,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 225.07,
+            "expected": 225.07,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 229.189539,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 225.07,
+            "expected": 225.07,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 225.07,
+            "expected": 229.189539,
+            "diffPct": -1.797437622142084,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 225.07000732421875,
+            "expected": 225.07,
+            "diffPct": 0.0000032541959127385667,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 225.07000732421875,
+            "expected": 229.189539,
+            "diffPct": -1.7974344264383046,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        }
+      ],
+      "mismatchCount": 17,
+      "missingCount": 1
+    },
+    {
+      "ticker": "OFN.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "OFN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "OFN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 91.4,
+            "expected": 91.4,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 73.8706,
+            "expected": 91.4,
+            "diffPct": -19.17877461706784,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 91.4,
+            "expected": 91.4,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 73.8706,
+            "expected": 91.4,
+            "diffPct": -19.17877461706784,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 91.4000015258789,
+            "expected": 91.4,
+            "diffPct": 0.0000016694517546156362,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 73.92768096923828,
+            "expected": 91.4,
+            "diffPct": -19.116322790767747,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 81,
+            "expected": 81,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 68.0838,
+            "expected": 84.165517,
+            "diffPct": -19.107251488753995,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 81,
+            "expected": 81,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 68.0838,
+            "expected": 84.165517,
+            "diffPct": -19.107251488753995,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 81,
+            "expected": 81,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 68.13640594482422,
+            "expected": 84.165517,
+            "diffPct": -19.04474852233816,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 77,
+            "expected": 77,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 67.6324,
+            "expected": 83.514753,
+            "diffPct": -19.017421987705564,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "eodhdClose": {
+            "actual": 77,
+            "expected": 77,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 67.6324,
+            "expected": 83.514753,
+            "diffPct": -19.017421987705564,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 77,
+            "expected": 77,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 67.68465423583984,
+            "expected": 83.514753,
+            "diffPct": -18.95485311937659,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 96.6,
+            "expected": 96.6,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 114.769355,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 96.6,
+            "expected": 96.6,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 93.2248,
+            "expected": 114.769355,
+            "diffPct": -18.772045028919095,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 96.5999984741211,
+            "expected": 96.6,
+            "diffPct": -0.0000015795847851940437,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 93.22481536865234,
+            "expected": 114.769355,
+            "diffPct": -18.772031638016664,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 138,
+            "expected": 138,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 169.808198,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 138,
+            "expected": 138,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 138,
+            "expected": 169.808198,
+            "diffPct": -18.73183884796893,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooClose": {
+            "actual": 138,
+            "expected": 138,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 138,
+            "expected": 169.808198,
+            "diffPct": -18.73183884796893,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        }
+      ],
+      "mismatchCount": 13,
+      "missingCount": 2
+    },
+    {
+      "ticker": "PLTR",
+      "workbookQuoteCurrency": "USD",
+      "eodhd": {
+        "symbol": "PLTR",
+        "currency": "USD",
+        "rowCount": 1260
+      },
+      "yahoo": {
+        "symbol": "PLTR",
+        "currency": "USD",
+        "rowCount": 1260
+      },
+      "localRowCount": 1260,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 27.47,
+            "expected": 27.47,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 27.47,
+            "expected": 27.47,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 27.47,
+            "expected": 27.47,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 27.47,
+            "expected": 27.47,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 27.469999313354492,
+            "expected": 27.47,
+            "diffPct": -0.0000024996196112958557,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 27.469999313354492,
+            "expected": 27.47,
+            "diffPct": -0.0000024996196112958557,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 6.29,
+            "expected": 6.29,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 6.29,
+            "expected": 6.29,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 6.29,
+            "expected": 6.29,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 6.29,
+            "expected": 6.29,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 6.289999961853027,
+            "expected": 6.29,
+            "diffPct": -6.064701518759819e-7,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 6.289999961853027,
+            "expected": 6.29,
+            "diffPct": -6.064701518759819e-7,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 24.89,
+            "expected": 24.89,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 24.89,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 24.89,
+            "expected": 24.89,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 24.89,
+            "expected": 24.89,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 24.889999389648438,
+            "expected": 24.89,
+            "diffPct": -0.0000024521959129941706,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 24.889999389648438,
+            "expected": 24.89,
+            "diffPct": -0.0000024521959129941706,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 144.25,
+            "expected": 144.25,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 144.25,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 144.25,
+            "expected": 144.25,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 144.25,
+            "expected": 144.25,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 144.25,
+            "expected": 144.25,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 144.25,
+            "expected": 144.25,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 189.67,
+            "expected": 189.67,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 189.67,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 189.67,
+            "expected": 189.67,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 189.67,
+            "expected": 189.67,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 189.6699981689453,
+            "expected": 189.67,
+            "diffPct": -9.653897126149502e-7,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 189.6699981689453,
+            "expected": 189.67,
+            "diffPct": -9.653897126149502e-7,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 0,
+      "missingCount": 3
+    },
+    {
+      "ticker": "PST.MI",
+      "workbookQuoteCurrency": "EUR",
+      "eodhd": {
+        "symbol": "7PI.F",
+        "currency": "EUR",
+        "rowCount": 1280
+      },
+      "yahoo": {
+        "symbol": "PST.MI",
+        "currency": "EUR",
+        "rowCount": 1276
+      },
+      "localRowCount": 1280,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 11.927,
+            "expected": 11.927,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 8.771,
+            "expected": 8.771,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 11.927,
+            "expected": 11.927,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 8.771,
+            "expected": 8.771,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 12.039999961853027,
+            "expected": 11.927,
+            "diffPct": 0.947429880548567,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooAdjusted": {
+            "actual": 8.810101509094238,
+            "expected": 8.771,
+            "diffPct": 0.4458044589469523,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 9.144,
+            "expected": 9.144,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 7.221,
+            "expected": 7.221,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 9.144,
+            "expected": 9.144,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 7.221,
+            "expected": 7.221,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 9.220000267028809,
+            "expected": 9.144,
+            "diffPct": 0.8311490269992117,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          },
+          "yahooAdjusted": {
+            "actual": 7.335057258605957,
+            "expected": 7.221,
+            "diffPct": 1.5795216535930967,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 11.5,
+            "expected": 11.5,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 9.766,
+            "expected": 9.766,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 11.5,
+            "expected": 11.5,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 9.766,
+            "expected": 9.766,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 11.555000305175781,
+            "expected": 11.5,
+            "diffPct": 0.4782635232676524,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 9.841618537902832,
+            "expected": 9.766,
+            "diffPct": 0.7743040948477553,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 17.935,
+            "expected": 17.935,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 17.195,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 17.935,
+            "expected": 17.935,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 17.195,
+            "expected": 17.195,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 17.989999771118164,
+            "expected": 17.935,
+            "diffPct": 0.30666167336586003,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 17.12749481201172,
+            "expected": 17.195,
+            "diffPct": -0.3925861470676417,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 25.7,
+            "expected": 25.7,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 25.751,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 25.7,
+            "expected": 25.7,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 25.751,
+            "expected": 25.751,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 25.81999969482422,
+            "expected": 25.7,
+            "diffPct": 0.4669248825845074,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 25.81999969482422,
+            "expected": 25.751,
+            "diffPct": 0.26794957409117526,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 4,
+      "missingCount": 2
+    },
+    {
+      "ticker": "RO.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "RO.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "RO.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 382.4,
+            "expected": 382.4,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 326.9774,
+            "expected": 326.9774,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 382.4,
+            "expected": 382.4,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 326.9774,
+            "expected": 326.9774,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 382.3999938964844,
+            "expected": 382.4,
+            "diffPct": -0.0000015961076349491066,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 325.9906005859375,
+            "expected": 326.9774,
+            "diffPct": -0.30179437908016693,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 366.8,
+            "expected": 366.8,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 321.2363,
+            "expected": 321.2363,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 366.8,
+            "expected": 366.8,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 321.2363,
+            "expected": 321.2363,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 366.79998779296875,
+            "expected": 366.8,
+            "diffPct": -0.0000033279801692209787,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 320.26678466796875,
+            "expected": 321.2363,
+            "diffPct": -0.3018075267431697,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 239.8,
+            "expected": 239.8,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 225.8664,
+            "expected": 225.8664,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 239.8,
+            "expected": 239.8,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 225.8664,
+            "expected": 225.8664,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 239.8000030517578,
+            "expected": 239.8,
+            "diffPct": 0.0000012726262710316405,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 225.1847381591797,
+            "expected": 225.8664,
+            "diffPct": -0.301798691979116,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 277.6,
+            "expected": 277.6,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 269.6174,
+            "expected": 269.6174,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 277.6,
+            "expected": 277.6,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 269.6174,
+            "expected": 269.6174,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 277.6000061035156,
+            "expected": 277.6,
+            "diffPct": 0.000002198672777176114,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 268.80364990234375,
+            "expected": 269.6174,
+            "diffPct": -0.3018166103731512,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 375.2,
+            "expected": 375.2,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 375.2,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 375.2,
+            "expected": 375.2,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 375.2,
+            "expected": 375.2,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 375.20001220703125,
+            "expected": 375.2,
+            "diffPct": 0.0000032534731575495357,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 375.20001220703125,
+            "expected": 375.2,
+            "diffPct": 0.0000032534731575495357,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 0,
+      "missingCount": 1
+    },
+    {
+      "ticker": "SCMN.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "SCMN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "SCMN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 528,
+            "expected": 528,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 431.6877,
+            "expected": 431.6877,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 528,
+            "expected": 528,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 431.6877,
+            "expected": 431.6877,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 528,
+            "expected": 528,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 432.7004699707031,
+            "expected": 431.6877,
+            "diffPct": 0.23460709459712792,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 508.2,
+            "expected": 508.2,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 432.6495,
+            "expected": 432.6495,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 508.2,
+            "expected": 508.2,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 432.6495,
+            "expected": 432.6495,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 508.20001220703125,
+            "expected": 508.2,
+            "diffPct": 0.0000024020132327606802,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 433.6645202636719,
+            "expected": 432.6495,
+            "diffPct": 0.2346056712585698,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 548.6,
+            "expected": 548.6,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 484.9817,
+            "expected": 484.9817,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 548.6,
+            "expected": 548.6,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 484.9817,
+            "expected": 484.9817,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 548.5999755859375,
+            "expected": 548.6,
+            "diffPct": -0.0000044502483587116615,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 486.119384765625,
+            "expected": 484.9817,
+            "diffPct": 0.2345830297565854,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 561.5,
+            "expected": 561.5,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 540.4942,
+            "expected": 540.4942,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 561.5,
+            "expected": 561.5,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 540.4942,
+            "expected": 540.4942,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 561.5,
+            "expected": 561.5,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 540.4942626953125,
+            "expected": 540.4942,
+            "diffPct": 0.000011599627258718215,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 657,
+            "expected": 657,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 657,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 657,
+            "expected": 657,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 657,
+            "expected": 657,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 657,
+            "expected": 657,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 657,
+            "expected": 657,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 0,
+      "missingCount": 1
+    },
+    {
+      "ticker": "SGKN.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "SGKN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "SGKN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 415,
+            "expected": 415,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 362.8937,
+            "expected": 362.8937,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 415,
+            "expected": 415,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 362.8937,
+            "expected": 362.8937,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 415,
+            "expected": 415,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 345.680908203125,
+            "expected": 362.8937,
+            "diffPct": -4.743204910108667,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 474.5,
+            "expected": 474.5,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 430.3916,
+            "expected": 430.3916,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 474.5,
+            "expected": 474.5,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 430.3916,
+            "expected": 430.3916,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 474.5,
+            "expected": 474.5,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 409.977294921875,
+            "expected": 430.3916,
+            "diffPct": -4.74319319385531,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 487,
+            "expected": 487,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 457.358,
+            "expected": 457.358,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 487,
+            "expected": 487,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 457.358,
+            "expected": 457.358,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 487,
+            "expected": 487,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 435.66455078125,
+            "expected": 457.358,
+            "diffPct": -4.743209743516019,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 478.5,
+            "expected": 478.5,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 462.939,
+            "expected": 462.939,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 478.5,
+            "expected": 478.5,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 462.939,
+            "expected": 462.939,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 478.5,
+            "expected": 478.5,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 463.61663818359375,
+            "expected": 462.939,
+            "diffPct": 0.1463774241517113,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 709,
+            "expected": 709,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 709,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 709,
+            "expected": 709,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 709,
+            "expected": 709,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 709,
+            "expected": 709,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 709,
+            "expected": 709,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 3,
+      "missingCount": 1
+    },
+    {
+      "ticker": "SLHN.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "SLHN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "SLHN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 476,
+            "expected": 476,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 377.0619,
+            "expected": 377.0619,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 476,
+            "expected": 476,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 377.0619,
+            "expected": 377.0619,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 476,
+            "expected": 476,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 377.0618896484375,
+            "expected": 377.0619,
+            "diffPct": -0.0000027453217810169406,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 479.9,
+            "expected": 479.9,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 396.8245,
+            "expected": 396.8245,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 479.9,
+            "expected": 479.9,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 396.8245,
+            "expected": 396.8245,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 479.8999938964844,
+            "expected": 479.9,
+            "diffPct": -0.0000012718307185188849,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 396.82452392578125,
+            "expected": 396.8245,
+            "diffPct": 0.000006029310495314633,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 627.4,
+            "expected": 627.4,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 547.4006,
+            "expected": 547.4006,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 627.4,
+            "expected": 627.4,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 547.4006,
+            "expected": 547.4006,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 627.4000244140625,
+            "expected": 627.4,
+            "diffPct": 0.000003891307387426934,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 547.4006958007812,
+            "expected": 547.4006,
+            "diffPct": 0.0000175010369307671,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 801.2,
+            "expected": 801.2,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 767.9457,
+            "expected": 767.9457,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 801.2,
+            "expected": 801.2,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 767.9457,
+            "expected": 767.9457,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 801.2000122070312,
+            "expected": 801.2,
+            "diffPct": 0.0000015235935180157867,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 767.9457397460938,
+            "expected": 767.9457,
+            "diffPct": 0.000005175638562171514,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 915.8,
+            "expected": 915.8,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 915.8,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 915.8,
+            "expected": 915.8,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 915.8,
+            "expected": 915.8,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 915.7999877929688,
+            "expected": 915.8,
+            "diffPct": -0.0000013329363612868406,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 915.7999877929688,
+            "expected": 915.8,
+            "diffPct": -0.0000013329363612868406,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 0,
+      "missingCount": 1
+    },
+    {
+      "ticker": "SREN.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "SREN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "SREN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 81.3,
+            "expected": 81.3,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 60.9671,
+            "expected": 60.9671,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 81.3,
+            "expected": 81.3,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 60.9671,
+            "expected": 60.9671,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 81.30000305175781,
+            "expected": 81.3,
+            "diffPct": 0.0000037536996400078237,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 59.072086334228516,
+            "expected": 60.9671,
+            "diffPct": -3.108256200100523,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 87.46,
+            "expected": 87.46,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 70.6435,
+            "expected": 70.6435,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 87.46,
+            "expected": 87.46,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 70.6435,
+            "expected": 70.6435,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 87.45999908447266,
+            "expected": 87.46,
+            "diffPct": -0.0000010467954947301905,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 68.04998016357422,
+            "expected": 70.6435,
+            "diffPct": -3.671278796245636,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 116.1,
+            "expected": 116.1,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 99.8439,
+            "expected": 99.8439,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 116.1,
+            "expected": 116.1,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 99.8439,
+            "expected": 99.8439,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 116.0999984741211,
+            "expected": 116.1,
+            "diffPct": -0.000001314279840514132,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 96.92311096191406,
+            "expected": 99.8439,
+            "diffPct": -2.9253555180496216,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 136.55,
+            "expected": 136.55,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 130.1543,
+            "expected": 130.1543,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 136.55,
+            "expected": 136.55,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 130.1543,
+            "expected": 130.1543,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 136.5500030517578,
+            "expected": 136.55,
+            "diffPct": 0.000002234901352871077,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 128.3488006591797,
+            "expected": 130.1543,
+            "diffPct": -1.3871991481036905,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "mismatch"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 141.65,
+            "expected": 141.65,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 141.65,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 141.65,
+            "expected": 141.65,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 141.65,
+            "expected": 141.65,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 141.64999389648438,
+            "expected": 141.65,
+            "diffPct": -0.000004308870904523587,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 141.64999389648438,
+            "expected": 141.65,
+            "diffPct": -0.000004308870904523587,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 4,
+      "missingCount": 1
+    },
+    {
+      "ticker": "ZGLD.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "ZGLD.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "ZGLD.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 489.8,
+            "expected": 489.8,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 489.8,
+            "expected": 489.8,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 489.8,
+            "expected": 489.8,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 489.8,
+            "expected": 489.8,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 489.79998779296875,
+            "expected": 489.8,
+            "diffPct": -0.0000024922481189904033,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 489.79998779296875,
+            "expected": 489.8,
+            "diffPct": -0.0000024922481189904033,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 504.5,
+            "expected": 504.5,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 504.5,
+            "expected": 504.5,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 504.5,
+            "expected": 504.5,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 504.5,
+            "expected": 504.5,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 504.5,
+            "expected": 504.5,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 504.5,
+            "expected": 504.5,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 586.4,
+            "expected": 586.4,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 586.4,
+            "expected": 586.4,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 586.4,
+            "expected": 586.4,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 586.4,
+            "expected": 586.4,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 586.4000244140625,
+            "expected": 586.4,
+            "diffPct": 0.000004163380373789494,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 586.4000244140625,
+            "expected": 586.4,
+            "diffPct": 0.000004163380373789494,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 790.2,
+            "expected": 790.2,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 790.2,
+            "expected": 790.2,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 790.2,
+            "expected": 790.2,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 790.2,
+            "expected": 790.2,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 790.2000122070312,
+            "expected": 790.2,
+            "diffPct": 0.0000015448027301800948,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 790.2000122070312,
+            "expected": 790.2,
+            "diffPct": 0.0000015448027301800948,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 1050.6,
+            "expected": 1050.6,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 1050.6,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 1050.6,
+            "expected": 1050.6,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 1050.6,
+            "expected": 1050.6,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 1050.5999755859375,
+            "expected": 1050.6,
+            "diffPct": -0.0000023238209023723755,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 1050.5999755859375,
+            "expected": 1050.6,
+            "diffPct": -0.0000023238209023723755,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 0,
+      "missingCount": 1
+    },
+    {
+      "ticker": "ZURN.SW",
+      "workbookQuoteCurrency": "CHF",
+      "eodhd": {
+        "symbol": "ZURN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "yahoo": {
+        "symbol": "ZURN.SW",
+        "currency": "CHF",
+        "rowCount": 1262
+      },
+      "localRowCount": 1262,
+      "samples": [
+        {
+          "date": "2021-09-27",
+          "dbClose": {
+            "actual": 387.6,
+            "expected": 387.6,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 297.0405,
+            "expected": 297.0405,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 387.6,
+            "expected": 387.6,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 297.0405,
+            "expected": 297.0405,
+            "diffPct": 0,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 387.6000061035156,
+            "expected": 387.6,
+            "diffPct": 0.0000015746944193040235,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 297.04052734375,
+            "expected": 297.0405,
+            "diffPct": 0.00000920539455773195,
+            "sourceDate": "2021-09-27",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2022-12-23",
+          "dbClose": {
+            "actual": 447.1,
+            "expected": 447.1,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 360.1366,
+            "expected": 360.1366,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 447.1,
+            "expected": 447.1,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 360.1366,
+            "expected": 360.1366,
+            "diffPct": 0,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 447.1000061035156,
+            "expected": 447.1,
+            "diffPct": 0.0000013651343389042836,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 360.1366271972656,
+            "expected": 360.1366,
+            "diffPct": 0.000007551930480964586,
+            "sourceDate": "2022-12-23",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2024-03-26",
+          "dbClose": {
+            "actual": 485.4,
+            "expected": 485.4,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 412.6135,
+            "expected": 412.6135,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 485.4,
+            "expected": 485.4,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 412.6135,
+            "expected": 412.6135,
+            "diffPct": 0,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 485.3999938964844,
+            "expected": 485.4,
+            "diffPct": -0.000001257419779410185,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 412.61346435546875,
+            "expected": 412.6135,
+            "diffPct": -0.000008638721527010063,
+            "sourceDate": "2024-03-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2025-06-26",
+          "dbClose": {
+            "actual": 553.6,
+            "expected": 553.6,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": 524.4734,
+            "expected": 524.4734,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdClose": {
+            "actual": 553.6,
+            "expected": 553.6,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 524.4734,
+            "expected": 524.4734,
+            "diffPct": 0,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 553.5999755859375,
+            "expected": 553.6,
+            "diffPct": -0.00000441005464368871,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 524.4733276367188,
+            "expected": 524.4734,
+            "diffPct": -0.000013797321507524885,
+            "sourceDate": "2025-06-26",
+            "lagDays": 0,
+            "status": "match"
+          }
+        },
+        {
+          "date": "2026-09-25",
+          "dbClose": {
+            "actual": 581.2,
+            "expected": 581.2,
+            "diffPct": 0,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "match"
+          },
+          "dbTotal": {
+            "actual": null,
+            "expected": 581.2,
+            "diffPct": null,
+            "sourceDate": null,
+            "lagDays": 0,
+            "status": "missing"
+          },
+          "eodhdClose": {
+            "actual": 581.2,
+            "expected": 581.2,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "eodhdAdjusted": {
+            "actual": 581.2,
+            "expected": 581.2,
+            "diffPct": 0,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooClose": {
+            "actual": 581.2000122070312,
+            "expected": 581.2,
+            "diffPct": 0.0000021003150774134838,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          },
+          "yahooAdjusted": {
+            "actual": 581.2000122070312,
+            "expected": 581.2,
+            "diffPct": 0.0000021003150774134838,
+            "sourceDate": "2026-09-25",
+            "lagDays": 0,
+            "status": "match"
+          }
+        }
+      ],
+      "mismatchCount": 0,
+      "missingCount": 1
+    }
+  ]
+}

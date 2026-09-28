@@ -29,6 +29,7 @@
 import { getDb } from './db';
 import { exchangeRates, stocks } from '../drizzle/schema';
 import { eq, and } from 'drizzle-orm';
+import { isPlausibleChfFxRate } from './lib/fxRateValidity';
 
 /** Maximaler Rückwärts-Lookback für fehlende Kurstage (Wochenenden/Feiertage/Lücken). */
 const FX_LOOKBACK_DAYS = 30;
@@ -53,10 +54,16 @@ async function ensureFxRatesPrewarmed(): Promise<void> {
     const db = await getDb();
     if (!db) { fxPrewarmed = false; return; }
     const all = await db.select().from(exchangeRates);
+    let skipped = 0;
     for (const r of all) {
-      fxRateCache.set(`${r.date}:${r.currencyPair}`, parseFloat(r.rate as any));
+      const rate = parseFloat(r.rate as any);
+      if (!isPlausibleChfFxRate(r.currencyPair, rate)) {
+        skipped++;
+        continue;
+      }
+      fxRateCache.set(`${r.date}:${r.currencyPair}`, rate);
     }
-    console.log(`[FxHelper] Prewarmed ${all.length} FX rates into memory cache`);
+    console.log(`[FxHelper] Prewarmed ${all.length - skipped} validated FX rates into memory cache${skipped ? `; skipped ${skipped} implausible source rows` : ''}`);
   } catch (error) {
     console.error('[FxHelper] FX prewarm failed:', error);
   }
@@ -68,12 +75,12 @@ async function ensureFxRatesPrewarmed(): Promise<void> {
  */
 function lookupCachedRateWithLookback(date: string, currencyPair: string): number | null {
   const exact = fxRateCache.get(`${date}:${currencyPair}`);
-  if (exact !== undefined) return exact;
+  if (exact !== undefined && isPlausibleChfFxRate(currencyPair, exact)) return exact;
   const d = new Date(date);
   for (let i = 1; i <= FX_LOOKBACK_DAYS; i++) {
     d.setDate(d.getDate() - 1);
     const fallback = fxRateCache.get(`${d.toISOString().split('T')[0]}:${currencyPair}`);
-    if (fallback !== undefined) return fallback;
+    if (fallback !== undefined && isPlausibleChfFxRate(currencyPair, fallback)) return fallback;
   }
   return null;
 }
@@ -110,7 +117,7 @@ export async function tryGetFxRate(date: string, currencyPair: string): Promise<
 
   const cacheKey = `${date}:${currencyPair}`;
   const cachedRate = fxRateCache.get(cacheKey);
-  if (cachedRate !== undefined) {
+  if (cachedRate !== undefined && isPlausibleChfFxRate(currencyPair, cachedRate)) {
     return cachedRate;
   }
 
@@ -142,8 +149,10 @@ export async function tryGetFxRate(date: string, currencyPair: string): Promise<
 
     if (rate) {
       const parsed = parseFloat(rate.rate);
-      fxRateCache.set(cacheKey, parsed);
-      return parsed;
+      if (isPlausibleChfFxRate(currencyPair, parsed)) {
+        fxRateCache.set(cacheKey, parsed);
+        return parsed;
+      }
     }
 
     // If exact date not found, try nearest previous date — but only within
@@ -152,7 +161,7 @@ export async function tryGetFxRate(date: string, currencyPair: string): Promise<
     const minDate = new Date(date);
     minDate.setDate(minDate.getDate() - FX_LOOKBACK_DAYS);
     const minDateStr = minDate.toISOString().split('T')[0];
-    const [nearestRate] = await db
+    const nearestRates = await db
       .select()
       .from(exchangeRates)
       .where(
@@ -163,8 +172,11 @@ export async function tryGetFxRate(date: string, currencyPair: string): Promise<
         )
       )
       .orderBy(desc(exchangeRates.date))
-      .limit(1);
+      .limit(FX_LOOKBACK_DAYS + 1);
 
+    const nearestRate = nearestRates.find((candidate) =>
+      isPlausibleChfFxRate(currencyPair, parseFloat(candidate.rate)),
+    );
     if (nearestRate) {
       const parsed = parseFloat(nearestRate.rate);
       fxRateCache.set(cacheKey, parsed);

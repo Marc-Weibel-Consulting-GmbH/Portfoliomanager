@@ -32,6 +32,7 @@ export async function checkWatchlistAlerts() {
     const { stocks: stocksTable, stockSignalCache } = await import("../../drizzle/schema");
     const { activeCurated } = await import("../lib/stockUniverse");
     const { signalFelderAusCache, alertEntscheid } = await import("../lib/kernsignalUebernahme");
+    const { projectCoreSignalDataQuality } = await import("../lib/coreSignalDataQuality");
     const { eq, inArray } = await import("drizzle-orm");
     const YahooFinanceClass = (await import("yahoo-finance2")).default;
     const yahooFinance: any = new (YahooFinanceClass as any)();
@@ -84,6 +85,7 @@ export async function checkWatchlistAlerts() {
             combinedScore: stockSignalCache.combinedScore,
             signalType: stockSignalCache.signalType,
             signalStrength: stockSignalCache.signalStrength,
+            reason: stockSignalCache.reason,
           })
           .from(stockSignalCache)
           .where(inArray(stockSignalCache.ticker, tickers))
@@ -112,28 +114,20 @@ export async function checkWatchlistAlerts() {
       try {
         const yahooTicker = normalizeTicker(stock.ticker);
         const quote: any = await yahooFinance.quoteSummary(yahooTicker, {
-          modules: ["price", "summaryDetail", "defaultKeyStatistics"] as any,
+          modules: ["price"] as any,
         });
 
         const price = quote?.price;
-        const summary = quote?.summaryDetail;
-        const keyStats = quote?.defaultKeyStatistics;
 
         if (price) {
-          const pe = summary?.trailingPE ?? null;
-          const divYield = summary?.dividendYield ?? null;
-          const high = summary?.fiftyTwoWeekHigh;
-          const low = summary?.fiftyTwoWeekLow;
           const current = price?.regularMarketPrice;
           currentPriceStr = current?.toString() || stock.currentPrice;
+          // EODHD is the primary fundamentals source. This alert job may use a
+          // secondary quote for a fresh market-price display, but must never
+          // overwrite P/E, PEG, dividend yield or 52W fields on a different
+          // provider basis.
           await db.update(stocksTable).set({
             currentPrice: currentPriceStr,
-            peRatio: pe?.toString() || stock.peRatio,
-            pegRatio: keyStats?.pegRatio?.toString() || stock.pegRatio,
-            dividendYield: divYield ? (divYield * 100).toString() : stock.dividendYield,
-            week52High: high?.toString() || stock.week52High,
-            week52Low: low?.toString() || stock.week52Low,
-            lastMetricsUpdate: new Date(),
           }).where(eq(stocksTable.id, stock.id));
         }
       } catch (err: any) {
@@ -146,11 +140,18 @@ export async function checkWatchlistAlerts() {
       try {
         const cache = cacheMap.get(stock.ticker);
         const felder = signalFelderAusCache(cache);
+        const dataQuality = projectCoreSignalDataQuality({
+          signalScore: felder.signalScore,
+          reason: cache?.reason,
+          dataQualityStatus: stock.dataQualityStatus,
+          dataQualityNotes: stock.dataQualityNotes,
+        });
         const previousScore = stock.signalScore ?? null;
         const previousType = stock.signalType ?? null;
         await db.update(stocksTable).set({
           signalScore: felder.signalScore,
           signalType: felder.signalType,
+          ...dataQuality,
         }).where(eq(stocksTable.id, stock.id));
 
         // 3) Hinweis-Entscheid: nur starker Rand, nur beim Übergang, mit Cooldown.

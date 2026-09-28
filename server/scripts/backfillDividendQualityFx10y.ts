@@ -94,6 +94,7 @@ async function main(): Promise<void> {
         existingDates: existingDatesByPair.get(window.currencyPair) ?? new Set(),
         from: window.from,
         to: window.to,
+        currencyPair: window.currencyPair,
       });
       for (let offset = 0; offset < newRates.length; offset += 250) {
         await db.insert(exchangeRates).values(newRates.slice(offset, offset + 250).map((row) => ({

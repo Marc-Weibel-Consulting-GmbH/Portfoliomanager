@@ -1,3 +1,5 @@
+import { isPlausibleChfFxRate } from "./fxRateValidity";
+
 export type HistoricalFxRow = { date: string; close: number | string | null | undefined };
 
 export type HistoricalFxBackfillPlanInput = {
@@ -55,6 +57,8 @@ export function filterNewHistoricalFxRates(input: {
   existingDates: ReadonlySet<string>;
   from: string;
   to: string;
+  /** Optional because legacy tests and generic data tools may not know the pair. */
+  currencyPair?: string;
 }): Array<{ date: string; rate: number }> {
   const seen = new Set<string>();
   const output: Array<{ date: string; rate: number }> = [];
@@ -63,6 +67,7 @@ export function filterNewHistoricalFxRates(input: {
     const rate = typeof row.close === "number" ? row.close : Number.parseFloat(String(row.close ?? ""));
     if (!date || date < input.from || date > input.to || input.existingDates.has(date) || seen.has(date)) continue;
     if (!Number.isFinite(rate) || rate <= 0) continue;
+    if (input.currencyPair && !isPlausibleChfFxRate(input.currencyPair, rate)) continue;
     seen.add(date);
     output.push({ date, rate });
   }
