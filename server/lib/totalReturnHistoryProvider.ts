@@ -44,6 +44,86 @@ export type TotalReturnSnapshotResult = {
   message: string;
 };
 
+/**
+ * Both labelled 5J return measures depend on their own derived snapshot.
+ *
+ * A total-return snapshot cannot stand in for the split-adjusted, cash-
+ * dividend-excluding price-return snapshot. Treating the total-return timestamp
+ * as sufficient here caused newly introduced split snapshots to remain absent
+ * forever for otherwise fresh portfolio positions.
+ */
+export function needsPortfolioReturnSnapshotRefresh(input: {
+  totalReturnRetrievedAt: Date | string | number | null | undefined;
+  splitAdjustedRetrievedAt: Date | string | number | null | undefined;
+  totalReturnCoverage?: { firstDate: string | null; lastDate: string | null };
+  splitAdjustedCoverage?: { firstDate: string | null; lastDate: string | null };
+  requiredFrom?: string;
+  requiredTo?: string;
+  now: number;
+  maxAgeMs: number;
+}): boolean {
+  const age = (value: Date | string | number | null | undefined): number | null => {
+    if (value === null || value === undefined) return null;
+    const timestamp = typeof value === "number"
+      ? value
+      : value instanceof Date
+        ? value.getTime()
+        : new Date(String(value)).getTime();
+    return Number.isFinite(timestamp) ? input.now - timestamp : null;
+  };
+
+  const totalReturnAge = age(input.totalReturnRetrievedAt);
+  const splitAdjustedAge = age(input.splitAdjustedRetrievedAt);
+  const coversRequestedWindow = (coverage: { firstDate: string | null; lastDate: string | null } | undefined): boolean => {
+    if (!input.requiredFrom || !input.requiredTo) return true;
+    if (!coverage?.firstDate || !coverage.lastDate) return false;
+    const earliestAcceptedStart = new Date(`${input.requiredFrom}T00:00:00.000Z`);
+    earliestAcceptedStart.setUTCDate(earliestAcceptedStart.getUTCDate() + 7);
+    const latestAcceptedEnd = new Date(`${input.requiredTo}T00:00:00.000Z`);
+    latestAcceptedEnd.setUTCDate(latestAcceptedEnd.getUTCDate() - 7);
+    const first = new Date(`${coverage.firstDate}T00:00:00.000Z`);
+    const last = new Date(`${coverage.lastDate}T00:00:00.000Z`);
+    return Number.isFinite(first.getTime())
+      && Number.isFinite(last.getTime())
+      && first <= earliestAcceptedStart
+      && last >= latestAcceptedEnd;
+  };
+  return totalReturnAge === null
+    || splitAdjustedAge === null
+    || totalReturnAge >= input.maxAgeMs
+    || splitAdjustedAge >= input.maxAgeMs
+    || !coversRequestedWindow(input.totalReturnCoverage)
+    || !coversRequestedWindow(input.splitAdjustedCoverage);
+}
+
+/**
+ * A daily raw-price import may only cover a few recent business days. Derived
+ * portfolio return snapshots are different: a source change replaces one
+ * homogeneous series wholesale, so their refresh must always retain the whole
+ * five-year analytical window. Otherwise a fresh short snapshot can erase a
+ * prior complete five-year basis for the same source.
+ */
+export function resolvePortfolioReturnSnapshotWindow(input: {
+  requestedFrom: string;
+  to: string;
+  minimumYears?: number;
+}): { from: string; to: string } {
+  const years = input.minimumYears ?? 5;
+  const end = new Date(`${input.to.slice(0, 10)}T00:00:00.000Z`);
+  if (Number.isNaN(end.getTime())) {
+    throw new Error(`Invalid snapshot end date: ${input.to}`);
+  }
+  end.setUTCFullYear(end.getUTCFullYear() - years);
+  const requiredFrom = end.toISOString().slice(0, 10);
+  const requestedFrom = input.requestedFrom.slice(0, 10);
+  return {
+    from: /^\d{4}-\d{2}-\d{2}$/.test(requestedFrom) && requestedFrom < requiredFrom
+      ? requestedFrom
+      : requiredFrom,
+    to: input.to.slice(0, 10),
+  };
+}
+
 function normaliseCurrency(value: unknown): string {
   return String(value ?? "").trim().toUpperCase();
 }
@@ -317,15 +397,42 @@ export async function refreshStaleTotalReturnHistoryForPortfolioHoldings(input: 
     }
   })));
   if (tickers.length === 0) return [];
-  const snapshots = await db.select({ ticker: totalReturnHistoricalPrices.ticker, retrievedAt: totalReturnHistoricalPrices.retrievedAt })
-    .from(totalReturnHistoricalPrices)
-    .where(inArray(totalReturnHistoricalPrices.ticker, tickers));
-  const latestByTicker = new Map<string, number>();
-  for (const snapshot of snapshots) {
-    const timestamp = snapshot.retrievedAt instanceof Date ? snapshot.retrievedAt.getTime() : new Date(String(snapshot.retrievedAt)).getTime();
-    if (Number.isFinite(timestamp)) latestByTicker.set(snapshot.ticker, Math.max(latestByTicker.get(snapshot.ticker) ?? 0, timestamp));
-  }
+  const [totalReturnSnapshots, splitAdjustedSnapshots] = await Promise.all([
+    db.select({ ticker: totalReturnHistoricalPrices.ticker, date: totalReturnHistoricalPrices.date, retrievedAt: totalReturnHistoricalPrices.retrievedAt })
+      .from(totalReturnHistoricalPrices)
+      .where(inArray(totalReturnHistoricalPrices.ticker, tickers)),
+    db.select({ ticker: splitAdjustedHistoricalPrices.ticker, date: splitAdjustedHistoricalPrices.date, retrievedAt: splitAdjustedHistoricalPrices.retrievedAt })
+      .from(splitAdjustedHistoricalPrices)
+      .where(inArray(splitAdjustedHistoricalPrices.ticker, tickers)),
+  ]);
+  const summariseSnapshots = (snapshots: Array<{ ticker: string; date: string; retrievedAt: Date | string }>) => {
+    const latestByTicker = new Map<string, number>();
+    const coverageByTicker = new Map<string, { firstDate: string; lastDate: string }>();
+    for (const snapshot of snapshots) {
+      const timestamp = snapshot.retrievedAt instanceof Date ? snapshot.retrievedAt.getTime() : new Date(String(snapshot.retrievedAt)).getTime();
+      if (Number.isFinite(timestamp)) latestByTicker.set(snapshot.ticker, Math.max(latestByTicker.get(snapshot.ticker) ?? 0, timestamp));
+      const current = coverageByTicker.get(snapshot.ticker);
+      coverageByTicker.set(snapshot.ticker, {
+        firstDate: !current || snapshot.date < current.firstDate ? snapshot.date : current.firstDate,
+        lastDate: !current || snapshot.date > current.lastDate ? snapshot.date : current.lastDate,
+      });
+    }
+    return { latestByTicker, coverageByTicker };
+  };
+  const totalReturnSummary = summariseSnapshots(totalReturnSnapshots);
+  const splitAdjustedSummary = summariseSnapshots(splitAdjustedSnapshots);
   const maxAgeMs = input.maxAgeMs ?? 24 * 60 * 60 * 1000;
-  const staleTickers = tickers.filter((ticker) => Date.now() - (latestByTicker.get(ticker) ?? 0) >= maxAgeMs);
-  return refreshTotalReturnHistoryForTickers({ tickers: staleTickers, from: input.from, to: input.to });
+  const now = Date.now();
+  const staleTickers = tickers.filter((ticker) => needsPortfolioReturnSnapshotRefresh({
+    totalReturnRetrievedAt: totalReturnSummary.latestByTicker.get(ticker) ?? null,
+    splitAdjustedRetrievedAt: splitAdjustedSummary.latestByTicker.get(ticker) ?? null,
+    totalReturnCoverage: totalReturnSummary.coverageByTicker.get(ticker) ?? null,
+    splitAdjustedCoverage: splitAdjustedSummary.coverageByTicker.get(ticker) ?? null,
+    requiredFrom: input.from,
+    requiredTo: input.to,
+    now,
+    maxAgeMs,
+  }));
+  const snapshotWindow = resolvePortfolioReturnSnapshotWindow({ requestedFrom: input.from, to: input.to });
+  return refreshTotalReturnHistoryForTickers({ tickers: staleTickers, ...snapshotWindow });
 }
