@@ -46,6 +46,11 @@ export interface DreiScores {
     score: number | null;
     label: string | null;
     klartext: string;
+    /** Offen ausgewiesene Formelbeiträge; summieren ohne Wächter zum Signal. */
+    beitraege: { name: string; score: number | null; gewicht: number; beitrag: number | null }[];
+    /** Die Regime-Gewichte vor eventueller Normierung. */
+    gewichte: { qualitaet: number; bewertung: number; timing: number };
+    waechterHinweis: string | null;
   };
   /** Der bisherige Einzelscore, zum Vergleich während der Umstellung. */
   bisher: number | null;
@@ -175,6 +180,9 @@ export async function getDreiScores(
       klartext: sig.score === null
         ? "Noch kein Signal — es braucht das Timing aus dem stündlichen Lauf"
         : (sig.waechterHinweis ? `${sig.klartext} · ${sig.waechterHinweis}` : sig.klartext),
+      beitraege: sig.beitraege,
+      gewichte: sig.gewichte,
+      waechterHinweis: sig.waechterHinweis,
     },
     bisher,
   };
@@ -205,6 +213,14 @@ async function leseVorberechnet(ticker: string): Promise<DreiScores | null> {
         if (row) bisher = zahl(row.score);
       }
     } catch { /* Ohne DB tragen die vorberechneten Werte allein. */ }
+
+    const { rechneSignal } = await import("./dreiScoreSignal");
+    const signalHerleitung = rechneSignal({
+      qualitaet: treffer.qualitaet,
+      bewertung: treffer.bewertung,
+      timing: treffer.timing,
+      regime: treffer.regime,
+    });
 
     return {
       ticker,
@@ -252,6 +268,9 @@ async function leseVorberechnet(ticker: string): Promise<DreiScores | null> {
         klartext: treffer.signalLabel === null
           ? "Zu wenige Scores für ein Signal"
           : `Aus Qualität und Timing, gewichtet nach Marktlage (${treffer.regime ?? "neutral"}) — die Bewertung wirkt als Wächter`,
+        beitraege: signalHerleitung.beitraege,
+        gewichte: signalHerleitung.gewichte,
+        waechterHinweis: signalHerleitung.waechterHinweis,
       },
       bisher,
     };

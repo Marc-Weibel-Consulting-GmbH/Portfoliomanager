@@ -1048,3 +1048,12 @@
 - [x] Universumsweite Signalberechnung mit Corporate-Action-Guard ausgeführt: 203 freigegeben, 64 mit nachvollziehbarer Signalgate-Datenlücke blockiert; keine Handels-, Cash-, Ledger- oder Transaktionsmutation.
 - [x] Alert-Refresh schützt EODHD-KGV/PEG/Dividendenrendite vor sekundären Yahoo-Überschreibungen.
 - [x] Audit: `docs/audit/WATCHLIST_HISTORICAL_DATA_AUDIT_2026-09-28.md`.
+
+
+## Straumann (`STMN.SW`) – KGV-, PEG- und Signalabgleich (06.10.2026)
+
+- [x] Identität und Rohdaten belegt: `STMN.SW`/SIX/CHF/ISIN `CH1175448666`; EODHD `PERatio 38.8745` (TTM), `ForwardPE 26.1097`, Standard-PEG `1.2548`.
+- [x] UBS/FactSet-Abweichung eingeordnet: 2026E `27.21` bzw. 2027E `23.36` sind Forecast-KGVs und nicht mit dem TTM-KGV zu vermischen; PEG(E) ist eine andere Forecast-/Wachstumsdefinition.
+- [x] UI trennt nun `KGV (TTM)`, `KGV (Forward · EODHD)` und `PEG (TTM · EODHD)` mit methodischem Hinweis; Watchlist-Spalte ist `KGV TTM`.
+- [x] Signalmethode offengelegt: Beiträge, Regimegewichte und Bewertungs-Wächter je Titel sichtbar. Regressionsfall `69 / 24,6 / 67 → 68` abgedeckt.
+- [x] Universumsweite Formelprüfung: 232 qualifizierte gespeicherte Drei-Score-Sätze, 0 Rechenabweichungen; 33 Titel ohne qualifizierte Timingbasis bleiben explizit ohne Signal.

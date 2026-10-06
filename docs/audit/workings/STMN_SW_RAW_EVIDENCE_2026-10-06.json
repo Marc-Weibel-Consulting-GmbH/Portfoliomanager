@@ -1,0 +1,611 @@
+{
+  "retrievedAt": "2026-10-06T06:29:08.291Z",
+  "request": {
+    "endpoint": "fundamentals",
+    "ticker": "STMN.SW",
+    "format": "json"
+  },
+  "General": {
+    "Code": "STMN",
+    "Name": "Straumann Holding AG",
+    "Exchange": "SW",
+    "CurrencyCode": "CHF",
+    "ISIN": "CH1175448666",
+    "Type": "Common Stock"
+  },
+  "Highlights": {
+    "MarketCapitalization": 14318682112,
+    "PERatio": 38.8745,
+    "PEGRatio": 1.2548,
+    "EarningsShare": 2.31,
+    "EPSEstimateCurrentYear": 3.2747,
+    "EPSEstimateNextYear": 3.8554,
+    "DividendYield": 0.0109,
+    "ForwardAnnualDividendYield": null,
+    "ForwardAnnualDividendRate": null,
+    "QuarterlyEarningsGrowthYOY": 0.058,
+    "MostRecentQuarter": "2026-06-30"
+  },
+  "Valuation": {
+    "ForwardPE": 26.1097,
+    "PriceBookMRQ": 6.7963,
+    "EnterpriseValue": 15598140262
+  },
+  "latestAnnualIncome": [
+    [
+      "2024-12-31",
+      {
+        "date": "2024-12-31",
+        "filing_date": "2024-12-31",
+        "currency_symbol": "CHF",
+        "researchDevelopment": "115900000.00",
+        "effectOfAccountingCharges": null,
+        "incomeBeforeTax": "559565000.00",
+        "minorityInterest": "-1856000.00",
+        "netIncome": "388316000.00",
+        "sellingGeneralAdministrative": "711712000.00",
+        "sellingAndMarketingExpenses": "485638000.00",
+        "grossProfit": "1783381000.00",
+        "reconciledDepreciation": "144931000.00",
+        "ebit": "581223000.00",
+        "ebitda": "726154000.00",
+        "depreciationAndAmortization": "144931000.00",
+        "nonOperatingIncomeNetOther": null,
+        "operatingIncome": "601001000.00",
+        "otherOperatingExpenses": "1902899000.00",
+        "interestExpense": "21658000.00",
+        "taxProvision": "100079000.00",
+        "interestIncome": "7429000.00",
+        "netInterestIncome": "-14229000.00",
+        "extraordinaryItems": "-69313000.00",
+        "nonRecurring": null,
+        "otherItems": null,
+        "incomeTaxExpense": "100079000.00",
+        "totalRevenue": "2503900000.00",
+        "totalOperatingExpenses": "1182380000.00",
+        "costOfRevenue": "720519000.00",
+        "totalOtherIncomeExpenseNet": "-41436000.00",
+        "discontinuedOperations": null,
+        "netIncomeFromContinuingOps": "459486000.00",
+        "netIncomeApplicableToCommonShares": "388316000.00",
+        "preferredStockAndOtherAdjustments": null
+      }
+    ],
+    [
+      "2025-12-31",
+      {
+        "date": "2025-12-31",
+        "filing_date": "2025-12-31",
+        "currency_symbol": "CHF",
+        "researchDevelopment": null,
+        "effectOfAccountingCharges": null,
+        "incomeBeforeTax": "455075000.00",
+        "minorityInterest": "-1316000.00",
+        "netIncome": "355916000.00",
+        "sellingGeneralAdministrative": "761645000.00",
+        "sellingAndMarketingExpenses": "487277000.00",
+        "grossProfit": "1787000000.00",
+        "reconciledDepreciation": "158135000.00",
+        "ebit": "537932000.00",
+        "ebitda": "696067000.00",
+        "depreciationAndAmortization": "158135000.00",
+        "nonOperatingIncomeNetOther": null,
+        "operatingIncome": "537932000.00",
+        "otherOperatingExpenses": "2056000000.00",
+        "interestExpense": "15258000.00",
+        "taxProvision": "97052000.00",
+        "interestIncome": "93457000.00",
+        "netInterestIncome": "-7910000.00",
+        "extraordinaryItems": "-790000.00",
+        "nonRecurring": null,
+        "otherItems": null,
+        "incomeTaxExpense": "97052000.00",
+        "totalRevenue": "2605000000.00",
+        "totalOperatingExpenses": "1238000000.00",
+        "costOfRevenue": "818000000.00",
+        "totalOtherIncomeExpenseNet": "-82857000.00",
+        "discontinuedOperations": null,
+        "netIncomeFromContinuingOps": "358023000.00",
+        "netIncomeApplicableToCommonShares": "355916000.00",
+        "preferredStockAndOtherAdjustments": null
+      }
+    ]
+  ],
+  "latestQuarterlyIncome": [
+    [
+      "2023-03-31",
+      {
+        "date": "2023-03-31",
+        "filing_date": "2023-04-10",
+        "currency_symbol": "CHF",
+        "researchDevelopment": null,
+        "effectOfAccountingCharges": null,
+        "incomeBeforeTax": "124608750.00",
+        "minorityInterest": null,
+        "netIncome": "108697250.00",
+        "sellingGeneralAdministrative": "306060500.00",
+        "sellingAndMarketingExpenses": "110744000.00",
+        "grossProfit": "438684000.00",
+        "reconciledDepreciation": null,
+        "ebit": "156236500.00",
+        "ebitda": "128908250.00",
+        "depreciationAndAmortization": null,
+        "nonOperatingIncomeNetOther": null,
+        "operatingIncome": "132623500.00",
+        "otherOperatingExpenses": "447572750.00",
+        "interestExpense": "4297250.00",
+        "taxProvision": null,
+        "interestIncome": null,
+        "netInterestIncome": null,
+        "extraordinaryItems": null,
+        "nonRecurring": null,
+        "otherItems": null,
+        "incomeTaxExpense": "15913750.00",
+        "totalRevenue": "580196250.00",
+        "totalOperatingExpenses": null,
+        "costOfRevenue": "141512250.00",
+        "totalOtherIncomeExpenseNet": "-8014750.00",
+        "discontinuedOperations": null,
+        "netIncomeFromContinuingOps": null,
+        "netIncomeApplicableToCommonShares": "102888000.00",
+        "preferredStockAndOtherAdjustments": null
+      }
+    ],
+    [
+      "2023-06-30",
+      {
+        "date": "2023-06-30",
+        "filing_date": "2023-06-30",
+        "currency_symbol": "CHF",
+        "researchDevelopment": null,
+        "effectOfAccountingCharges": null,
+        "incomeBeforeTax": "260122000.00",
+        "minorityInterest": null,
+        "netIncome": "205776000.00",
+        "sellingGeneralAdministrative": "389149000.00",
+        "sellingAndMarketingExpenses": "217504000.00",
+        "grossProfit": "910981000.00",
+        "reconciledDepreciation": null,
+        "ebit": "336973000.00",
+        "ebitda": "399909000.00",
+        "depreciationAndAmortization": "62936000.00",
+        "nonOperatingIncomeNetOther": null,
+        "operatingIncome": "292711000.00",
+        "otherOperatingExpenses": "924177000.00",
+        "interestExpense": "76850000.00",
+        "taxProvision": "45878000.00",
+        "interestIncome": "41091000.00",
+        "netInterestIncome": null,
+        "extraordinaryItems": "-3596000.00",
+        "nonRecurring": null,
+        "otherItems": null,
+        "incomeTaxExpense": "49474000.00",
+        "totalRevenue": "1216888000.00",
+        "totalOperatingExpenses": "618270000.00",
+        "costOfRevenue": "305907000.00",
+        "totalOtherIncomeExpenseNet": "-32589000.00",
+        "discontinuedOperations": null,
+        "netIncomeFromContinuingOps": null,
+        "netIncomeApplicableToCommonShares": "102888000.00",
+        "preferredStockAndOtherAdjustments": null
+      }
+    ],
+    [
+      "2023-12-31",
+      {
+        "date": "2023-12-31",
+        "filing_date": "2023-12-31",
+        "currency_symbol": null,
+        "researchDevelopment": "111100000.00",
+        "effectOfAccountingCharges": null,
+        "incomeBeforeTax": "94567000.00",
+        "minorityInterest": null,
+        "netIncome": "40296000.00",
+        "sellingGeneralAdministrative": "362075000.00",
+        "sellingAndMarketingExpenses": "234532000.00",
+        "grossProfit": "862076000.00",
+        "reconciledDepreciation": null,
+        "ebit": "184889000.00",
+        "ebitda": "252186000.00",
+        "depreciationAndAmortization": "67297000.00",
+        "nonOperatingIncomeNetOther": null,
+        "operatingIncome": "111186000.00",
+        "otherOperatingExpenses": "1083745000.00",
+        "interestExpense": "90323000.00",
+        "taxProvision": null,
+        "interestIncome": null,
+        "netInterestIncome": null,
+        "extraordinaryItems": null,
+        "nonRecurring": null,
+        "otherItems": null,
+        "incomeTaxExpense": "49337000.00",
+        "totalRevenue": "1194931000.00",
+        "totalOperatingExpenses": "750890000.00",
+        "costOfRevenue": "332855000.00",
+        "totalOtherIncomeExpenseNet": "-16619000.00",
+        "discontinuedOperations": null,
+        "netIncomeFromContinuingOps": null,
+        "netIncomeApplicableToCommonShares": null,
+        "preferredStockAndOtherAdjustments": null
+      }
+    ],
+    [
+      "2024-06-30",
+      {
+        "date": "2024-06-30",
+        "filing_date": "2024-06-30",
+        "currency_symbol": "CHF",
+        "researchDevelopment": null,
+        "effectOfAccountingCharges": null,
+        "incomeBeforeTax": "324703000.00",
+        "minorityInterest": null,
+        "netIncome": "230372000.00",
+        "sellingGeneralAdministrative": "346866000.00",
+        "sellingAndMarketingExpenses": "241197000.00",
+        "grossProfit": "919891000.00",
+        "reconciledDepreciation": null,
+        "ebit": "338207000.00",
+        "ebitda": "408598000.00",
+        "depreciationAndAmortization": "70391000.00",
+        "nonOperatingIncomeNetOther": null,
+        "operatingIncome": "336059000.00",
+        "otherOperatingExpenses": "937173000.00",
+        "interestExpense": "94102000.00",
+        "taxProvision": "56467000.00",
+        "interestIncome": "12343000.00",
+        "netInterestIncome": null,
+        "extraordinaryItems": "-36521000.00",
+        "nonRecurring": null,
+        "otherItems": null,
+        "incomeTaxExpense": "56467000.00",
+        "totalRevenue": "1273232000.00",
+        "totalOperatingExpenses": "583832000.00",
+        "costOfRevenue": "353341000.00",
+        "totalOtherIncomeExpenseNet": "-11356000.00",
+        "discontinuedOperations": null,
+        "netIncomeFromContinuingOps": null,
+        "netIncomeApplicableToCommonShares": "230372000.00",
+        "preferredStockAndOtherAdjustments": null
+      }
+    ],
+    [
+      "2024-12-31",
+      {
+        "date": "2024-12-31",
+        "filing_date": "2024-12-31",
+        "currency_symbol": "CHF",
+        "researchDevelopment": "115900000.00",
+        "effectOfAccountingCharges": null,
+        "incomeBeforeTax": "234861000.00",
+        "minorityInterest": null,
+        "netIncome": "156274000.00",
+        "sellingGeneralAdministrative": "356941000.00",
+        "sellingAndMarketingExpenses": "244441000.00",
+        "grossProfit": "856563000.00",
+        "reconciledDepreciation": null,
+        "ebit": "341543000.00",
+        "ebitda": "416083000.00",
+        "depreciationAndAmortization": "74540000.00",
+        "nonOperatingIncomeNetOther": null,
+        "operatingIncome": "256351000.00",
+        "otherOperatingExpenses": "965726000.00",
+        "interestExpense": "100972000.00",
+        "taxProvision": "43612000.00",
+        "interestIncome": "30079000.00",
+        "netInterestIncome": null,
+        "extraordinaryItems": "-32792000.00",
+        "nonRecurring": null,
+        "otherItems": null,
+        "incomeTaxExpense": "43613000.00",
+        "totalRevenue": "1230668000.00",
+        "totalOperatingExpenses": "600212000.00",
+        "costOfRevenue": "374105000.00",
+        "totalOtherIncomeExpenseNet": "-30081000.00",
+        "discontinuedOperations": null,
+        "netIncomeFromContinuingOps": null,
+        "netIncomeApplicableToCommonShares": "157944000.00",
+        "preferredStockAndOtherAdjustments": null
+      }
+    ],
+    [
+      "2025-06-30",
+      {
+        "date": "2025-06-30",
+        "filing_date": "2025-06-30",
+        "currency_symbol": null,
+        "researchDevelopment": null,
+        "effectOfAccountingCharges": null,
+        "incomeBeforeTax": "292502000.00",
+        "minorityInterest": null,
+        "netIncome": "236443000.00",
+        "sellingGeneralAdministrative": "376471000.00",
+        "sellingAndMarketingExpenses": "245142000.00",
+        "grossProfit": "971983000.00",
+        "reconciledDepreciation": null,
+        "ebit": "355171000.00",
+        "ebitda": "434248000.00",
+        "depreciationAndAmortization": "79077000.00",
+        "nonOperatingIncomeNetOther": null,
+        "operatingIncome": "329613000.00",
+        "otherOperatingExpenses": "1018586000.00",
+        "interestExpense": "112451000.00",
+        "taxProvision": "54317000.00",
+        "interestIncome": "32576000.00",
+        "netInterestIncome": null,
+        "extraordinaryItems": "-790000.00",
+        "nonRecurring": null,
+        "otherItems": null,
+        "incomeTaxExpense": "54317000.00",
+        "totalRevenue": "1348199000.00",
+        "totalOperatingExpenses": "642370000.00",
+        "costOfRevenue": "376216000.00",
+        "totalOtherIncomeExpenseNet": "-37111000.00",
+        "discontinuedOperations": null,
+        "netIncomeFromContinuingOps": null,
+        "netIncomeApplicableToCommonShares": "236443000.00",
+        "preferredStockAndOtherAdjustments": null
+      }
+    ],
+    [
+      "2025-12-31",
+      {
+        "date": "2025-12-31",
+        "filing_date": "2025-12-31",
+        "currency_symbol": null,
+        "researchDevelopment": null,
+        "effectOfAccountingCharges": null,
+        "incomeBeforeTax": "162573000.00",
+        "minorityInterest": null,
+        "netIncome": "119815000.00",
+        "sellingGeneralAdministrative": "385174000.00",
+        "sellingAndMarketingExpenses": "242135000.00",
+        "grossProfit": "818141000.00",
+        "reconciledDepreciation": null,
+        "ebit": "182761000.00",
+        "ebitda": "261819000.00",
+        "depreciationAndAmortization": "79058000.00",
+        "nonOperatingIncomeNetOther": null,
+        "operatingIncome": "208319000.00",
+        "otherOperatingExpenses": "1037414000.00",
+        "interestExpense": "76405000.00",
+        "taxProvision": "42735000.00",
+        "interestIncome": "57055000.00",
+        "netInterestIncome": null,
+        "extraordinaryItems": "0.00",
+        "nonRecurring": null,
+        "otherItems": null,
+        "incomeTaxExpense": "42735000.00",
+        "totalRevenue": "1256801000.00",
+        "totalOperatingExpenses": "597224000.00",
+        "costOfRevenue": "441784000.00",
+        "totalOtherIncomeExpenseNet": "-45746000.00",
+        "discontinuedOperations": null,
+        "netIncomeFromContinuingOps": null,
+        "netIncomeApplicableToCommonShares": "119473000.00",
+        "preferredStockAndOtherAdjustments": null
+      }
+    ],
+    [
+      "2026-06-30",
+      {
+        "date": "2026-06-30",
+        "filing_date": "2026-06-30",
+        "currency_symbol": null,
+        "researchDevelopment": null,
+        "effectOfAccountingCharges": null,
+        "incomeBeforeTax": "313321000.00",
+        "minorityInterest": null,
+        "netIncome": "250700000.00",
+        "sellingGeneralAdministrative": "365129000.00",
+        "sellingAndMarketingExpenses": "268111000.00",
+        "grossProfit": "984616000.00",
+        "reconciledDepreciation": null,
+        "ebit": "342366000.00",
+        "ebitda": "424092000.00",
+        "depreciationAndAmortization": "81726000.00",
+        "nonOperatingIncomeNetOther": null,
+        "operatingIncome": "342366000.00",
+        "otherOperatingExpenses": "1037103000.00",
+        "interestExpense": "73787000.00",
+        "taxProvision": null,
+        "interestIncome": null,
+        "netInterestIncome": null,
+        "extraordinaryItems": null,
+        "nonRecurring": null,
+        "otherItems": null,
+        "incomeTaxExpense": "62641000.00",
+        "totalRevenue": "1379500000.00",
+        "totalOperatingExpenses": "642000000.00",
+        "costOfRevenue": "394853000.00",
+        "totalOtherIncomeExpenseNet": "-29045000.00",
+        "discontinuedOperations": null,
+        "netIncomeFromContinuingOps": null,
+        "netIncomeApplicableToCommonShares": null,
+        "preferredStockAndOtherAdjustments": null
+      }
+    ]
+  ],
+  "annualEps": [
+    [
+      "2020-12-31",
+      {
+        "date": "2020-12-31",
+        "epsActual": 5.67
+      }
+    ],
+    [
+      "2021-12-31",
+      {
+        "date": "2021-12-31",
+        "epsActual": 24.81
+      }
+    ],
+    [
+      "2022-12-31",
+      {
+        "date": "2022-12-31",
+        "epsActual": 2.72
+      }
+    ],
+    [
+      "2023-12-31",
+      {
+        "date": "2023-12-31",
+        "epsActual": 0
+      }
+    ],
+    [
+      "2024-12-31",
+      {
+        "date": "2024-12-31",
+        "epsActual": 7.1
+      }
+    ],
+    [
+      "2025-12-31",
+      {
+        "date": "2025-12-31",
+        "epsActual": 2.99
+      }
+    ],
+    [
+      "2026-09-30",
+      {
+        "date": "2026-09-30",
+        "epsActual": 0
+      }
+    ]
+  ],
+  "quarterlyEps": [
+    [
+      "2023-12-31",
+      {
+        "reportDate": "2024-02-27",
+        "date": "2023-12-31",
+        "beforeAfterMarket": null,
+        "currency": null,
+        "epsActual": 0,
+        "epsEstimate": 16.78,
+        "epsDifference": -16.78,
+        "surprisePercent": -100
+      }
+    ],
+    [
+      "2024-03-31",
+      {
+        "reportDate": "2024-04-30",
+        "date": "2024-03-31",
+        "beforeAfterMarket": "AfterMarket",
+        "currency": "CHF",
+        "epsActual": 2.95,
+        "epsEstimate": 2.95,
+        "epsDifference": 0,
+        "surprisePercent": 0
+      }
+    ],
+    [
+      "2024-06-30",
+      {
+        "reportDate": "2024-08-14",
+        "date": "2024-06-30",
+        "beforeAfterMarket": null,
+        "currency": null,
+        "epsActual": 0,
+        "epsEstimate": 1.52,
+        "epsDifference": -1.52,
+        "surprisePercent": -100
+      }
+    ],
+    [
+      "2024-09-30",
+      {
+        "reportDate": "2024-10-29",
+        "date": "2024-09-30",
+        "beforeAfterMarket": null,
+        "currency": null,
+        "epsActual": 2.95,
+        "epsEstimate": 2.95,
+        "epsDifference": 0,
+        "surprisePercent": 0
+      }
+    ],
+    [
+      "2024-12-31",
+      {
+        "reportDate": "2025-02-19",
+        "date": "2024-12-31",
+        "beforeAfterMarket": null,
+        "currency": null,
+        "epsActual": 1.2,
+        "epsEstimate": 1.39,
+        "epsDifference": -0.19,
+        "surprisePercent": -13.6691
+      }
+    ],
+    [
+      "2025-03-31",
+      {
+        "reportDate": "2025-04-30",
+        "date": "2025-03-31",
+        "beforeAfterMarket": null,
+        "currency": null,
+        "epsActual": 0,
+        "epsEstimate": 0,
+        "epsDifference": 0,
+        "surprisePercent": null
+      }
+    ],
+    [
+      "2025-06-30",
+      {
+        "reportDate": "2025-08-13",
+        "date": "2025-06-30",
+        "beforeAfterMarket": "AfterMarket",
+        "currency": null,
+        "epsActual": 1.66,
+        "epsEstimate": 1.91,
+        "epsDifference": -0.25,
+        "surprisePercent": -13.089
+      }
+    ],
+    [
+      "2025-09-30",
+      {
+        "reportDate": "2025-10-29",
+        "date": "2025-09-30",
+        "beforeAfterMarket": null,
+        "currency": null,
+        "epsActual": 0,
+        "epsEstimate": 0,
+        "epsDifference": 0,
+        "surprisePercent": null
+      }
+    ],
+    [
+      "2025-12-31",
+      {
+        "reportDate": "2026-02-18",
+        "date": "2025-12-31",
+        "beforeAfterMarket": "AfterMarket",
+        "currency": null,
+        "epsActual": 1.33,
+        "epsEstimate": 1.48,
+        "epsDifference": -0.15,
+        "surprisePercent": -10.1351
+      }
+    ],
+    [
+      "2026-09-30",
+      {
+        "reportDate": "2026-10-28",
+        "date": "2026-09-30",
+        "beforeAfterMarket": "AfterMarket",
+        "currency": null,
+        "epsActual": null,
+        "epsEstimate": null,
+        "epsDifference": 0,
+        "surprisePercent": null
+      }
+    ]
+  ]
+}

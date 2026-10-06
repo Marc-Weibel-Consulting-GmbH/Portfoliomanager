@@ -667,7 +667,9 @@ export default function AdminWatchlist() {
                         Kurs {sortColumn === "price" && (sortDirection === "asc" ? "↑" : "↓")}
                       </th>
                       <th className="text-right p-3 font-medium cursor-pointer hover:text-primary select-none" onClick={() => handleSort("pe")}>
-                        P/E {sortColumn === "pe" && (sortDirection === "asc" ? "↑" : "↓")}
+                        <span title="Kurs-Gewinn-Verhältnis der letzten zwölf Monate (TTM), nicht Analysten-Forward-KGV.">
+                          KGV TTM {sortColumn === "pe" && (sortDirection === "asc" ? "↑" : "↓")}
+                        </span>
                       </th>
                       <th className="text-right p-3 font-medium cursor-pointer hover:text-primary select-none" onClick={() => handleSort("dividend")}>
                         Div.% {sortColumn === "dividend" && (sortDirection === "asc" ? "↑" : "↓")}

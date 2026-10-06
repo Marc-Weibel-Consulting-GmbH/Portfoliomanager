@@ -83,6 +83,20 @@ describe("rechneSignal", () => {
     expect(summe).toBeCloseTo(r.score!, 0);
   });
 
+  it("zeigt die häufig missverstandene Kombination 69 / 24.6 / 67 offen als 68", () => {
+    // Die Bewertung hat seit E1 bewusst 0 % Signalgewicht. Sie bleibt als
+    // Wächter erhalten, solange sie nicht die Extremteuer-Schwelle erreicht.
+    // Das ist der konkrete Straumann-/Watchlist-Fall: 0.5 × 69 + 0.5 × 67 = 68.
+    const r = rechneSignal({ qualitaet: 69, bewertung: 24.6, timing: 67, regime: "default" });
+    expect(r.score).toBe(68);
+    expect(r.beitraege).toEqual([
+      { name: "Qualität", score: 69, gewicht: 0.5, beitrag: 34.5 },
+      { name: "Bewertung", score: 24.6, gewicht: 0, beitrag: 0 },
+      { name: "Timing", score: 67, gewicht: 0.5, beitrag: 33.5 },
+    ]);
+    expect(r.waechterHinweis).toBeNull();
+  });
+
   it("zählt Qualität genau einmal", () => {
     // Der Kern der Umstellung: Steigt allein die Qualität, darf sich das
     // Signal nur um den Qualitätsanteil bewegen — nicht doppelt, weil Qualität

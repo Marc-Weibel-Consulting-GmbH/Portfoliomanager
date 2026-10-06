@@ -179,6 +179,13 @@ export default function StockDetail() {
     { ticker: ticker ?? "" },
     { enabled: !!ticker, staleTime: 300000, retry: false },
   );
+  // Dieser Query teilt seinen Cache mit der PEG-Kontextkarte. Er liefert das
+  // EODHD-Forward-KGV getrennt vom TTM-KGV, damit Forecast- und Istperioden
+  // nicht länger optisch wie dieselbe Kennzahl wirken.
+  const { data: qualityMetrics } = trpc.analytics.qualityMetrics.useQuery(
+    { ticker: ticker ?? "" },
+    { enabled: !!ticker, staleTime: 300000, retry: false },
+  );
   const utils = trpc.useUtils();
 
   const hydrateHistoricalData = trpc.stocks.hydrateHistoricalData.useMutation({
@@ -862,14 +869,22 @@ export default function StockDetail() {
                     const kgvWert: number | null = kgvFaktor?.wert ?? (stock.peRatio ? parseFloat(stock.peRatio) : null);
                     return (
                       <MetricCard
-                        label="KGV (P/E)"
+                        label="KGV (TTM)"
                         value={kgvWert != null && Number.isFinite(kgvWert) ? kgvWert.toFixed(1) : "-"}
                         rating={getRating("peRatio", kgvWert != null ? String(kgvWert) : null)}
+                        title="Kurs / Gewinn der letzten zwölf Monate (TTM). Dies ist nicht das Analysten-Forward-KGV für 2026E oder 2027E; diese Zeiträume dürfen nicht verglichen oder vermischt werden."
                       />
                     );
                   })()}
+                  <MetricCard
+                    label="KGV (Forward · EODHD)"
+                    value={qualityMetrics?.forwardPE != null && Number.isFinite(Number(qualityMetrics.forwardPE))
+                      ? Number(qualityMetrics.forwardPE).toFixed(1) : "-"}
+                    rating={getRating("peRatio", qualityMetrics?.forwardPE != null ? String(qualityMetrics.forwardPE) : null)}
+                    title="EODHD-Forward-KGV auf Basis der aktuellen Anbieter-Gewinnschätzung. Dieser Wert ist ein Forecast und kann wegen Datenstand, Analystenkreis und Fiskalperiode von FactSet/UBS-2026E oder 2027E abweichen."
+                  />
                   <div className="bg-[#1a1f2e] rounded-lg p-3 border border-white/10">
-                    <div className="text-xs text-gray-400 mb-1">PEG Ratio (Standard)</div>
+                    <div className="text-xs text-gray-400 mb-1">PEG (TTM · EODHD)</div>
                     <PegBadge ticker={stock.ticker} />
                   </div>
                   <MetricCard 
@@ -913,6 +928,11 @@ export default function StockDetail() {
                     suffix="%" 
                   />
                 </div>
+                <p className="text-[11px] leading-relaxed text-gray-500 pt-1 border-t border-white/5">
+                  <strong className="text-gray-400">Periodenabgrenzung:</strong> KGV und PEG hier sind
+                  rückblickende Standardkennzahlen (TTM). Analystenangaben wie «2026E KGV» oder «PEG(E)»
+                  beruhen auf Forecast-EPS und können deshalb deutlich abweichen, ohne dass ein Datenfehler vorliegt.
+                </p>
               </CardContent>
             </Card>
 
