@@ -1,0 +1,319 @@
+{
+  "fetchedAtUtc": "2026-10-06T07:25:51.364Z",
+  "general": {
+    "Code": "PLTR",
+    "Type": "Common Stock",
+    "Name": "Palantir Technologies Inc.",
+    "Exchange": "NASDAQ",
+    "CurrencyCode": "USD",
+    "ISIN": "US69608A1088"
+  },
+  "highlights": {
+    "PERatio": 163.2759,
+    "PEGRatio": 1.8461,
+    "EarningsShare": 1.16,
+    "EPSEstimateCurrentYear": 1.6201,
+    "EPSEstimateNextYear": 2.3442,
+    "QuarterlyEarningsGrowthYOY": 2.154,
+    "QuarterlyRevenueGrowthYOY": 0.928,
+    "ProfitMargin": 0.4901
+  },
+  "valuation": {
+    "TrailingPE": 163.2759,
+    "ForwardPE": 85.4701,
+    "PriceBookMRQ": 47.153,
+    "EnterpriseValueEbitda": 169.6386
+  },
+  "earningsAnnual": {
+    "2026-09-30": {
+      "date": "2026-09-30",
+      "epsActual": 0.74
+    },
+    "2025-12-31": {
+      "date": "2025-12-31",
+      "epsActual": 0.75
+    },
+    "2024-12-31": {
+      "date": "2024-12-31",
+      "epsActual": 0.41
+    },
+    "2023-12-31": {
+      "date": "2023-12-31",
+      "epsActual": 0.25
+    },
+    "2022-12-31": {
+      "date": "2022-12-31",
+      "epsActual": 0.06
+    },
+    "2021-12-31": {
+      "date": "2021-12-31",
+      "epsActual": 0.14
+    },
+    "2020-12-31": {
+      "date": "2020-12-31",
+      "epsActual": 0.13
+    }
+  },
+  "earningsHistory": {
+    "2026-09-30": {
+      "reportDate": "2026-11-02",
+      "date": "2026-09-30",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": null,
+      "epsActual": null,
+      "epsEstimate": 0.34,
+      "epsDifference": 0,
+      "surprisePercent": null
+    },
+    "2026-06-30": {
+      "reportDate": "2026-08-03",
+      "date": "2026-06-30",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.41,
+      "epsEstimate": 0.28,
+      "epsDifference": 0.13,
+      "surprisePercent": 46.4286
+    },
+    "2026-03-31": {
+      "reportDate": "2026-05-04",
+      "date": "2026-03-31",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.33,
+      "epsEstimate": 0.28,
+      "epsDifference": 0.05,
+      "surprisePercent": 17.8571
+    },
+    "2025-12-31": {
+      "reportDate": "2026-02-02",
+      "date": "2025-12-31",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.25,
+      "epsEstimate": 0.23,
+      "epsDifference": 0.02,
+      "surprisePercent": 8.6957
+    },
+    "2025-09-30": {
+      "reportDate": "2025-11-03",
+      "date": "2025-09-30",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.21,
+      "epsEstimate": 0.17,
+      "epsDifference": 0.04,
+      "surprisePercent": 23.5294
+    },
+    "2025-06-30": {
+      "reportDate": "2025-08-04",
+      "date": "2025-06-30",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.16,
+      "epsEstimate": 0.14,
+      "epsDifference": 0.02,
+      "surprisePercent": 14.2857
+    },
+    "2025-03-31": {
+      "reportDate": "2025-05-05",
+      "date": "2025-03-31",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.13,
+      "epsEstimate": 0.13,
+      "epsDifference": 0,
+      "surprisePercent": 0
+    },
+    "2024-12-31": {
+      "reportDate": "2025-02-03",
+      "date": "2024-12-31",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.14,
+      "epsEstimate": 0.1132,
+      "epsDifference": 0.0268,
+      "surprisePercent": 23.6749
+    },
+    "2024-09-30": {
+      "reportDate": "2024-11-04",
+      "date": "2024-09-30",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.1,
+      "epsEstimate": 0.09,
+      "epsDifference": 0.01,
+      "surprisePercent": 11.1111
+    },
+    "2024-06-30": {
+      "reportDate": "2024-08-05",
+      "date": "2024-06-30",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.09,
+      "epsEstimate": 0.08,
+      "epsDifference": 0.01,
+      "surprisePercent": 12.5
+    },
+    "2024-03-31": {
+      "reportDate": "2024-05-06",
+      "date": "2024-03-31",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.08,
+      "epsEstimate": 0.08,
+      "epsDifference": 0,
+      "surprisePercent": 0
+    },
+    "2023-12-31": {
+      "reportDate": "2024-02-05",
+      "date": "2023-12-31",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.08,
+      "epsEstimate": 0.08,
+      "epsDifference": 0,
+      "surprisePercent": 0
+    },
+    "2023-09-30": {
+      "reportDate": "2023-11-02",
+      "date": "2023-09-30",
+      "beforeAfterMarket": "BeforeMarket",
+      "currency": "USD",
+      "epsActual": 0.07,
+      "epsEstimate": 0.06,
+      "epsDifference": 0.01,
+      "surprisePercent": 16.6667
+    },
+    "2023-06-30": {
+      "reportDate": "2023-08-07",
+      "date": "2023-06-30",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.05,
+      "epsEstimate": 0.05,
+      "epsDifference": 0,
+      "surprisePercent": 0
+    },
+    "2023-03-31": {
+      "reportDate": "2023-05-08",
+      "date": "2023-03-31",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.05,
+      "epsEstimate": 0.04,
+      "epsDifference": 0.01,
+      "surprisePercent": 25
+    },
+    "2022-12-31": {
+      "reportDate": "2023-02-13",
+      "date": "2022-12-31",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.04,
+      "epsEstimate": 0.03,
+      "epsDifference": 0.01,
+      "surprisePercent": 33.3333
+    },
+    "2022-09-30": {
+      "reportDate": "2022-11-07",
+      "date": "2022-09-30",
+      "beforeAfterMarket": "BeforeMarket",
+      "currency": "USD",
+      "epsActual": 0.01,
+      "epsEstimate": 0.02,
+      "epsDifference": -0.01,
+      "surprisePercent": -50
+    },
+    "2022-06-30": {
+      "reportDate": "2022-08-08",
+      "date": "2022-06-30",
+      "beforeAfterMarket": "BeforeMarket",
+      "currency": "USD",
+      "epsActual": -0.01,
+      "epsEstimate": 0.03,
+      "epsDifference": -0.04,
+      "surprisePercent": -133.3333
+    },
+    "2022-03-31": {
+      "reportDate": "2022-05-09",
+      "date": "2022-03-31",
+      "beforeAfterMarket": "BeforeMarket",
+      "currency": "USD",
+      "epsActual": 0.02,
+      "epsEstimate": 0.04,
+      "epsDifference": -0.02,
+      "surprisePercent": -50
+    },
+    "2021-12-31": {
+      "reportDate": "2022-02-17",
+      "date": "2021-12-31",
+      "beforeAfterMarket": "BeforeMarket",
+      "currency": "USD",
+      "epsActual": 0.02,
+      "epsEstimate": 0.04,
+      "epsDifference": -0.02,
+      "surprisePercent": -50
+    },
+    "2021-09-30": {
+      "reportDate": "2021-11-09",
+      "date": "2021-09-30",
+      "beforeAfterMarket": "BeforeMarket",
+      "currency": "USD",
+      "epsActual": 0.04,
+      "epsEstimate": 0.04,
+      "epsDifference": 0,
+      "surprisePercent": 0
+    },
+    "2021-06-30": {
+      "reportDate": "2021-08-12",
+      "date": "2021-06-30",
+      "beforeAfterMarket": "BeforeMarket",
+      "currency": "USD",
+      "epsActual": 0.04,
+      "epsEstimate": 0.03,
+      "epsDifference": 0.01,
+      "surprisePercent": 33.3333
+    },
+    "2021-03-31": {
+      "reportDate": "2021-05-11",
+      "date": "2021-03-31",
+      "beforeAfterMarket": "BeforeMarket",
+      "currency": "USD",
+      "epsActual": 0.04,
+      "epsEstimate": 0.04,
+      "epsDifference": 0,
+      "surprisePercent": 0
+    },
+    "2020-12-31": {
+      "reportDate": "2021-02-16",
+      "date": "2020-12-31",
+      "beforeAfterMarket": "BeforeMarket",
+      "currency": "USD",
+      "epsActual": 0.06,
+      "epsEstimate": 0.02,
+      "epsDifference": 0.04,
+      "surprisePercent": 200
+    },
+    "2020-09-30": {
+      "reportDate": "2020-11-12",
+      "date": "2020-09-30",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.06,
+      "epsEstimate": 0.03,
+      "epsDifference": 0.03,
+      "surprisePercent": 100
+    },
+    "2020-06-30": {
+      "reportDate": "2020-09-30",
+      "date": "2020-06-30",
+      "beforeAfterMarket": "AfterMarket",
+      "currency": "USD",
+      "epsActual": 0.01,
+      "epsEstimate": 0,
+      "epsDifference": 0.01,
+      "surprisePercent": null
+    }
+  }
+}

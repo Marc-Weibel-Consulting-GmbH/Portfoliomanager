@@ -44,6 +44,15 @@ export type BereinigtPegGrund =
 export const MAX_WACHSTUM_FUER_PEG = 35;
 
 /**
+ * Analystenschätzungen für schnell wachsende, bereits profitable Unternehmen
+ * können plausibel oberhalb der historischen Nachhaltigkeitsgrenze liegen.
+ * Sie bleiben klar von Basiseffekten getrennt: Nur die als Schätzung markierte
+ * 2026→2027-Rate erhält diesen höheren Korridor; TTM-, CAGR- und Ratenmittel
+ * bleiben bei 35 %, damit einmalige Ergebnisbasen nicht ins PEG gelangen.
+ */
+export const MAX_ERWARTETES_WACHSTUM_FUER_PEG = 60;
+
+/**
  * Konsistenz-Gegenprobe: Weichen Vendor-PEG und eigene Rechnung (KGV ÷
  * tragfähige Quelle) um mehr als diesen Faktor voneinander ab, ist EINE der
  * beiden Zahlen kaputt — welche, ist nicht entscheidbar. Es zählt dann die
@@ -141,19 +150,25 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
   const leer = (grund: BereinigtPegGrund, hinweis: string | null): BereinigtesPegErgebnis =>
     ({ peg: null, roh: null, grund, hinweis, quelle: null, rechnung: null });
 
-  // Wachstumsquellen in fester Rangfolge: belegt vor geschätzt, robust vor
-  // zerbrechlich. Der 5-Jahres-CAGR bleibt vorne (etablierte Grösse), aber
-  // das robuste Raten-Mittel fängt seine Basisjahr-Schwäche auf, und die
-  // Analystenschätzung schliesst die letzte Lücke (Schindler-Fall: Yahoo
-  // zeigt ein PEG aus erwartetem Wachstum, wir zeigten «sagt nichts»).
-  const quellen: Array<{ wert: number | null | undefined; label: string }> = [
-    { wert: e.epsWachstum5j, label: "5-Jahres-CAGR" },
-    { wert: e.epsWachstumTTM, label: "TTM-Wachstum" },
-    { wert: e.wachstumRatenMittel, label: "robustes Raten-Mittel" },
-    { wert: e.wachstumErwartet, label: "erwartetes Wachstum (Analystenschätzung)" },
+  // Wachstumskandidaten: Historische Raten dürfen nur im nachhaltigen
+  // Korridor 2–35 % liegen. Eine aktuelle Analystenschätzung ist dagegen
+  // zukunftsbezogen und erhält für echte Wachstumsunternehmen einen klar
+  // beschrifteten Korridor bis 60 %. So bleibt ein TTM-/CAGR-Basiseffekt
+  // gesperrt, ohne valide 2026→2027-Prognosen wie Palantir zu verwerfen.
+  type Wachstumsquelle = { wert: number | null | undefined; label: string; geschaetzt: boolean };
+  const quellen: Wachstumsquelle[] = [
+    { wert: e.epsWachstum5j, label: "5-Jahres-CAGR", geschaetzt: false },
+    { wert: e.epsWachstumTTM, label: "TTM-Wachstum", geschaetzt: false },
+    { wert: e.wachstumRatenMittel, label: "robustes Raten-Mittel", geschaetzt: false },
+    { wert: e.wachstumErwartet, label: "erwartetes Wachstum (Analystenschätzung)", geschaetzt: true },
   ];
-  const belegte = quellen.filter((q): q is { wert: number; label: string } =>
+  const belegte = quellen.filter((q): q is Wachstumsquelle & { wert: number } =>
     q.wert !== null && q.wert !== undefined && Number.isFinite(q.wert));
+  const istTragfaehig = (q: Wachstumsquelle & { wert: number }) =>
+    q.wert >= MIN_WACHSTUM_FUER_PEG &&
+    q.wert <= (q.geschaetzt ? MAX_ERWARTETES_WACHSTUM_FUER_PEG : MAX_WACHSTUM_FUER_PEG);
+  const historischeQuelle = belegte.find((q) => !q.geschaetzt && istTragfaehig(q)) ?? null;
+  const schaetzungsQuelle = belegte.find((q) => q.geschaetzt && istTragfaehig(q)) ?? null;
 
   const volatilityPenalty = e.epsVolatility !== null ? Math.min(1.0, e.epsVolatility * 0.5) : 0.2;
   const qualityMultiplier = 0.7 + (e.qualityScore / 100) * 0.6; // 0.7–1.3
@@ -166,22 +181,25 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
   let quellenHinweis: string | null = null;
   let rechnungKopf: string;
 
-  // Die eigene Rechnung (KGV ÷ erste tragfähige Quelle im Korridor 2–35 %) —
-  // im Vendor-Zweig die Gegenprobe, im Rückfall-Zweig der Wert selbst.
-  // Frame-Konsistenz: Ein Schätzungs-Nenner (erwartetes Wachstum) paart mit
-  // dem Forward-KGV, historische Nenner mit dem Trailing-KGV — sonst
-  // überzeichnet das PEG bei gedrückten berichteten Gewinnen (Roche).
+  // Frame-Konsistenz: Schätzungs-Nenner paart mit Forward-KGV, historische
+  // Nenner mit Trailing-KGV. Die Vendor-Gegenprobe bevorzugt eine gültige
+  // aktuelle Schätzung, da Vendor-PEGs definitionsgemäss zukunftsbezogen sind.
   const kgv = e.kgv !== null && e.kgv !== undefined && Number.isFinite(e.kgv) && e.kgv > 0 ? e.kgv : null;
   const kgvForward = e.kgvForward !== null && e.kgvForward !== undefined &&
     Number.isFinite(e.kgvForward) && e.kgvForward > 0 ? e.kgvForward : null;
-  const eigenerNenner = belegte.find((q) =>
-    q.wert >= MIN_WACHSTUM_FUER_PEG && q.wert <= MAX_WACHSTUM_FUER_PEG) ?? null;
-  const nennerIstSchaetzung = eigenerNenner !== null && eigenerNenner.label.startsWith("erwartetes Wachstum");
-  const eigenerZaehler = nennerIstSchaetzung ? (kgvForward ?? kgv) : kgv;
-  const zaehlerLabel = nennerIstSchaetzung && kgvForward !== null ? "KGV (forward)" : "KGV (trailing)";
-  const eigenesPeg = eigenerZaehler !== null && eigenerNenner !== null
-    ? eigenerZaehler / eigenerNenner.wert
-    : null;
+  const berechneEigenesPeg = (nenner: (Wachstumsquelle & { wert: number }) | null) => {
+    if (nenner === null) return null;
+    const zaehler = nenner.geschaetzt ? (kgvForward ?? kgv) : kgv;
+    if (zaehler === null) return null;
+    return {
+      nenner,
+      zaehler,
+      zaehlerLabel: nenner.geschaetzt && kgvForward !== null ? "KGV (forward)" : "KGV (trailing)",
+      peg: zaehler / nenner.wert,
+    };
+  };
+  const vendorGegenprobe = berechneEigenesPeg(schaetzungsQuelle ?? historischeQuelle);
+  const selbstBerechnung = berechneEigenesPeg(historischeQuelle ?? schaetzungsQuelle);
 
   // Sanofi-Befund: Ein Vendor-Wert, der bereinigt jenseits der Obergrenze
   // läge (EODHD lieferte ~50, FactSet 1.20), trägt keine Aussage — er ist
@@ -204,25 +222,25 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
       return leer("wachstum_zu_gering",
         `PEG sagt hier nichts — Wachstum unter ${MIN_WACHSTUM_FUER_PEG} % p.a. ist eine Division durch fast null`);
     }
-    if (eigenesPeg !== null &&
-        (vendorRoh / eigenesPeg > VENDOR_PEG_ABWEICHUNG_FAKTOR ||
-         eigenesPeg / vendorRoh > VENDOR_PEG_ABWEICHUNG_FAKTOR)) {
+    if (vendorGegenprobe !== null &&
+        (vendorRoh / vendorGegenprobe.peg > VENDOR_PEG_ABWEICHUNG_FAKTOR ||
+         vendorGegenprobe.peg / vendorRoh > VENDOR_PEG_ABWEICHUNG_FAKTOR)) {
       // Widerspruch: Die vorsichtigere Zahl (höheres PEG) zählt — landet sie
       // jenseits der Obergrenze, blendet der bestehende Wächter unten aus.
       const widerspruch = `Vendor-PEG ${vendorRoh.toFixed(2)} und eigene Rechnung ` +
-        `${eigenesPeg.toFixed(2)} widersprechen sich (über Faktor ${VENDOR_PEG_ABWEICHUNG_FAKTOR}) — ` +
+        `${vendorGegenprobe.peg.toFixed(2)} widersprechen sich (über Faktor ${VENDOR_PEG_ABWEICHUNG_FAKTOR}) — ` +
         `vorsichtigere Zahl verwendet`;
       quellenHinweis = widerspruch;
-      if (eigenesPeg > vendorRoh) {
-        rohesPeg = eigenesPeg;
+      if (vendorGegenprobe.peg > vendorRoh) {
+        rohesPeg = vendorGegenprobe.peg;
         quelle = "selbst";
-        rechnungKopf = `${zaehlerLabel} ${eigenerZaehler!.toFixed(1)} ÷ ${eigenerNenner!.wert.toFixed(1)} % ${eigenerNenner!.label} ` +
-          `= ${eigenesPeg.toFixed(2)} roh (vorsichtigere Zahl — Vendor-PEG ${vendorRoh.toFixed(2)} widersprochen)`;
+        rechnungKopf = `${vendorGegenprobe.zaehlerLabel} ${vendorGegenprobe.zaehler.toFixed(1)} ÷ ${vendorGegenprobe.nenner.wert.toFixed(1)} % ${vendorGegenprobe.nenner.label} ` +
+          `= ${vendorGegenprobe.peg.toFixed(2)} roh (vorsichtigere Zahl — Vendor-PEG ${vendorRoh.toFixed(2)} widersprochen)`;
       } else {
         rohesPeg = vendorRoh;
         quelle = "vendor";
         rechnungKopf = `Vendor-PEG ${vendorRoh.toFixed(2)} (EODHD; vorsichtigere Zahl — ` +
-          `eigene Rechnung ${eigenesPeg.toFixed(2)} widersprochen)`;
+          `eigene Rechnung ${vendorGegenprobe.peg.toFixed(2)} widersprochen)`;
       }
     } else {
       rohesPeg = vendorRoh;
@@ -233,12 +251,13 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
     // Kein (brauchbares) Vendor-PEG: selbst rechnen. Hier IST das Wachstum
     // der Nenner — erste tragfähige Quelle der Rangfolge, Korridor strikt.
     const vendorNote = vendorUnbrauchbar ?? "kein Vendor-PEG";
-    if (eigenerZaehler === null) {
+    if (selbstBerechnung === null && kgv === null && kgvForward === null) {
       return vendorUnbrauchbar !== null
         ? leer("peg_extrem", `${vendorUnbrauchbar} — und kein KGV für die eigene Rechnung`)
         : leer("peg_fehlt", "kein Vendor-PEG von EODHD geliefert");
     }
-    const nenner = eigenerNenner;
+    const eigeneBerechnung = selbstBerechnung;
+    const nenner = eigeneBerechnung?.nenner ?? null;
     if (nenner === null) {
       if (belegte.length === 0) {
         return leer("wachstum_fehlt",
@@ -264,17 +283,16 @@ export function bereinigtesPeg(e: BereinigtesPegEingabe): BereinigtesPegErgebnis
     // frame-konsistent mit dem Forward-KGV. Hilft auch das nicht unter die
     // Obergrenze, greift unten der bestehende Wächter.
     let nennerFinal = nenner;
-    let zaehlerFinal = eigenerZaehler;
-    let zaehlerLabelFinal = zaehlerLabel;
+    let zaehlerFinal = eigeneBerechnung!.zaehler;
+    let zaehlerLabelFinal = eigeneBerechnung!.zaehlerLabel;
     let ausweichNote = "";
-    if (eigenesPeg !== null && bereinigung(eigenesPeg) > PEG_OBERGRENZE && !nennerIstSchaetzung) {
-      const schaetz = belegte.find((q) => q.label.startsWith("erwartetes Wachstum") &&
-        q.wert >= MIN_WACHSTUM_FUER_PEG && q.wert <= MAX_WACHSTUM_FUER_PEG) ?? null;
+    if (bereinigung(eigeneBerechnung!.peg) > PEG_OBERGRENZE && !nenner.geschaetzt) {
+      const schaetz = schaetzungsQuelle;
       const schaetzZaehler = kgvForward ?? kgv;
       if (schaetz !== null && schaetzZaehler !== null &&
           bereinigung(schaetzZaehler / schaetz.wert) <= PEG_OBERGRENZE) {
         ausweichNote = `; historische Rate ${nenner.wert.toFixed(1)} % ergäbe PEG ` +
-          `${eigenesPeg.toFixed(1)} über der Obergrenze ${PEG_OBERGRENZE} — auf die Schätzung ausgewichen`;
+          `${eigeneBerechnung!.peg.toFixed(1)} über der Obergrenze ${PEG_OBERGRENZE} — auf die Schätzung ausgewichen`;
         nennerFinal = schaetz;
         zaehlerFinal = schaetzZaehler;
         zaehlerLabelFinal = kgvForward !== null ? "KGV (forward)" : "KGV (trailing)";

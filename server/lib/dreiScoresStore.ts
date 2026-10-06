@@ -26,6 +26,23 @@
 
 let tabelleGeprueft = false;
 
+/** Der Produktionslauf startet alle zwei Stunden; 45 Minuten Puffer decken
+ * Laufzeit, Neustart und geringe Scheduler-Verzögerungen ab. Ältere Werte
+ * dürfen nie als aktuelles Timing-/Handelssignal ausgegeben werden. */
+export const MAX_VORBERECHNETES_SCORE_ALTER_MS = (2 * 60 + 45) * 60 * 1000;
+
+/** Trennt bewusst eine fehlende Zeitreihe von einem neutralen oder alten Signal. */
+export function istVorbereiteterScoreFrisch(
+  berechnetAm: Date | string | null | undefined,
+  jetzt: Date = new Date(),
+): boolean {
+  if (!berechnetAm) return false;
+  const zeit = berechnetAm instanceof Date
+    ? berechnetAm.getTime()
+    : Date.parse(String(berechnetAm).replace(" ", "T") + (String(berechnetAm).includes("T") ? "" : "Z"));
+  return Number.isFinite(zeit) && zeit <= jetzt.getTime() && jetzt.getTime() - zeit <= MAX_VORBERECHNETES_SCORE_ALTER_MS;
+}
+
 /**
  * Timing und Signal kamen nachträglich dazu (STRATEGIE_DREI_SCORES.md, Abschnitt 3).
  *
@@ -93,6 +110,8 @@ async function stelleTabelleSicher(db: any): Promise<void> {
 
 export interface GespeicherteScores {
   ticker: string;
+  /** Zeitpunkt der vollständigen Eingabereihe; Grundlage der Frischeprüfung. */
+  berechnetAm?: Date | string | null;
   qualitaet: number | null;
   qualitaetBand: string;
   niveau: number | null;
@@ -116,6 +135,36 @@ export interface GespeicherteScores {
   qualitaetFaktoren: unknown[] | null;
   bewertungFaktoren: unknown[] | null;
   timingFaktoren: unknown[] | null;
+}
+
+/**
+ * Persistierbarer, absichtlich nicht handelbarer Score bei fehlender
+ * qualifizierter Kursreihe. Er überschreibt einen alten Signalwert und macht
+ * die Datenlücke anstelle einer historischen Kauf-/Verkaufsempfehlung sichtbar.
+ */
+export function unqualifizierterDreiScore(ticker: string): GespeicherteScores {
+  return {
+    ticker,
+    berechnetAm: null,
+    qualitaet: null,
+    qualitaetBand: "nicht beurteilbar",
+    niveau: null,
+    richtung: null,
+    fScore: 0,
+    fScoreBerechenbar: 0,
+    bewertung: null,
+    bewertungBand: "nicht beurteilbar",
+    abdeckungNiveau: 0,
+    abdeckungBewertung: 0,
+    timing: null,
+    timingAbdeckung: null,
+    regime: null,
+    signalScore: null,
+    signalLabel: null,
+    qualitaetFaktoren: null,
+    bewertungFaktoren: null,
+    timingFaktoren: null,
+  };
 }
 
 /** Non-fatal: Scheitert das Schreiben, bleibt der Signallauf unberührt. */
@@ -203,6 +252,7 @@ export async function leseScores(tickers: string[]): Promise<Map<string, Gespeic
     for (const r of rows) {
       leer.set(r.ticker, {
         ticker: r.ticker,
+        berechnetAm: r.berechnetAm ?? null,
         qualitaet: zahl(r.qualitaet),
         qualitaetBand: r.qualitaetBand ?? "nicht beurteilbar",
         niveau: zahl(r.niveau),

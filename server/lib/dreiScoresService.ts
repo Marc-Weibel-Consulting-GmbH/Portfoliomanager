@@ -19,6 +19,7 @@ import {
   type QualitaetsScore,
   type TeilScore,
 } from "./dreiScores";
+import { scoreTickerAliases } from "./scoreTickerAliases";
 
 export interface DreiScores {
   ticker: string;
@@ -76,10 +77,11 @@ export async function getDreiScores(
     dividendenWiderlegtHinweis?: string | null;
   },
 ): Promise<DreiScores> {
-  // Zuerst die vorgerechneten Werte: Der stuendliche Signal-Cron legt sie ab.
+  // Zuerst die vorgerechneten Werte: Der Zwei-Stunden-Signal-Cron legt sie ab.
   // Nur wenn dort nichts steht — neuer Titel, Cron noch nicht gelaufen —, wird
   // live gerechnet. Das spart je Seitenaufruf einen EODHD-Abruf.
-  const vorberechnet = await leseVorberechnet(ticker);
+  const tickerKandidaten = scoreTickerAliases(ticker);
+  const vorberechnet = await leseVorberechnet(ticker, tickerKandidaten);
   if (vorberechnet) return vorberechnet;
 
   const { getQualityMetrics } = await import("./qualityMetricsService");
@@ -95,7 +97,7 @@ export async function getDreiScores(
     const db = await getDb();
     if (db) {
       const { stocks } = await import("../../drizzle/schema");
-      const { eq } = await import("drizzle-orm");
+      const { inArray } = await import("drizzle-orm");
       const [row] = await db
         .select({
           dividendYield: stocks.dividendYield,
@@ -103,7 +105,7 @@ export async function getDreiScores(
           sector: stocks.sector,
         })
         .from(stocks)
-        .where(eq(stocks.ticker, ticker))
+        .where(inArray(stocks.ticker, tickerKandidaten))
         .limit(1);
       if (row) {
         dividendenrendite = zahl(row.dividendYield) ?? dividendenrendite;
@@ -194,11 +196,19 @@ export async function getDreiScores(
  * Gibt `null` zurueck, wenn nichts abgelegt ist — dann rechnet der Aufrufer
  * live weiter.
  */
-async function leseVorberechnet(ticker: string): Promise<DreiScores | null> {
+async function leseVorberechnet(ticker: string, tickerKandidaten: string[]): Promise<DreiScores | null> {
   try {
     const { leseScores } = await import("./dreiScoresStore");
-    const treffer = (await leseScores([ticker])).get(ticker);
+    const vorgerechnete = await leseScores(tickerKandidaten);
+    const treffer = tickerKandidaten.map((kandidat) => vorgerechnete.get(kandidat)).find(Boolean);
     if (!treffer) return null;
+    const { istVorbereiteterScoreFrisch } = await import("./dreiScoresStore");
+    if (!istVorbereiteterScoreFrisch(treffer.berechnetAm)) {
+      // Ein abgebrochener oder nicht auflösbarer Cron-Lauf darf nie ein altes
+      // BUY/SELL als frisches Signal verkaufen. Der Livepfad zeigt Fundamentales
+      // weiter, aber Timing/Signal bleiben bis zur qualifizierten Reihe leer.
+      return null;
+    }
 
     let bisher: number | null = null;
     try {
@@ -206,10 +216,10 @@ async function leseVorberechnet(ticker: string): Promise<DreiScores | null> {
       const db = await getDb();
       if (db) {
         const { stocks } = await import("../../drizzle/schema");
-        const { eq } = await import("drizzle-orm");
+        const { inArray } = await import("drizzle-orm");
         const [row] = await db
           .select({ score: stocks.score })
-          .from(stocks).where(eq(stocks.ticker, ticker)).limit(1);
+          .from(stocks).where(inArray(stocks.ticker, tickerKandidaten)).limit(1);
         if (row) bisher = zahl(row.score);
       }
     } catch { /* Ohne DB tragen die vorberechneten Werte allein. */ }

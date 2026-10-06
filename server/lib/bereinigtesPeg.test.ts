@@ -363,3 +363,25 @@ describe("bereinigtesPeg", () => {
     expect(selbst.rechnung).toContain("bereinigt");
   });
 });
+
+describe("PLTR-Forward-PEG-Regression", () => {
+  it("priorisiert eine plausible aktuelle EPS-Schätzung und paart sie mit dem Forward-KGV", () => {
+    const r = bereinigtesPeg({
+      vendorPeg: 1.8461,
+      epsVolatility: 0.5,
+      qualityScore: 81.8,
+      epsWachstum5j: null,
+      epsWachstumTTM: null,
+      wachstumRatenMittel: 17.7,
+      wachstumErwartet: 44.69477192765876,
+      kgv: 163.2759,
+      kgvForward: 85.4701,
+    });
+    // Der Vendorwert und die frame-konsistente Gegenprobe 85.47 / 44.69 = 1.91
+    // liegen nahe beieinander. Das historische Ratenmittel darf den Forward-Frame
+    // hier nicht überstimmen und einen künstlichen PEG-Widerspruch erzeugen.
+    expect(r.quelle).toBe("vendor");
+    expect(r.roh).toBeCloseTo(1.8461, 4);
+    expect(r.rechnung).toContain("Vendor-PEG 1.85");
+  });
+});

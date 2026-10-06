@@ -176,8 +176,10 @@ export default function ScoreErklaerDialog({
               </table>
               <p className="px-3 py-2 text-[11px] text-gray-400 border-t border-white/5 bg-white/[0.03]">
                 Die Bewertung hat aktuell <strong className="text-gray-300">0 % Signalgewicht</strong>.
-                Sie ist kein Renditefaktor; nur bei <strong className="text-gray-300">extremer Überbewertung</strong>
-                begrenzt ihr Wächter ein sonst höheres Signal auf HOLD.
+                Frühere Tests zeigten für eine direkte Bewertungsgewichtung kein robust positives Resultat.
+                Sie ist daher kein Renditefaktor; nur bei <strong className="text-gray-300">Bewertung ≤20/100</strong>
+                begrenzt ihr Wächter ein sonst höheres Signal auf <strong className="text-gray-300">45/100 (HOLD)</strong>.
+                Eine günstige Bewertung verhindert diesen Wächter, erhöht Qualität oder Timing aber nicht künstlich.
               </p>
               {dreiScores.signal.waechterHinweis && (
                 <p className="px-3 pb-2 text-[11px] text-amber-300">{dreiScores.signal.waechterHinweis}</p>
@@ -404,6 +406,13 @@ export default function ScoreErklaerDialog({
             Ein sehr hohes KGV <strong>begrenzt</strong> den Score, auch wenn das PEG günstig
             aussieht. Ein tiefes PEG bei KGV 128 heisst nicht «günstig», sondern «günstig,
             falls das Wachstum hält» — bleibt es aus, ist die Fallhöhe gross.
+          </p>
+          <p className="text-xs text-gray-400">
+            <strong>KGV-Schwellen für Nicht-Finanzwerte:</strong> Der KGV-Faktor gibt bei
+            40x null und bei 10x 100 Punkte (linear); der zusätzliche KGV-Deckel greift erst
+            oberhalb von 30x. Es gibt deshalb keine einzelne «Kauf-ab-KGV»-Grenze: PEG,
+            Free-Cash-Flow-Rendite und Dividendenrendite bestimmen den Bewertungs-Score mit.
+            Erst bei Bewertung ≤20/100 wird das Signal auf HOLD begrenzt.
           </p>
 
           <div className="pt-3 border-t border-white/10">

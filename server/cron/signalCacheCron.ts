@@ -639,6 +639,16 @@ export async function refreshSignalCache(): Promise<void> {
               combinedSignal = undefined;
               overallGrade = undefined;
               reason = `Keine Kauf-/Verkaufsempfehlung – Datenbasis nicht freigegeben: ${signalDataQuality.reasons.join(" · ")}.`;
+
+              // Die Detailansicht liest den Drei-Score-Snapshot. Wurde ein
+              // Titel im aktuellen Lauf wegen einer lückenhaften Kursreihe
+              // übersprungen, blieb dort bisher ein alter BUY/SELL stehen.
+              // Ein frischer, explizit nicht handelbarer Satz ersetzt ihn.
+              const { unqualifizierterDreiScore } = await import("../lib/dreiScoresStore");
+              const gesperrt = unqualifizierterDreiScore(ticker);
+              const vorhandenerIndex = dreiScoreSaetze.findIndex((satz) => satz.ticker === ticker);
+              if (vorhandenerIndex >= 0) dreiScoreSaetze[vorhandenerIndex] = gesperrt;
+              else dreiScoreSaetze.push(gesperrt);
             }
 
             // 5. Upsert into cache

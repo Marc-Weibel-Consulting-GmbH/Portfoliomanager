@@ -1057,3 +1057,11 @@
 - [x] UI trennt nun `KGV (TTM)`, `KGV (Forward · EODHD)` und `PEG (TTM · EODHD)` mit methodischem Hinweis; Watchlist-Spalte ist `KGV TTM`.
 - [x] Signalmethode offengelegt: Beiträge, Regimegewichte und Bewertungs-Wächter je Titel sichtbar. Regressionsfall `69 / 24,6 / 67 → 68` abgedeckt.
 - [x] Universumsweite Formelprüfung: 232 qualifizierte gespeicherte Drei-Score-Sätze, 0 Rechenabweichungen; 33 Titel ohne qualifizierte Timingbasis bleiben explizit ohne Signal.
+
+
+## PLTR und globale Signalfrische (06.10.2026)
+
+- [x] PLTR-Wachstumsbasis korrigiert: Forward-EPS-Schätzung 1,6201 → 2,3442 USD (+44,6948 %) wird mit Forward-KGV gepaart; historische 17,7 % bleiben als Vergangenheit klar abgegrenzt.
+- [x] PLTR.US-Detailticker wird ausschliesslich dem kanonischen `PLTR`-Scoresnapshot zugeordnet; Timing 48,3 und HOLD 45 erscheinen wieder.
+- [x] Globale Schutzmassnahme: Drei-Score-Snapshots sind maximal 2 h 45 min gültig. Titel ohne qualifizierte Preisreihe erhalten explizit `Timing/Signal = Datenlücke`, nie ein altes BUY/SELL.
+- [x] Vollständiger Signallauf: 267 aktive Titel, 56 ohne Timing und Signal als ausgewiesene Datenlücke; `B` und `NFLX` als konkrete veraltete Altwerte neutralisiert.
