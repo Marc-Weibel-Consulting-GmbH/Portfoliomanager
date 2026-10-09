@@ -1,0 +1,6 @@
+{
+  "startedAt": "2026-10-09T21:18:16.499Z",
+  "completedAt": "2026-10-09T21:21:08.068Z",
+  "scope": "Aktive Stock-Signal-Caches nach der splitbereinigten Preisbasisaktualisierung",
+  "note": "Der Refresh ändert keine Rohpreise, Portfolios, Cash, Ledger, Transaktionen oder Orders."
+}

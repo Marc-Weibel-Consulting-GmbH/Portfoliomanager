@@ -32,8 +32,8 @@ export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult>
   const startTime = Date.now();
   try {
     const { getDb } = await import("../db");
-    const { stocks: stocksTable, historicalPrices: hpTable } = await import("../../drizzle/schema");
-    const { eq, gte, sql: sqlFn } = await import("drizzle-orm");
+    const { stocks: stocksTable } = await import("../../drizzle/schema");
+    const { eq } = await import("drizzle-orm");
     const { fetchEODHDFundamentals } = await import("../_core/eodhdApi");
     const { resolveDividendYieldEnrichment } = await import("../_core/dividendYieldEnrichment");
 
@@ -58,33 +58,6 @@ export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult>
     // Time-guard: stop processing after 100s to stay within the 2-minute Heartbeat limit
     const TIME_LIMIT_MS = 100_000;
 
-    // Pre-compute 52W range from historicalPrices for all tickers in one query
-    // (avoids N+1 queries — much faster than per-stock queries)
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    const oneYearAgoStr = oneYearAgo.toISOString().split("T")[0];
-
-    const priceRanges = await db
-      .select({
-        ticker: hpTable.ticker,
-        high52: sqlFn<string>`MAX(${hpTable.close})`,
-        low52: sqlFn<string>`MIN(${hpTable.close})`,
-      })
-      .from(hpTable)
-      .where(gte(hpTable.date, oneYearAgoStr))
-      .groupBy(hpTable.ticker);
-
-    const rangeMap = new Map<string, { high52: number; low52: number }>();
-    for (const r of priceRanges) {
-      const h = parseFloat(r.high52 as any);
-      const l = parseFloat(r.low52 as any);
-      if (Number.isFinite(h) && Number.isFinite(l) && h > 0) {
-        rangeMap.set(r.ticker, { high52: h, low52: l });
-      }
-    }
-
-    console.log(`[signalScoreRefresh] 52W ranges loaded for ${rangeMap.size} tickers`);
-
     for (const stock of checkable) {
       // Stop if we're approaching the time limit
       if (Date.now() - startTime > TIME_LIMIT_MS) {
@@ -100,15 +73,6 @@ export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult>
         if (currentPrice <= 0) {
           skipped++;
           continue;
-        }
-
-        // 52W range from pre-computed map
-        const range = rangeMap.get(stock.ticker);
-        let high52w: number | null = null;
-        let low52w: number | null = null;
-        if (range && range.high52 !== range.low52) {
-          high52w = range.high52;
-          low52w = range.low52;
         }
 
         // TTM-Brutto aus datierten, währungsgleichen Ausschüttungen hat Vorrang.
@@ -135,8 +99,9 @@ export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult>
           dividendEventCount: dividend.dividendEventCount ?? stock.dividendEventCount,
           dividendAsOfDate: dividend.dividendAsOfDate || stock.dividendAsOfDate,
           dividendYieldSource: dividend.dividendYieldSource ?? stock.dividendYieldSource,
-          week52High: high52w?.toString() ?? stock.week52High,
-          week52Low: low52w?.toString() ?? stock.week52Low,
+          // YTD/52W are maintained solely by refreshSplitAdjustedMarketMetrics.
+          // Updating them from raw close here would silently undo a confirmed
+          // split correction (e.g. SQN/KLAC/CRWD) at the next daily refresh.
           lastMetricsUpdate: new Date(),
         }).where(eq(stocksTable.id, stock.id));
 

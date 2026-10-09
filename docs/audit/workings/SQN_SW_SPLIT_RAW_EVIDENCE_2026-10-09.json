@@ -1,0 +1,887 @@
+{
+  "fetchedAt": "2026-10-09T20:54:17.235Z",
+  "ticker": "SQN.SW",
+  "eodhd": {
+    "fundamentals": {
+      "General": {
+        "Code": "SQN",
+        "ISIN": "CH1548235246",
+        "CurrencyCode": "CHF",
+        "FiscalYearEnd": "December"
+      },
+      "Highlights": {
+        "PERatio": 14.5083,
+        "PEGRatio": 1.2564,
+        "DividendYield": 0.0216,
+        "EarningsShare": 2.4,
+        "MarketCapitalization": 5218930176
+      },
+      "SplitsDividends": {
+        "ForwardAnnualDividendRate": 0.74,
+        "ForwardAnnualDividendYield": 0.0216,
+        "PayoutRatio": 0.0538,
+        "DividendDate": "2025-05-14",
+        "ExDividendDate": "2026-05-11",
+        "LastSplitFactor": "10:1",
+        "LastSplitDate": "2026-05-28",
+        "NumberDividendsByYear": {
+          "0": {
+            "Year": 2006,
+            "Count": 2
+          },
+          "1": {
+            "Year": 2007,
+            "Count": 2
+          },
+          "2": {
+            "Year": 2008,
+            "Count": 2
+          },
+          "3": {
+            "Year": 2009,
+            "Count": 1
+          },
+          "4": {
+            "Year": 2010,
+            "Count": 1
+          },
+          "5": {
+            "Year": 2011,
+            "Count": 1
+          },
+          "6": {
+            "Year": 2012,
+            "Count": 1
+          },
+          "7": {
+            "Year": 2013,
+            "Count": 1
+          },
+          "8": {
+            "Year": 2014,
+            "Count": 1
+          },
+          "9": {
+            "Year": 2015,
+            "Count": 1
+          },
+          "10": {
+            "Year": 2016,
+            "Count": 1
+          },
+          "11": {
+            "Year": 2017,
+            "Count": 1
+          },
+          "12": {
+            "Year": 2018,
+            "Count": 1
+          },
+          "13": {
+            "Year": 2019,
+            "Count": 1
+          },
+          "14": {
+            "Year": 2020,
+            "Count": 1
+          },
+          "15": {
+            "Year": 2021,
+            "Count": 1
+          },
+          "16": {
+            "Year": 2022,
+            "Count": 1
+          },
+          "17": {
+            "Year": 2023,
+            "Count": 1
+          },
+          "18": {
+            "Year": 2024,
+            "Count": 1
+          },
+          "19": {
+            "Year": 2025,
+            "Count": 1
+          },
+          "20": {
+            "Year": 2026,
+            "Count": 1
+          }
+        }
+      }
+    },
+    "realtime": {
+      "code": "SQN.SW",
+      "timestamp": 1791559800,
+      "gmtoffset": 0,
+      "open": 34.7,
+      "high": 34.94,
+      "low": 34.5,
+      "close": 34.84,
+      "volume": 354657,
+      "previousClose": 34.3,
+      "change": 0.54,
+      "change_p": 1.5743
+    },
+    "splits": [
+      {
+        "date": "2026-05-28",
+        "split": "10.000000/1.000000"
+      }
+    ],
+    "dividends": [
+      {
+        "date": "2025-05-12",
+        "declarationDate": "2025-04-08",
+        "recordDate": null,
+        "paymentDate": "2025-05-14",
+        "period": "Interim",
+        "value": 0.6,
+        "unadjustedValue": 6,
+        "currency": "CHF"
+      },
+      {
+        "date": "2026-05-11",
+        "declarationDate": "2026-03-31",
+        "recordDate": null,
+        "paymentDate": "2026-05-13",
+        "period": "Interim",
+        "value": 0.74,
+        "unadjustedValue": 7.4,
+        "currency": "CHF"
+      }
+    ],
+    "eodImportantDates": [
+      {
+        "date": "2025-12-22",
+        "open": 486.2,
+        "high": 489.4,
+        "low": 479.8,
+        "close": 489.2,
+        "adjusted_close": 47.9748,
+        "volume": 211840
+      },
+      {
+        "date": "2025-12-23",
+        "open": 488.6,
+        "high": 491.6,
+        "low": 486.6,
+        "close": 490.4,
+        "adjusted_close": 48.0925,
+        "volume": 134900
+      },
+      {
+        "date": "2025-12-29",
+        "open": 490,
+        "high": 490.4,
+        "low": 481.8,
+        "close": 487.2,
+        "adjusted_close": 47.7787,
+        "volume": 219140
+      },
+      {
+        "date": "2025-12-30",
+        "open": 483.4,
+        "high": 487.8,
+        "low": 477,
+        "close": 487,
+        "adjusted_close": 47.7591,
+        "volume": 291680
+      },
+      {
+        "date": "2026-05-26",
+        "open": 422,
+        "high": 422,
+        "low": 412.4,
+        "close": 412.6,
+        "adjusted_close": 41.26,
+        "volume": 495870
+      },
+      {
+        "date": "2026-05-27",
+        "open": 416.4,
+        "high": 416.4,
+        "low": 398.2,
+        "close": 398.2,
+        "adjusted_close": 39.82,
+        "volume": 419990
+      },
+      {
+        "date": "2026-05-28",
+        "open": 39.98,
+        "high": 40.36,
+        "low": 39,
+        "close": 39.46,
+        "adjusted_close": 39.46,
+        "volume": 267709
+      },
+      {
+        "date": "2026-05-29",
+        "open": 39.92,
+        "high": 40.38,
+        "low": 39.22,
+        "close": 39.6,
+        "adjusted_close": 39.6,
+        "volume": 429145
+      },
+      {
+        "date": "2026-10-01",
+        "open": 36.56,
+        "high": 37.28,
+        "low": 36.36,
+        "close": 36.8,
+        "adjusted_close": 36.8,
+        "volume": 350367
+      },
+      {
+        "date": "2026-10-02",
+        "open": 36.58,
+        "high": 36.58,
+        "low": 35.64,
+        "close": 36.16,
+        "adjusted_close": 36.16,
+        "volume": 417712
+      },
+      {
+        "date": "2026-10-05",
+        "open": 36.2,
+        "high": 37.08,
+        "low": 36.16,
+        "close": 36.66,
+        "adjusted_close": 36.66,
+        "volume": 348635
+      },
+      {
+        "date": "2026-10-06",
+        "open": 36.98,
+        "high": 37.2,
+        "low": 35.24,
+        "close": 35.24,
+        "adjusted_close": 35.24,
+        "volume": 566084
+      },
+      {
+        "date": "2026-10-07",
+        "open": 34.96,
+        "high": 35.3,
+        "low": 33.36,
+        "close": 34.04,
+        "adjusted_close": 34.04,
+        "volume": 646427
+      },
+      {
+        "date": "2026-10-08",
+        "open": 33.9,
+        "high": 34.78,
+        "low": 33.66,
+        "close": 34.3,
+        "adjusted_close": 34.3,
+        "volume": 409925
+      },
+      {
+        "date": "2026-10-09",
+        "open": 34.7,
+        "high": 34.94,
+        "low": 34.5,
+        "close": 34.84,
+        "adjusted_close": 34.84,
+        "volume": 354467
+      }
+    ]
+  },
+  "database": {
+    "master": {
+      "id": 15,
+      "companyName": "Swissquote Group Holding SA",
+      "ticker": "SQN.SW",
+      "currentPrice": "34.84",
+      "currency": "CHF",
+      "peRatio": "14.51",
+      "pegRatio": "1.26",
+      "dividendYield": "21.2400",
+      "dividendYieldBasis": "ttm_gross",
+      "dividendAnnualAmount": "7.400000",
+      "dividendCurrency": "CHF",
+      "dividendEventCount": 1,
+      "dividendAsOfDate": "2026-10-09",
+      "dividendYieldSource": "EODHD /api/div",
+      "sharpeRatio": "-1.2211032564012188",
+      "volatility": "33.94850136899298",
+      "beta": "1.11",
+      "marketCap": "5218930176",
+      "week52High": "543.5",
+      "week52Low": "35.84",
+      "lastDataRefresh": {},
+      "exchangeRateToChf": "1",
+      "category": "Wachstumsaktien",
+      "sector": "Financial Services",
+      "moat1": "Swissquote ist führende digitale Bank in der Schweiz mit starker Technologieplattform. Die vollständig digitale Infrastruktur ermöglicht niedrige Kosten.",
+      "moat2": "Umfassendes Produktangebot von Trading über Banking bis Krypto aus einer Hand. Diese Diversifikation zieht verschiedene Kundensegmente an.",
+      "moat3": "Schweizer Banklizenz und Regulierung schaffen Vertrauen und Eintrittsbarrieren. Die Reputation als sichere Bank ist ein wichtiger Wettbewerbsvorteil.",
+      "portfolioWeight": "0.9309",
+      "isManualWeight": 0,
+      "chartData": "[{\"date\":\"2025-10-07\",\"open\":530,\"high\":539.5,\"low\":528,\"close\":531.5,\"volume\":30195},{\"date\":\"2025-10-08\",\"open\":535,\"high\":540,\"low\":530.5,\"close\":533,\"volume\":23547},{\"date\":\"2025-10-09\",\"open\":532.5,\"high\":546,\"low\":531.5,\"close\":543.5,\"volume\":28147},{\"date\":\"2025-10-10\",\"open\":541,\"high\":541,\"low\":517,\"close\":520,\"volume\":44179},{\"date\":\"2025-10-13\",\"open\":520,\"high\":525,\"low\":517,\"close\":518,\"volume\":29546},{\"date\":\"2025-10-14\",\"open\":513,\"high\":513.5,\"low\":480.3999938964844,\"close\":497.3999938964844,\"volume\":91901},{\"date\":\"2025-10-15\",\"open\":498.6000061035156,\"high\":498.6000061035156,\"low\":486.3999938964844,\"close\":493.79998779296875,\"volume\":36857},{\"date\":\"2025-10-16\",\"open\":493,\"high\":499,\"low\":482.6000061035156,\"close\":488.79998779296875,\"volume\":41871},{\"date\":\"2025-10-17\",\"open\":479.79998779296875,\"high\":483.6000061035156,\"low\":464,\"close\":480.6000061035156,\"volume\":53377},{\"date\":\"2025-10-20\",\"open\":488.20001220703125,\"high\":489.3999938964844,\"low\":482.20001220703125,\"close\":489.3999938964844,\"volume\":23855},{\"date\":\"2025-10-21\",\"open\":489.3999938964844,\"high\":489.6000061035156,\"low\":479.3999938964844,\"close\":479.3999938964844,\"volume\":21916},{\"date\":\"2025-10-22\",\"open\":479,\"high\":485.3999938964844,\"low\":477,\"close\":482.79998779296875,\"volume\":23720},{\"date\":\"2025-10-23\",\"open\":485.79998779296875,\"high\":494.3999938964844,\"low\":483.6000061035156,\"close\":494.3999938964844,\"volume\":22618},{\"date\":\"2025-10-24\",\"open\":498.6000061035156,\"high\":503.5,\"low\":494,\"close\":499.6000061035156,\"volume\":27383},{\"date\":\"2025-10-27\",\"open\":501.5,\"high\":512,\"low\":501,\"close\":509.5,\"volume\":34070},{\"date\":\"2025-10-28\",\"open\":507.5,\"high\":509.5,\"low\":500,\"close\":506,\"volume\":17717},{\"date\":\"2025-10-29\",\"open\":506,\"high\":513.5,\"low\":502.5,\"close\":507,\"volume\":25195},{\"date\":\"2025-10-30\",\"open\":506,\"high\":511,\"low\":504,\"close\":509.5,\"volume\":22067},{\"date\":\"2025-10-31\",\"open\":510,\"high\":511.5,\"low\":502.5,\"close\":510,\"volume\":30318},{\"date\":\"2025-11-03\",\"open\":509,\"high\":513,\"low\":508,\"close\":509.5,\"volume\":28536},{\"date\":\"2025-11-04\",\"open\":502.5,\"high\":503.5,\"low\":478,\"close\":484.3999938964844,\"volume\":52760},{\"date\":\"2025-11-05\",\"open\":484,\"high\":485,\"low\":472.20001220703125,\"close\":475.79998779296875,\"volume\":35172},{\"date\":\"2025-11-06\",\"open\":472,\"high\":472.6000061035156,\"low\":462,\"close\":465,\"volume\":45338},{\"date\":\"2025-11-07\",\"open\":467.3999938964844,\"high\":470.6000061035156,\"low\":458.79998779296875,\"close\":463.20001220703125,\"volume\":29292}]",
+      "ytdStartPrice": "487.79",
+      "ytdPerformance": "-92.48",
+      "financialHighlight1": "H1 2025: Client Assets CHF 80,4 Mrd.; Net New Money CHF 5,2 Mrd.",
+      "financialHighlight2": "Erhöhte Guidance für 2025.",
+      "financialHighlight3": "Vollständige Übernahme von Yuh.",
+      "factsheetUrl": null,
+      "logoUrl": "https://logo.clearbit.com/swissquote.com",
+      "score": 45,
+      "listType": "empfehlung",
+      "source": "manual",
+      "signalScore": null,
+      "signalType": null,
+      "aiReason": "Moderates P/E (15.8) · Nahe 52W-Tief (0%) · Starker YTD-Rückgang (-92.1%)",
+      "rsi14": "38.5",
+      "industry": "Capital Markets",
+      "country": null,
+      "notes": null,
+      "isActive": 1,
+      "lastMetricsUpdate": {},
+      "lastAlertSentAt": null,
+      "eodhdTicker": "SQN.SW",
+      "isin": null,
+      "primaryTicker": null,
+      "dataQualityStatus": "pruefen",
+      "dataQualityNotes": "EODHD-Kennzahlen und Nutzer-Historienimport; fehlende Lieferantenfelder bleiben Datenlücken. · [Signalgate] Keine Kauf-/Verkaufsempfehlung – Datenbasis nicht freigegeben: Qualitäts-Score nicht berechenbar · Bewertungs-Score nicht berechenbar · Timing-Score nicht berechenbar · Ungeklärter Rohkurssprung von 2026-05-26 zu 2026-05-27 (-90.3 %); Timing erst nach geprüfter Corporate-Action-Reihe..",
+      "dataQualityUpdatedAt": {},
+      "createdAt": {},
+      "updatedAt": {}
+    },
+    "rawRowsImportantDates": [
+      {
+        "id": 2666,
+        "ticker": "SQN.SW",
+        "date": "2025-12-22",
+        "close": "489.200000",
+        "adjustedClose": "479.748100",
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 370,
+        "ticker": "SQN.SW",
+        "date": "2025-12-23",
+        "close": "490.400000",
+        "adjustedClose": "480.924900",
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 371,
+        "ticker": "SQN.SW",
+        "date": "2025-12-29",
+        "close": "487.200000",
+        "adjustedClose": "477.786700",
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 120026,
+        "ticker": "SQN.SW",
+        "date": "2025-12-30",
+        "close": "487.000000",
+        "adjustedClose": "477.590600",
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 1350288,
+        "ticker": "SQN.SW",
+        "date": "2026-05-26",
+        "close": "412.600000",
+        "adjustedClose": null,
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 1350289,
+        "ticker": "SQN.SW",
+        "date": "2026-05-27",
+        "close": "39.820000",
+        "adjustedClose": null,
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 1350290,
+        "ticker": "SQN.SW",
+        "date": "2026-05-28",
+        "close": "39.460000",
+        "adjustedClose": null,
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 2921249,
+        "ticker": "SQN.SW",
+        "date": "2026-05-29",
+        "close": "39.600000",
+        "adjustedClose": null,
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 8490088,
+        "ticker": "SQN.SW",
+        "date": "2026-10-01",
+        "close": "36.800000",
+        "adjustedClose": "36.800000",
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 8490089,
+        "ticker": "SQN.SW",
+        "date": "2026-10-02",
+        "close": "36.160000",
+        "adjustedClose": "36.160000",
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 8490090,
+        "ticker": "SQN.SW",
+        "date": "2026-10-05",
+        "close": "36.660000",
+        "adjustedClose": "36.660000",
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 8701264,
+        "ticker": "SQN.SW",
+        "date": "2026-10-06",
+        "close": "35.240000",
+        "adjustedClose": "35.240000",
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 8701265,
+        "ticker": "SQN.SW",
+        "date": "2026-10-07",
+        "close": "34.040000",
+        "adjustedClose": "34.040000",
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 8701266,
+        "ticker": "SQN.SW",
+        "date": "2026-10-08",
+        "close": "34.300000",
+        "adjustedClose": "34.300000",
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 8701267,
+        "ticker": "SQN.SW",
+        "date": "2026-10-09",
+        "close": "34.840000",
+        "adjustedClose": "34.840000",
+        "currency": null,
+        "source": "eodhd",
+        "createdAt": {},
+        "updatedAt": {}
+      }
+    ],
+    "splitAdjustedRowsImportantDates": [
+      {
+        "id": 7051069,
+        "ticker": "SQN.SW",
+        "date": "2025-12-22",
+        "adjustedClose": "48.920000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051070,
+        "ticker": "SQN.SW",
+        "date": "2025-12-23",
+        "adjustedClose": "49.040000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051071,
+        "ticker": "SQN.SW",
+        "date": "2025-12-29",
+        "adjustedClose": "48.720000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051072,
+        "ticker": "SQN.SW",
+        "date": "2025-12-30",
+        "adjustedClose": "48.700000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051169,
+        "ticker": "SQN.SW",
+        "date": "2026-05-26",
+        "adjustedClose": "41.260000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051170,
+        "ticker": "SQN.SW",
+        "date": "2026-05-27",
+        "adjustedClose": "39.820000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051171,
+        "ticker": "SQN.SW",
+        "date": "2026-05-28",
+        "adjustedClose": "39.460000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051172,
+        "ticker": "SQN.SW",
+        "date": "2026-05-29",
+        "adjustedClose": "39.600000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051261,
+        "ticker": "SQN.SW",
+        "date": "2026-10-01",
+        "adjustedClose": "36.800000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051262,
+        "ticker": "SQN.SW",
+        "date": "2026-10-02",
+        "adjustedClose": "36.160000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051263,
+        "ticker": "SQN.SW",
+        "date": "2026-10-05",
+        "adjustedClose": "36.660000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051264,
+        "ticker": "SQN.SW",
+        "date": "2026-10-06",
+        "adjustedClose": "35.240000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051265,
+        "ticker": "SQN.SW",
+        "date": "2026-10-07",
+        "adjustedClose": "34.040000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051266,
+        "ticker": "SQN.SW",
+        "date": "2026-10-08",
+        "adjustedClose": "34.300000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7051267,
+        "ticker": "SQN.SW",
+        "date": "2026-10-09",
+        "adjustedClose": "34.840000",
+        "currency": "CHF",
+        "source": "eodhd_split_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      }
+    ],
+    "totalReturnRowsImportantDates": [
+      {
+        "id": 7561267,
+        "ticker": "SQN.SW",
+        "date": "2026-10-09",
+        "adjustedClose": "71.449411",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561266,
+        "ticker": "SQN.SW",
+        "date": "2026-10-08",
+        "adjustedClose": "70.341986",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561265,
+        "ticker": "SQN.SW",
+        "date": "2026-10-07",
+        "adjustedClose": "69.808781",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561264,
+        "ticker": "SQN.SW",
+        "date": "2026-10-06",
+        "adjustedClose": "72.269725",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561263,
+        "ticker": "SQN.SW",
+        "date": "2026-10-05",
+        "adjustedClose": "75.181842",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561262,
+        "ticker": "SQN.SW",
+        "date": "2026-10-02",
+        "adjustedClose": "74.156449",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561261,
+        "ticker": "SQN.SW",
+        "date": "2026-10-01",
+        "adjustedClose": "75.468953",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561172,
+        "ticker": "SQN.SW",
+        "date": "2026-05-29",
+        "adjustedClose": "81.211155",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561171,
+        "ticker": "SQN.SW",
+        "date": "2026-05-28",
+        "adjustedClose": "80.924045",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561170,
+        "ticker": "SQN.SW",
+        "date": "2026-05-27",
+        "adjustedClose": "81.662329",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561169,
+        "ticker": "SQN.SW",
+        "date": "2026-05-26",
+        "adjustedClose": "84.615461",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561072,
+        "ticker": "SQN.SW",
+        "date": "2025-12-30",
+        "adjustedClose": "83.778748",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561071,
+        "ticker": "SQN.SW",
+        "date": "2025-12-29",
+        "adjustedClose": "83.813154",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561070,
+        "ticker": "SQN.SW",
+        "date": "2025-12-23",
+        "adjustedClose": "84.363651",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      },
+      {
+        "id": 7561069,
+        "ticker": "SQN.SW",
+        "date": "2025-12-22",
+        "adjustedClose": "84.157214",
+        "currency": "CHF",
+        "source": "eodhd_events_total_return",
+        "sourceSymbol": "SQN.SW",
+        "retrievedAt": {},
+        "createdAt": {},
+        "updatedAt": {}
+      }
+    ]
+  }
+}

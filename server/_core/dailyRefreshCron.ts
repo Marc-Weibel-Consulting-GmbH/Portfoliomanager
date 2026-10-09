@@ -17,8 +17,10 @@ import { eq, lt } from 'drizzle-orm';
 import mysql from 'mysql2/promise';
 import { stocks } from '../../drizzle/schema';
 import { fetchCompleteStockData } from './multiApiDataMerger';
+import { fetchEODHDRealTime } from './eodhdApi';
 import { recordMetricsSnapshot } from './historicalMetricsRecorder';
 import { assessPortfolioMutationMarketRefresh } from '../lib/portfolioMutationMarketRefresh';
+import { refreshSplitAdjustedMarketMetrics } from '../lib/refreshSplitAdjustedMarketMetrics';
 
 import { ENV } from "./env";
 const RATE_LIMIT_MS = 500; // 500ms between API calls
@@ -98,12 +100,13 @@ export async function refreshAllStocks(options: { force?: boolean } = {}): Promi
           lastDataRefresh: new Date(),
         };
 
-        // Update price and currency
-        if (completeData.currentPrice !== null) {
-          updateData.currentPrice = completeData.currentPrice.toString();
-        }
-        if (completeData.currency) {
-          updateData.currency = completeData.currency;
+        // Store a point quote only when it comes from the same primary EODHD
+        // market line as the split-adjusted anchors. A Yahoo/Finnhub fallback
+        // may fill independent diagnostics but must never recreate a mixed
+        // post-split quote/pre-split baseline combination.
+        const eodhdQuote = await fetchEODHDRealTime(stock.ticker);
+        if (eodhdQuote.close !== null && eodhdQuote.close > 0) {
+          updateData.currentPrice = eodhdQuote.close.toString();
         }
 
         // Update metrics
@@ -158,6 +161,18 @@ export async function refreshAllStocks(options: { force?: boolean } = {}): Promi
         });
       }
     }
+
+    // A real-time quote may have moved since the last EOD record. Recalculate
+    // YTD/52W only against the matching split-adjusted direct series and reject
+    // a mechanically incompatible quote instead of persisting a new mixed basis.
+    const metricResult = await refreshSplitAdjustedMarketMetrics({
+      asOf: new Date(),
+      preserveExistingCurrentPrice: true,
+    });
+    console.log(
+      `[Daily Refresh] Splitbasis synchronisiert: ${metricResult.updated} aktualisiert, ` +
+      `${metricResult.blocked} gesperrt, ${metricResult.skipped} übersprungen.`,
+    );
 
     console.log('[Daily Refresh] Completed!');
     console.log(`  Total: ${result.total}`);

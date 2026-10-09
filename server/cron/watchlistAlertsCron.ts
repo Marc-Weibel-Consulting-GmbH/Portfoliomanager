@@ -2,7 +2,7 @@
  * Watchlist Alerts Cron Job
  *
  * K2 (EIN Signal für Badges & Alerts): Aktualisiert alle 4 h die Markt-
- * Kennzahlen (Yahoo) und übernimmt `stocks.signalScore`/`signalType` aus dem
+ * Kennzahlen (EODHD-Quote) und übernimmt `stocks.signalScore`/`signalType` aus dem
  * Drei-Score-Signal (stock_signal_cache) — dieselbe Rechnung, die der Kunde
  * auf der Titelseite sieht. Hinweise (Push/WhatsApp) feuern nur am starken
  * Rand des Kernsignals, beim Zustands-Übergang, mit Cooldown.
@@ -34,14 +34,7 @@ export async function checkWatchlistAlerts() {
     const { signalFelderAusCache, alertEntscheid } = await import("../lib/kernsignalUebernahme");
     const { projectCoreSignalDataQuality } = await import("../lib/coreSignalDataQuality");
     const { eq, inArray } = await import("drizzle-orm");
-    const YahooFinanceClass = (await import("yahoo-finance2")).default;
-    const yahooFinance: any = new (YahooFinanceClass as any)();
-    // Normalize ticker for Yahoo Finance (remove .US suffix, keep .SW etc.)
-    function normalizeTicker(ticker: string): string {
-      if (ticker.endsWith('.US')) return ticker.slice(0, -3);
-      if (ticker.endsWith('.SW')) return ticker.slice(0, -3) + '.SW';
-      return ticker;
-    }
+    const { fetchEODHDRealTime } = await import("../_core/eodhdApi");
 
     const db = await getDb();
     if (!db) {
@@ -107,32 +100,25 @@ export async function checkWatchlistAlerts() {
       currentPrice: string;
       previousScore: number | null;
     }> = [];
+    let refreshedQuotes = 0;
 
     for (const stock of checkableStocks) {
-      // 1) Markt-Kennzahlen von Yahoo auffrischen (unabhängig vom Signal).
+      // 1) Aktuellen Quote nur von EODHD auffrischen. Ein Yahoo-Quote darf
+      // nie neben einer EODHD-Splitreihe gespeichert werden: Diese Mischung
+      // verursachte nach SQN.SW 1:10 und KLAC 1:10 Phantom-YTD-Werte.
       let currentPriceStr: string | null = stock.currentPrice ?? null;
       try {
-        const yahooTicker = normalizeTicker(stock.ticker);
-        const quote: any = await yahooFinance.quoteSummary(yahooTicker, {
-          modules: ["price"] as any,
-        });
-
-        const price = quote?.price;
-
-        if (price) {
-          const current = price?.regularMarketPrice;
-          currentPriceStr = current?.toString() || stock.currentPrice;
-          // EODHD is the primary fundamentals source. This alert job may use a
-          // secondary quote for a fresh market-price display, but must never
-          // overwrite P/E, PEG, dividend yield or 52W fields on a different
-          // provider basis.
+        const quote = await fetchEODHDRealTime(stock.ticker);
+        if (quote.close != null && quote.close > 0) {
+          currentPriceStr = quote.close.toString();
           await db.update(stocksTable).set({
             currentPrice: currentPriceStr,
           }).where(eq(stocksTable.id, stock.id));
+          refreshedQuotes += 1;
         }
       } catch (err: any) {
         const errMsg = err?.message || String(err);
-        console.warn(`[watchlistAlertsCron] Metrics refresh failed for ${stock.ticker}: ${errMsg}`);
+        console.warn(`[watchlistAlertsCron] EODHD-Quote fehlgeschlagen für ${stock.ticker}: ${errMsg}`);
       }
 
       // 2) Signalspalten IMMER aus dem Kernsignal übernehmen (auch wenn der
@@ -185,6 +171,22 @@ export async function checkWatchlistAlerts() {
 
       // Rate limiting
       await new Promise(r => setTimeout(r, 400));
+    }
+
+    // Re-anchor derived performance fields after EODHD updates the point quote.
+    // This keeps the live close and the YTD numerator on one proven split basis
+    // and avoids reintroducing the old SQN/KLAC-style quote-versus-baseline gap.
+    if (refreshedQuotes > 0) {
+      const { refreshSplitAdjustedMarketMetrics } = await import("../lib/refreshSplitAdjustedMarketMetrics");
+      const result = await refreshSplitAdjustedMarketMetrics({
+        tickers,
+        asOf: new Date(),
+        preserveExistingCurrentPrice: true,
+      });
+      console.log(
+        `[watchlistAlertsCron] Splitbasis nach ${refreshedQuotes} Quotes synchronisiert: ` +
+        `${result.updated} aktualisiert, ${result.blocked} gesperrt, ${result.skipped} übersprungen.`,
+      );
     }
 
     // Hinweis senden, wenn Titel neu am starken Rand des Kernsignals stehen.

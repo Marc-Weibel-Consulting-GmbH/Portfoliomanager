@@ -615,17 +615,15 @@ export const stocksRouter = router({
 
         // Fetch fresh data
         const completeData = await fetchCompleteStockData(ticker);
+        const eodhdQuote = await fetchEODHDRealTime(ticker);
 
         // Prepare update data
         const updateData: any = {
           lastDataRefresh: new Date(),
         };
 
-        if (completeData.currentPrice !== null) {
-          updateData.currentPrice = completeData.currentPrice.toString();
-        }
-        if (completeData.currency) {
-          updateData.currency = completeData.currency;
+        if (eodhdQuote.close !== null && eodhdQuote.close > 0) {
+          updateData.currentPrice = eodhdQuote.close.toString();
         }
         if (completeData.sharpe !== null && completeData.sharpe !== undefined) {
           updateData.sharpeRatio = completeData.sharpe.toString();
@@ -1270,11 +1268,12 @@ export const stocksRouter = router({
                 // Fetch fundamental data from EODHD
                 const fundamentals = await fetchEODHDFundamentals(stock.ticker);
 
-                // Aktueller Kurs bevorzugt via EODHD (zuverlässig im Deploy, wendet Symbol-Alias an);
-                // Yahoo nur als Fallback. Sonst bleibt currentPrice leer → "Kurs fehlt".
+                // Der aktuelle Preis darf nur auf derselben EODHD-Handelslinie
+                // wie die abgeleiteten Splitanker landen. Kein Yahoo-Fallback:
+                // sonst entstehen nach einem Split unvereinbare Punktwerte.
                 const rt = await fetchEODHDRealTime(stock.ticker);
                 const currentPrice: number | null =
-                  (rt.close != null && rt.close > 0) ? rt.close : metrics.currentPrice;
+                  (rt.close != null && rt.close > 0) ? rt.close : null;
 
                 const updateData: any = {
                   lastDataRefresh: new Date(),
@@ -1284,17 +1283,9 @@ export const stocksRouter = router({
                 if (currentPrice !== null) {
                   updateData.currentPrice = currentPrice.toFixed(2);
 
-                  // Recalculate YTD performance
-                  if (stock.ytdStartPrice) {
-                    const ytdStart = parseFloat(stock.ytdStartPrice);
-                    if (ytdStart > 0) {
-                      const ytdPerf = ((currentPrice - ytdStart) / ytdStart) * 100;
-                      updateData.ytdPerformance = ytdPerf.toFixed(2);
-                    }
-                  }
                 }
                 
-                if (metrics.currency) updateData.currency = metrics.currency;
+                if (fundamentals.currency) updateData.currency = fundamentals.currency;
                 
                 // Update fundamentals from EODHD
                 if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio) && fundamentals.pegRatio > 0) {
@@ -1319,7 +1310,7 @@ export const stocksRouter = router({
                 const dividend = await resolveDividendYieldEnrichment({
                   ticker: stock.ticker,
                   currentPrice,
-                  currency: metrics.currency ?? fundamentals.currency ?? stock.currency,
+                  currency: fundamentals.currency ?? stock.currency,
                   fundamentals,
                 });
                 if (dividend.dividendYield !== null) {
@@ -1339,10 +1330,6 @@ export const stocksRouter = router({
                   const beta = metrics.beta !== null ? metrics.beta : fundamentals.beta;
                   if (beta !== null) updateData.beta = beta.toFixed(2);
                 }
-                
-                // Update 52-week range
-                if (metrics.week52High !== null) updateData.week52High = metrics.week52High.toFixed(2);
-                if (metrics.week52Low !== null) updateData.week52Low = metrics.week52Low.toFixed(2);
                 
                 // Update market cap
                 const marketCap = metrics.marketCap !== null ? metrics.marketCap : fundamentals.marketCap;
@@ -1410,31 +1397,25 @@ export const stocksRouter = router({
         try {
           const region = ticker.endsWith(".SW") ? "CH" : "US";
           
-          // Fetch price & risk metrics from Yahoo Finance
+          // Yahoo remains a secondary source for separately labelled risk
+          // diagnostics. It must not become the stored point quote beside an
+          // EODHD split-adjusted YTD/52W series.
           const metrics = await fetchStockMetrics(ticker, region);
           
           // Fetch fundamental data from EODHD
           const fundamentals = await fetchEODHDFundamentals(ticker);
+          const rt = await fetchEODHDRealTime(ticker);
           
           const updateData: any = {
             lastDataRefresh: new Date(),
           };
           
           // Update price data
-          if (metrics.currentPrice !== null) {
-            updateData.currentPrice = metrics.currentPrice.toFixed(2);
-            
-            // Recalculate YTD performance (do NOT set ytdStartPrice - only update via YTD cron job)
-            if (stock.ytdStartPrice && stock.ytdStartPrice !== "0") {
-              const ytdStart = parseFloat(stock.ytdStartPrice);
-              if (ytdStart > 0) {
-                const ytdPerf = ((metrics.currentPrice - ytdStart) / ytdStart) * 100;
-                updateData.ytdPerformance = ytdPerf.toFixed(2);
-              }
-            }
+          if (rt.close !== null && rt.close > 0) {
+            updateData.currentPrice = rt.close.toFixed(4);
           }
           
-          if (metrics.currency) updateData.currency = metrics.currency;
+          if (fundamentals.currency) updateData.currency = fundamentals.currency;
           
           // Update fundamentals from EODHD
           if (fundamentals.pegRatio !== null && !isNaN(fundamentals.pegRatio) && fundamentals.pegRatio > 0) {
@@ -1457,11 +1438,11 @@ export const stocksRouter = router({
           if (fundamentals.peRatio !== null && !isNaN(fundamentals.peRatio)) {
             updateData.peRatio = fundamentals.peRatio.toFixed(2);
           }
-          const effectivePrice = metrics.currentPrice ?? parseFloat(stock.currentPrice ?? "0");
+          const effectivePrice = rt.close ?? parseFloat(stock.currentPrice ?? "0");
           const dividend = await resolveDividendYieldEnrichment({
             ticker,
             currentPrice: effectivePrice,
-            currency: metrics.currency ?? fundamentals.currency ?? stock.currency,
+            currency: fundamentals.currency ?? stock.currency,
             fundamentals,
           });
           if (dividend.dividendYield !== null) {
@@ -1481,10 +1462,6 @@ export const stocksRouter = router({
             const beta = metrics.beta !== null ? metrics.beta : fundamentals.beta;
             if (beta !== null) updateData.beta = beta.toFixed(2);
           }
-          
-          // Update 52-week range
-          if (metrics.week52High !== null) updateData.week52High = metrics.week52High.toFixed(2);
-          if (metrics.week52Low !== null) updateData.week52Low = metrics.week52Low.toFixed(2);
           
           // Update market cap
           const marketCap = metrics.marketCap !== null ? metrics.marketCap : fundamentals.marketCap;
@@ -1757,8 +1734,9 @@ export const stocksRouter = router({
       }))
       .query(async ({ input }) => {
         const { getDb } = await import("../db");
-        const { historicalPrices } = await import("../../drizzle/schema");
+        const { historicalPrices, splitAdjustedHistoricalPrices, stocks } = await import("../../drizzle/schema");
         const { eq, and, gte } = await import("drizzle-orm");
+        const { selectDirectSplitAdjustedMetricSeries } = await import("../lib/splitAdjustedMarketMetrics");
         
         const db = await getDb();
         if (!db) return [];
@@ -1807,8 +1785,16 @@ export const stocksRouter = router({
         const startDateStr = startDate.toISOString().split('T')[0];
         
         try {
-          // Note: historicalPrices table only has: date, close, adjustedClose, currency, source
-          const prices = await db
+          const [stock] = await db.select({
+            ticker: stocks.ticker,
+            currency: stocks.currency,
+            isin: stocks.isin,
+          }).from(stocks).where(eq(stocks.ticker, input.ticker)).limit(1);
+          const [prices, splitRows] = await Promise.all([
+            // The immutable raw table is deliberately only a fallback. A chart
+            // must prefer the separate split-adjusted price-return snapshot so
+            // cash dividends are not silently displayed as price performance.
+            db
             .select({
               date: historicalPrices.date,
               close: historicalPrices.close,
@@ -1821,7 +1807,34 @@ export const stocksRouter = router({
                 gte(historicalPrices.date, startDateStr)
               )
             )
-            .orderBy(historicalPrices.date);
+            .orderBy(historicalPrices.date),
+            db.select({
+              date: splitAdjustedHistoricalPrices.date,
+              adjustedClose: splitAdjustedHistoricalPrices.adjustedClose,
+              currency: splitAdjustedHistoricalPrices.currency,
+              source: splitAdjustedHistoricalPrices.source,
+              sourceSymbol: splitAdjustedHistoricalPrices.sourceSymbol,
+            }).from(splitAdjustedHistoricalPrices).where(and(
+              eq(splitAdjustedHistoricalPrices.ticker, input.ticker),
+              gte(splitAdjustedHistoricalPrices.date, startDateStr),
+            )).orderBy(splitAdjustedHistoricalPrices.date),
+          ]);
+
+          const splitSeries = stock
+            ? selectDirectSplitAdjustedMetricSeries(stock, splitRows)
+            : null;
+          if (splitSeries && splitSeries.rows.length > 0) {
+            return splitSeries.rows.map((point) => ({
+              date: point.date,
+              open: null as number | null,
+              high: null as number | null,
+              low: null as number | null,
+              close: point.close,
+              volume: null as number | null,
+              priceBasis: "split_adjusted",
+              dataSource: splitSeries.source,
+            }));
+          }
           
           const storedSeries = selectEodhdHistoricalChartSeries(prices);
           const todayStr = new Date().toISOString().split('T')[0];

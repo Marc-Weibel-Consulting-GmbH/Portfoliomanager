@@ -1,0 +1,6336 @@
+{
+  "generatedAt": "2026-10-09T21:36:46.754Z",
+  "asOfDate": "2026-10-09",
+  "scope": {
+    "corporateActionTickers": [
+      "8015.T",
+      "ANET",
+      "AVGO",
+      "CRWD",
+      "D05.SI",
+      "DECK",
+      "FLEX",
+      "GE",
+      "HODL.CN",
+      "KLAC",
+      "LRCX",
+      "MSTR",
+      "MSTR.US",
+      "NFLX",
+      "NOBL",
+      "NOW",
+      "NVDA",
+      "PANW",
+      "SCHD",
+      "SQN.SW",
+      "WDC",
+      "XLE.US",
+      "XLK.US",
+      "XLY.US"
+    ],
+    "snapshotRefreshCount": 0,
+    "snapshotRefreshSkipped": true,
+    "masterInstrumentRows": 314
+  },
+  "snapshotRefresh": [],
+  "masterMetricRefresh": {
+    "updated": 277,
+    "blocked": 9,
+    "skipped": 28,
+    "materiallyChanged": 277,
+    "changed": [
+      {
+        "ticker": "SGKN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "703",
+          "ytdStartPrice": "588.00",
+          "ytdPerformance": "19.56",
+          "week52High": "710.0000",
+          "week52Low": "504.0000"
+        },
+        "after": {
+          "currentPrice": "703.0000",
+          "ytdStartPrice": "588.0000",
+          "ytdPerformance": "19.56",
+          "week52High": "710.0000",
+          "week52Low": "504.0000"
+        }
+      },
+      {
+        "ticker": "NVDA",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "229.28",
+          "ytdStartPrice": "188.85",
+          "ytdPerformance": "21.41",
+          "week52High": "239.2400",
+          "week52Low": "165.1700"
+        },
+        "after": {
+          "currentPrice": "229.2800",
+          "ytdStartPrice": "188.8500",
+          "ytdPerformance": "21.41",
+          "week52High": "239.2400",
+          "week52Low": "165.1700"
+        }
+      },
+      {
+        "ticker": "NEE",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "77.38",
+          "ytdStartPrice": "80.93",
+          "ytdPerformance": "-4.39",
+          "week52High": "97.8800",
+          "week52Low": "75.4900"
+        },
+        "after": {
+          "currentPrice": "77.3800",
+          "ytdStartPrice": "80.9300",
+          "ytdPerformance": "-4.39",
+          "week52High": "97.8800",
+          "week52Low": "75.4900"
+        }
+      },
+      {
+        "ticker": "JNJ",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "261.44",
+          "ytdStartPrice": "207.35",
+          "ytdPerformance": "26.09",
+          "week52High": "278.4300",
+          "week52Low": "186.0000"
+        },
+        "after": {
+          "currentPrice": "261.4400",
+          "ytdStartPrice": "207.3500",
+          "ytdPerformance": "26.09",
+          "week52High": "278.4300",
+          "week52Low": "186.0000"
+        }
+      },
+      {
+        "ticker": "TSLA",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "382.7",
+          "ytdStartPrice": "438.07",
+          "ytdPerformance": "-12.64",
+          "week52High": "489.8800",
+          "week52Low": "298.3200"
+        },
+        "after": {
+          "currentPrice": "382.7000",
+          "ytdStartPrice": "438.0700",
+          "ytdPerformance": "-12.64",
+          "week52High": "489.8800",
+          "week52Low": "298.3200"
+        }
+      },
+      {
+        "ticker": "NESN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "76.04",
+          "ytdStartPrice": "76.44",
+          "ytdPerformance": "-0.52",
+          "week52High": "86.1700",
+          "week52Low": "71.8500"
+        },
+        "after": {
+          "currentPrice": "76.0400",
+          "ytdStartPrice": "76.4400",
+          "ytdPerformance": "-0.52",
+          "week52High": "86.1700",
+          "week52Low": "71.8500"
+        }
+      },
+      {
+        "ticker": "GOOGL",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "351.66",
+          "ytdStartPrice": "315.15",
+          "ytdPerformance": "11.58",
+          "week52High": "402.6200",
+          "week52Low": "236.5700"
+        },
+        "after": {
+          "currentPrice": "351.6600",
+          "ytdStartPrice": "315.1500",
+          "ytdPerformance": "11.58",
+          "week52High": "402.6200",
+          "week52Low": "236.5700"
+        }
+      },
+      {
+        "ticker": "SU.PA",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "266.4",
+          "ytdStartPrice": "237.05",
+          "ytdPerformance": "12.38",
+          "week52High": "311.0000",
+          "week52Low": "222.3000"
+        },
+        "after": {
+          "currentPrice": "266.4000",
+          "ytdStartPrice": "237.0500",
+          "ytdPerformance": "12.38",
+          "week52High": "311.0000",
+          "week52Low": "222.3000"
+        }
+      },
+      {
+        "ticker": "MELI",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "1889.85",
+          "ytdStartPrice": "1973.70",
+          "ytdPerformance": "-4.25",
+          "week52High": "2360.7600",
+          "week52Low": "1546.8100"
+        },
+        "after": {
+          "currentPrice": "1889.8500",
+          "ytdStartPrice": "1973.7000",
+          "ytdPerformance": "-4.25",
+          "week52High": "2360.7600",
+          "week52Low": "1546.8100"
+        }
+      },
+      {
+        "ticker": "META",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "718.67",
+          "ytdStartPrice": "650.41",
+          "ytdPerformance": "10.49",
+          "week52High": "777.5900",
+          "week52Low": "525.7200"
+        },
+        "after": {
+          "currentPrice": "718.6700",
+          "ytdStartPrice": "650.4100",
+          "ytdPerformance": "10.49",
+          "week52High": "777.5900",
+          "week52Low": "525.7200"
+        }
+      },
+      {
+        "ticker": "SQN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "34.84",
+          "ytdStartPrice": "49.74",
+          "ytdPerformance": "-29.96",
+          "week52High": "54.3500",
+          "week52Low": "34.0400"
+        },
+        "after": {
+          "currentPrice": "34.8400",
+          "ytdStartPrice": "49.7400",
+          "ytdPerformance": "-29.96",
+          "week52High": "54.3500",
+          "week52Low": "34.0400"
+        }
+      },
+      {
+        "ticker": "NET",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "360.93",
+          "ytdStartPrice": "196.02",
+          "ytdPerformance": "84.13",
+          "week52High": "359.4900",
+          "week52Low": "160.1900"
+        },
+        "after": {
+          "currentPrice": "360.9300",
+          "ytdStartPrice": "196.0200",
+          "ytdPerformance": "84.13",
+          "week52High": "359.4900",
+          "week52Low": "160.1900"
+        }
+      },
+      {
+        "ticker": "STMN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "89.84",
+          "ytdStartPrice": "94.30",
+          "ytdPerformance": "-4.73",
+          "week52High": "108.6000",
+          "week52Low": "75.8000"
+        },
+        "after": {
+          "currentPrice": "89.8400",
+          "ytdStartPrice": "94.3000",
+          "ytdPerformance": "-4.73",
+          "week52High": "108.6000",
+          "week52Low": "75.8000"
+        }
+      },
+      {
+        "ticker": "BRK-B",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "515.62",
+          "ytdStartPrice": "496.85",
+          "ytdPerformance": "3.78",
+          "week52High": "529.4200",
+          "week52Low": "465.4000"
+        },
+        "after": {
+          "currentPrice": "515.6200",
+          "ytdStartPrice": "496.8500",
+          "ytdPerformance": "3.78",
+          "week52High": "529.4200",
+          "week52Low": "465.4000"
+        }
+      },
+      {
+        "ticker": "LISN.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "81800",
+          "ytdStartPrice": "115200.00",
+          "ytdPerformance": "-28.99",
+          "week52High": "131600.0000",
+          "week52Low": "78000.0000"
+        },
+        "after": {
+          "currentPrice": "81800.0000",
+          "ytdStartPrice": "115200.0000",
+          "ytdPerformance": "-28.99",
+          "week52High": "131600.0000",
+          "week52Low": "78000.0000"
+        }
+      },
+      {
+        "ticker": "SCMN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "629",
+          "ytdStartPrice": "579.00",
+          "ytdPerformance": "8.64",
+          "week52High": "726.5000",
+          "week52Low": "549.0000"
+        },
+        "after": {
+          "currentPrice": "629.0000",
+          "ytdStartPrice": "579.0000",
+          "ytdPerformance": "8.64",
+          "week52High": "726.5000",
+          "week52Low": "549.0000"
+        }
+      },
+      {
+        "ticker": "GALD.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "164.95",
+          "ytdStartPrice": "160.10",
+          "ytdPerformance": "3.03",
+          "week52High": "185.8000",
+          "week52Low": "136.3000"
+        },
+        "after": {
+          "currentPrice": "164.9500",
+          "ytdStartPrice": "160.1000",
+          "ytdPerformance": "3.03",
+          "week52High": "185.8000",
+          "week52Low": "136.3000"
+        }
+      },
+      {
+        "ticker": "TSM",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "453.31",
+          "ytdStartPrice": "319.61",
+          "ytdPerformance": "41.83",
+          "week52High": "485.8000",
+          "week52Low": "275.0600"
+        },
+        "after": {
+          "currentPrice": "453.3100",
+          "ytdStartPrice": "319.6100",
+          "ytdPerformance": "41.83",
+          "week52High": "485.8000",
+          "week52Low": "275.0600"
+        }
+      },
+      {
+        "ticker": "AVGO",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "361.54",
+          "ytdStartPrice": "347.62",
+          "ytdPerformance": "4.00",
+          "week52High": "481.5700",
+          "week52Low": "293.4100"
+        },
+        "after": {
+          "currentPrice": "361.5400",
+          "ytdStartPrice": "347.6200",
+          "ytdPerformance": "4.00",
+          "week52High": "481.5700",
+          "week52Low": "293.4100"
+        }
+      },
+      {
+        "ticker": "MOV.F",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "43.6269",
+          "ytdStartPrice": "54.49",
+          "ytdPerformance": "-19.93",
+          "week52High": "58.9690",
+          "week52Low": "43.2610"
+        },
+        "after": {
+          "currentPrice": "43.6269",
+          "ytdStartPrice": "54.4860",
+          "ytdPerformance": "-19.93",
+          "week52High": "58.9690",
+          "week52Low": "43.2610"
+        }
+      },
+      {
+        "ticker": "AMZN",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "262.43",
+          "ytdStartPrice": "226.50",
+          "ytdPerformance": "15.86",
+          "week52High": "284.0200",
+          "week52Low": "198.7900"
+        },
+        "after": {
+          "currentPrice": "262.4300",
+          "ytdStartPrice": "226.5000",
+          "ytdPerformance": "15.86",
+          "week52High": "284.0200",
+          "week52Low": "198.7900"
+        }
+      },
+      {
+        "ticker": "FHZN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "189.1",
+          "ytdStartPrice": "256.20",
+          "ytdPerformance": "-26.19",
+          "week52High": "264.2000",
+          "week52Low": "186.5000"
+        },
+        "after": {
+          "currentPrice": "189.1000",
+          "ytdStartPrice": "256.2000",
+          "ytdPerformance": "-26.19",
+          "week52High": "264.2000",
+          "week52Low": "186.5000"
+        }
+      },
+      {
+        "ticker": "ZURN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "576",
+          "ytdStartPrice": "599.60",
+          "ytdPerformance": "-3.94",
+          "week52High": "624.4000",
+          "week52Low": "529.6000"
+        },
+        "after": {
+          "currentPrice": "576.0000",
+          "ytdStartPrice": "599.6000",
+          "ytdPerformance": "-3.94",
+          "week52High": "624.4000",
+          "week52Low": "529.6000"
+        }
+      },
+      {
+        "ticker": "SREN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "144",
+          "ytdStartPrice": "130.15",
+          "ytdPerformance": "10.64",
+          "week52High": "153.8000",
+          "week52Low": "114.4500"
+        },
+        "after": {
+          "currentPrice": "144.0000",
+          "ytdStartPrice": "130.1500",
+          "ytdPerformance": "10.64",
+          "week52High": "153.8000",
+          "week52Low": "114.4500"
+        }
+      },
+      {
+        "ticker": "GALE.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "85.2",
+          "ytdStartPrice": "98.40",
+          "ytdPerformance": "-13.41",
+          "week52High": "102.8000",
+          "week52Low": "80.4500"
+        },
+        "after": {
+          "currentPrice": "85.2000",
+          "ytdStartPrice": "98.4000",
+          "ytdPerformance": "-13.41",
+          "week52High": "102.8000",
+          "week52Low": "80.4500"
+        }
+      },
+      {
+        "ticker": "MC.PA",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "380",
+          "ytdStartPrice": "641.80",
+          "ytdPerformance": "-40.79",
+          "week52High": "652.1000",
+          "week52Low": "378.5500"
+        },
+        "after": {
+          "currentPrice": "380.0000",
+          "ytdStartPrice": "641.8000",
+          "ytdPerformance": "-40.79",
+          "week52High": "652.1000",
+          "week52Low": "378.5500"
+        }
+      },
+      {
+        "ticker": "SLHN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "883.6",
+          "ytdStartPrice": "932.20",
+          "ytdPerformance": "-5.21",
+          "week52High": "957.8000",
+          "week52Low": "813.6000"
+        },
+        "after": {
+          "currentPrice": "883.6000",
+          "ytdStartPrice": "932.2000",
+          "ytdPerformance": "-5.21",
+          "week52High": "957.8000",
+          "week52Low": "813.6000"
+        }
+      },
+      {
+        "ticker": "HOLN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "63.5",
+          "ytdStartPrice": "78.14",
+          "ytdPerformance": "-18.74",
+          "week52High": "82.1000",
+          "week52Low": "61.8200"
+        },
+        "after": {
+          "currentPrice": "63.5000",
+          "ytdStartPrice": "78.1400",
+          "ytdPerformance": "-18.74",
+          "week52High": "82.1000",
+          "week52Low": "61.8200"
+        }
+      },
+      {
+        "ticker": "MSFT",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "535.07",
+          "ytdStartPrice": "472.94",
+          "ytdPerformance": "13.14",
+          "week52High": "542.0700",
+          "week52Low": "352.8300"
+        },
+        "after": {
+          "currentPrice": "535.0700",
+          "ytdStartPrice": "472.9400",
+          "ytdPerformance": "13.14",
+          "week52High": "542.0700",
+          "week52Low": "352.8300"
+        }
+      },
+      {
+        "ticker": "BKW.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "117.5",
+          "ytdStartPrice": "173.00",
+          "ytdPerformance": "-32.08",
+          "week52High": "183.5000",
+          "week52Low": "115.9000"
+        },
+        "after": {
+          "currentPrice": "117.5000",
+          "ytdStartPrice": "173.0000",
+          "ytdPerformance": "-32.08",
+          "week52High": "183.5000",
+          "week52Low": "115.9000"
+        }
+      },
+      {
+        "ticker": "CMBN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "86.2",
+          "ytdStartPrice": "101.90",
+          "ytdPerformance": "-15.41",
+          "week52High": "104.6000",
+          "week52Low": "84.5500"
+        },
+        "after": {
+          "currentPrice": "86.2000",
+          "ytdStartPrice": "101.9000",
+          "ytdPerformance": "-15.41",
+          "week52High": "104.6000",
+          "week52Low": "84.5500"
+        }
+      },
+      {
+        "ticker": "APP",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "277.04",
+          "ytdStartPrice": "618.32",
+          "ytdPerformance": "-55.19",
+          "week52High": "733.6000",
+          "week52Low": "268.2200"
+        },
+        "after": {
+          "currentPrice": "277.0400",
+          "ytdStartPrice": "618.3200",
+          "ytdPerformance": "-55.19",
+          "week52High": "733.6000",
+          "week52Low": "268.2200"
+        }
+      },
+      {
+        "ticker": "BE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "280.5",
+          "ytdStartPrice": "98.69",
+          "ytdPerformance": "184.22",
+          "week52High": "345.8500",
+          "week52Low": "76.9700"
+        },
+        "after": {
+          "currentPrice": "280.5000",
+          "ytdStartPrice": "98.6900",
+          "ytdPerformance": "184.22",
+          "week52High": "345.8500",
+          "week52Low": "76.9700"
+        }
+      },
+      {
+        "ticker": "DELL",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "586.06",
+          "ytdStartPrice": "127.80",
+          "ytdPerformance": "358.58",
+          "week52High": "588.4000",
+          "week52Low": "111.0700"
+        },
+        "after": {
+          "currentPrice": "586.0600",
+          "ytdStartPrice": "127.8000",
+          "ytdPerformance": "358.58",
+          "week52High": "588.4000",
+          "week52Low": "111.0700"
+        }
+      },
+      {
+        "ticker": "ALAB",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "342.21",
+          "ytdStartPrice": "179.56",
+          "ytdPerformance": "90.58",
+          "week52High": "483.0200",
+          "week52Low": "100.2700"
+        },
+        "after": {
+          "currentPrice": "342.2100",
+          "ytdStartPrice": "179.5600",
+          "ytdPerformance": "90.58",
+          "week52High": "483.0200",
+          "week52Low": "100.2700"
+        }
+      },
+      {
+        "ticker": "ANET",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "216.74",
+          "ytdStartPrice": "133.60",
+          "ytdPerformance": "62.23",
+          "week52High": "216.7400",
+          "week52Low": "116.1300"
+        },
+        "after": {
+          "currentPrice": "216.7400",
+          "ytdStartPrice": "133.6000",
+          "ytdPerformance": "62.23",
+          "week52High": "216.7400",
+          "week52Low": "116.1300"
+        }
+      },
+      {
+        "ticker": "AMD",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "608.1",
+          "ytdStartPrice": "223.47",
+          "ytdPerformance": "172.12",
+          "week52High": "649.4200",
+          "week52Low": "190.9500"
+        },
+        "after": {
+          "currentPrice": "608.1000",
+          "ytdStartPrice": "223.4700",
+          "ytdPerformance": "172.12",
+          "week52High": "649.4200",
+          "week52Low": "190.9500"
+        }
+      },
+      {
+        "ticker": "MU",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "1029",
+          "ytdStartPrice": "315.42",
+          "ytdPerformance": "226.23",
+          "week52High": "1213.5601",
+          "week52Low": "181.6000"
+        },
+        "after": {
+          "currentPrice": "1029.0000",
+          "ytdStartPrice": "315.4200",
+          "ytdPerformance": "226.23",
+          "week52High": "1213.5601",
+          "week52Low": "181.6000"
+        }
+      },
+      {
+        "ticker": "IREN",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "35.19",
+          "ytdStartPrice": "42.70",
+          "ytdPerformance": "-17.59",
+          "week52High": "76.4100",
+          "week52Low": "29.3100"
+        },
+        "after": {
+          "currentPrice": "35.1900",
+          "ytdStartPrice": "42.7000",
+          "ytdPerformance": "-17.59",
+          "week52High": "76.4100",
+          "week52Low": "29.3100"
+        }
+      },
+      {
+        "ticker": "CIFR",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "13.52",
+          "ytdStartPrice": "16.20",
+          "ytdPerformance": "-16.54",
+          "week52High": "29.1800",
+          "week52Low": "12.0150"
+        },
+        "after": {
+          "currentPrice": "13.5200",
+          "ytdStartPrice": "16.2000",
+          "ytdPerformance": "-16.54",
+          "week52High": "29.1800",
+          "week52Low": "12.0150"
+        }
+      },
+      {
+        "ticker": "MDB",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "385.93",
+          "ytdStartPrice": "399.65",
+          "ytdPerformance": "-3.43",
+          "week52High": "472.2900",
+          "week52Low": "225.9500"
+        },
+        "after": {
+          "currentPrice": "385.9300",
+          "ytdStartPrice": "399.6500",
+          "ytdPerformance": "-3.43",
+          "week52High": "472.2900",
+          "week52Low": "225.9500"
+        }
+      },
+      {
+        "ticker": "RMD",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "230.05",
+          "ytdStartPrice": "244.81",
+          "ytdPerformance": "-6.03",
+          "week52High": "277.8800",
+          "week52Low": "182.8200"
+        },
+        "after": {
+          "currentPrice": "230.0500",
+          "ytdStartPrice": "244.8100",
+          "ytdPerformance": "-6.03",
+          "week52High": "277.8800",
+          "week52Low": "182.8200"
+        }
+      },
+      {
+        "ticker": "ARM",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "266.28",
+          "ytdStartPrice": "114.73",
+          "ytdPerformance": "132.09",
+          "week52High": "439.4600",
+          "week52Low": "104.5500"
+        },
+        "after": {
+          "currentPrice": "266.2800",
+          "ytdStartPrice": "114.7300",
+          "ytdPerformance": "132.09",
+          "week52High": "439.4600",
+          "week52Low": "104.5500"
+        }
+      },
+      {
+        "ticker": "CRWV",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "82.08",
+          "ytdStartPrice": "79.32",
+          "ytdPerformance": "3.48",
+          "week52High": "143.0800",
+          "week52Low": "60.8200"
+        },
+        "after": {
+          "currentPrice": "82.0800",
+          "ytdStartPrice": "79.3200",
+          "ytdPerformance": "3.48",
+          "week52High": "143.0800",
+          "week52Low": "60.8200"
+        }
+      },
+      {
+        "ticker": "MRVL",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "275.28",
+          "ytdStartPrice": "89.39",
+          "ytdPerformance": "207.95",
+          "week52High": "316.4300",
+          "week52Low": "73.7300"
+        },
+        "after": {
+          "currentPrice": "275.2800",
+          "ytdStartPrice": "89.3900",
+          "ytdPerformance": "207.95",
+          "week52High": "316.4300",
+          "week52Low": "73.7300"
+        }
+      },
+      {
+        "ticker": "NTLA",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "13.07",
+          "ytdStartPrice": "9.21",
+          "ytdPerformance": "41.91",
+          "week52High": "27.9800",
+          "week52Low": "8.0400"
+        },
+        "after": {
+          "currentPrice": "13.0700",
+          "ytdStartPrice": "9.2100",
+          "ytdPerformance": "41.91",
+          "week52High": "27.9800",
+          "week52Low": "8.0400"
+        }
+      },
+      {
+        "ticker": "TEM",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "70.93",
+          "ytdStartPrice": "62.36",
+          "ytdPerformance": "13.74",
+          "week52High": "99.2800",
+          "week52Low": "41.5500"
+        },
+        "after": {
+          "currentPrice": "70.9300",
+          "ytdStartPrice": "62.3600",
+          "ytdPerformance": "13.74",
+          "week52High": "99.2800",
+          "week52Low": "41.5500"
+        }
+      },
+      {
+        "ticker": "HIMS",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "30.92",
+          "ytdStartPrice": "33.41",
+          "ytdPerformance": "-7.45",
+          "week52High": "62.7600",
+          "week52Low": "14.5200"
+        },
+        "after": {
+          "currentPrice": "30.9200",
+          "ytdStartPrice": "33.4100",
+          "ytdPerformance": "-7.45",
+          "week52High": "62.7600",
+          "week52Low": "14.5200"
+        }
+      },
+      {
+        "ticker": "VST",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "161.48",
+          "ytdStartPrice": "165.23",
+          "ytdPerformance": "-2.27",
+          "week52High": "210.8500",
+          "week52Low": "134.7100"
+        },
+        "after": {
+          "currentPrice": "161.4800",
+          "ytdStartPrice": "165.2300",
+          "ytdPerformance": "-2.27",
+          "week52High": "210.8500",
+          "week52Low": "134.7100"
+        }
+      },
+      {
+        "ticker": "REMX",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "60.97",
+          "ytdStartPrice": "76.78",
+          "ytdPerformance": "-20.59",
+          "week52High": "109.5300",
+          "week52Low": "60.5800"
+        },
+        "after": {
+          "currentPrice": "60.9700",
+          "ytdStartPrice": "76.7800",
+          "ytdPerformance": "-20.59",
+          "week52High": "109.5300",
+          "week52Low": "60.5800"
+        }
+      },
+      {
+        "ticker": "AXON",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "422.89",
+          "ytdStartPrice": "563.45",
+          "ytdPerformance": "-24.95",
+          "week52High": "759.4400",
+          "week52Low": "345.9400"
+        },
+        "after": {
+          "currentPrice": "422.8900",
+          "ytdStartPrice": "563.4500",
+          "ytdPerformance": "-24.95",
+          "week52High": "759.4400",
+          "week52Low": "345.9400"
+        }
+      },
+      {
+        "ticker": "PATH",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "13.48",
+          "ytdStartPrice": "15.88",
+          "ytdPerformance": "-15.11",
+          "week52High": "19.2900",
+          "week52Low": "9.3800"
+        },
+        "after": {
+          "currentPrice": "13.4800",
+          "ytdStartPrice": "15.8800",
+          "ytdPerformance": "-15.11",
+          "week52High": "19.2900",
+          "week52Low": "9.3800"
+        }
+      },
+      {
+        "ticker": "CSL",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "320.36",
+          "ytdStartPrice": "328.47",
+          "ytdPerformance": "-2.47",
+          "week52High": "418.7400",
+          "week52Low": "295.4100"
+        },
+        "after": {
+          "currentPrice": "320.3600",
+          "ytdStartPrice": "328.4700",
+          "ytdPerformance": "-2.47",
+          "week52High": "418.7400",
+          "week52Low": "295.4100"
+        }
+      },
+      {
+        "ticker": "TRMB",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "60.09",
+          "ytdStartPrice": "78.33",
+          "ytdPerformance": "-23.29",
+          "week52High": "83.5200",
+          "week52Low": "48.8700"
+        },
+        "after": {
+          "currentPrice": "60.0900",
+          "ytdStartPrice": "78.3300",
+          "ytdPerformance": "-23.29",
+          "week52High": "83.5200",
+          "week52Low": "48.8700"
+        }
+      },
+      {
+        "ticker": "SNPS",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "509.99",
+          "ytdStartPrice": "480.42",
+          "ytdPerformance": "6.16",
+          "week52High": "534.5600",
+          "week52Low": "367.7000"
+        },
+        "after": {
+          "currentPrice": "509.9900",
+          "ytdStartPrice": "480.4200",
+          "ytdPerformance": "6.16",
+          "week52High": "534.5600",
+          "week52Low": "367.7000"
+        }
+      },
+      {
+        "ticker": "SOFI",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "15.8",
+          "ytdStartPrice": "27.46",
+          "ytdPerformance": "-42.46",
+          "week52High": "32.2100",
+          "week52Low": "15.1500"
+        },
+        "after": {
+          "currentPrice": "15.8000",
+          "ytdStartPrice": "27.4600",
+          "ytdPerformance": "-42.46",
+          "week52High": "32.2100",
+          "week52Low": "15.1500"
+        }
+      },
+      {
+        "ticker": "CRWD",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "275.04",
+          "ytdStartPrice": "113.40",
+          "ytdPerformance": "142.55",
+          "week52High": "278.8600",
+          "week52Low": "87.5625"
+        },
+        "after": {
+          "currentPrice": "275.0400",
+          "ytdStartPrice": "113.3950",
+          "ytdPerformance": "142.55",
+          "week52High": "278.8600",
+          "week52Low": "87.5625"
+        }
+      },
+      {
+        "ticker": "PLTR",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "209.05",
+          "ytdStartPrice": "167.86",
+          "ytdPerformance": "24.54",
+          "week52High": "207.1800",
+          "week52Low": "107.2700"
+        },
+        "after": {
+          "currentPrice": "209.0500",
+          "ytdStartPrice": "167.8600",
+          "ytdPerformance": "24.54",
+          "week52High": "207.1800",
+          "week52Low": "107.2700"
+        }
+      },
+      {
+        "ticker": "MOH",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "196.93",
+          "ytdStartPrice": "178.46",
+          "ytdPerformance": "10.35",
+          "week52High": "242.8800",
+          "week52Low": "122.6500"
+        },
+        "after": {
+          "currentPrice": "196.9300",
+          "ytdStartPrice": "178.4600",
+          "ytdPerformance": "10.35",
+          "week52High": "242.8800",
+          "week52Low": "122.6500"
+        }
+      },
+      {
+        "ticker": "KLAC",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "195.57",
+          "ytdStartPrice": "127.45",
+          "ytdPerformance": "53.45",
+          "week52High": "301.7100",
+          "week52Low": "98.2750"
+        },
+        "after": {
+          "currentPrice": "195.5700",
+          "ytdStartPrice": "127.4470",
+          "ytdPerformance": "53.45",
+          "week52High": "301.7100",
+          "week52Low": "98.2750"
+        }
+      },
+      {
+        "ticker": "EOSE",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "2.52",
+          "ytdStartPrice": "12.97",
+          "ytdPerformance": "-80.57",
+          "week52High": "19.1900",
+          "week52Low": "2.7650"
+        },
+        "after": {
+          "currentPrice": "2.5200",
+          "ytdStartPrice": "12.9700",
+          "ytdPerformance": "-80.57",
+          "week52High": "19.1900",
+          "week52Low": "2.7650"
+        }
+      },
+      {
+        "ticker": "ABBN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "79.64",
+          "ytdStartPrice": "61.24",
+          "ytdPerformance": "30.05",
+          "week52High": "88.5600",
+          "week52Low": "54.1000"
+        },
+        "after": {
+          "currentPrice": "79.6400",
+          "ytdStartPrice": "61.2400",
+          "ytdPerformance": "30.05",
+          "week52High": "88.5600",
+          "week52Low": "54.1000"
+        }
+      },
+      {
+        "ticker": "NOVN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "119.1",
+          "ytdStartPrice": "108.50",
+          "ytdPerformance": "9.77",
+          "week52High": "131.3200",
+          "week52Low": "98.5000"
+        },
+        "after": {
+          "currentPrice": "119.1000",
+          "ytdStartPrice": "108.5000",
+          "ytdPerformance": "9.77",
+          "week52High": "131.3200",
+          "week52Low": "98.5000"
+        }
+      },
+      {
+        "ticker": "GEBN.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "528.6",
+          "ytdStartPrice": "616.00",
+          "ytdPerformance": "-14.19",
+          "week52High": "654.2000",
+          "week52Low": "493.4000"
+        },
+        "after": {
+          "currentPrice": "528.6000",
+          "ytdStartPrice": "616.0000",
+          "ytdPerformance": "-14.19",
+          "week52High": "654.2000",
+          "week52Low": "493.4000"
+        }
+      },
+      {
+        "ticker": "MSTR.US",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "154.34",
+          "ytdStartPrice": "157.16",
+          "ytdPerformance": "-1.79",
+          "week52High": "320.2900",
+          "week52Low": "82.3100"
+        },
+        "after": {
+          "currentPrice": "154.3400",
+          "ytdStartPrice": "157.1600",
+          "ytdPerformance": "-1.79",
+          "week52High": "320.2900",
+          "week52Low": "82.3100"
+        }
+      },
+      {
+        "ticker": "HBAN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "203.4",
+          "ytdStartPrice": "211.80",
+          "ytdPerformance": "-3.97",
+          "week52High": "225.2000",
+          "week52Low": "186.5000"
+        },
+        "after": {
+          "currentPrice": "203.4000",
+          "ytdStartPrice": "211.8000",
+          "ytdPerformance": "-3.97",
+          "week52High": "225.2000",
+          "week52Low": "186.5000"
+        }
+      },
+      {
+        "ticker": "SPY.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "778.57",
+          "ytdStartPrice": "683.17",
+          "ytdPerformance": "13.96",
+          "week52High": "779.0900",
+          "week52Low": "631.9700"
+        },
+        "after": {
+          "currentPrice": "778.5700",
+          "ytdStartPrice": "683.1700",
+          "ytdPerformance": "13.96",
+          "week52High": "779.0900",
+          "week52Low": "631.9700"
+        }
+      },
+      {
+        "ticker": "VOO.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "715.59",
+          "ytdStartPrice": "628.30",
+          "ytdPerformance": "13.89",
+          "week52High": "716.2000",
+          "week52Low": "580.9300"
+        },
+        "after": {
+          "currentPrice": "715.5900",
+          "ytdStartPrice": "628.3000",
+          "ytdPerformance": "13.89",
+          "week52High": "716.2000",
+          "week52Low": "580.9300"
+        }
+      },
+      {
+        "ticker": "QQQ.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "751.27",
+          "ytdStartPrice": "613.12",
+          "ytdPerformance": "22.53",
+          "week52High": "759.6600",
+          "week52Low": "558.2800"
+        },
+        "after": {
+          "currentPrice": "751.2700",
+          "ytdStartPrice": "613.1200",
+          "ytdPerformance": "22.53",
+          "week52High": "759.6600",
+          "week52Low": "558.2800"
+        }
+      },
+      {
+        "ticker": "IWM.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "278.94",
+          "ytdStartPrice": "248.78",
+          "ytdPerformance": "12.12",
+          "week52High": "305.0900",
+          "week52Low": "229.1100"
+        },
+        "after": {
+          "currentPrice": "278.9400",
+          "ytdStartPrice": "248.7800",
+          "ytdPerformance": "12.12",
+          "week52High": "305.0900",
+          "week52Low": "229.1100"
+        }
+      },
+      {
+        "ticker": "VTI.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "381.94",
+          "ytdStartPrice": "336.31",
+          "ytdPerformance": "13.57",
+          "week52High": "384.3000",
+          "week52Low": "311.6800"
+        },
+        "after": {
+          "currentPrice": "381.9400",
+          "ytdStartPrice": "336.3100",
+          "ytdPerformance": "13.57",
+          "week52High": "384.3000",
+          "week52Low": "311.6800"
+        }
+      },
+      {
+        "ticker": "URTH.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "209.06",
+          "ytdStartPrice": "186.51",
+          "ytdPerformance": "12.09",
+          "week52High": "211.5100",
+          "week52Low": "174.9400"
+        },
+        "after": {
+          "currentPrice": "209.0600",
+          "ytdStartPrice": "186.5100",
+          "ytdPerformance": "12.09",
+          "week52High": "211.5100",
+          "week52Low": "174.9400"
+        }
+      },
+      {
+        "ticker": "VWRL.L",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "141.3",
+          "ytdStartPrice": "123.41",
+          "ytdPerformance": "14.50",
+          "week52High": "141.6800",
+          "week52Low": "119.0200"
+        },
+        "after": {
+          "currentPrice": "141.3000",
+          "ytdStartPrice": "123.4100",
+          "ytdPerformance": "14.50",
+          "week52High": "141.6800",
+          "week52Low": "119.0200"
+        }
+      },
+      {
+        "ticker": "ACWI.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "160.9",
+          "ytdStartPrice": "142.49",
+          "ytdPerformance": "12.92",
+          "week52High": "162.4800",
+          "week52Low": "134.1900"
+        },
+        "after": {
+          "currentPrice": "160.9000",
+          "ytdStartPrice": "142.4900",
+          "ytdPerformance": "12.92",
+          "week52High": "162.4800",
+          "week52Low": "134.1900"
+        }
+      },
+      {
+        "ticker": "VWO.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "59.76",
+          "ytdStartPrice": "54.93",
+          "ytdPerformance": "8.79",
+          "week52High": "61.4400",
+          "week52Low": "52.4200"
+        },
+        "after": {
+          "currentPrice": "59.7600",
+          "ytdStartPrice": "54.9300",
+          "ytdPerformance": "8.79",
+          "week52High": "61.4400",
+          "week52Low": "52.4200"
+        }
+      },
+      {
+        "ticker": "EEM.US",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "66.8",
+          "ytdStartPrice": "56.24",
+          "ytdPerformance": "18.78",
+          "week52High": "71.2100",
+          "week52Low": "51.9400"
+        },
+        "after": {
+          "currentPrice": "66.8000",
+          "ytdStartPrice": "56.2400",
+          "ytdPerformance": "18.78",
+          "week52High": "71.2100",
+          "week52Low": "51.9400"
+        }
+      },
+      {
+        "ticker": "EWL.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "59.75",
+          "ytdStartPrice": "60.34",
+          "ytdPerformance": "-0.98",
+          "week52High": "65.0800",
+          "week52Low": "55.0600"
+        },
+        "after": {
+          "currentPrice": "59.7500",
+          "ytdStartPrice": "60.3400",
+          "ytdPerformance": "-0.98",
+          "week52High": "65.0800",
+          "week52Low": "55.0600"
+        }
+      },
+      {
+        "ticker": "EXSA.DE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "62.59",
+          "ytdStartPrice": "59.03",
+          "ytdPerformance": "6.03",
+          "week52High": "65.9500",
+          "week52Low": "55.7400"
+        },
+        "after": {
+          "currentPrice": "62.5900",
+          "ytdStartPrice": "59.0300",
+          "ytdPerformance": "6.03",
+          "week52High": "65.9500",
+          "week52Low": "55.7400"
+        }
+      },
+      {
+        "ticker": "VGK.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "86.03",
+          "ytdStartPrice": "84.56",
+          "ytdPerformance": "1.74",
+          "week52High": "93.1900",
+          "week52Low": "77.9000"
+        },
+        "after": {
+          "currentPrice": "86.0300",
+          "ytdStartPrice": "84.5600",
+          "ytdPerformance": "1.74",
+          "week52High": "93.1900",
+          "week52Low": "77.9000"
+        }
+      },
+      {
+        "ticker": "XLK.US",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "198.78",
+          "ytdStartPrice": "144.30",
+          "ytdPerformance": "37.75",
+          "week52High": "202.0000",
+          "week52Low": "127.5000"
+        },
+        "after": {
+          "currentPrice": "198.7800",
+          "ytdStartPrice": "144.3000",
+          "ytdPerformance": "37.75",
+          "week52High": "202.0000",
+          "week52Low": "127.5000"
+        }
+      },
+      {
+        "ticker": "XLV.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "170.81",
+          "ytdStartPrice": "155.51",
+          "ytdPerformance": "9.84",
+          "week52High": "175.6800",
+          "week52Low": "141.9500"
+        },
+        "after": {
+          "currentPrice": "170.8100",
+          "ytdStartPrice": "155.5100",
+          "ytdPerformance": "9.84",
+          "week52High": "175.6800",
+          "week52Low": "141.9500"
+        }
+      },
+      {
+        "ticker": "XLF.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "54.73",
+          "ytdStartPrice": "54.93",
+          "ytdPerformance": "-0.36",
+          "week52High": "58.5600",
+          "week52Low": "47.8100"
+        },
+        "after": {
+          "currentPrice": "54.7300",
+          "ytdStartPrice": "54.9300",
+          "ytdPerformance": "-0.36",
+          "week52High": "58.5600",
+          "week52Low": "47.8100"
+        }
+      },
+      {
+        "ticker": "XLE.US",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "65.08",
+          "ytdStartPrice": "45.65",
+          "ytdPerformance": "42.56",
+          "week52High": "65.9300",
+          "week52Low": "42.6100"
+        },
+        "after": {
+          "currentPrice": "65.0800",
+          "ytdStartPrice": "45.6500",
+          "ytdPerformance": "42.56",
+          "week52High": "65.9300",
+          "week52Low": "42.6100"
+        }
+      },
+      {
+        "ticker": "XLY.US",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "112.85",
+          "ytdStartPrice": "118.35",
+          "ytdPerformance": "-4.65",
+          "week52High": "124.5200",
+          "week52Low": "105.6600"
+        },
+        "after": {
+          "currentPrice": "112.8500",
+          "ytdStartPrice": "118.3500",
+          "ytdPerformance": "-4.65",
+          "week52High": "124.5200",
+          "week52Low": "105.6600"
+        }
+      },
+      {
+        "ticker": "AGG.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "94.59",
+          "ytdStartPrice": "99.85",
+          "ytdPerformance": "-5.27",
+          "week52High": "101.4000",
+          "week52Low": "94.1300"
+        },
+        "after": {
+          "currentPrice": "94.5900",
+          "ytdStartPrice": "99.8500",
+          "ytdPerformance": "-5.27",
+          "week52High": "101.4000",
+          "week52Low": "94.1300"
+        }
+      },
+      {
+        "ticker": "BND.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "70.22",
+          "ytdStartPrice": "74.04",
+          "ytdPerformance": "-5.16",
+          "week52High": "75.1700",
+          "week52Low": "69.8800"
+        },
+        "after": {
+          "currentPrice": "70.2200",
+          "ytdStartPrice": "74.0400",
+          "ytdPerformance": "-5.16",
+          "week52High": "75.1700",
+          "week52Low": "69.8800"
+        }
+      },
+      {
+        "ticker": "GLD.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "384.58",
+          "ytdStartPrice": "398.28",
+          "ytdPerformance": "-3.44",
+          "week52High": "495.9000",
+          "week52Low": "362.3200"
+        },
+        "after": {
+          "currentPrice": "384.5800",
+          "ytdStartPrice": "398.2800",
+          "ytdPerformance": "-3.44",
+          "week52High": "495.9000",
+          "week52Low": "362.3200"
+        }
+      },
+      {
+        "ticker": "SLV.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "54.78",
+          "ytdStartPrice": "65.75",
+          "ytdPerformance": "-16.68",
+          "week52High": "105.6000",
+          "week52Low": "42.4000"
+        },
+        "after": {
+          "currentPrice": "54.7800",
+          "ytdStartPrice": "65.7500",
+          "ytdPerformance": "-16.68",
+          "week52High": "105.6000",
+          "week52Low": "42.4000"
+        }
+      },
+      {
+        "ticker": "CHSPI.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "165.7",
+          "ytdStartPrice": "159.04",
+          "ytdPerformance": "4.19",
+          "week52High": "174.4800",
+          "week52Low": "148.1400"
+        },
+        "after": {
+          "currentPrice": "165.7000",
+          "ytdStartPrice": "159.0400",
+          "ytdPerformance": "4.19",
+          "week52High": "174.4800",
+          "week52Low": "148.1400"
+        }
+      },
+      {
+        "ticker": "SPICHA.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "88.02",
+          "ytdStartPrice": "84.37",
+          "ytdPerformance": "4.33",
+          "week52High": "93.9000",
+          "week52Low": "78.5700"
+        },
+        "after": {
+          "currentPrice": "88.0200",
+          "ytdStartPrice": "84.3700",
+          "ytdPerformance": "4.33",
+          "week52High": "93.9000",
+          "week52Low": "78.5700"
+        }
+      },
+      {
+        "ticker": "CHDVD.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "185.42",
+          "ytdStartPrice": "179.74",
+          "ytdPerformance": "3.16",
+          "week52High": "195.7800",
+          "week52Low": "168.5000"
+        },
+        "after": {
+          "currentPrice": "185.4200",
+          "ytdStartPrice": "179.7400",
+          "ytdPerformance": "3.16",
+          "week52High": "195.7800",
+          "week52Low": "168.5000"
+        }
+      },
+      {
+        "ticker": "ADEN.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "23.84",
+          "ytdStartPrice": "23.46",
+          "ytdPerformance": "1.62",
+          "week52High": "25.9400",
+          "week52Low": "14.8600"
+        },
+        "after": {
+          "currentPrice": "23.8400",
+          "ytdStartPrice": "23.4600",
+          "ytdPerformance": "1.62",
+          "week52High": "25.9400",
+          "week52Low": "14.8600"
+        }
+      },
+      {
+        "ticker": "AMGN",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "414.87",
+          "ytdStartPrice": "327.64",
+          "ytdPerformance": "26.62",
+          "week52High": "444.1200",
+          "week52Low": "290.1300"
+        },
+        "after": {
+          "currentPrice": "414.8700",
+          "ytdStartPrice": "327.6400",
+          "ytdPerformance": "26.62",
+          "week52High": "444.1200",
+          "week52Low": "290.1300"
+        }
+      },
+      {
+        "ticker": "AAPL.US",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "336.64",
+          "ytdStartPrice": "271.01",
+          "ytdPerformance": "24.22",
+          "week52High": "341.0700",
+          "week52Low": "245.2700"
+        },
+        "after": {
+          "currentPrice": "336.6400",
+          "ytdStartPrice": "271.0100",
+          "ytdPerformance": "24.22",
+          "week52High": "341.0700",
+          "week52Low": "245.2700"
+        }
+      },
+      {
+        "ticker": "PINS.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "21.4",
+          "ytdStartPrice": "26.56",
+          "ytdPerformance": "-19.43",
+          "week52High": "35.2400",
+          "week52Low": "15.4200"
+        },
+        "after": {
+          "currentPrice": "21.4000",
+          "ytdStartPrice": "26.5600",
+          "ytdPerformance": "-19.43",
+          "week52High": "35.2400",
+          "week52Low": "15.4200"
+        }
+      },
+      {
+        "ticker": "SIKA.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "173.8",
+          "ytdStartPrice": "163.70",
+          "ytdPerformance": "6.17",
+          "week52High": "195.5000",
+          "week52Low": "126.3500"
+        },
+        "after": {
+          "currentPrice": "173.8000",
+          "ytdStartPrice": "163.7000",
+          "ytdPerformance": "6.17",
+          "week52High": "195.5000",
+          "week52Low": "126.3500"
+        }
+      },
+      {
+        "ticker": "EMR.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "161.83",
+          "ytdStartPrice": "135.82",
+          "ytdPerformance": "19.15",
+          "week52High": "164.3800",
+          "week52Low": "123.3000"
+        },
+        "after": {
+          "currentPrice": "161.8300",
+          "ytdStartPrice": "135.8200",
+          "ytdPerformance": "19.15",
+          "week52High": "164.3800",
+          "week52Low": "123.3000"
+        }
+      },
+      {
+        "ticker": "LOGN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "81.98",
+          "ytdStartPrice": "79.48",
+          "ytdPerformance": "3.15",
+          "week52High": "101.1500",
+          "week52Low": "66.6400"
+        },
+        "after": {
+          "currentPrice": "81.9800",
+          "ytdStartPrice": "79.4800",
+          "ytdPerformance": "3.15",
+          "week52High": "101.1500",
+          "week52Low": "66.6400"
+        }
+      },
+      {
+        "ticker": "GIVN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "3440",
+          "ytdStartPrice": "3106.00",
+          "ytdPerformance": "10.75",
+          "week52High": "3585.0000",
+          "week52Low": "2627.0000"
+        },
+        "after": {
+          "currentPrice": "3440.0000",
+          "ytdStartPrice": "3106.0000",
+          "ytdPerformance": "10.75",
+          "week52High": "3585.0000",
+          "week52Low": "2627.0000"
+        }
+      },
+      {
+        "ticker": "LRCX",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "318.84",
+          "ytdStartPrice": "185.06",
+          "ytdPerformance": "72.29",
+          "week52High": "433.3300",
+          "week52Low": "131.3700"
+        },
+        "after": {
+          "currentPrice": "318.8400",
+          "ytdStartPrice": "185.0600",
+          "ytdPerformance": "72.29",
+          "week52High": "433.3300",
+          "week52Low": "131.3700"
+        }
+      },
+      {
+        "ticker": "KNIN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "228.5",
+          "ytdStartPrice": "174.00",
+          "ytdPerformance": "31.32",
+          "week52High": "231.2000",
+          "week52Low": "148.7500"
+        },
+        "after": {
+          "currentPrice": "228.5000",
+          "ytdStartPrice": "174.0000",
+          "ytdPerformance": "31.32",
+          "week52High": "231.2000",
+          "week52Low": "148.7500"
+        }
+      },
+      {
+        "ticker": "BAER.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "70.84",
+          "ytdStartPrice": "65.78",
+          "ytdPerformance": "7.69",
+          "week52High": "76.7600",
+          "week52Low": "52.5200"
+        },
+        "after": {
+          "currentPrice": "70.8400",
+          "ytdStartPrice": "65.7800",
+          "ytdPerformance": "7.69",
+          "week52High": "76.7600",
+          "week52Low": "52.5200"
+        }
+      },
+      {
+        "ticker": "GF.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "58.1",
+          "ytdStartPrice": "53.95",
+          "ytdPerformance": "7.69",
+          "week52High": "61.1000",
+          "week52Low": "39.6600"
+        },
+        "after": {
+          "currentPrice": "58.1000",
+          "ytdStartPrice": "53.9500",
+          "ytdPerformance": "7.69",
+          "week52High": "61.1000",
+          "week52Low": "39.6600"
+        }
+      },
+      {
+        "ticker": "VONN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "89.3",
+          "ytdStartPrice": "66.00",
+          "ytdPerformance": "35.30",
+          "week52High": "94.2000",
+          "week52Low": "58.2000"
+        },
+        "after": {
+          "currentPrice": "89.3000",
+          "ytdStartPrice": "66.0000",
+          "ytdPerformance": "35.30",
+          "week52High": "94.2000",
+          "week52Low": "58.2000"
+        }
+      },
+      {
+        "ticker": "AUTN.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "124.2",
+          "ytdStartPrice": "172.00",
+          "ytdPerformance": "-27.79",
+          "week52High": "172.0000",
+          "week52Low": "104.4000"
+        },
+        "after": {
+          "currentPrice": "124.2000",
+          "ytdStartPrice": "172.0000",
+          "ytdPerformance": "-27.79",
+          "week52High": "172.0000",
+          "week52Low": "104.4000"
+        }
+      },
+      {
+        "ticker": "RO.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "366.6",
+          "ytdStartPrice": "333.20",
+          "ytdPerformance": "10.02",
+          "week52High": "382.2000",
+          "week52Low": "271.8000"
+        },
+        "after": {
+          "currentPrice": "366.6000",
+          "ytdStartPrice": "333.2000",
+          "ytdPerformance": "10.02",
+          "week52High": "382.2000",
+          "week52Low": "271.8000"
+        }
+      },
+      {
+        "ticker": "UBSG.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "39.9",
+          "ytdStartPrice": "38.17",
+          "ytdPerformance": "4.53",
+          "week52High": "45.0000",
+          "week52Low": "29.0800"
+        },
+        "after": {
+          "currentPrice": "39.9000",
+          "ytdStartPrice": "38.1700",
+          "ytdPerformance": "4.53",
+          "week52High": "45.0000",
+          "week52Low": "29.0800"
+        }
+      },
+      {
+        "ticker": "LVMUY",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "85.45",
+          "ytdStartPrice": "150.84",
+          "ytdPerformance": "-43.35",
+          "week52High": "152.0700",
+          "week52Low": "85.1500"
+        },
+        "after": {
+          "currentPrice": "85.4500",
+          "ytdStartPrice": "150.8400",
+          "ytdPerformance": "-43.35",
+          "week52High": "152.0700",
+          "week52Low": "85.1500"
+        }
+      },
+      {
+        "ticker": "AAPL",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "336.64",
+          "ytdStartPrice": "271.01",
+          "ytdPerformance": "24.22",
+          "week52High": "341.0700",
+          "week52Low": "245.2700"
+        },
+        "after": {
+          "currentPrice": "336.6400",
+          "ytdStartPrice": "271.0100",
+          "ytdPerformance": "24.22",
+          "week52High": "341.0700",
+          "week52Low": "245.2700"
+        }
+      },
+      {
+        "ticker": "UNH",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "379.3",
+          "ytdStartPrice": "336.40",
+          "ytdPerformance": "12.75",
+          "week52High": "436.3500",
+          "week52Low": "259.0200"
+        },
+        "after": {
+          "currentPrice": "379.3000",
+          "ytdStartPrice": "336.4000",
+          "ytdPerformance": "12.75",
+          "week52High": "436.3500",
+          "week52Low": "259.0200"
+        }
+      },
+      {
+        "ticker": "V",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "385.45",
+          "ytdStartPrice": "346.48",
+          "ytdPerformance": "11.25",
+          "week52High": "384.1400",
+          "week52Low": "295.5200"
+        },
+        "after": {
+          "currentPrice": "385.4500",
+          "ytdStartPrice": "346.4800",
+          "ytdPerformance": "11.25",
+          "week52High": "384.1400",
+          "week52Low": "295.5200"
+        }
+      },
+      {
+        "ticker": "PG",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "151.23",
+          "ytdStartPrice": "141.79",
+          "ytdPerformance": "6.66",
+          "week52High": "167.2000",
+          "week52Low": "138.0400"
+        },
+        "after": {
+          "currentPrice": "151.2300",
+          "ytdStartPrice": "141.7900",
+          "ytdPerformance": "6.66",
+          "week52High": "167.2000",
+          "week52Low": "138.0400"
+        }
+      },
+      {
+        "ticker": "HD",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "290.74",
+          "ytdStartPrice": "345.82",
+          "ytdPerformance": "-15.93",
+          "week52High": "391.9000",
+          "week52Low": "281.1500"
+        },
+        "after": {
+          "currentPrice": "290.7400",
+          "ytdStartPrice": "345.8200",
+          "ytdPerformance": "-15.93",
+          "week52High": "391.9000",
+          "week52Low": "281.1500"
+        }
+      },
+      {
+        "ticker": "LLY",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "1179.27",
+          "ytdStartPrice": "1080.36",
+          "ytdPerformance": "9.16",
+          "week52High": "1280.3400",
+          "week52Low": "799.5700"
+        },
+        "after": {
+          "currentPrice": "1179.2700",
+          "ytdStartPrice": "1080.3600",
+          "ytdPerformance": "9.16",
+          "week52High": "1280.3400",
+          "week52Low": "799.5700"
+        }
+      },
+      {
+        "ticker": "GE",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "308.2",
+          "ytdStartPrice": "320.75",
+          "ytdPerformance": "-3.91",
+          "week52High": "381.2200",
+          "week52Low": "273.2500"
+        },
+        "after": {
+          "currentPrice": "308.2000",
+          "ytdStartPrice": "320.7500",
+          "ytdPerformance": "-3.91",
+          "week52High": "381.2200",
+          "week52Low": "273.2500"
+        }
+      },
+      {
+        "ticker": "ORCL",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "141.4",
+          "ytdStartPrice": "195.71",
+          "ytdPerformance": "-27.75",
+          "week52High": "313.0000",
+          "week52Low": "114.9900"
+        },
+        "after": {
+          "currentPrice": "141.4000",
+          "ytdStartPrice": "195.7100",
+          "ytdPerformance": "-27.75",
+          "week52High": "313.0000",
+          "week52Low": "114.9900"
+        }
+      },
+      {
+        "ticker": "NOW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "140.86",
+          "ytdStartPrice": "147.45",
+          "ytdPerformance": "-4.47",
+          "week52High": "189.2580",
+          "week52Low": "83.0000"
+        },
+        "after": {
+          "currentPrice": "140.8600",
+          "ytdStartPrice": "147.4500",
+          "ytdPerformance": "-4.47",
+          "week52High": "189.2580",
+          "week52Low": "83.0000"
+        }
+      },
+      {
+        "ticker": "ISRG",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "423.96",
+          "ytdStartPrice": "561.98",
+          "ytdPerformance": "-24.56",
+          "week52High": "592.8500",
+          "week52Low": "332.0200"
+        },
+        "after": {
+          "currentPrice": "423.9600",
+          "ytdStartPrice": "561.9800",
+          "ytdPerformance": "-24.56",
+          "week52High": "592.8500",
+          "week52Low": "332.0200"
+        }
+      },
+      {
+        "ticker": "PANW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "418.78",
+          "ytdStartPrice": "179.37",
+          "ytdPerformance": "133.47",
+          "week52High": "419.9100",
+          "week52Low": "141.6700"
+        },
+        "after": {
+          "currentPrice": "418.7800",
+          "ytdStartPrice": "179.3700",
+          "ytdPerformance": "133.47",
+          "week52High": "419.9100",
+          "week52Low": "141.6700"
+        }
+      },
+      {
+        "ticker": "CEG",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "298.07",
+          "ytdStartPrice": "366.25",
+          "ytdPerformance": "-18.62",
+          "week52High": "403.9500",
+          "week52Low": "236.5000"
+        },
+        "after": {
+          "currentPrice": "298.0700",
+          "ytdStartPrice": "366.2500",
+          "ytdPerformance": "-18.62",
+          "week52High": "403.9500",
+          "week52Low": "236.5000"
+        }
+      },
+      {
+        "ticker": "TRGP",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "286.7",
+          "ytdStartPrice": "186.77",
+          "ytdPerformance": "53.50",
+          "week52High": "302.2500",
+          "week52Low": "146.3000"
+        },
+        "after": {
+          "currentPrice": "286.7000",
+          "ytdStartPrice": "186.7700",
+          "ytdPerformance": "53.50",
+          "week52High": "302.2500",
+          "week52Low": "146.3000"
+        }
+      },
+      {
+        "ticker": "HWM",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "225.26",
+          "ytdStartPrice": "211.71",
+          "ytdPerformance": "6.40",
+          "week52High": "292.6500",
+          "week52Low": "184.0900"
+        },
+        "after": {
+          "currentPrice": "225.2600",
+          "ytdStartPrice": "211.7100",
+          "ytdPerformance": "6.40",
+          "week52High": "292.6500",
+          "week52Low": "184.0900"
+        }
+      },
+      {
+        "ticker": "DECK",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "82.89",
+          "ytdStartPrice": "106.79",
+          "ytdPerformance": "-22.38",
+          "week52High": "120.9400",
+          "week52Low": "77.5100"
+        },
+        "after": {
+          "currentPrice": "82.8900",
+          "ytdStartPrice": "106.7900",
+          "ytdPerformance": "-22.38",
+          "week52High": "120.9400",
+          "week52Low": "77.5100"
+        }
+      },
+      {
+        "ticker": "O",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "54.18",
+          "ytdStartPrice": "57.31",
+          "ytdPerformance": "-5.46",
+          "week52High": "67.5600",
+          "week52Low": "53.3500"
+        },
+        "after": {
+          "currentPrice": "54.1800",
+          "ytdStartPrice": "57.3100",
+          "ytdPerformance": "-5.46",
+          "week52High": "67.5600",
+          "week52Low": "53.3500"
+        }
+      },
+      {
+        "ticker": "SCHD",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "33.04",
+          "ytdStartPrice": "27.73",
+          "ytdPerformance": "19.15",
+          "week52High": "35.2100",
+          "week52Low": "26.4400"
+        },
+        "after": {
+          "currentPrice": "33.0400",
+          "ytdStartPrice": "27.7300",
+          "ytdPerformance": "19.15",
+          "week52High": "35.2100",
+          "week52Low": "26.4400"
+        }
+      },
+      {
+        "ticker": "VYM",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "158.75",
+          "ytdStartPrice": "144.76",
+          "ytdPerformance": "9.66",
+          "week52High": "167.0300",
+          "week52Low": "137.4700"
+        },
+        "after": {
+          "currentPrice": "158.7500",
+          "ytdStartPrice": "144.7600",
+          "ytdPerformance": "9.66",
+          "week52High": "167.0300",
+          "week52Low": "137.4700"
+        }
+      },
+      {
+        "ticker": "JEPI",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "56.77",
+          "ytdStartPrice": "57.32",
+          "ytdPerformance": "-0.96",
+          "week52High": "59.8800",
+          "week52Low": "55.2900"
+        },
+        "after": {
+          "currentPrice": "56.7700",
+          "ytdStartPrice": "57.3200",
+          "ytdPerformance": "-0.96",
+          "week52High": "59.8800",
+          "week52Low": "55.2900"
+        }
+      },
+      {
+        "ticker": "NOBL",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "55.065",
+          "ytdStartPrice": "52.23",
+          "ytdPerformance": "5.43",
+          "week52High": "59.0700",
+          "week52Low": "50.4000"
+        },
+        "after": {
+          "currentPrice": "55.0650",
+          "ytdStartPrice": "52.2300",
+          "ytdPerformance": "5.43",
+          "week52High": "59.0700",
+          "week52Low": "50.4000"
+        }
+      },
+      {
+        "ticker": "T",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "22.18",
+          "ytdStartPrice": "24.56",
+          "ytdPerformance": "-9.69",
+          "week52High": "29.1000",
+          "week52Low": "20.4800"
+        },
+        "after": {
+          "currentPrice": "22.1800",
+          "ytdStartPrice": "24.5600",
+          "ytdPerformance": "-9.69",
+          "week52High": "29.1000",
+          "week52Low": "20.4800"
+        }
+      },
+      {
+        "ticker": "VZ",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "41.65",
+          "ytdStartPrice": "40.52",
+          "ytdPerformance": "2.79",
+          "week52High": "51.4500",
+          "week52Low": "38.4000"
+        },
+        "after": {
+          "currentPrice": "41.6500",
+          "ytdStartPrice": "40.5200",
+          "ytdPerformance": "2.79",
+          "week52High": "51.4500",
+          "week52Low": "38.4000"
+        }
+      },
+      {
+        "ticker": "MO",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "71.68",
+          "ytdStartPrice": "57.31",
+          "ytdPerformance": "25.07",
+          "week52High": "74.9200",
+          "week52Low": "54.7200"
+        },
+        "after": {
+          "currentPrice": "71.6800",
+          "ytdStartPrice": "57.3100",
+          "ytdPerformance": "25.07",
+          "week52High": "74.9200",
+          "week52Low": "54.7200"
+        }
+      },
+      {
+        "ticker": "PM",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "201.19",
+          "ytdStartPrice": "160.30",
+          "ytdPerformance": "25.51",
+          "week52High": "200.5000",
+          "week52Low": "144.3300"
+        },
+        "after": {
+          "currentPrice": "201.1900",
+          "ytdStartPrice": "160.3000",
+          "ytdPerformance": "25.51",
+          "week52High": "200.5000",
+          "week52Low": "144.3300"
+        }
+      },
+      {
+        "ticker": "BTI",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "55.5",
+          "ytdStartPrice": "56.55",
+          "ytdPerformance": "-1.86",
+          "week52High": "66.7000",
+          "week52Low": "50.3900"
+        },
+        "after": {
+          "currentPrice": "55.5000",
+          "ytdStartPrice": "56.5500",
+          "ytdPerformance": "-1.86",
+          "week52High": "66.7000",
+          "week52Low": "50.3900"
+        }
+      },
+      {
+        "ticker": "LONN.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "572.2",
+          "ytdStartPrice": "535.60",
+          "ytdPerformance": "6.83",
+          "week52High": "593.8000",
+          "week52Low": "466.7000"
+        },
+        "after": {
+          "currentPrice": "572.2000",
+          "ytdStartPrice": "535.6000",
+          "ytdPerformance": "6.83",
+          "week52High": "593.8000",
+          "week52Low": "466.7000"
+        }
+      },
+      {
+        "ticker": "HOOD",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "109.02",
+          "ytdStartPrice": "115.21",
+          "ytdPerformance": "-5.37",
+          "week52High": "152.4600",
+          "week52Low": "65.1600"
+        },
+        "after": {
+          "currentPrice": "109.0200",
+          "ytdStartPrice": "115.2100",
+          "ytdPerformance": "-5.37",
+          "week52High": "152.4600",
+          "week52Low": "65.1600"
+        }
+      },
+      {
+        "ticker": "STMPA.PA",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "46.545",
+          "ytdStartPrice": "23.44",
+          "ytdPerformance": "98.57",
+          "week52High": "69.3900",
+          "week52Low": "18.8100"
+        },
+        "after": {
+          "currentPrice": "46.5450",
+          "ytdStartPrice": "23.4400",
+          "ytdPerformance": "98.57",
+          "week52High": "69.3900",
+          "week52Low": "18.8100"
+        }
+      },
+      {
+        "ticker": "MTX.DE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "348.9",
+          "ytdStartPrice": "371.20",
+          "ytdPerformance": "-6.01",
+          "week52High": "402.0000",
+          "week52Low": "273.1000"
+        },
+        "after": {
+          "currentPrice": "348.9000",
+          "ytdStartPrice": "371.2000",
+          "ytdPerformance": "-6.01",
+          "week52High": "402.0000",
+          "week52Low": "273.1000"
+        }
+      },
+      {
+        "ticker": "IBM",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "227.13",
+          "ytdStartPrice": "291.50",
+          "ytdPerformance": "-22.08",
+          "week52High": "329.2300",
+          "week52Low": "205.7700"
+        },
+        "after": {
+          "currentPrice": "227.1300",
+          "ytdStartPrice": "291.5000",
+          "ytdPerformance": "-22.08",
+          "week52High": "329.2300",
+          "week52Low": "205.7700"
+        }
+      },
+      {
+        "ticker": "RVMD",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "189.76",
+          "ytdStartPrice": "79.02",
+          "ytdPerformance": "140.14",
+          "week52High": "221.1500",
+          "week52Low": "47.5000"
+        },
+        "after": {
+          "currentPrice": "189.7600",
+          "ytdStartPrice": "79.0200",
+          "ytdPerformance": "140.14",
+          "week52High": "221.1500",
+          "week52Low": "47.5000"
+        }
+      },
+      {
+        "ticker": "BAC",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "54.32",
+          "ytdStartPrice": "55.95",
+          "ytdPerformance": "-2.91",
+          "week52High": "64.8100",
+          "week52Low": "46.7200"
+        },
+        "after": {
+          "currentPrice": "54.3200",
+          "ytdStartPrice": "55.9500",
+          "ytdPerformance": "-2.91",
+          "week52High": "64.8100",
+          "week52Low": "46.7200"
+        }
+      },
+      {
+        "ticker": "FACC.VI",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "14.14",
+          "ytdStartPrice": "11.60",
+          "ytdPerformance": "21.90",
+          "week52High": "19.5800",
+          "week52Low": "8.5500"
+        },
+        "after": {
+          "currentPrice": "14.1400",
+          "ytdStartPrice": "11.6000",
+          "ytdPerformance": "21.90",
+          "week52High": "19.5800",
+          "week52Low": "8.5500"
+        }
+      },
+      {
+        "ticker": "XEON.DE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "150.467",
+          "ytdStartPrice": "148.11",
+          "ytdPerformance": "1.59",
+          "week52High": "150.4000",
+          "week52Low": "147.4040"
+        },
+        "after": {
+          "currentPrice": "150.4670",
+          "ytdStartPrice": "148.1050",
+          "ytdPerformance": "1.59",
+          "week52High": "150.4000",
+          "week52Low": "147.4040"
+        }
+      },
+      {
+        "ticker": "AGX",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "392.61",
+          "ytdStartPrice": "325.96",
+          "ytdPerformance": "20.45",
+          "week52High": "798.5500",
+          "week52Low": "256.1500"
+        },
+        "after": {
+          "currentPrice": "392.6100",
+          "ytdStartPrice": "325.9600",
+          "ytdPerformance": "20.45",
+          "week52High": "798.5500",
+          "week52Low": "256.1500"
+        }
+      },
+      {
+        "ticker": "MKSI",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "264.5",
+          "ytdStartPrice": "168.36",
+          "ytdPerformance": "57.10",
+          "week52High": "444.8000",
+          "week52Low": "121.2600"
+        },
+        "after": {
+          "currentPrice": "264.5000",
+          "ytdStartPrice": "168.3600",
+          "ytdPerformance": "57.10",
+          "week52High": "444.8000",
+          "week52Low": "121.2600"
+        }
+      },
+      {
+        "ticker": "MYRG",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "311.6300",
+          "ytdStartPrice": "226.72",
+          "ytdPerformance": "37.45",
+          "week52High": "501.1300",
+          "week52Low": "196.5700"
+        },
+        "after": {
+          "currentPrice": "311.6300",
+          "ytdStartPrice": "226.7200",
+          "ytdPerformance": "37.45",
+          "week52High": "501.1300",
+          "week52Low": "196.5700"
+        }
+      },
+      {
+        "ticker": "GFS",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "48.2400",
+          "ytdStartPrice": "36.87",
+          "ytdPerformance": "30.84",
+          "week52High": "89.9600",
+          "week52Low": "32.2400"
+        },
+        "after": {
+          "currentPrice": "48.2400",
+          "ytdStartPrice": "36.8700",
+          "ytdPerformance": "30.84",
+          "week52High": "89.9600",
+          "week52Low": "32.2400"
+        }
+      },
+      {
+        "ticker": "DIOD",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "94.9400",
+          "ytdStartPrice": "51.43",
+          "ytdPerformance": "84.60",
+          "week52High": "122.7600",
+          "week52Low": "42.3600"
+        },
+        "after": {
+          "currentPrice": "94.9400",
+          "ytdStartPrice": "51.4300",
+          "ytdPerformance": "84.60",
+          "week52High": "122.7600",
+          "week52Low": "42.3600"
+        }
+      },
+      {
+        "ticker": "AMAT",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "507.0300",
+          "ytdStartPrice": "268.87",
+          "ytdPerformance": "88.58",
+          "week52High": "723.0000",
+          "week52Low": "209.9500"
+        },
+        "after": {
+          "currentPrice": "507.0300",
+          "ytdStartPrice": "268.8700",
+          "ytdPerformance": "88.58",
+          "week52High": "723.0000",
+          "week52Low": "209.9500"
+        }
+      },
+      {
+        "ticker": "TTMI",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "121.0100",
+          "ytdStartPrice": "70.61",
+          "ytdPerformance": "71.38",
+          "week52High": "221.4700",
+          "week52Low": "53.5800"
+        },
+        "after": {
+          "currentPrice": "121.0100",
+          "ytdStartPrice": "70.6100",
+          "ytdPerformance": "71.38",
+          "week52High": "221.4700",
+          "week52Low": "53.5800"
+        }
+      },
+      {
+        "ticker": "PENG",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "76.2800",
+          "ytdStartPrice": "20.28",
+          "ytdPerformance": "276.13",
+          "week52High": "81.3900",
+          "week52Low": "16.2400"
+        },
+        "after": {
+          "currentPrice": "76.2800",
+          "ytdStartPrice": "20.2800",
+          "ytdPerformance": "276.13",
+          "week52High": "81.3900",
+          "week52Low": "16.2400"
+        }
+      },
+      {
+        "ticker": "WDC",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "397.2800",
+          "ytdStartPrice": "187.70",
+          "ytdPerformance": "111.66",
+          "week52High": "746.2300",
+          "week52Low": "113.1300"
+        },
+        "after": {
+          "currentPrice": "397.2800",
+          "ytdStartPrice": "187.7000",
+          "ytdPerformance": "111.66",
+          "week52High": "746.2300",
+          "week52Low": "113.1300"
+        }
+      },
+      {
+        "ticker": "ATI",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "191.8400",
+          "ytdStartPrice": "119.20",
+          "ytdPerformance": "60.94",
+          "week52High": "231.7800",
+          "week52Low": "80.0400"
+        },
+        "after": {
+          "currentPrice": "191.8400",
+          "ytdStartPrice": "119.2000",
+          "ytdPerformance": "60.94",
+          "week52High": "231.7800",
+          "week52Low": "80.0400"
+        }
+      },
+      {
+        "ticker": "STX",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "783.0000",
+          "ytdStartPrice": "287.54",
+          "ytdPerformance": "172.31",
+          "week52High": "1094.0400",
+          "week52Low": "211.6300"
+        },
+        "after": {
+          "currentPrice": "783.0000",
+          "ytdStartPrice": "287.5400",
+          "ytdPerformance": "172.31",
+          "week52High": "1094.0400",
+          "week52Low": "211.6300"
+        }
+      },
+      {
+        "ticker": "FLEX",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "119.8300",
+          "ytdStartPrice": "63.68",
+          "ytdPerformance": "88.18",
+          "week52High": "162.0700",
+          "week52Low": "54.5100"
+        },
+        "after": {
+          "currentPrice": "119.8300",
+          "ytdStartPrice": "63.6800",
+          "ytdPerformance": "88.18",
+          "week52High": "162.0700",
+          "week52Low": "54.5100"
+        }
+      },
+      {
+        "ticker": "FIX",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "1715.6900",
+          "ytdStartPrice": "1003.64",
+          "ytdPerformance": "70.95",
+          "week52High": "2066.5100",
+          "week52Low": "790.7200"
+        },
+        "after": {
+          "currentPrice": "1715.6900",
+          "ytdStartPrice": "1003.6400",
+          "ytdPerformance": "70.95",
+          "week52High": "2066.5100",
+          "week52Low": "790.7200"
+        }
+      },
+      {
+        "ticker": "ADI",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "406.1900",
+          "ytdStartPrice": "273.74",
+          "ytdPerformance": "48.39",
+          "week52High": "445.4800",
+          "week52Low": "225.2000"
+        },
+        "after": {
+          "currentPrice": "406.1900",
+          "ytdStartPrice": "273.7400",
+          "ytdPerformance": "48.39",
+          "week52High": "445.4800",
+          "week52Low": "225.2000"
+        }
+      },
+      {
+        "ticker": "JBL",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "306.2800",
+          "ytdStartPrice": "240.39",
+          "ytdPerformance": "27.41",
+          "week52High": "385.6300",
+          "week52Low": "192.4900"
+        },
+        "after": {
+          "currentPrice": "306.2800",
+          "ytdStartPrice": "240.3900",
+          "ytdPerformance": "27.41",
+          "week52High": "385.6300",
+          "week52Low": "192.4900"
+        }
+      },
+      {
+        "ticker": "DOCN",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "134.8200",
+          "ytdStartPrice": "48.97",
+          "ytdPerformance": "175.31",
+          "week52High": "181.2900",
+          "week52Low": "37.2900"
+        },
+        "after": {
+          "currentPrice": "134.8200",
+          "ytdStartPrice": "48.9700",
+          "ytdPerformance": "175.31",
+          "week52High": "181.2900",
+          "week52Low": "37.2900"
+        }
+      },
+      {
+        "ticker": "GOOG",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "347.8600",
+          "ytdStartPrice": "315.32",
+          "ytdPerformance": "10.32",
+          "week52High": "399.0400",
+          "week52Low": "237.4900"
+        },
+        "after": {
+          "currentPrice": "347.8600",
+          "ytdStartPrice": "315.3200",
+          "ytdPerformance": "10.32",
+          "week52High": "399.0400",
+          "week52Low": "237.4900"
+        }
+      },
+      {
+        "ticker": "SOIL.TO",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "7.7400",
+          "ytdStartPrice": "2.46",
+          "ytdPerformance": "214.63",
+          "week52High": "7.6500",
+          "week52Low": "2.2500"
+        },
+        "after": {
+          "currentPrice": "7.7400",
+          "ytdStartPrice": "2.4600",
+          "ytdPerformance": "214.63",
+          "week52High": "7.6500",
+          "week52Low": "2.2500"
+        }
+      },
+      {
+        "ticker": "WHC.AX",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "7.6800",
+          "ytdStartPrice": "7.81",
+          "ytdPerformance": "-1.66",
+          "week52High": "9.8400",
+          "week52Low": "6.4400"
+        },
+        "after": {
+          "currentPrice": "7.6800",
+          "ytdStartPrice": "7.8100",
+          "ytdPerformance": "-1.66",
+          "week52High": "9.8400",
+          "week52Low": "6.4400"
+        }
+      },
+      {
+        "ticker": "KAP.IL",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "63.9000",
+          "ytdStartPrice": "55.40",
+          "ytdPerformance": "15.34",
+          "week52High": "91.2000",
+          "week52Low": "50.2000"
+        },
+        "after": {
+          "currentPrice": "63.9000",
+          "ytdStartPrice": "55.4000",
+          "ytdPerformance": "15.34",
+          "week52High": "91.2000",
+          "week52Low": "50.2000"
+        }
+      },
+      {
+        "ticker": "AR",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "35.9000",
+          "ytdStartPrice": "34.21",
+          "ytdPerformance": "4.94",
+          "week52High": "45.1500",
+          "week52Low": "30.0300"
+        },
+        "after": {
+          "currentPrice": "35.9000",
+          "ytdStartPrice": "34.2100",
+          "ytdPerformance": "4.94",
+          "week52High": "45.1500",
+          "week52Low": "30.0300"
+        }
+      },
+      {
+        "ticker": "AKRBP.OL",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "353.7000",
+          "ytdStartPrice": "259.90",
+          "ytdPerformance": "36.09",
+          "week52High": "374.1000",
+          "week52Low": "242.4000"
+        },
+        "after": {
+          "currentPrice": "353.7000",
+          "ytdStartPrice": "259.9000",
+          "ytdPerformance": "36.09",
+          "week52High": "374.1000",
+          "week52Low": "242.4000"
+        }
+      },
+      {
+        "ticker": "WCP.TO",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "18.6900",
+          "ytdStartPrice": "11.69",
+          "ytdPerformance": "59.88",
+          "week52High": "19.3000",
+          "week52Low": "10.1800"
+        },
+        "after": {
+          "currentPrice": "18.6900",
+          "ytdStartPrice": "11.6900",
+          "ytdPerformance": "59.88",
+          "week52High": "19.3000",
+          "week52Low": "10.1800"
+        }
+      },
+      {
+        "ticker": "SGY.TO",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "11.9800",
+          "ytdStartPrice": "7.00",
+          "ytdPerformance": "71.14",
+          "week52High": "12.5200",
+          "week52Low": "6.4500"
+        },
+        "after": {
+          "currentPrice": "11.9800",
+          "ytdStartPrice": "7.0000",
+          "ytdPerformance": "71.14",
+          "week52High": "12.5200",
+          "week52Low": "6.4500"
+        }
+      },
+      {
+        "ticker": "DGE.L",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "1638.0000",
+          "ytdStartPrice": "1607.50",
+          "ytdPerformance": "1.90",
+          "week52High": "1874.0000",
+          "week52Low": "1362.5000"
+        },
+        "after": {
+          "currentPrice": "1638.0000",
+          "ytdStartPrice": "1607.5000",
+          "ytdPerformance": "1.90",
+          "week52High": "1874.0000",
+          "week52Low": "1362.5000"
+        }
+      },
+      {
+        "ticker": "PSK.TO",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "33.8700",
+          "ytdStartPrice": "27.06",
+          "ytdPerformance": "25.17",
+          "week52High": "37.1800",
+          "week52Low": "24.6000"
+        },
+        "after": {
+          "currentPrice": "33.8700",
+          "ytdStartPrice": "27.0600",
+          "ytdPerformance": "25.17",
+          "week52High": "37.1800",
+          "week52Low": "24.6000"
+        }
+      },
+      {
+        "ticker": "VLE.TO",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "16.5000",
+          "ytdStartPrice": "8.09",
+          "ytdPerformance": "103.96",
+          "week52High": "16.4000",
+          "week52Low": "6.2000"
+        },
+        "after": {
+          "currentPrice": "16.5000",
+          "ytdStartPrice": "8.0900",
+          "ytdPerformance": "103.96",
+          "week52High": "16.4000",
+          "week52Low": "6.2000"
+        }
+      },
+      {
+        "ticker": "YCA.L",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "542.5000",
+          "ytdStartPrice": "594.50",
+          "ytdPerformance": "-8.75",
+          "week52High": "722.0000",
+          "week52Low": "500.5000"
+        },
+        "after": {
+          "currentPrice": "542.5000",
+          "ytdStartPrice": "594.5000",
+          "ytdPerformance": "-8.75",
+          "week52High": "722.0000",
+          "week52Low": "500.5000"
+        }
+      },
+      {
+        "ticker": "SWED-A.ST",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "403.1000",
+          "ytdStartPrice": "325.40",
+          "ytdPerformance": "23.88",
+          "week52High": "412.8000",
+          "week52Low": "283.8000"
+        },
+        "after": {
+          "currentPrice": "403.1000",
+          "ytdStartPrice": "325.4000",
+          "ytdPerformance": "23.88",
+          "week52High": "412.8000",
+          "week52Low": "283.8000"
+        }
+      },
+      {
+        "ticker": "NDA-FI.HE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "16.7350",
+          "ytdStartPrice": "16.37",
+          "ytdPerformance": "2.26",
+          "week52High": "18.0100",
+          "week52Low": "13.8900"
+        },
+        "after": {
+          "currentPrice": "16.7350",
+          "ytdStartPrice": "16.3650",
+          "ytdPerformance": "2.26",
+          "week52High": "18.0100",
+          "week52Low": "13.8900"
+        }
+      },
+      {
+        "ticker": "SON.LS",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "2.0500",
+          "ytdStartPrice": "1.64",
+          "ytdPerformance": "25.15",
+          "week52High": "2.1300",
+          "week52Low": "1.3720"
+        },
+        "after": {
+          "currentPrice": "2.0500",
+          "ytdStartPrice": "1.6380",
+          "ytdPerformance": "25.15",
+          "week52High": "2.1300",
+          "week52Low": "1.3720"
+        }
+      },
+      {
+        "ticker": "MNG.L",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "304.3000",
+          "ytdStartPrice": "291.40",
+          "ytdPerformance": "4.43",
+          "week52High": "364.4000",
+          "week52Low": "254.4000"
+        },
+        "after": {
+          "currentPrice": "304.3000",
+          "ytdStartPrice": "291.4000",
+          "ytdPerformance": "4.43",
+          "week52High": "364.4000",
+          "week52Low": "254.4000"
+        }
+      },
+      {
+        "ticker": "ENGI.PA",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "22.7500",
+          "ytdStartPrice": "22.97",
+          "ytdPerformance": "-0.96",
+          "week52High": "29.5300",
+          "week52Low": "18.8800"
+        },
+        "after": {
+          "currentPrice": "22.7500",
+          "ytdStartPrice": "22.9700",
+          "ytdPerformance": "-0.96",
+          "week52High": "29.5300",
+          "week52Low": "18.8800"
+        }
+      },
+      {
+        "ticker": "EQUI.MI",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "5.8258",
+          "ytdStartPrice": "6.16",
+          "ytdPerformance": "-5.39",
+          "week52High": "6.1990",
+          "week52Low": "5.1200"
+        },
+        "after": {
+          "currentPrice": "5.8258",
+          "ytdStartPrice": "6.1580",
+          "ytdPerformance": "-5.39",
+          "week52High": "6.1990",
+          "week52Low": "5.1200"
+        }
+      },
+      {
+        "ticker": "UQA.VI",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "16.6400",
+          "ytdStartPrice": "15.36",
+          "ytdPerformance": "8.33",
+          "week52High": "18.8000",
+          "week52Low": "12.3400"
+        },
+        "after": {
+          "currentPrice": "16.6400",
+          "ytdStartPrice": "15.3600",
+          "ytdPerformance": "8.33",
+          "week52High": "18.8000",
+          "week52Low": "12.3400"
+        }
+      },
+      {
+        "ticker": "BATS.L",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "4194.0000",
+          "ytdStartPrice": "4189.00",
+          "ytdPerformance": "0.12",
+          "week52High": "4962.0000",
+          "week52Low": "3733.0000"
+        },
+        "after": {
+          "currentPrice": "4194.0000",
+          "ytdStartPrice": "4189.0000",
+          "ytdPerformance": "0.12",
+          "week52High": "4962.0000",
+          "week52Low": "3733.0000"
+        }
+      },
+      {
+        "ticker": "IG.MI",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "8.1362",
+          "ytdStartPrice": "9.48",
+          "ytdPerformance": "-14.17",
+          "week52High": "11.2230",
+          "week52Low": "7.9700"
+        },
+        "after": {
+          "currentPrice": "8.1362",
+          "ytdStartPrice": "9.4790",
+          "ytdPerformance": "-14.17",
+          "week52High": "11.2230",
+          "week52Low": "7.9700"
+        }
+      },
+      {
+        "ticker": "GPW.WA",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "97.2000",
+          "ytdStartPrice": "66.55",
+          "ytdPerformance": "46.06",
+          "week52High": "106.7000",
+          "week52Low": "55.7000"
+        },
+        "after": {
+          "currentPrice": "97.2000",
+          "ytdStartPrice": "66.5500",
+          "ytdPerformance": "46.06",
+          "week52High": "106.7000",
+          "week52Low": "55.7000"
+        }
+      },
+      {
+        "ticker": "EN.PA",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "40.3000",
+          "ytdStartPrice": "45.20",
+          "ytdPerformance": "-10.84",
+          "week52High": "53.0000",
+          "week52Low": "38.0700"
+        },
+        "after": {
+          "currentPrice": "40.3000",
+          "ytdStartPrice": "45.2000",
+          "ytdPerformance": "-10.84",
+          "week52High": "53.0000",
+          "week52Low": "38.0700"
+        }
+      },
+      {
+        "ticker": "IBS.LS",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "9.8500",
+          "ytdStartPrice": "9.90",
+          "ytdPerformance": "-0.51",
+          "week52High": "12.3800",
+          "week52Low": "9.0200"
+        },
+        "after": {
+          "currentPrice": "9.8500",
+          "ytdStartPrice": "9.9000",
+          "ytdPerformance": "-0.51",
+          "week52High": "12.3800",
+          "week52Low": "9.0200"
+        }
+      },
+      {
+        "ticker": "PST.MI",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "23.7973",
+          "ytdStartPrice": "21.36",
+          "ytdPerformance": "11.41",
+          "week52High": "29.1530",
+          "week52Low": "19.6830"
+        },
+        "after": {
+          "currentPrice": "23.7973",
+          "ytdStartPrice": "21.3600",
+          "ytdPerformance": "11.41",
+          "week52High": "29.1530",
+          "week52Low": "19.6830"
+        }
+      },
+      {
+        "ticker": "RENE.LS",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "3.5350",
+          "ytdStartPrice": "3.25",
+          "ytdPerformance": "8.77",
+          "week52High": "3.9250",
+          "week52Low": "3.0650"
+        },
+        "after": {
+          "currentPrice": "3.5350",
+          "ytdStartPrice": "3.2500",
+          "ytdPerformance": "8.77",
+          "week52High": "3.9250",
+          "week52Low": "3.0650"
+        }
+      },
+      {
+        "ticker": "ACA.PA",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "16.3200",
+          "ytdStartPrice": "17.79",
+          "ytdPerformance": "-8.26",
+          "week52High": "20.2000",
+          "week52Low": "15.4850"
+        },
+        "after": {
+          "currentPrice": "16.3200",
+          "ytdStartPrice": "17.7900",
+          "ytdPerformance": "-8.26",
+          "week52High": "20.2000",
+          "week52Low": "15.4850"
+        }
+      },
+      {
+        "ticker": "ADB.MI",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "9.0011",
+          "ytdStartPrice": "9.87",
+          "ytdPerformance": "-8.81",
+          "week52High": "11.7540",
+          "week52Low": "8.3750"
+        },
+        "after": {
+          "currentPrice": "9.0011",
+          "ytdStartPrice": "9.8710",
+          "ytdPerformance": "-8.81",
+          "week52High": "11.7540",
+          "week52Low": "8.3750"
+        }
+      },
+      {
+        "ticker": "TD",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "115.1000",
+          "ytdStartPrice": "94.54",
+          "ytdPerformance": "21.75",
+          "week52High": "124.8000",
+          "week52Low": "78.3200"
+        },
+        "after": {
+          "currentPrice": "115.1000",
+          "ytdStartPrice": "94.5400",
+          "ytdPerformance": "21.75",
+          "week52High": "124.8000",
+          "week52Low": "78.3200"
+        }
+      },
+      {
+        "ticker": "VATN.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "149.0000",
+          "ytdStartPrice": "155.80",
+          "ytdPerformance": "-4.36",
+          "week52High": "183.6000",
+          "week52Low": "126.8000"
+        },
+        "after": {
+          "currentPrice": "149.0000",
+          "ytdStartPrice": "155.8000",
+          "ytdPerformance": "-4.36",
+          "week52High": "183.6000",
+          "week52Low": "126.8000"
+        }
+      },
+      {
+        "ticker": "OFN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "135.5000",
+          "ytdStartPrice": "120.00",
+          "ytdPerformance": "12.92",
+          "week52High": "170.5000",
+          "week52Low": "113.0000"
+        },
+        "after": {
+          "currentPrice": "135.5000",
+          "ytdStartPrice": "120.0000",
+          "ytdPerformance": "12.92",
+          "week52High": "170.5000",
+          "week52Low": "113.0000"
+        }
+      },
+      {
+        "ticker": "KREATE.HE",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "41.0000",
+          "ytdStartPrice": "12.75",
+          "ytdPerformance": "221.57",
+          "week52High": "42.0000",
+          "week52Low": "9.8400"
+        },
+        "after": {
+          "currentPrice": "41.0000",
+          "ytdStartPrice": "12.7500",
+          "ytdPerformance": "221.57",
+          "week52High": "42.0000",
+          "week52Low": "9.8400"
+        }
+      },
+      {
+        "ticker": "ORA.PA",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "13.8700",
+          "ytdStartPrice": "14.34",
+          "ytdPerformance": "-3.28",
+          "week52High": "18.7400",
+          "week52Low": "13.4300"
+        },
+        "after": {
+          "currentPrice": "13.8700",
+          "ytdStartPrice": "14.3400",
+          "ytdPerformance": "-3.28",
+          "week52High": "18.7400",
+          "week52Low": "13.4300"
+        }
+      },
+      {
+        "ticker": "WHA.AS",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "16.9000",
+          "ytdStartPrice": "19.24",
+          "ytdPerformance": "-12.16",
+          "week52High": "23.3000",
+          "week52Low": "16.6800"
+        },
+        "after": {
+          "currentPrice": "16.9000",
+          "ytdStartPrice": "19.2400",
+          "ytdPerformance": "-12.16",
+          "week52High": "23.3000",
+          "week52Low": "16.6800"
+        }
+      },
+      {
+        "ticker": "ASML.AS",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "1601.6000",
+          "ytdStartPrice": "986.30",
+          "ytdPerformance": "62.38",
+          "week52High": "1721.4000",
+          "week52Low": "813.9000"
+        },
+        "after": {
+          "currentPrice": "1601.6000",
+          "ytdStartPrice": "986.3000",
+          "ytdPerformance": "62.38",
+          "week52High": "1721.4000",
+          "week52Low": "813.9000"
+        }
+      },
+      {
+        "ticker": "6856.T",
+        "status": "updated",
+        "source": "yahoo_close_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "25560.0000",
+          "ytdStartPrice": "16325.00",
+          "ytdPerformance": "56.57",
+          "week52High": "28880.0000",
+          "week52Low": "12415.0000"
+        },
+        "after": {
+          "currentPrice": "25560.0000",
+          "ytdStartPrice": "16325.0000",
+          "ytdPerformance": "56.57",
+          "week52High": "28880.0000",
+          "week52Low": "12415.0000"
+        }
+      },
+      {
+        "ticker": "SAND.ST",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "360.9000",
+          "ytdStartPrice": "301.80",
+          "ytdPerformance": "19.58",
+          "week52High": "411.8000",
+          "week52Low": "266.6000"
+        },
+        "after": {
+          "currentPrice": "360.9000",
+          "ytdStartPrice": "301.8000",
+          "ytdPerformance": "19.58",
+          "week52High": "411.8000",
+          "week52Low": "266.6000"
+        }
+      },
+      {
+        "ticker": "KIT.OL",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "103.9000",
+          "ytdStartPrice": "74.25",
+          "ytdPerformance": "39.93",
+          "week52High": "114.3000",
+          "week52Low": "56.7000"
+        },
+        "after": {
+          "currentPrice": "103.9000",
+          "ytdStartPrice": "74.2500",
+          "ytdPerformance": "39.93",
+          "week52High": "114.3000",
+          "week52Low": "56.7000"
+        }
+      },
+      {
+        "ticker": "ASM.AS",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "883.6000",
+          "ytdStartPrice": "553.80",
+          "ytdPerformance": "59.55",
+          "week52High": "1079.0000",
+          "week52Low": "469.2000"
+        },
+        "after": {
+          "currentPrice": "883.6000",
+          "ytdStartPrice": "553.8000",
+          "ytdPerformance": "59.55",
+          "week52High": "1079.0000",
+          "week52Low": "469.2000"
+        }
+      },
+      {
+        "ticker": "AMKR",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "49.1200",
+          "ytdStartPrice": "42.92",
+          "ytdPerformance": "14.45",
+          "week52High": "93.5500",
+          "week52Low": "28.2600"
+        },
+        "after": {
+          "currentPrice": "49.1200",
+          "ytdStartPrice": "42.9200",
+          "ytdPerformance": "14.45",
+          "week52High": "93.5500",
+          "week52Low": "28.2600"
+        }
+      },
+      {
+        "ticker": "BAYN.DE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "43.7700",
+          "ytdStartPrice": "38.00",
+          "ytdPerformance": "15.18",
+          "week52High": "53.3600",
+          "week52Low": "26.0550"
+        },
+        "after": {
+          "currentPrice": "43.7700",
+          "ytdStartPrice": "38.0000",
+          "ytdPerformance": "15.18",
+          "week52High": "53.3600",
+          "week52Low": "26.0550"
+        }
+      },
+      {
+        "ticker": "IOS.DE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "32.9800",
+          "ytdStartPrice": "26.70",
+          "ytdPerformance": "23.52",
+          "week52High": "35.3000",
+          "week52Low": "21.3000"
+        },
+        "after": {
+          "currentPrice": "32.9800",
+          "ytdStartPrice": "26.7000",
+          "ytdPerformance": "23.52",
+          "week52High": "35.3000",
+          "week52Low": "21.3000"
+        }
+      },
+      {
+        "ticker": "VRTX",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "510.0800",
+          "ytdStartPrice": "452.13",
+          "ytdPerformance": "12.82",
+          "week52High": "557.9600",
+          "week52Low": "407.3700"
+        },
+        "after": {
+          "currentPrice": "510.0800",
+          "ytdStartPrice": "452.1300",
+          "ytdPerformance": "12.82",
+          "week52High": "557.9600",
+          "week52Low": "407.3700"
+        }
+      },
+      {
+        "ticker": "BION.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "49.1500",
+          "ytdStartPrice": "43.35",
+          "ytdPerformance": "13.38",
+          "week52High": "56.8000",
+          "week52Low": "38.1000"
+        },
+        "after": {
+          "currentPrice": "49.1500",
+          "ytdStartPrice": "43.3500",
+          "ytdPerformance": "13.38",
+          "week52High": "56.8000",
+          "week52Low": "38.1000"
+        }
+      },
+      {
+        "ticker": "NN.AS",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "75.4000",
+          "ytdStartPrice": "65.98",
+          "ytdPerformance": "14.28",
+          "week52High": "81.6000",
+          "week52Low": "58.6200"
+        },
+        "after": {
+          "currentPrice": "75.4000",
+          "ytdStartPrice": "65.9800",
+          "ytdPerformance": "14.28",
+          "week52High": "81.6000",
+          "week52Low": "58.6200"
+        }
+      },
+      {
+        "ticker": "SRG.MI",
+        "status": "updated",
+        "source": "yahoo_close_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "6.2160",
+          "ytdStartPrice": "5.65",
+          "ytdPerformance": "10.06",
+          "week52High": "6.8080",
+          "week52Low": "5.1200"
+        },
+        "after": {
+          "currentPrice": "6.2160",
+          "ytdStartPrice": "5.6480",
+          "ytdPerformance": "10.06",
+          "week52High": "6.8080",
+          "week52Low": "5.1200"
+        }
+      },
+      {
+        "ticker": "XOM",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "168.9400",
+          "ytdStartPrice": "122.65",
+          "ytdPerformance": "37.74",
+          "week52High": "171.4700",
+          "week52Low": "110.6400"
+        },
+        "after": {
+          "currentPrice": "168.9400",
+          "ytdStartPrice": "122.6500",
+          "ytdPerformance": "37.74",
+          "week52High": "171.4700",
+          "week52Low": "110.6400"
+        }
+      },
+      {
+        "ticker": "D05.SI",
+        "status": "updated",
+        "source": "yahoo_close_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "229.3100",
+          "ytdStartPrice": "56.40",
+          "ytdPerformance": "306.58",
+          "week52High": "78.6500",
+          "week52Low": "52.0000"
+        },
+        "after": {
+          "currentPrice": "73.8500",
+          "ytdStartPrice": "56.4000",
+          "ytdPerformance": "30.94",
+          "week52High": "78.6500",
+          "week52Low": "52.0000"
+        }
+      },
+      {
+        "ticker": "MUV2.DE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "523.8000",
+          "ytdStartPrice": "540.40",
+          "ytdPerformance": "-3.07",
+          "week52High": "569.4000",
+          "week52Low": "439.0000"
+        },
+        "after": {
+          "currentPrice": "523.8000",
+          "ytdStartPrice": "540.4000",
+          "ytdPerformance": "-3.07",
+          "week52High": "569.4000",
+          "week52Low": "439.0000"
+        }
+      },
+      {
+        "ticker": "ABBV",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "276.4700",
+          "ytdStartPrice": "229.31",
+          "ytdPerformance": "20.57",
+          "week52High": "272.4200",
+          "week52Low": "197.3800"
+        },
+        "after": {
+          "currentPrice": "276.4700",
+          "ytdStartPrice": "229.3100",
+          "ytdPerformance": "20.57",
+          "week52High": "272.4200",
+          "week52Low": "197.3800"
+        }
+      },
+      {
+        "ticker": "ABX.TO",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "58.5300",
+          "ytdStartPrice": "60.52",
+          "ytdPerformance": "-3.29",
+          "week52High": "71.8600",
+          "week52Low": "44.0900"
+        },
+        "after": {
+          "currentPrice": "58.5300",
+          "ytdStartPrice": "60.5200",
+          "ytdPerformance": "-3.29",
+          "week52High": "71.8600",
+          "week52Low": "44.0900"
+        }
+      },
+      {
+        "ticker": "ALV.DE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "417.0000",
+          "ytdStartPrice": "387.70",
+          "ytdPerformance": "7.56",
+          "week52High": "453.3000",
+          "week52Low": "344.2000"
+        },
+        "after": {
+          "currentPrice": "417.0000",
+          "ytdStartPrice": "387.7000",
+          "ytdPerformance": "7.56",
+          "week52High": "453.3000",
+          "week52Low": "344.2000"
+        }
+      },
+      {
+        "ticker": "RMBS",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "107.4700",
+          "ytdStartPrice": "99.28",
+          "ytdPerformance": "8.25",
+          "week52High": "170.6600",
+          "week52Low": "79.7300"
+        },
+        "after": {
+          "currentPrice": "107.4700",
+          "ytdStartPrice": "99.2800",
+          "ytdPerformance": "8.25",
+          "week52High": "170.6600",
+          "week52Low": "79.7300"
+        }
+      },
+      {
+        "ticker": "PCZ.DE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "8.6000",
+          "ytdStartPrice": "8.54",
+          "ytdPerformance": "0.70",
+          "week52High": "9.5000",
+          "week52Low": "7.0000"
+        },
+        "after": {
+          "currentPrice": "8.6000",
+          "ytdStartPrice": "8.5400",
+          "ytdPerformance": "0.70",
+          "week52High": "9.5000",
+          "week52Low": "7.0000"
+        }
+      },
+      {
+        "ticker": "SAX.F",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "36.6701",
+          "ytdStartPrice": "37.49",
+          "ytdPerformance": "-2.19",
+          "week52High": "41.7240",
+          "week52Low": "29.8180"
+        },
+        "after": {
+          "currentPrice": "36.6701",
+          "ytdStartPrice": "37.4920",
+          "ytdPerformance": "-2.19",
+          "week52High": "41.7240",
+          "week52Low": "29.8180"
+        }
+      },
+      {
+        "ticker": "DWS.DE",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "66.8000",
+          "ytdStartPrice": "56.40",
+          "ytdPerformance": "18.44",
+          "week52High": "78.0000",
+          "week52Low": "51.1000"
+        },
+        "after": {
+          "currentPrice": "66.8000",
+          "ytdStartPrice": "56.4000",
+          "ytdPerformance": "18.44",
+          "week52High": "78.0000",
+          "week52Low": "51.1000"
+        }
+      },
+      {
+        "ticker": "VNP.TO",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "30.2600",
+          "ytdStartPrice": "18.00",
+          "ytdPerformance": "68.11",
+          "week52High": "47.6500",
+          "week52Low": "17.2900"
+        },
+        "after": {
+          "currentPrice": "30.2600",
+          "ytdStartPrice": "18.0000",
+          "ytdPerformance": "68.11",
+          "week52High": "47.6500",
+          "week52Low": "17.2900"
+        }
+      },
+      {
+        "ticker": "INTC",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "104.7000",
+          "ytdStartPrice": "39.38",
+          "ytdPerformance": "165.87",
+          "week52High": "140.9400",
+          "week52Low": "33.6200"
+        },
+        "after": {
+          "currentPrice": "104.7000",
+          "ytdStartPrice": "39.3800",
+          "ytdPerformance": "165.87",
+          "week52High": "140.9400",
+          "week52Low": "33.6200"
+        }
+      },
+      {
+        "ticker": "FISV",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "45.6300",
+          "ytdStartPrice": "65.59",
+          "ytdPerformance": "-30.43",
+          "week52High": "126.5400",
+          "week52Low": "44.3600"
+        },
+        "after": {
+          "currentPrice": "45.6300",
+          "ytdStartPrice": "65.5900",
+          "ytdPerformance": "-30.43",
+          "week52High": "126.5400",
+          "week52Low": "44.3600"
+        }
+      },
+      {
+        "ticker": "NOVO-B.CO",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "255.2500",
+          "ytdStartPrice": "330.25",
+          "ytdPerformance": "-22.71",
+          "week52High": "401.3500",
+          "week52Low": "228.5000"
+        },
+        "after": {
+          "currentPrice": "255.2500",
+          "ytdStartPrice": "330.2500",
+          "ytdPerformance": "-22.71",
+          "week52High": "401.3500",
+          "week52Low": "228.5000"
+        }
+      },
+      {
+        "ticker": "HODL.CN",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "2.3700",
+          "ytdStartPrice": "2.45",
+          "ytdPerformance": "-3.27",
+          "week52High": "5.8400",
+          "week52Low": "1.2500"
+        },
+        "after": {
+          "currentPrice": "2.3700",
+          "ytdStartPrice": "2.4500",
+          "ytdPerformance": "-3.27",
+          "week52High": "5.8400",
+          "week52Low": "1.2500"
+        }
+      },
+      {
+        "ticker": "MSTR",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "154.3400",
+          "ytdStartPrice": "157.16",
+          "ytdPerformance": "-1.79",
+          "week52High": "320.2900",
+          "week52Low": "82.3100"
+        },
+        "after": {
+          "currentPrice": "154.3400",
+          "ytdStartPrice": "157.1600",
+          "ytdPerformance": "-1.79",
+          "week52High": "320.2900",
+          "week52Low": "82.3100"
+        }
+      },
+      {
+        "ticker": "AMT",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "182.2400",
+          "ytdStartPrice": "174.80",
+          "ytdPerformance": "4.26",
+          "week52High": "194.1200",
+          "week52Low": "161.0600"
+        },
+        "after": {
+          "currentPrice": "182.2400",
+          "ytdStartPrice": "174.8000",
+          "ytdPerformance": "4.26",
+          "week52High": "194.1200",
+          "week52Low": "161.0600"
+        }
+      },
+      {
+        "ticker": "LIN",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "483.7300",
+          "ytdStartPrice": "429.11",
+          "ytdPerformance": "12.73",
+          "week52High": "546.6400",
+          "week52Low": "389.3800"
+        },
+        "after": {
+          "currentPrice": "483.7300",
+          "ytdStartPrice": "429.1100",
+          "ytdPerformance": "12.73",
+          "week52High": "546.6400",
+          "week52Low": "389.3800"
+        }
+      },
+      {
+        "ticker": "PLD",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "129.4900",
+          "ytdStartPrice": "129.05",
+          "ytdPerformance": "0.34",
+          "week52High": "150.0600",
+          "week52Low": "111.2300"
+        },
+        "after": {
+          "currentPrice": "129.4900",
+          "ytdStartPrice": "129.0500",
+          "ytdPerformance": "0.34",
+          "week52High": "150.0600",
+          "week52Low": "111.2300"
+        }
+      },
+      {
+        "ticker": "APD",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "281.2600",
+          "ytdStartPrice": "250.47",
+          "ytdPerformance": "12.29",
+          "week52High": "314.1900",
+          "week52Low": "230.7600"
+        },
+        "after": {
+          "currentPrice": "281.2600",
+          "ytdStartPrice": "250.4700",
+          "ytdPerformance": "12.29",
+          "week52High": "314.1900",
+          "week52Low": "230.7600"
+        }
+      },
+      {
+        "ticker": "LUKN.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "122.2000",
+          "ytdStartPrice": "96.80",
+          "ytdPerformance": "26.24",
+          "week52High": "123.0000",
+          "week52Low": "79.3000"
+        },
+        "after": {
+          "currentPrice": "122.2000",
+          "ytdStartPrice": "96.8000",
+          "ytdPerformance": "26.24",
+          "week52High": "123.0000",
+          "week52Low": "79.3000"
+        }
+      },
+      {
+        "ticker": "MOVE.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "114.6000",
+          "ytdStartPrice": "158.40",
+          "ytdPerformance": "-27.65",
+          "week52High": "176.0000",
+          "week52Low": "109.0000"
+        },
+        "after": {
+          "currentPrice": "114.6000",
+          "ytdStartPrice": "158.4000",
+          "ytdPerformance": "-27.65",
+          "week52High": "176.0000",
+          "week52Low": "109.0000"
+        }
+      },
+      {
+        "ticker": "PGHN.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "605.2000",
+          "ytdStartPrice": "1030.00",
+          "ytdPerformance": "-41.24",
+          "week52High": "1096.0000",
+          "week52Low": "591.0000"
+        },
+        "after": {
+          "currentPrice": "605.2000",
+          "ytdStartPrice": "1030.0000",
+          "ytdPerformance": "-41.24",
+          "week52High": "1096.0000",
+          "week52Low": "591.0000"
+        }
+      },
+      {
+        "ticker": "SDZ.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "70.0000",
+          "ytdStartPrice": "57.22",
+          "ytdPerformance": "22.33",
+          "week52High": "74.9000",
+          "week52Low": "48.1700"
+        },
+        "after": {
+          "currentPrice": "70.0000",
+          "ytdStartPrice": "57.2200",
+          "ytdPerformance": "22.33",
+          "week52High": "74.9000",
+          "week52Low": "48.1700"
+        }
+      },
+      {
+        "ticker": "SOON.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "251.6000",
+          "ytdStartPrice": "208.30",
+          "ytdPerformance": "20.79",
+          "week52High": "252.4000",
+          "week52Low": "168.0500"
+        },
+        "after": {
+          "currentPrice": "251.6000",
+          "ytdStartPrice": "208.3000",
+          "ytdPerformance": "20.79",
+          "week52High": "252.4000",
+          "week52Low": "168.0500"
+        }
+      },
+      {
+        "ticker": "VACN.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "709.6000",
+          "ytdStartPrice": "432.60",
+          "ytdPerformance": "64.03",
+          "week52High": "709.6000",
+          "week52Low": "310.4000"
+        },
+        "after": {
+          "currentPrice": "709.6000",
+          "ytdStartPrice": "432.6000",
+          "ytdPerformance": "64.03",
+          "week52High": "709.6000",
+          "week52Low": "310.4000"
+        }
+      },
+      {
+        "ticker": "LU0158903558.EUFUND",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "364.3400",
+          "ytdStartPrice": "354.59",
+          "ytdPerformance": "2.75",
+          "week52High": "381.4200",
+          "week52Low": "324.4500"
+        },
+        "after": {
+          "currentPrice": "364.3400",
+          "ytdStartPrice": "354.5900",
+          "ytdPerformance": "2.75",
+          "week52High": "381.4200",
+          "week52Low": "324.4500"
+        }
+      },
+      {
+        "ticker": "ADBE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "241.0500",
+          "ytdStartPrice": "333.30",
+          "ytdPerformance": "-27.68",
+          "week52High": "359.9100",
+          "week52Low": "193.4100"
+        },
+        "after": {
+          "currentPrice": "241.0500",
+          "ytdStartPrice": "333.3000",
+          "ytdPerformance": "-27.68",
+          "week52High": "359.9100",
+          "week52Low": "193.4100"
+        }
+      },
+      {
+        "ticker": "KO",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "87.7700",
+          "ytdStartPrice": "69.12",
+          "ytdPerformance": "26.98",
+          "week52High": "91.9900",
+          "week52Low": "66.3700"
+        },
+        "after": {
+          "currentPrice": "87.7700",
+          "ytdStartPrice": "69.1200",
+          "ytdPerformance": "26.98",
+          "week52High": "91.9900",
+          "week52Low": "66.3700"
+        }
+      },
+      {
+        "ticker": "ZGLDHC.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "820.3000",
+          "ytdStartPrice": "916.30",
+          "ytdPerformance": "-10.48",
+          "week52High": "1088.4000",
+          "week52Low": "799.6000"
+        },
+        "after": {
+          "currentPrice": "820.3000",
+          "ytdStartPrice": "916.3000",
+          "ytdPerformance": "-10.48",
+          "week52High": "1088.4000",
+          "week52Low": "799.6000"
+        }
+      },
+      {
+        "ticker": "BVS",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "13.0650",
+          "ytdStartPrice": "7.21",
+          "ytdPerformance": "81.21",
+          "week52High": "15.2600",
+          "week52Low": "6.5100"
+        },
+        "after": {
+          "currentPrice": "13.0650",
+          "ytdStartPrice": "7.2100",
+          "ytdPerformance": "81.21",
+          "week52High": "15.2600",
+          "week52Low": "6.5100"
+        }
+      },
+      {
+        "ticker": "EXE.TO",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "26.6600",
+          "ytdStartPrice": "21.08",
+          "ytdPerformance": "26.47",
+          "week52High": "38.7900",
+          "week52Low": "14.6000"
+        },
+        "after": {
+          "currentPrice": "26.6600",
+          "ytdStartPrice": "21.0800",
+          "ytdPerformance": "26.47",
+          "week52High": "38.7900",
+          "week52Low": "14.6000"
+        }
+      },
+      {
+        "ticker": "MATX",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "225.6700",
+          "ytdStartPrice": "123.71",
+          "ytdPerformance": "82.42",
+          "week52High": "238.6000",
+          "week52Low": "88.0500"
+        },
+        "after": {
+          "currentPrice": "225.6700",
+          "ytdStartPrice": "123.7100",
+          "ytdPerformance": "82.42",
+          "week52High": "238.6000",
+          "week52Low": "88.0500"
+        }
+      },
+      {
+        "ticker": "TNZ.TO",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "68.2800",
+          "ytdStartPrice": "26.24",
+          "ytdPerformance": "160.21",
+          "week52High": "74.5000",
+          "week52Low": "22.9900"
+        },
+        "after": {
+          "currentPrice": "68.2800",
+          "ytdStartPrice": "26.2400",
+          "ytdPerformance": "160.21",
+          "week52High": "74.5000",
+          "week52Low": "22.9900"
+        }
+      },
+      {
+        "ticker": "DAVE",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "368.4200",
+          "ytdStartPrice": "219.48",
+          "ytdPerformance": "67.86",
+          "week52High": "442.5300",
+          "week52Low": "155.9200"
+        },
+        "after": {
+          "currentPrice": "368.4200",
+          "ytdStartPrice": "219.4800",
+          "ytdPerformance": "67.86",
+          "week52High": "442.5300",
+          "week52Low": "155.9200"
+        }
+      },
+      {
+        "ticker": "BLBD",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "56.2900",
+          "ytdStartPrice": "46.76",
+          "ytdPerformance": "20.38",
+          "week52High": "81.5000",
+          "week52Low": "46.5900"
+        },
+        "after": {
+          "currentPrice": "56.2900",
+          "ytdStartPrice": "46.7600",
+          "ytdPerformance": "20.38",
+          "week52High": "81.5000",
+          "week52Low": "46.5900"
+        }
+      },
+      {
+        "ticker": "VMD",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "9.5200",
+          "ytdStartPrice": "7.22",
+          "ytdPerformance": "31.86",
+          "week52High": "12.3300",
+          "week52Low": "6.2600"
+        },
+        "after": {
+          "currentPrice": "9.5200",
+          "ytdStartPrice": "7.2200",
+          "ytdPerformance": "31.86",
+          "week52High": "12.3300",
+          "week52Low": "6.2600"
+        }
+      },
+      {
+        "ticker": "WTE.TO",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "43.3400",
+          "ytdStartPrice": "26.03",
+          "ytdPerformance": "66.50",
+          "week52High": "45.8900",
+          "week52Low": "24.6600"
+        },
+        "after": {
+          "currentPrice": "43.3400",
+          "ytdStartPrice": "26.0300",
+          "ytdPerformance": "66.50",
+          "week52High": "45.8900",
+          "week52Low": "24.6600"
+        }
+      },
+      {
+        "ticker": "LGND",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "301.8100",
+          "ytdStartPrice": "190.11",
+          "ytdPerformance": "58.76",
+          "week52High": "322.6100",
+          "week52Low": "177.7300"
+        },
+        "after": {
+          "currentPrice": "301.8100",
+          "ytdStartPrice": "190.1100",
+          "ytdPerformance": "58.76",
+          "week52High": "322.6100",
+          "week52Low": "177.7300"
+        }
+      },
+      {
+        "ticker": "DINO",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "121.3000",
+          "ytdStartPrice": "46.85",
+          "ytdPerformance": "158.91",
+          "week52High": "120.7200",
+          "week52Low": "45.8800"
+        },
+        "after": {
+          "currentPrice": "121.3000",
+          "ytdStartPrice": "46.8500",
+          "ytdPerformance": "158.91",
+          "week52High": "120.7200",
+          "week52Low": "45.8800"
+        }
+      },
+      {
+        "ticker": "MOH.AT",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "67.7500",
+          "ytdStartPrice": "31.42",
+          "ytdPerformance": "115.63",
+          "week52High": "69.9500",
+          "week52Low": "24.4800"
+        },
+        "after": {
+          "currentPrice": "67.7500",
+          "ytdStartPrice": "31.4200",
+          "ytdPerformance": "115.63",
+          "week52High": "69.9500",
+          "week52Low": "24.4800"
+        }
+      },
+      {
+        "ticker": "XTB.WA",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "139.7200",
+          "ytdStartPrice": "73.40",
+          "ytdPerformance": "90.35",
+          "week52High": "184.1600",
+          "week52Low": "65.6000"
+        },
+        "after": {
+          "currentPrice": "139.7200",
+          "ytdStartPrice": "73.4000",
+          "ytdPerformance": "90.35",
+          "week52High": "184.1600",
+          "week52Low": "65.6000"
+        }
+      },
+      {
+        "ticker": "SNT.WA",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "344.0000",
+          "ytdStartPrice": "288.00",
+          "ytdPerformance": "19.44",
+          "week52High": "394.0000",
+          "week52Low": "248.2000"
+        },
+        "after": {
+          "currentPrice": "344.0000",
+          "ytdStartPrice": "288.0000",
+          "ytdPerformance": "19.44",
+          "week52High": "394.0000",
+          "week52Low": "248.2000"
+        }
+      },
+      {
+        "ticker": "RUS.TO",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "90.1700",
+          "ytdStartPrice": "43.66",
+          "ytdPerformance": "106.53",
+          "week52High": "95.2100",
+          "week52Low": "39.2700"
+        },
+        "after": {
+          "currentPrice": "90.1700",
+          "ytdStartPrice": "43.6600",
+          "ytdPerformance": "106.53",
+          "week52High": "95.2100",
+          "week52Low": "39.2700"
+        }
+      },
+      {
+        "ticker": "OII",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "44.8100",
+          "ytdStartPrice": "24.85",
+          "ytdPerformance": "80.32",
+          "week52High": "54.1100",
+          "week52Low": "22.2000"
+        },
+        "after": {
+          "currentPrice": "44.8100",
+          "ytdStartPrice": "24.8500",
+          "ytdPerformance": "80.32",
+          "week52High": "54.1100",
+          "week52Low": "22.2000"
+        }
+      },
+      {
+        "ticker": "PARR",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "81.8900",
+          "ytdStartPrice": "35.82",
+          "ytdPerformance": "128.62",
+          "week52High": "87.6500",
+          "week52Low": "33.2800"
+        },
+        "after": {
+          "currentPrice": "81.8900",
+          "ytdStartPrice": "35.8200",
+          "ytdPerformance": "128.62",
+          "week52High": "87.6500",
+          "week52Low": "33.2800"
+        }
+      },
+      {
+        "ticker": "FTK",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "26.7900",
+          "ytdStartPrice": "17.05",
+          "ytdPerformance": "57.13",
+          "week52High": "38.8200",
+          "week52Low": "13.4700"
+        },
+        "after": {
+          "currentPrice": "26.7900",
+          "ytdStartPrice": "17.0500",
+          "ytdPerformance": "57.13",
+          "week52High": "38.8200",
+          "week52Low": "13.4700"
+        }
+      },
+      {
+        "ticker": "FLXS",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "85.1700",
+          "ytdStartPrice": "39.91",
+          "ytdPerformance": "113.41",
+          "week52High": "89.3700",
+          "week52Low": "34.1900"
+        },
+        "after": {
+          "currentPrice": "85.1700",
+          "ytdStartPrice": "39.9100",
+          "ytdPerformance": "113.41",
+          "week52High": "89.3700",
+          "week52Low": "34.1900"
+        }
+      },
+      {
+        "ticker": "AGGH.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "4.7853",
+          "ytdStartPrice": "4.93",
+          "ytdPerformance": "-2.86",
+          "week52High": "4.9999",
+          "week52Low": "4.7853"
+        },
+        "after": {
+          "currentPrice": "4.7853",
+          "ytdStartPrice": "4.9263",
+          "ytdPerformance": "-2.86",
+          "week52High": "4.9999",
+          "week52Low": "4.7853"
+        }
+      },
+      {
+        "ticker": "ZGLD.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "1014.8000",
+          "ytdStartPrice": "1043.00",
+          "ytdPerformance": "-2.70",
+          "week52High": "1229.0000",
+          "week52Low": "930.6000"
+        },
+        "after": {
+          "currentPrice": "1014.8000",
+          "ytdStartPrice": "1043.0000",
+          "ytdPerformance": "-2.70",
+          "week52High": "1229.0000",
+          "week52Low": "930.6000"
+        }
+      },
+      {
+        "ticker": "ASOL.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "62.6200",
+          "ytdStartPrice": "71.06",
+          "ytdPerformance": "-11.88",
+          "week52High": "118.7800",
+          "week52Low": "34.0000"
+        },
+        "after": {
+          "currentPrice": "62.6200",
+          "ytdStartPrice": "71.0600",
+          "ytdPerformance": "-11.88",
+          "week52High": "118.7800",
+          "week52Low": "34.0000"
+        }
+      },
+      {
+        "ticker": "CMDY",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "64.1900",
+          "ytdStartPrice": "48.82",
+          "ytdPerformance": "31.48",
+          "week52High": "66.1600",
+          "week52Low": "47.7600"
+        },
+        "after": {
+          "currentPrice": "64.1900",
+          "ytdStartPrice": "48.8200",
+          "ytdPerformance": "31.48",
+          "week52High": "66.1600",
+          "week52Low": "47.7600"
+        }
+      },
+      {
+        "ticker": "REET",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "25.5100",
+          "ytdStartPrice": "25.02",
+          "ytdPerformance": "1.96",
+          "week52High": "28.8900",
+          "week52Low": "24.7000"
+        },
+        "after": {
+          "currentPrice": "25.5100",
+          "ytdStartPrice": "25.0200",
+          "ytdPerformance": "1.96",
+          "week52High": "28.8900",
+          "week52Low": "24.7000"
+        }
+      },
+      {
+        "ticker": "ABTC.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "22.3750",
+          "ytdStartPrice": "22.91",
+          "ytdPerformance": "-2.34",
+          "week52High": "36.9150",
+          "week52Low": "14.4800"
+        },
+        "after": {
+          "currentPrice": "22.3750",
+          "ytdStartPrice": "22.9100",
+          "ytdPerformance": "-2.34",
+          "week52High": "36.9150",
+          "week52Low": "14.4800"
+        }
+      },
+      {
+        "ticker": "CSBGC0.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "102.1350",
+          "ytdStartPrice": "106.17",
+          "ytdPerformance": "-3.80",
+          "week52High": "107.8400",
+          "week52Low": "101.6450"
+        },
+        "after": {
+          "currentPrice": "102.1350",
+          "ytdStartPrice": "106.1700",
+          "ytdPerformance": "-3.80",
+          "week52High": "107.8400",
+          "week52Low": "101.6450"
+        }
+      },
+      {
+        "ticker": "AGG",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "94.1300",
+          "ytdStartPrice": "99.85",
+          "ytdPerformance": "-5.73",
+          "week52High": "101.4000",
+          "week52Low": "94.1300"
+        },
+        "after": {
+          "currentPrice": "94.1300",
+          "ytdStartPrice": "99.8500",
+          "ytdPerformance": "-5.73",
+          "week52High": "101.4000",
+          "week52Low": "94.1300"
+        }
+      },
+      {
+        "ticker": "BRKN.SW",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "124.6000",
+          "ytdStartPrice": "142.00",
+          "ytdPerformance": "-12.25",
+          "week52High": "190.2000",
+          "week52Low": "118.0000"
+        },
+        "after": {
+          "currentPrice": "124.6000",
+          "ytdStartPrice": "142.0000",
+          "ytdPerformance": "-12.25",
+          "week52High": "190.2000",
+          "week52Low": "118.0000"
+        }
+      },
+      {
+        "ticker": "NFLX",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "70.3000",
+          "ytdStartPrice": "90.99",
+          "ytdPerformance": "-22.74",
+          "week52High": "124.1350",
+          "week52Low": "67.0600"
+        },
+        "after": {
+          "currentPrice": "70.3000",
+          "ytdStartPrice": "90.9900",
+          "ytdPerformance": "-22.74",
+          "week52High": "124.1350",
+          "week52Low": "67.0600"
+        }
+      },
+      {
+        "ticker": "VZN.SW",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "158.4000",
+          "ytdStartPrice": "151.00",
+          "ytdPerformance": "4.90",
+          "week52High": "181.0000",
+          "week52Low": "142.0000"
+        },
+        "after": {
+          "currentPrice": "158.4000",
+          "ytdStartPrice": "151.0000",
+          "ytdPerformance": "4.90",
+          "week52High": "181.0000",
+          "week52Low": "142.0000"
+        }
+      },
+      {
+        "ticker": "AZN.L",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "11998.0000",
+          "ytdStartPrice": "13592.00",
+          "ytdPerformance": "-11.73",
+          "week52High": "15542.0000",
+          "week52Low": "11460.0000"
+        },
+        "after": {
+          "currentPrice": "11998.0000",
+          "ytdStartPrice": "13592.0000",
+          "ytdPerformance": "-11.73",
+          "week52High": "15542.0000",
+          "week52Low": "11460.0000"
+        }
+      },
+      {
+        "ticker": "ITX.MC",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "53.8600",
+          "ytdStartPrice": "56.34",
+          "ytdPerformance": "-4.40",
+          "week52High": "59.1000",
+          "week52Low": "46.5400"
+        },
+        "after": {
+          "currentPrice": "53.8600",
+          "ytdStartPrice": "56.3400",
+          "ytdPerformance": "-4.40",
+          "week52High": "59.1000",
+          "week52Low": "46.5400"
+        }
+      },
+      {
+        "ticker": "OR.PA",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "381.2000",
+          "ytdStartPrice": "364.70",
+          "ytdPerformance": "4.52",
+          "week52High": "403.1000",
+          "week52Low": "344.9000"
+        },
+        "after": {
+          "currentPrice": "381.2000",
+          "ytdStartPrice": "364.7000",
+          "ytdPerformance": "4.52",
+          "week52High": "403.1000",
+          "week52Low": "344.9000"
+        }
+      },
+      {
+        "ticker": "IBE.MC",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "21.2600",
+          "ytdStartPrice": "18.63",
+          "ytdPerformance": "14.12",
+          "week52High": "21.8400",
+          "week52Low": "16.5000"
+        },
+        "after": {
+          "currentPrice": "21.2600",
+          "ytdStartPrice": "18.6300",
+          "ytdPerformance": "14.12",
+          "week52High": "21.8400",
+          "week52Low": "16.5000"
+        }
+      },
+      {
+        "ticker": "ENEL.MI",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "8.8670",
+          "ytdStartPrice": "9.00",
+          "ytdPerformance": "-1.48",
+          "week52High": "10.2800",
+          "week52Low": "8.2650"
+        },
+        "after": {
+          "currentPrice": "8.8670",
+          "ytdStartPrice": "9.0000",
+          "ytdPerformance": "-1.48",
+          "week52High": "10.2800",
+          "week52Low": "8.2650"
+        }
+      },
+      {
+        "ticker": "BAS.DE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "51.6800",
+          "ytdStartPrice": "44.78",
+          "ytdPerformance": "15.41",
+          "week52High": "54.7400",
+          "week52Low": "41.5900"
+        },
+        "after": {
+          "currentPrice": "51.6800",
+          "ytdStartPrice": "44.7800",
+          "ytdPerformance": "15.41",
+          "week52High": "54.7400",
+          "week52Low": "41.5900"
+        }
+      },
+      {
+        "ticker": "CAT",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "800.4700",
+          "ytdStartPrice": "598.41",
+          "ytdPerformance": "33.77",
+          "week52High": "1064.9000",
+          "week52Low": "491.3000"
+        },
+        "after": {
+          "currentPrice": "800.4700",
+          "ytdStartPrice": "598.4100",
+          "ytdPerformance": "33.77",
+          "week52High": "1064.9000",
+          "week52Low": "491.3000"
+        }
+      },
+      {
+        "ticker": "BHP.AX",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "60.9400",
+          "ytdStartPrice": "45.76",
+          "ytdPerformance": "33.17",
+          "week52High": "67.6700",
+          "week52Low": "40.3700"
+        },
+        "after": {
+          "currentPrice": "60.9400",
+          "ytdStartPrice": "45.7600",
+          "ytdPerformance": "33.17",
+          "week52High": "67.6700",
+          "week52Low": "40.3700"
+        }
+      },
+      {
+        "ticker": "UEFY.DE",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "12.3250",
+          "ytdStartPrice": "12.55",
+          "ytdPerformance": "-1.76",
+          "week52High": "12.8400",
+          "week52Low": "11.6694"
+        },
+        "after": {
+          "currentPrice": "12.3250",
+          "ytdStartPrice": "12.5460",
+          "ytdPerformance": "-1.76",
+          "week52High": "12.8400",
+          "week52Low": "11.6694"
+        }
+      },
+      {
+        "ticker": "INTU",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "302.7500",
+          "ytdStartPrice": "629.46",
+          "ytdPerformance": "-51.90",
+          "week52High": "683.3900",
+          "week52Low": "255.0700"
+        },
+        "after": {
+          "currentPrice": "302.7500",
+          "ytdStartPrice": "629.4600",
+          "ytdPerformance": "-51.90",
+          "week52High": "683.3900",
+          "week52Low": "255.0700"
+        }
+      },
+      {
+        "ticker": "NTRA",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "400.7100",
+          "ytdStartPrice": "228.84",
+          "ytdPerformance": "75.10",
+          "week52High": "425.6400",
+          "week52Low": "169.2700"
+        },
+        "after": {
+          "currentPrice": "400.7100",
+          "ytdStartPrice": "228.8400",
+          "ytdPerformance": "75.10",
+          "week52High": "425.6400",
+          "week52Low": "169.2700"
+        }
+      },
+      {
+        "ticker": "VIST",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "66.2600",
+          "ytdStartPrice": "48.81",
+          "ytdPerformance": "35.75",
+          "week52High": "79.2500",
+          "week52Low": "35.0200"
+        },
+        "after": {
+          "currentPrice": "66.2600",
+          "ytdStartPrice": "48.8100",
+          "ytdPerformance": "35.75",
+          "week52High": "79.2500",
+          "week52Low": "35.0200"
+        }
+      },
+      {
+        "ticker": "ONON.US",
+        "status": "updated",
+        "source": "raw_close_without_unresolved_jump",
+        "reason": null,
+        "before": {
+          "currentPrice": "33.2200",
+          "ytdStartPrice": "46.95",
+          "ytdPerformance": "-29.24",
+          "week52High": "50.6300",
+          "week52Low": "26.7600"
+        },
+        "after": {
+          "currentPrice": "33.2200",
+          "ytdStartPrice": "46.9500",
+          "ytdPerformance": "-29.24",
+          "week52High": "50.6300",
+          "week52Low": "26.7600"
+        }
+      },
+      {
+        "ticker": "LOGI.US",
+        "status": "updated",
+        "source": "eodhd_split_adjusted",
+        "reason": null,
+        "before": {
+          "currentPrice": "98.2700",
+          "ytdStartPrice": "100.28",
+          "ytdPerformance": "-2.00",
+          "week52High": "126.6900",
+          "week52Low": "85.8400"
+        },
+        "after": {
+          "currentPrice": "98.2700",
+          "ytdStartPrice": "100.2800",
+          "ytdPerformance": "-2.00",
+          "week52High": "126.6900",
+          "week52Low": "85.8400"
+        }
+      }
+    ],
+    "blockedRows": [
+      {
+        "ticker": "MESA.US",
+        "status": "blocked",
+        "source": null,
+        "reason": "Ungeklärter Rohkurssprung von 2025-11-24 zu 2025-11-25 (1396.4 %); Timing erst nach geprüfter Corporate-Action-Reihe.",
+        "before": {
+          "currentPrice": "17.225",
+          "ytdStartPrice": "19.62",
+          "ytdPerformance": "-11.77",
+          "week52High": "24.77",
+          "week52Low": "1.32"
+        },
+        "after": {
+          "currentPrice": "17.225",
+          "ytdStartPrice": "19.62",
+          "ytdPerformance": "-11.77",
+          "week52High": "24.77",
+          "week52Low": "1.32"
+        }
+      },
+      {
+        "ticker": "7735.T",
+        "status": "blocked",
+        "source": null,
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "20.5",
+          "ytdStartPrice": "20.74",
+          "ytdPerformance": "-24.21",
+          "week52High": "23",
+          "week52Low": "13"
+        },
+        "after": {
+          "currentPrice": "20.5",
+          "ytdStartPrice": "20.74",
+          "ytdPerformance": "-24.21",
+          "week52High": "23",
+          "week52Low": "13"
+        }
+      },
+      {
+        "ticker": "9962.T",
+        "status": "blocked",
+        "source": null,
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "13.03",
+          "ytdStartPrice": "7.82",
+          "ytdPerformance": "66.62",
+          "week52High": "13.03",
+          "week52Low": "6.64"
+        },
+        "after": {
+          "currentPrice": "13.03",
+          "ytdStartPrice": "7.82",
+          "ytdPerformance": "66.62",
+          "week52High": "13.03",
+          "week52Low": "6.64"
+        }
+      },
+      {
+        "ticker": "PRY.MI",
+        "status": "blocked",
+        "source": null,
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "69.19",
+          "ytdStartPrice": "52.65",
+          "ytdPerformance": "29.59",
+          "week52High": "92.14",
+          "week52Low": "46.84"
+        },
+        "after": {
+          "currentPrice": "69.19",
+          "ytdStartPrice": "52.65",
+          "ytdPerformance": "29.59",
+          "week52High": "92.14",
+          "week52Low": "46.84"
+        }
+      },
+      {
+        "ticker": "WILC",
+        "status": "blocked",
+        "source": null,
+        "reason": "Ungeklärter Rohkurssprung von 2025-11-26 zu 2025-11-27 (32943.8 %); Timing erst nach geprüfter Corporate-Action-Reihe.",
+        "before": {
+          "currentPrice": null,
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": null,
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "0QOK.L",
+        "status": "blocked",
+        "source": null,
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "NA",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "335.6",
+          "week52Low": "246.3"
+        },
+        "after": {
+          "currentPrice": "NA",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "335.6",
+          "week52Low": "246.3"
+        }
+      },
+      {
+        "ticker": "SE0007491303.SG",
+        "status": "blocked",
+        "source": null,
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "145.7",
+          "ytdStartPrice": "84.92",
+          "ytdPerformance": "71.58",
+          "week52High": "148",
+          "week52Low": "78.6"
+        },
+        "after": {
+          "currentPrice": "145.7",
+          "ytdStartPrice": "84.92",
+          "ytdPerformance": "71.58",
+          "week52High": "148",
+          "week52Low": "78.6"
+        }
+      },
+      {
+        "ticker": "8015.T",
+        "status": "blocked",
+        "source": null,
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "40.0692",
+          "ytdStartPrice": "28.41",
+          "ytdPerformance": "42.77",
+          "week52High": "7798",
+          "week52Low": "4022"
+        },
+        "after": {
+          "currentPrice": "40.0692",
+          "ytdStartPrice": "28.41",
+          "ytdPerformance": "42.77",
+          "week52High": "7798",
+          "week52Low": "4022"
+        }
+      },
+      {
+        "ticker": "SGLD.L",
+        "status": "blocked",
+        "source": null,
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "402.99",
+          "ytdStartPrice": "415.68",
+          "ytdPerformance": "-4.91",
+          "week52High": "534.03",
+          "week52Low": "361.20175"
+        },
+        "after": {
+          "currentPrice": "402.99",
+          "ytdStartPrice": "415.68",
+          "ytdPerformance": "-4.91",
+          "week52High": "534.03",
+          "week52Low": "361.20175"
+        }
+      }
+    ],
+    "skippedRows": [
+      {
+        "ticker": "NLBR.VI",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "227",
+          "ytdStartPrice": "229.00",
+          "ytdPerformance": "-1.75",
+          "week52High": "237",
+          "week52Low": "208"
+        },
+        "after": {
+          "currentPrice": "227",
+          "ytdStartPrice": "229.00",
+          "ytdPerformance": "-1.75",
+          "week52High": "237",
+          "week52Low": "208"
+        }
+      },
+      {
+        "ticker": "CH0344583791",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "99.99",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "99.99",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "CH1189217743",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "99.98",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "99.98",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "CH1130818821",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "99.87",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "99.87",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "CH0494734426",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "99.52",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "99.52",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "CH0354836113",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "100.08",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "100.08",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "CH0564642061",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "99.53",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "99.53",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "CH0419041659",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "99.15",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "99.15",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "CH1154887132",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "99.65",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "99.65",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "CH1142754345",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "99.35",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "99.35",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "CH1160188343",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "99.45",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "99.45",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "CH1112011536",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "98.55",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "98.55",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "GG00BZ4BLM23",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "100.36",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "100.36",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "CH0521617305",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "100.05",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "100.05",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "CH0197484386",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "154.62",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "154.62",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "SAP.DE",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "191.46",
+          "ytdStartPrice": "180.14",
+          "ytdPerformance": "1.48",
+          "week52High": "191.32",
+          "week52Low": "175.38"
+        },
+        "after": {
+          "currentPrice": "191.46",
+          "ytdStartPrice": "180.14",
+          "ytdPerformance": "1.48",
+          "week52High": "191.32",
+          "week52Low": "175.38"
+        }
+      },
+      {
+        "ticker": "1GOOGL.MI",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "303.75",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "350.75",
+          "week52Low": "162.32"
+        },
+        "after": {
+          "currentPrice": "303.75",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "350.75",
+          "week52Low": "162.32"
+        }
+      },
+      {
+        "ticker": "C6JC.DU",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "1.27",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "9.26",
+          "week52Low": "1.27"
+        },
+        "after": {
+          "currentPrice": "1.27",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "9.26",
+          "week52Low": "1.27"
+        }
+      },
+      {
+        "ticker": "CH0595154060",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "7415.66",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        },
+        "after": {
+          "currentPrice": "7415.66",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": null,
+          "week52Low": null
+        }
+      },
+      {
+        "ticker": "BCOM.SW",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "21.705",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "21.285",
+          "week52Low": "14.396"
+        },
+        "after": {
+          "currentPrice": "21.705",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "21.285",
+          "week52Low": "14.396"
+        }
+      },
+      {
+        "ticker": "IWDP.L",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "1791.5",
+          "ytdStartPrice": "1944.00",
+          "ytdPerformance": "-4.09",
+          "week52High": "1948",
+          "week52Low": "1815.5"
+        },
+        "after": {
+          "currentPrice": "1791.5",
+          "ytdStartPrice": "1944.00",
+          "ytdPerformance": "-4.09",
+          "week52High": "1948",
+          "week52Low": "1815.5"
+        }
+      },
+      {
+        "ticker": "VBTC.SW",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "35.94",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "28.075",
+          "week52Low": "8.794"
+        },
+        "after": {
+          "currentPrice": "35.94",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "28.075",
+          "week52Low": "8.794"
+        }
+      },
+      {
+        "ticker": "MAR",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "365.88",
+          "ytdStartPrice": "356.85",
+          "ytdPerformance": "-5.70",
+          "week52High": "410.98",
+          "week52Low": "256.76"
+        },
+        "after": {
+          "currentPrice": "365.88",
+          "ytdStartPrice": "356.85",
+          "ytdPerformance": "-5.70",
+          "week52High": "410.98",
+          "week52Low": "256.76"
+        }
+      },
+      {
+        "ticker": "MRK",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "145.6",
+          "ytdStartPrice": "152.02",
+          "ytdPerformance": "-1.11",
+          "week52High": "156.92",
+          "week52Low": "78.03"
+        },
+        "after": {
+          "currentPrice": "145.6",
+          "ytdStartPrice": "152.02",
+          "ytdPerformance": "-1.11",
+          "week52High": "156.92",
+          "week52Low": "78.03"
+        }
+      },
+      {
+        "ticker": "PHYMF",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "79.853",
+          "ytdStartPrice": "87.26",
+          "ytdPerformance": "-1.31",
+          "week52High": "107.434",
+          "week52Low": "74.166"
+        },
+        "after": {
+          "currentPrice": "79.853",
+          "ytdStartPrice": "87.26",
+          "ytdPerformance": "-1.31",
+          "week52High": "107.434",
+          "week52Low": "74.166"
+        }
+      },
+      {
+        "ticker": "B",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "41.06",
+          "ytdStartPrice": "43.70",
+          "ytdPerformance": "2.40",
+          "week52High": "54.69",
+          "week52Low": "30.35"
+        },
+        "after": {
+          "currentPrice": "41.06",
+          "ytdStartPrice": "43.70",
+          "ytdPerformance": "2.40",
+          "week52High": "54.69",
+          "week52Low": "30.35"
+        }
+      },
+      {
+        "ticker": "ZUGER.SW",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "11300",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "10800",
+          "week52Low": "10550"
+        },
+        "after": {
+          "currentPrice": "11300",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "10800",
+          "week52Low": "10550"
+        }
+      },
+      {
+        "ticker": "TKBP.SW",
+        "status": "skipped",
+        "source": "raw_close",
+        "reason": "Keine direkt verifizierte, splitbereinigte Preisreihe für YTD/52W verfügbar.",
+        "before": {
+          "currentPrice": "158.5",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "162",
+          "week52Low": "156.5"
+        },
+        "after": {
+          "currentPrice": "158.5",
+          "ytdStartPrice": null,
+          "ytdPerformance": null,
+          "week52High": "162",
+          "week52Low": "156.5"
+        }
+      }
+    ]
+  },
+  "invariants": {
+    "rawHistoricalPricesMutated": false,
+    "portfolioMutated": false,
+    "cashMutated": false,
+    "ledgerMutated": false,
+    "transactionsMutated": false,
+    "ordersPlaced": false
+  }
+}

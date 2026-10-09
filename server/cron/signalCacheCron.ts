@@ -200,20 +200,28 @@ export async function refreshSignalCache(): Promise<void> {
             // pick one complete source or retain the raw series only when it
             // has no unresolved mechanical corporate-action jump.
             const splitRows = await db
-              .select({ source: splitAdjustedHistoricalPrices.source, date: splitAdjustedHistoricalPrices.date, close: splitAdjustedHistoricalPrices.adjustedClose })
+              .select({
+                source: splitAdjustedHistoricalPrices.source,
+                date: splitAdjustedHistoricalPrices.date,
+                close: splitAdjustedHistoricalPrices.adjustedClose,
+                currency: splitAdjustedHistoricalPrices.currency,
+                sourceSymbol: splitAdjustedHistoricalPrices.sourceSymbol,
+              })
               .from(splitAdjustedHistoricalPrices)
               .where(and(eq(splitAdjustedHistoricalPrices.ticker, ticker), gte(splitAdjustedHistoricalPrices.date, from)))
               .orderBy(asc(splitAdjustedHistoricalPrices.date));
-            const bySource = new Map<string, Array<{ date: string; close: number }>>();
-            for (const row of splitRows) {
-              const close = Number(row.close);
-              if (!Number.isFinite(close) || close <= 0) continue;
-              const rows = bySource.get(row.source) ?? [];
-              rows.push({ date: row.date, close });
-              bySource.set(row.source, rows);
-            }
-            const splitSeries = [...bySource.entries()]
-              .sort((left, right) => right[1].length - left[1].length || left[0].localeCompare(right[0]))[0]?.[1] ?? [];
+            const { selectDirectSplitAdjustedMetricSeries } = await import("../lib/splitAdjustedMarketMetrics");
+            const splitSeries = selectDirectSplitAdjustedMetricSeries({
+              ticker,
+              currency: stockRow?.currency ?? null,
+              isin: stockRow?.isin ?? null,
+            }, splitRows.map((row) => ({
+              date: row.date,
+              adjustedClose: row.close,
+              currency: row.currency,
+              source: row.source,
+              sourceSymbol: row.sourceSymbol,
+            })))?.rows ?? [];
             const rawIntegrity = assessRawPriceSeriesIntegrity(rawSeries);
             const usesVerifiedSplitSeries = splitSeries.length >= 60;
             const series = usesVerifiedSplitSeries

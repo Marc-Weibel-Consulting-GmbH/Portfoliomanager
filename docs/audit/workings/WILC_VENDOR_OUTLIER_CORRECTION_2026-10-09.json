@@ -1,0 +1,31 @@
+{
+  "correctedAt": "2026-10-09T21:15:35.692Z",
+  "ticker": "WILC",
+  "classification": "vendor_outlier_not_verified_corporate_action",
+  "evidence": "WILC_PRICE_RAW_EVIDENCE_2026-10-09.json",
+  "before": {
+    "currentPrice": null,
+    "ytdStartPrice": null,
+    "ytdPerformance": null,
+    "week52High": null,
+    "week52Low": null
+  },
+  "after": {
+    "currentPrice": null,
+    "ytdStartPrice": null,
+    "ytdPerformance": null,
+    "week52High": null,
+    "week52Low": null,
+    "dataQualityStatus": "pruefen",
+    "dataQualityNotes": "Bewertungs-Score nicht berechenbar · Timing-Score nicht berechenbar · Ungeklärter Rohkurssprung von 2026-08-25 zu 2026-08-26 (30947.9 %); Timing erst nach geprüfter Corporate-Action-Reihe.. · [Preisbasis] EODHD liefert in WILC.US isolierte, nicht durch Splits belegte 300×-Ausreißer (z. B. 2026-07-03 10'160 nach 33.31); YTD und 52W sind bis zu einer verifizierten konsistenten Handelslinie gesperrt."
+  },
+  "invariants": {
+    "rawHistoricalPricesMutated": false,
+    "splitSnapshotsMutated": false,
+    "portfolioMutated": false,
+    "cashMutated": false,
+    "ledgerMutated": false,
+    "transactionsMutated": false,
+    "ordersPlaced": false
+  }
+}

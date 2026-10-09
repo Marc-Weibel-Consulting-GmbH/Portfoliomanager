@@ -26,4 +26,16 @@ describe("assessRawPriceSeriesIntegrity", () => {
     ]);
     expect(result.valid).toBe(false);
   });
+
+  it("blocks isolated 300x vendor rows even when a stale derived snapshot exists", () => {
+    const result = assessRawPriceSeriesIntegrity([
+      { date: "2026-01-02", close: 28.7 },
+      { date: "2026-07-02", close: 33.31 },
+      { date: "2026-07-03", close: 10_160 },
+      { date: "2026-07-06", close: 31.9 },
+    ]);
+
+    expect(result.valid).toBe(false);
+    expect(result.reason).toContain("Corporate-Action-Reihe");
+  });
 });
