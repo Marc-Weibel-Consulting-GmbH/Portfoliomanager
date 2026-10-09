@@ -1,0 +1,1072 @@
+{
+  "asOfDate": "2026-10-09",
+  "scope": {
+    "activeWithVerifiedCapitalAction": 24,
+    "eodhdDividendRequests": 24
+  },
+  "summary": {
+    "requestFailures": 0,
+    "withDifferentValueAndUnadjustedValue": 3,
+    "materiallyAffected": 3,
+    "materiallyAffectedTickers": [
+      "KLAC",
+      "NOBL",
+      "SQN.SW"
+    ]
+  },
+  "assets": [
+    {
+      "ticker": "8015.T",
+      "eodhdSymbol": "9TO.F",
+      "corporateActions": [
+        {
+          "date": "2024-06-27",
+          "split": "3.000000/1.000000",
+          "factor": 3,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "40.0692",
+        "dividendYield": "1.68",
+        "dividendAnnualAmount": null,
+        "dividendYieldBasis": null
+      },
+      "eventCount": 2,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 1.744432132410929,
+        "annualDividendPerShare": 0.69898,
+        "currency": "JPY",
+        "eventCount": 2,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 1.744432132410929,
+        "annualDividendPerShare": 0.69898,
+        "currency": "JPY",
+        "eventCount": 2,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "ANET",
+      "eodhdSymbol": "ANET",
+      "corporateActions": [
+        {
+          "date": "2024-12-04",
+          "split": "4.000000/1.000000",
+          "factor": 4,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "216.7400",
+        "dividendYield": "0.0000",
+        "dividendAnnualAmount": "0.000000",
+        "dividendYieldBasis": "forward_indicated"
+      },
+      "eventCount": 0,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "AVGO",
+      "eodhdSymbol": "AVGO",
+      "corporateActions": [
+        {
+          "date": "2024-07-15",
+          "split": "10.000000/1.000000",
+          "factor": 10,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "361.5400",
+        "dividendYield": "0.7219",
+        "dividendAnnualAmount": "2.600000",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "eventCount": 4,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.7191458759749959,
+        "annualDividendPerShare": 2.6,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.7191458759749959,
+        "annualDividendPerShare": 2.6,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "CRWD",
+      "eodhdSymbol": "CRWD",
+      "corporateActions": [
+        {
+          "date": "2026-07-02",
+          "split": "4.000000/1.000000",
+          "factor": 4,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "275.0400",
+        "dividendYield": "0.0000",
+        "dividendAnnualAmount": "0.000000",
+        "dividendYieldBasis": "forward_indicated"
+      },
+      "eventCount": 0,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "D05.SI",
+      "eodhdSymbol": "DBSDY.US",
+      "corporateActions": [
+        {
+          "date": "2024-04-25",
+          "split": "11.000000/10.000000",
+          "factor": 1.1,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "73.8500",
+        "dividendYield": "3.7300",
+        "dividendAnnualAmount": "8.980000",
+        "dividendYieldBasis": "forward_indicated"
+      },
+      "eventCount": 4,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "currency_mismatch",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "SGD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "currency_mismatch",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "SGD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "DECK",
+      "eodhdSymbol": "DECK",
+      "corporateActions": [
+        {
+          "date": "2024-09-17",
+          "split": "6.000000/1.000000",
+          "factor": 6,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "82.8900",
+        "dividendYield": "0.0000",
+        "dividendAnnualAmount": "0.000000",
+        "dividendYieldBasis": "forward_indicated"
+      },
+      "eventCount": 0,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "FLEX",
+      "eodhdSymbol": "FLEX",
+      "corporateActions": [
+        {
+          "date": "2024-01-03",
+          "split": "1327.000000/1000.000000",
+          "factor": 1.327,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "119.8300",
+        "dividendYield": "0.0000",
+        "dividendAnnualAmount": "0.000000",
+        "dividendYieldBasis": "forward_indicated"
+      },
+      "eventCount": 0,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "GE",
+      "eodhdSymbol": "GE",
+      "corporateActions": [
+        {
+          "date": "2024-04-02",
+          "split": "1253.000000/1000.000000",
+          "factor": 1.253,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "308.2000",
+        "dividendYield": "0.5792",
+        "dividendAnnualAmount": "1.770000",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "eventCount": 4,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.5743024010382868,
+        "annualDividendPerShare": 1.7699999999999998,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.5743024010382868,
+        "annualDividendPerShare": 1.7699999999999998,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "HODL.CN",
+      "eodhdSymbol": "HODL.CN",
+      "corporateActions": [
+        {
+          "date": "2025-08-05",
+          "split": "1.000000/8.000000",
+          "factor": 0.125,
+          "kind": "reverse_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "2.3700",
+        "dividendYield": "0.0000",
+        "dividendAnnualAmount": "0.000000",
+        "dividendYieldBasis": "forward_indicated"
+      },
+      "eventCount": 0,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "CAD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "CAD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "KLAC",
+      "eodhdSymbol": "KLAC",
+      "corporateActions": [
+        {
+          "date": "2026-06-12",
+          "split": "10.000000/1.000000",
+          "factor": 10,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "195.5700",
+        "dividendYield": "0.4295",
+        "dividendAnnualAmount": "0.840000",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "eventCount": 4,
+      "mismatchedEvents": [
+        {
+          "date": "2025-11-17",
+          "value": 0.19,
+          "unadjustedValue": 1.9,
+          "currency": "USD",
+          "period": "Quarterly"
+        },
+        {
+          "date": "2026-02-17",
+          "value": 0.19,
+          "unadjustedValue": 1.9,
+          "currency": "USD",
+          "period": "Quarterly"
+        },
+        {
+          "date": "2026-05-18",
+          "value": 0.23,
+          "unadjustedValue": 2.3,
+          "currency": "USD",
+          "period": "Quarterly"
+        }
+      ],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.42951372909955515,
+        "annualDividendPerShare": 0.84,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 3.2366927442859335,
+        "annualDividendPerShare": 6.33,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": true
+    },
+    {
+      "ticker": "LRCX",
+      "eodhdSymbol": "LRCX",
+      "corporateActions": [
+        {
+          "date": "2024-10-03",
+          "split": "10.000000/1.000000",
+          "factor": 10,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "318.8400",
+        "dividendYield": "0.3462",
+        "dividendAnnualAmount": "1.110000",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "eventCount": 4,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.3481369966127212,
+        "annualDividendPerShare": 1.11,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.3481369966127212,
+        "annualDividendPerShare": 1.11,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "MSTR",
+      "eodhdSymbol": "MSTR",
+      "corporateActions": [
+        {
+          "date": "2024-08-08",
+          "split": "10.000000/1.000000",
+          "factor": 10,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "154.3400",
+        "dividendYield": "0.0000",
+        "dividendAnnualAmount": "0.000000",
+        "dividendYieldBasis": "forward_indicated"
+      },
+      "eventCount": 0,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "MSTR.US",
+      "eodhdSymbol": "MSTR.US",
+      "corporateActions": [
+        {
+          "date": "2024-08-08",
+          "split": "10.000000/1.000000",
+          "factor": 10,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "154.3400",
+        "dividendYield": "0.0000",
+        "dividendAnnualAmount": "0.000000",
+        "dividendYieldBasis": "forward_indicated"
+      },
+      "eventCount": 0,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "NFLX",
+      "eodhdSymbol": "NFLX",
+      "corporateActions": [
+        {
+          "date": "2025-11-17",
+          "split": "10.000000/1.000000",
+          "factor": 10,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "70.3000",
+        "dividendYield": "0.0000",
+        "dividendAnnualAmount": "0.000000",
+        "dividendYieldBasis": "forward_indicated"
+      },
+      "eventCount": 0,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "NOBL",
+      "eodhdSymbol": "NOBL",
+      "corporateActions": [
+        {
+          "date": "2026-05-28",
+          "split": "2.000000/1.000000",
+          "factor": 2,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "55.0650",
+        "dividendYield": "2.1301",
+        "dividendAnnualAmount": "1.172950",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "eventCount": 4,
+      "mismatchedEvents": [
+        {
+          "date": "2025-12-24",
+          "value": 0.33059,
+          "unadjustedValue": 0.66118,
+          "currency": "USD",
+          "period": null
+        },
+        {
+          "date": "2026-03-25",
+          "value": 0.25612,
+          "unadjustedValue": 0.51224,
+          "currency": "USD",
+          "period": null
+        }
+      ],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 2.1301189503314264,
+        "annualDividendPerShare": 1.17295,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 3.1956051938617995,
+        "annualDividendPerShare": 1.75966,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": true
+    },
+    {
+      "ticker": "NOW",
+      "eodhdSymbol": "NOW",
+      "corporateActions": [
+        {
+          "date": "2025-12-18",
+          "split": "5.000000/1.000000",
+          "factor": 5,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "140.8600",
+        "dividendYield": "0.0000",
+        "dividendAnnualAmount": "0.000000",
+        "dividendYieldBasis": "forward_indicated"
+      },
+      "eventCount": 0,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "NVDA",
+      "eodhdSymbol": "NVDA",
+      "corporateActions": [
+        {
+          "date": "2024-06-10",
+          "split": "10.000000/1.000000",
+          "factor": 10,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "229.28",
+        "dividendYield": "0.2256",
+        "dividendAnnualAmount": "0.520000",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "eventCount": 4,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.22679692951849267,
+        "annualDividendPerShare": 0.52,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.22679692951849267,
+        "annualDividendPerShare": 0.52,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "PANW",
+      "eodhdSymbol": "PANW",
+      "corporateActions": [
+        {
+          "date": "2024-12-16",
+          "split": "2.000000/1.000000",
+          "factor": 2,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "418.7800",
+        "dividendYield": "0.0000",
+        "dividendAnnualAmount": "0.000000",
+        "dividendYieldBasis": "forward_indicated"
+      },
+      "eventCount": 0,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "no_qualifying_events",
+        "basis": null,
+        "dividendYieldPct": null,
+        "annualDividendPerShare": null,
+        "currency": "USD",
+        "eventCount": 0,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "SCHD",
+      "eodhdSymbol": "SCHD",
+      "corporateActions": [
+        {
+          "date": "2024-10-11",
+          "split": "959692.000000/319897.000000",
+          "factor": 3.0000031260061832,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "33.0400",
+        "dividendYield": "3.1798",
+        "dividendAnnualAmount": "1.054100",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "eventCount": 4,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 3.1903753026634383,
+        "annualDividendPerShare": 1.0541,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 3.1903753026634383,
+        "annualDividendPerShare": 1.0541,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "SQN.SW",
+      "eodhdSymbol": "SQN.SW",
+      "corporateActions": [
+        {
+          "date": "2026-05-28",
+          "split": "10.000000/1.000000",
+          "factor": 10,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "34.8400",
+        "dividendYield": "2.1240",
+        "dividendAnnualAmount": "0.740000",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "eventCount": 1,
+      "mismatchedEvents": [
+        {
+          "date": "2026-05-11",
+          "value": 0.74,
+          "unadjustedValue": 7.4,
+          "currency": "CHF",
+          "period": "Interim"
+        }
+      ],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 2.123995407577497,
+        "annualDividendPerShare": 0.74,
+        "currency": "CHF",
+        "eventCount": 1,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 21.239954075774968,
+        "annualDividendPerShare": 7.4,
+        "currency": "CHF",
+        "eventCount": 1,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": true
+    },
+    {
+      "ticker": "WDC",
+      "eodhdSymbol": "WDC",
+      "corporateActions": [
+        {
+          "date": "2025-02-24",
+          "split": "1323.000000/1000.000000",
+          "factor": 1.323,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "397.2800",
+        "dividendYield": "0.1398",
+        "dividendAnnualAmount": "0.550000",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "eventCount": 4,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.1384414015304068,
+        "annualDividendPerShare": 0.55,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.1384414015304068,
+        "annualDividendPerShare": 0.55,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "XLE.US",
+      "eodhdSymbol": "XLE.US",
+      "corporateActions": [
+        {
+          "date": "2025-12-05",
+          "split": "2.000000/1.000000",
+          "factor": 2,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "65.0800",
+        "dividendYield": "2.3350",
+        "dividendAnnualAmount": "1.523350",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "eventCount": 4,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 2.340734480639213,
+        "annualDividendPerShare": 1.52335,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 2.340734480639213,
+        "annualDividendPerShare": 1.52335,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "XLK.US",
+      "eodhdSymbol": "XLK.US",
+      "corporateActions": [
+        {
+          "date": "2025-12-05",
+          "split": "2.000000/1.000000",
+          "factor": 2,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "198.7800",
+        "dividendYield": "0.4227",
+        "dividendAnnualAmount": "0.836000",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "eventCount": 4,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.42056544924036615,
+        "annualDividendPerShare": 0.836,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.42056544924036615,
+        "annualDividendPerShare": 0.836,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    },
+    {
+      "ticker": "XLY.US",
+      "eodhdSymbol": "XLY.US",
+      "corporateActions": [
+        {
+          "date": "2025-12-05",
+          "split": "2.000000/1.000000",
+          "factor": 2,
+          "kind": "forward_split"
+        }
+      ],
+      "status": "ok",
+      "stored": {
+        "currentPrice": "112.8500",
+        "dividendYield": "0.8361",
+        "dividendAnnualAmount": "0.934000",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "eventCount": 4,
+      "mismatchedEvents": [],
+      "splitAdjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.8276473194505982,
+        "annualDividendPerShare": 0.9339999999999999,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "legacyUnadjustedTtm": {
+        "status": "available",
+        "basis": "ttm_gross",
+        "dividendYieldPct": 0.8276473194505982,
+        "annualDividendPerShare": 0.9339999999999999,
+        "currency": "USD",
+        "eventCount": 4,
+        "excludedSpecialEventCount": 0,
+        "asOfDate": "2026-10-09"
+      },
+      "materiallyAffected": false
+    }
+  ]
+}

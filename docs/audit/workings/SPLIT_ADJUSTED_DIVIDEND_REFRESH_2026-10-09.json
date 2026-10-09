@@ -1,0 +1,178 @@
+{
+  "asOfDate": "2026-10-09",
+  "scope": {
+    "tickers": [
+      "KLAC",
+      "NOBL",
+      "SQN.SW"
+    ],
+    "reason": "EODHD value (heutige splitbereinigte Aktie) ersetzt unadjustedValue (historische Pre-Split-Aktie) in TTM-Dividendenrendite und Ereignis-Gesamtrendite."
+  },
+  "dividendChanges": [
+    {
+      "ticker": "KLAC",
+      "before": {
+        "dividendYield": "3.2178",
+        "dividendAnnualAmount": "6.330000",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "after": {
+        "dividendYield": 0.42951372909955515,
+        "dividendAnnualAmount": 0.84,
+        "dividendYieldBasis": "ttm_gross",
+        "dividendCurrency": "USD",
+        "dividendEventCount": 4,
+        "dividendAsOfDate": "2026-10-09",
+        "dividendYieldSource": "EODHD /api/div"
+      }
+    },
+    {
+      "ticker": "NOBL",
+      "before": {
+        "dividendYield": "3.1965",
+        "dividendAnnualAmount": "1.759660",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "after": {
+        "dividendYield": 2.1301189503314264,
+        "dividendAnnualAmount": 1.17295,
+        "dividendYieldBasis": "ttm_gross",
+        "dividendCurrency": "USD",
+        "dividendEventCount": 4,
+        "dividendAsOfDate": "2026-10-09",
+        "dividendYieldSource": "EODHD /api/div"
+      }
+    },
+    {
+      "ticker": "SQN.SW",
+      "before": {
+        "dividendYield": "21.2400",
+        "dividendAnnualAmount": "7.400000",
+        "dividendYieldBasis": "ttm_gross"
+      },
+      "after": {
+        "dividendYield": 2.123995407577497,
+        "dividendAnnualAmount": 0.74,
+        "dividendYieldBasis": "ttm_gross",
+        "dividendCurrency": "CHF",
+        "dividendEventCount": 1,
+        "dividendAsOfDate": "2026-10-09",
+        "dividendYieldSource": "EODHD /api/div"
+      }
+    }
+  ],
+  "totalReturnSnapshot": {
+    "before": {
+      "KLAC": {
+        "source": "eodhd_events_total_return",
+        "first": {
+          "date": "2021-09-20",
+          "adjustedClose": "35.518000"
+        },
+        "last": {
+          "date": "2026-10-09",
+          "adjustedClose": "311.773117"
+        },
+        "rows": 1270
+      },
+      "NOBL": {
+        "source": "eodhd_events_total_return",
+        "first": {
+          "date": "2021-09-20",
+          "adjustedClose": "45.085000"
+        },
+        "last": {
+          "date": "2026-10-09",
+          "adjustedClose": "67.891615"
+        },
+        "rows": 1270
+      },
+      "SQN.SW": {
+        "source": "eodhd_events_total_return",
+        "first": {
+          "date": "2021-09-20",
+          "adjustedClose": "16.860000"
+        },
+        "last": {
+          "date": "2026-10-09",
+          "adjustedClose": "71.449411"
+        },
+        "rows": 1272
+      }
+    },
+    "refresh": [
+      {
+        "ticker": "KLAC",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "sourceSymbol": "KLAC",
+        "currency": "USD",
+        "rowsFetched": 1270,
+        "rowsStored": 1270,
+        "priceRowsStored": 1270,
+        "message": "1270 Total-Return- und 1270 splitbereinigte Kurszeilen aktualisiert."
+      },
+      {
+        "ticker": "NOBL",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "sourceSymbol": "NOBL",
+        "currency": "USD",
+        "rowsFetched": 1270,
+        "rowsStored": 1270,
+        "priceRowsStored": 1270,
+        "message": "1270 Total-Return- und 1270 splitbereinigte Kurszeilen aktualisiert."
+      },
+      {
+        "ticker": "SQN.SW",
+        "status": "refreshed",
+        "source": "eodhd_adjusted",
+        "sourceSymbol": "SQN.SW",
+        "currency": "CHF",
+        "rowsFetched": 1272,
+        "rowsStored": 1272,
+        "priceRowsStored": 1272,
+        "message": "1272 Total-Return- und 1272 splitbereinigte Kurszeilen aktualisiert."
+      }
+    ],
+    "after": {
+      "KLAC": {
+        "source": "eodhd_adjusted",
+        "first": {
+          "date": "2021-09-20",
+          "adjustedClose": "33.826800"
+        },
+        "last": {
+          "date": "2026-10-09",
+          "adjustedClose": "195.570000"
+        },
+        "rows": 1270
+      },
+      "NOBL": {
+        "source": "eodhd_adjusted",
+        "first": {
+          "date": "2021-09-20",
+          "adjustedClose": "40.389300"
+        },
+        "last": {
+          "date": "2026-10-09",
+          "adjustedClose": "55.070000"
+        },
+        "rows": 1270
+      },
+      "SQN.SW": {
+        "source": "eodhd_adjusted",
+        "first": {
+          "date": "2021-09-20",
+          "adjustedClose": "15.591500"
+        },
+        "last": {
+          "date": "2026-10-09",
+          "adjustedClose": "34.840000"
+        },
+        "rows": 1272
+      }
+    }
+  },
+  "exclusions": "Keine Rohhistorie, Portfolioallokation, Cash-, Ledger-, Transaktions- oder Orderdaten geändert."
+}

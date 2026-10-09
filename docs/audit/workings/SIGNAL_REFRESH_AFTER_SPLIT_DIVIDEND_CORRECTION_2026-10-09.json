@@ -1,0 +1,11 @@
+{
+  "startedAt": "2026-10-09T21:55:08.112Z",
+  "completedAt": "2026-10-09T22:00:03.023Z",
+  "scope": "Aktive Stock-Signal-Caches nach der splitbereinigten Dividenden- und Gesamtrenditekorrektur",
+  "affectedDividendTickers": [
+    "KLAC",
+    "NOBL",
+    "SQN.SW"
+  ],
+  "note": "Der Refresh ändert keine Rohpreise, Portfolios, Cash, Ledger, Transaktionen oder Orders."
+}

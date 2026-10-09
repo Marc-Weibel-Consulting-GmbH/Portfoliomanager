@@ -6,6 +6,7 @@ import {
   calculateTrailingTwelveMonthDividendYield,
   type TrailingDividendYieldResult,
 } from "../lib/dividendYieldAnnualization";
+import { selectSplitAdjustedEodhdDividendAmount } from "../lib/eodhdDividendEvent";
 
 export type EodhdTrailingDividendYield = TrailingDividendYieldResult & {
   source: "EODHD /api/div";
@@ -64,9 +65,10 @@ export async function fetchEodhdTrailingDividendYield(input: {
         tradingCurrency: input.tradingCurrency,
         events: parsed.data.map((event) => ({
           exDate: event.date,
-          // Unadjusted cash is the declared amount per share.  `value` is only
-          // used when the provider does not supply it separately.
-          amount: event.unadjustedValue ?? event.value,
+          // EODHD `value` is the cash amount per current, split-adjusted share.
+          // `unadjustedValue` is a historical pre-split amount and is only a
+          // fallback when the provider omits the adjusted field entirely.
+          amount: selectSplitAdjustedEodhdDividendAmount(event),
           currency: event.currency,
           period: event.period,
         })),

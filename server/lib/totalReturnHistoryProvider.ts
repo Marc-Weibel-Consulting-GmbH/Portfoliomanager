@@ -11,6 +11,7 @@ import {
   buildSplitAdjustedPriceRows,
   hasMaterialTotalReturnMismatch,
 } from "./totalReturnFromEvents";
+import { selectSplitAdjustedEodhdDividendAmount } from "./eodhdDividendEvent";
 
 const EODHD_BASE_URL = "https://eodhd.com/api";
 const yahooFinance: any = new (YahooFinanceClass as any)();
@@ -182,10 +183,12 @@ async function fetchEodhdCashDividends(ticker: string, from: string, to: string)
   return parsed.data
     .map((event) => ({
       date: event.date,
-      amount: Number(event.unadjustedValue ?? event.value),
+      // The reconstruction consumes split-adjusted price rows. Pair them with
+      // EODHD's split-adjusted cash amount rather than historical pre-split cash.
+      amount: selectSplitAdjustedEodhdDividendAmount(event),
       currency: event.currency ?? null,
     }))
-    .filter((event) => Number.isFinite(event.amount) && event.amount > 0);
+    .filter((event): event is { date: string; amount: number; currency: string | null } => Number.isFinite(event.amount) && event.amount > 0);
 }
 
 async function fetchEodhdSplits(ticker: string, from: string, to: string): Promise<Array<{ date: string; split: string }>|null> {
