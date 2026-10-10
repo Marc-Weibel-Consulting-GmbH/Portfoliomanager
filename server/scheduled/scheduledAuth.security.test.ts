@@ -19,6 +19,7 @@ vi.mock("../_core/researchSignals", () => ({
 import { handlePortfolioMetricsSnapshot } from "./portfolioMetricsSnapshotScheduled";
 import { handleResearchSignalsRefresh } from "./researchSignalsScheduled";
 import { handleSignalAlerts } from "./signalAlertsScheduled";
+import { handleCorporateActionAudit } from "./corporateActionAuditScheduled";
 
 function responseRecorder() {
   const state = { statusCode: 200, body: undefined as unknown };
@@ -46,6 +47,7 @@ describe("scheduled endpoint authentication", () => {
     ["portfolio metrics snapshots", handlePortfolioMetricsSnapshot],
     ["research signals refresh", handleResearchSignalsRefresh],
     ["signal alerts", handleSignalAlerts],
+    ["corporate-action audit", handleCorporateActionAudit],
   ])("rejects a non-cron caller before running %s", async (_name, handler) => {
     const { response, state } = responseRecorder();
     await handler({ query: {}, body: {} } as never, response as never);

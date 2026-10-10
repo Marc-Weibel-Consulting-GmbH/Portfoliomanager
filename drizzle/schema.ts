@@ -1357,6 +1357,34 @@ export const scheduledTaskBindings = mysqlTable("scheduled_task_bindings", {
 export type ScheduledTaskBinding = typeof scheduledTaskBindings.$inferSelect;
 export type InsertScheduledTaskBinding = typeof scheduledTaskBindings.$inferInsert;
 
+/**
+ * Protokoll eines monatlichen, ausschliesslich lesenden Corporate-Action-Audits.
+ * Eine Monatskennung macht Heartbeat-Retries und parallele Aufrufe idempotent.
+ */
+export const corporateActionAuditRuns = mysqlTable("corporate_action_audit_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  monthKey: varchar("monthKey", { length: 7 }).notNull().unique(),
+  asOfDate: varchar("asOfDate", { length: 10 }).notNull(),
+  status: mysqlEnum("status", ["running", "completed", "failed", "skipped"]).notNull().default("running"),
+  activeInstrumentCount: int("activeInstrumentCount").notNull().default(0),
+  verifiedActionCount: int("verifiedActionCount").notNull().default(0),
+  candidateCount: int("candidateCount").notNull().default(0),
+  missingSnapshotCount: int("missingSnapshotCount").notNull().default(0),
+  ytdBasisMismatchCount: int("ytdBasisMismatchCount").notNull().default(0),
+  rangeBasisMismatchCount: int("rangeBasisMismatchCount").notNull().default(0),
+  summary: json("summary"),
+  error: text("error"),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  statusIdx: index("ix_corporate_action_audit_runs_status").on(t.status),
+  startedIdx: index("ix_corporate_action_audit_runs_started").on(t.startedAt),
+}));
+
+export type CorporateActionAuditRun = typeof corporateActionAuditRuns.$inferSelect;
+export type InsertCorporateActionAuditRun = typeof corporateActionAuditRuns.$inferInsert;
+
 export const screenerValidationResults = mysqlTable("screener_validation_results", {
   id: int("id").autoincrement().primaryKey(),
   runId: int("runId").notNull(),

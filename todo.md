@@ -15,3 +15,12 @@
 - [x] Alle 24 aktiven Titel mit verifizierter Kapitalmaßnahme kontrolliert: 3 materiell betroffen und korrigiert – SQN.SW 21.2400% → 2.1240%, KLAC 3.2178% → 0.4295%, NOBL 3.1965% → 2.1301%.
 - [x] Abgeleitete 5J-Split-/Gesamtrendite-Snapshots für die drei Titel kontrolliert aktualisiert; keine Rohhistorie, Portfolio-, Cash-, Ledger-, Transaktions- oder Handelsmutation.
 - [x] Signalcache für 267 aktive Titel erfolgreich aktualisiert. Vollsuite: 259 Testdateien / 1'756 Tests bestanden, 5 / 11 übersprungen; TypeScript und Diffcheck fehlerfrei. Audit: `docs/audit/SPLIT_ADJUSTED_DIVIDEND_YIELD_AUDIT_2026-10-09.md`.
+
+## Monatlicher Corporate-Action-Audit und Dividendenexport (2026-10-10)
+- [x] Wiederverwendbare, rein lesende EODHD-/Datenbankinventur implementiert; sie prüft je aktiver Handelslinie Splits/Reverse-Splits, mechanische Rohkurssprünge, direkte Handelslinien-/Währungskompatibilität sowie YTD- und 52W-Basis.
+- [x] Idempotentes Monatsprotokoll `corporate_action_audit_runs` und cron-authentisierter Heartbeat-Endpunkt `/api/scheduled/corporateActionAudit` erstellt. Der Probelauf über 313 aktive Instrumente lief in rund 63 Sekunden: 24 bestätigte Kapitalmaßnahmen, 0 YTD- und 0 52W-Basisfehler; 204 fehlende Split-Snapshots bleiben explizite Datenlücken.
+- [ ] Heartbeat-Task nach Deployment aktivieren (geplant: erster Kalendertag, 04:15 UTC, 6-Feld-Cron `0 15 4 1 * *`). Gemäss Dev-only-Vorgabe noch **kein** produktiver Scheduler erstellt.
+- [x] Excel-Export um Blatt «Dividendenbasis» ergänzt: Renditebasis (TTM/Forward/Vendor), splitbereinigter Jahresbetrag je Aktie, Ereigniszahl, Stichtag, Quelle und methodische Erläuterung je Position.
+- [x] PDF-Export um eigene Seite «Dividendenbasis» ergänzt. TTM-Brutto, Forward/indicated und Anbieterfallback sind explizit getrennt; Sonderdividenden sind als ausgeschlossen dokumentiert.
+- [x] Analyse des beigefügten Momentum-Beitrags mit einer umsetzbaren Roadmap und akademischem Gegencheck dokumentiert: `docs/research/MOMENTUM_MONITORING_INSIGHTS_2026-10-10.md`.
+- [x] Regression: 260 Testdateien bestanden, 5 übersprungen; 1'758 Tests bestanden, 11 übersprungen. TypeScript und `git diff --check` fehlerfrei. Browserroute im Devserver geprüft; Exportaktion ist durch vorhandenen Login geschützt, daher ohne Nutzerlogin nicht ausgelöst.

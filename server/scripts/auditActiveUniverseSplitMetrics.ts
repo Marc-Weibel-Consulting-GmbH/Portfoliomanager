@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { historicalPrices, splitAdjustedHistoricalPrices, stocks } from "../../drizzle/schema";
 import { getEodhdApiKey } from "../_core/env";
@@ -10,20 +11,51 @@ import { selectDirectSplitAdjustedMetricSeries } from "../lib/splitAdjustedMarke
  * Read-only inventory of active instrument masters against their separate
  * split-adjusted EODHD snapshots. It neither refreshes nor overwrites quotes,
  * historical data, portfolio data, cash, ledgers or transactions.
+ *
+ * The implementation is shared by the auditable CLI script and the monthly
+ * Heartbeat handler. The caller decides whether a working-file artefact is
+ * written; the returned result always contains the complete in-memory evidence.
  */
-const AS_OF_DATE = process.env.AUDIT_AS_OF_DATE ?? "2026-10-09";
-const CURRENT_YEAR = Number(AS_OF_DATE.slice(0, 4));
-const YEAR_START = `${CURRENT_YEAR}-01-01`;
-const ONE_YEAR_START = `${CURRENT_YEAR - 1}-10-09`;
-const SPLIT_LOOKBACK_START = `${CURRENT_YEAR - 2}-01-01`;
-const OUT_DIR = "docs/audit/workings";
-const OUT_PATH = `${OUT_DIR}/ACTIVE_UNIVERSE_SPLIT_METRIC_INVENTORY_${AS_OF_DATE}.json`;
+const DEFAULT_AS_OF_DATE = "2026-10-09";
 const EODHD_BASE_URL = "https://eodhd.com/api";
-const REQUEST_DELAY_MS = 180;
+const DEFAULT_REQUEST_DELAY_MS = 180;
 
 type SplitEvent = { date: string; split: string };
 type PriceRow = { ticker: string; date: string; close?: string | null; adjustedClose?: string | null };
-type SplitRow = { ticker: string; date: string; adjustedClose: string | null; source: string | null; sourceSymbol: string | null; currency: string | null; retrievedAt: Date | string };
+type SplitRow = {
+  ticker: string;
+  date: string;
+  adjustedClose: string | null;
+  source: string | null;
+  sourceSymbol: string | null;
+  currency: string | null;
+  retrievedAt: Date | string;
+};
+
+export type CorporateActionAuditOptions = {
+  asOfDate?: string;
+  requestDelayMs?: number;
+  maxConcurrentRequests?: number;
+};
+
+export type CorporateActionAuditResult = {
+  asOfDate: string;
+  summary: {
+    asOfDate: string;
+    scope: { allStockRows: number; activeStockRows: number; activeCuratedRows: number; activeNonCuratedRows: number };
+    fetched: { eodhdSplitRequests: number; failed: number };
+    activeCandidateCount: number;
+    activeWithVerifiedSplitEvent: number;
+    activeWithForwardSplit: number;
+    activeWithReverseSplit: number;
+    activeMissingSplitSnapshot: number;
+    activeYtdBasisMismatch: number;
+    activeRangeBasisMismatch: number;
+    activeYtdCalculationMismatch: number;
+    candidates: Array<{ ticker: string; flags: string[]; corporateActions: unknown[]; ytdErrorPp: number | null }>;
+  };
+  assets: Array<Record<string, unknown>>;
+};
 
 function numberOrNull(value: unknown): number | null {
   const parsed = Number(value);
@@ -70,8 +102,7 @@ function selectFirstOnOrAfter(rows: Array<{ date: string; value: number }>, date
 }
 
 function selectLastOnOrBefore(rows: Array<{ date: string; value: number }>, date: string) {
-  const eligible = rows.filter((row) => row.date <= date);
-  return eligible.at(-1) ?? null;
+  return rows.filter((row) => row.date <= date).at(-1) ?? null;
 }
 
 function max(rows: Array<{ date: string; value: number }>): number | null {
@@ -94,8 +125,8 @@ function rawMechanicalJump(rows: PriceRow[]): { from: string; to: string; factor
   return null;
 }
 
-async function fetchSplits(symbol: string, token: string): Promise<{ events: SplitEvent[] | null; error: string | null }> {
-  const url = `${EODHD_BASE_URL}/splits/${encodeURIComponent(symbol)}?api_token=${encodeURIComponent(token)}&fmt=json&from=${SPLIT_LOOKBACK_START}&to=${AS_OF_DATE}`;
+async function fetchSplits(symbol: string, token: string, from: string, asOfDate: string): Promise<{ events: SplitEvent[] | null; error: string | null }> {
+  const url = `${EODHD_BASE_URL}/splits/${encodeURIComponent(symbol)}?api_token=${encodeURIComponent(token)}&fmt=json&from=${from}&to=${asOfDate}`;
   try {
     const response = await fetch(url);
     if (!response.ok) return { events: null, error: `HTTP ${response.status}` };
@@ -111,7 +142,21 @@ async function fetchSplits(symbol: string, token: string): Promise<{ events: Spl
   }
 }
 
-async function main() {
+/** Collects evidence only; no market, portfolio, cash, ledger or order data is mutated. */
+export async function runActiveUniverseSplitMetricInventory(options: CorporateActionAuditOptions = {}): Promise<CorporateActionAuditResult> {
+  const asOfDate = options.asOfDate ?? process.env.AUDIT_AS_OF_DATE ?? DEFAULT_AS_OF_DATE;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(asOfDate)) throw new Error(`Ungültiger Audit-Stichtag: ${asOfDate}`);
+  const currentYear = Number(asOfDate.slice(0, 4));
+  const yearStart = `${currentYear}-01-01`;
+  const oneYearStart = new Date(`${asOfDate}T00:00:00.000Z`);
+  oneYearStart.setUTCFullYear(oneYearStart.getUTCFullYear() - 1);
+  const oneYearStartText = oneYearStart.toISOString().slice(0, 10);
+  const splitLookbackStart = `${currentYear - 2}-01-01`;
+  const requestDelayMs = options.requestDelayMs ?? DEFAULT_REQUEST_DELAY_MS;
+  // Four simultaneous requests keep the complete active universe well below a
+  // two-minute Heartbeat while retaining a conservative request rate.
+  const maxConcurrentRequests = Math.max(1, Math.min(4, options.maxConcurrentRequests ?? 4));
+
   const [db, token] = await Promise.all([getDb(), getEodhdApiKey()]);
   if (!db) throw new Error("Datenbank nicht verfügbar");
   if (!token) throw new Error("EODHD-Schlüssel nicht verfügbar");
@@ -140,11 +185,11 @@ async function main() {
   const [rawRows, splitRows] = await Promise.all([
     tickers.length ? db.select({ ticker: historicalPrices.ticker, date: historicalPrices.date, close: historicalPrices.close, adjustedClose: historicalPrices.adjustedClose })
       .from(historicalPrices)
-      .where(and(inArray(historicalPrices.ticker, tickers), gte(historicalPrices.date, SPLIT_LOOKBACK_START)))
+      .where(and(inArray(historicalPrices.ticker, tickers), gte(historicalPrices.date, splitLookbackStart)))
       .orderBy(asc(historicalPrices.ticker), asc(historicalPrices.date)) : [],
     tickers.length ? db.select({ ticker: splitAdjustedHistoricalPrices.ticker, date: splitAdjustedHistoricalPrices.date, adjustedClose: splitAdjustedHistoricalPrices.adjustedClose, source: splitAdjustedHistoricalPrices.source, sourceSymbol: splitAdjustedHistoricalPrices.sourceSymbol, currency: splitAdjustedHistoricalPrices.currency, retrievedAt: splitAdjustedHistoricalPrices.retrievedAt })
       .from(splitAdjustedHistoricalPrices)
-      .where(and(inArray(splitAdjustedHistoricalPrices.ticker, tickers), gte(splitAdjustedHistoricalPrices.date, SPLIT_LOOKBACK_START)))
+      .where(and(inArray(splitAdjustedHistoricalPrices.ticker, tickers), gte(splitAdjustedHistoricalPrices.date, splitLookbackStart)))
       .orderBy(asc(splitAdjustedHistoricalPrices.ticker), asc(splitAdjustedHistoricalPrices.date)) : [],
   ]);
 
@@ -154,14 +199,21 @@ async function main() {
   for (const row of splitRows) splitByTicker.set(row.ticker, [...(splitByTicker.get(row.ticker) ?? []), row]);
 
   const splitResults = new Map<string, { events: SplitEvent[] | null; error: string | null }>();
-  for (let index = 0; index < universe.length; index += 1) {
-    const stock = universe[index];
-    const symbol = stock.eodhdTicker || toEodhdSymbol(stock.ticker);
-    splitResults.set(stock.ticker, await fetchSplits(symbol, token));
-    if (index < universe.length - 1) await new Promise((resolve) => setTimeout(resolve, REQUEST_DELAY_MS));
-    if ((index + 1) % 50 === 0 || index + 1 === universe.length) console.log(`[splitInventory] EODHD-Splits ${index + 1}/${universe.length}`);
+  for (let start = 0; start < universe.length; start += maxConcurrentRequests) {
+    const batch = universe.slice(start, start + maxConcurrentRequests);
+    const results = await Promise.all(batch.map(async (stock) => ({
+      ticker: stock.ticker,
+      result: await fetchSplits(stock.eodhdTicker || toEodhdSymbol(stock.ticker), token, splitLookbackStart, asOfDate),
+    })));
+    for (const { ticker, result } of results) splitResults.set(ticker, result);
+    const completed = Math.min(start + batch.length, universe.length);
+    if (completed % 50 < maxConcurrentRequests || completed === universe.length) console.log(`[corporateActionAudit] EODHD-Splits ${completed}/${universe.length}`);
+    if (completed < universe.length && requestDelayMs > 0) await new Promise((resolve) => setTimeout(resolve, requestDelayMs));
   }
 
+  const freshnessCutoff = new Date(`${asOfDate}T00:00:00.000Z`);
+  freshnessCutoff.setUTCDate(freshnessCutoff.getUTCDate() - 3);
+  const freshnessCutoffText = freshnessCutoff.toISOString().slice(0, 10);
   const assets = universe.map((stock) => {
     const raw = rawByTicker.get(stock.ticker) ?? [];
     const rawJump = rawMechanicalJump(raw);
@@ -183,9 +235,9 @@ async function main() {
         retrievedAt: latestRetrievedAt,
       }))
       .sort((left, right) => left.date.localeCompare(right.date));
-    const ytdStart = selectFirstOnOrAfter(snapshotRows, YEAR_START);
-    const latest = selectLastOnOrBefore(snapshotRows, AS_OF_DATE);
-    const oneYearRows = snapshotRows.filter((row) => row.date >= ONE_YEAR_START && row.date <= AS_OF_DATE);
+    const ytdStart = selectFirstOnOrAfter(snapshotRows, yearStart);
+    const latest = selectLastOnOrBefore(snapshotRows, asOfDate);
+    const oneYearRows = snapshotRows.filter((row) => row.date >= oneYearStartText && row.date <= asOfDate);
     const splitResult = splitResults.get(stock.ticker) ?? { events: null, error: "nicht abgefragt" };
     const corporateActions = splitResult.events ? classifyCorporateActions(splitResult.events) : [];
     const masterCurrent = numberOrNull(stock.currentPrice);
@@ -203,7 +255,7 @@ async function main() {
     if (snapshotRows.length === 0) flags.push("keine splitbereinigte Preisreihe");
     if (snapshotRows.length > 0 && !ytdStart) flags.push("splitbereinigter YTD-Start fehlt");
     if (snapshotRows.length > 0 && !latest) flags.push("splitbereinigter Schlusskurs fehlt");
-    if (latest && latest.date < "2026-10-06") flags.push(`splitbereinigte Reihe nicht frisch (letzter ${latest.date})`);
+    if (latest && latest.date < freshnessCutoffText) flags.push(`splitbereinigte Reihe nicht frisch (letzter ${latest.date})`);
     if (masterCurrent != null && latest && materiallyDifferent(masterCurrent, latest.value, 2)) flags.push("aktueller Stammdatenkurs weicht stark von gleicher Splitreihe ab");
     if (masterYtdStart != null && ytdStart && materiallyDifferent(masterYtdStart, ytdStart.value, 1.5)) flags.push("YTD-Startpreis liegt nicht auf der splitbereinigten Basis");
     if (masterHigh != null && derivedHigh != null && materiallyDifferent(masterHigh, derivedHigh, 1.5)) flags.push("52W-Hoch liegt nicht auf der splitbereinigten Basis");
@@ -261,7 +313,7 @@ async function main() {
   const activeAssets = assets.filter((asset) => asset.active);
   const candidates = activeAssets.filter((asset) => asset.flags.length > 0);
   const summary = {
-    asOfDate: AS_OF_DATE,
+    asOfDate,
     scope: { allStockRows: assets.length, activeStockRows: activeAssets.length, activeCuratedRows: activeAssets.filter((asset) => asset.curated).length, activeNonCuratedRows: activeAssets.filter((asset) => !asset.curated).length },
     fetched: { eodhdSplitRequests: universe.length, failed: assets.filter((asset) => asset.flags.some((flag) => flag.startsWith("EODHD-Splitabruf offen"))).length },
     activeCandidateCount: candidates.length,
@@ -275,12 +327,21 @@ async function main() {
     candidates: candidates.map((asset) => ({ ticker: asset.ticker, flags: asset.flags, corporateActions: asset.corporateActions, ytdErrorPp: asset.expected.ytdErrorPp })),
   };
 
-  await mkdir(OUT_DIR, { recursive: true });
-  await writeFile(OUT_PATH, JSON.stringify({ summary, assets }, null, 2));
-  console.log(JSON.stringify({ outPath: OUT_PATH, summary }, null, 2));
+  return { asOfDate, summary, assets };
 }
 
-main().then(() => process.exit(0)).catch((error) => {
-  console.error(error instanceof Error ? error.stack ?? error.message : error);
-  process.exit(1);
-});
+async function main() {
+  const result = await runActiveUniverseSplitMetricInventory();
+  const outDir = "docs/audit/workings";
+  const outPath = `${outDir}/ACTIVE_UNIVERSE_SPLIT_METRIC_INVENTORY_${result.asOfDate}.json`;
+  await mkdir(outDir, { recursive: true });
+  await writeFile(outPath, JSON.stringify({ summary: result.summary, assets: result.assets }, null, 2));
+  console.log(JSON.stringify({ outPath, summary: result.summary }, null, 2));
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.stack ?? error.message : error);
+    process.exit(1);
+  });
+}

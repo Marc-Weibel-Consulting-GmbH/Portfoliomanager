@@ -15,6 +15,14 @@ export type PortfolioExportPosition = {
   entryDate: string | null;
   entryBasisLabel: string | null;
   dividendYieldPct: number | null;
+  /** Methodisch getrenntes Renditefundament: TTM, Forward/indicated oder Vendor-Fallback. */
+  dividendYieldBasis: string | null;
+  /** Jahresbetrag je heutiger (splitbereinigter) Aktie, sofern verfügbar. */
+  dividendAnnualAmount: number | null;
+  dividendCurrency: string | null;
+  dividendEventCount: number | null;
+  dividendAsOfDate: string | null;
+  dividendYieldSource: string | null;
   peRatio: number | null;
   volatility5yPct: number | null;
   volatility5yDataQuality: string | null;
@@ -296,6 +304,12 @@ export function buildPortfolioExportModel(input: BuildPortfolioExportModelInput)
         entryDate: typeof holding.entryDate === "string" && holding.entryDate.trim() ? holding.entryDate.trim().slice(0, 10) : null,
         entryBasisLabel: typeof holding.entryBasisLabel === "string" && holding.entryBasisLabel.trim() ? holding.entryBasisLabel.trim() : null,
         dividendYieldPct: firstNumber(holding.dividendYield),
+        dividendYieldBasis: typeof holding.dividendYieldBasis === "string" && holding.dividendYieldBasis.trim() ? holding.dividendYieldBasis.trim() : null,
+        dividendAnnualAmount: firstNumber(holding.dividendAnnualAmount),
+        dividendCurrency: typeof holding.dividendCurrency === "string" && holding.dividendCurrency.trim() ? holding.dividendCurrency.trim() : null,
+        dividendEventCount: firstNumber(holding.dividendEventCount),
+        dividendAsOfDate: asDateText(holding.dividendAsOfDate),
+        dividendYieldSource: typeof holding.dividendYieldSource === "string" && holding.dividendYieldSource.trim() ? holding.dividendYieldSource.trim() : null,
         peRatio: firstNumber(holding.peRatio),
         volatility5yPct: firstNumber(holding.volatility5y),
         volatility5yDataQuality: typeof holding.volatility5yDataQuality === "string" ? holding.volatility5yDataQuality : null,

@@ -43,6 +43,18 @@ function formatKpi(kpi: PortfolioExportKpi): string {
   return formatRatio(kpi.value);
 }
 
+function formatDividendBasis(basis: string | null): string {
+  if (basis === "ttm_gross") return "TTM-Brutto · reguläre Ereignisse";
+  if (basis === "forward_indicated") return "Forward / indicated";
+  if (basis === "vendor_reported") return "Anbieterkennzahl";
+  return "Basis nicht verfügbar";
+}
+
+function formatDividendAnnualAmount(value: number | null, currency: string | null): string {
+  if (value === null || !Number.isFinite(value)) return "—";
+  return `${value.toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 6 })}${currency ? ` ${currency}` : ""}`;
+}
+
 function toExcelValue(kpi: PortfolioExportKpi): number | string {
   return kpi.value ?? "n/a";
 }
@@ -250,6 +262,54 @@ export async function downloadPortfolioExcel(model: PortfolioExportModel): Promi
   setPercentColumn(positions, "K");
   setPercentColumn(positions, "L");
   setPercentColumn(positions, "N");
+
+  const dividendBasis = workbook.addWorksheet("Dividendenbasis", { views: [{ showGridLines: false, state: "frozen", ySplit: 4 }] });
+  dividendBasis.columns = [
+    { key: "ticker", width: 15 },
+    { key: "company", width: 30 },
+    { key: "yield", width: 15 },
+    { key: "basis", width: 31 },
+    { key: "annualAmount", width: 20 },
+    { key: "events", width: 15 },
+    { key: "asOf", width: 16 },
+    { key: "source", width: 42 },
+    { key: "note", width: 60 },
+  ];
+  dividendBasis.mergeCells("A1:I1");
+  dividendBasis.getCell("A1").value = `Dividendenbasis · ${model.title}`;
+  dividendBasis.getCell("A1").font = { name: "Aptos Display", size: 18, bold: true, color: { argb: COLORS.navy } };
+  dividendBasis.getRow(1).height = 30;
+  dividendBasis.mergeCells("A2:I2");
+  dividendBasis.getCell("A2").value = "Renditen sind pro aktuellem, splitbereinigtem Anteil ausgewiesen. TTM-Brutto umfasst nur reguläre, datierte Ausschüttungen; Sonderdividenden sind ausgeschlossen.";
+  dividendBasis.getCell("A2").font = { name: "Aptos", size: 10, color: { argb: COLORS.gray } };
+  dividendBasis.addRow([]);
+  const dividendHeader = dividendBasis.addRow(["Ticker", "Unternehmen", "Div.-Rendite", "Renditebasis", "Jahresbetrag / Aktie", "TTM-Ereignisse", "Stichtag", "Quelle", "Methodischer Hinweis"]);
+  applyHeader(dividendHeader, COLORS.tealDark);
+  const dividendStart = dividendHeader.number + 1;
+  for (const position of model.positions) {
+    const note = position.dividendYieldBasis === "ttm_gross"
+      ? "Brutto-TTM aus regulären, datierten Cash-Ausschüttungen in gleicher Handelswährung; splitbereinigt."
+      : position.dividendYieldBasis === "forward_indicated"
+        ? "Forward-/indicated-Angabe; kein garantierter Ertrag und nicht mit TTM gleichzusetzen."
+        : position.dividendYieldBasis === "vendor_reported"
+          ? "Anbieterkennzahl, weil keine vollständige währungsgleiche Ereignisreihe vorliegt."
+          : "Keine belastbare Renditebasis verfügbar.";
+    dividendBasis.addRow([
+      position.ticker,
+      position.companyName,
+      position.dividendYieldPct !== null ? position.dividendYieldPct / 100 : "n/a",
+      formatDividendBasis(position.dividendYieldBasis),
+      formatDividendAnnualAmount(position.dividendAnnualAmount, position.dividendCurrency),
+      position.dividendEventCount ?? "n/a",
+      position.dividendAsOfDate ?? "—",
+      position.dividendYieldSource ?? "—",
+      note,
+    ]);
+  }
+  if (model.positions.length > 0) applyTableBorders(dividendBasis, dividendStart, dividendBasis.lastRow.number, 1, 9);
+  dividendBasis.autoFilter = `A${dividendHeader.number}:I${dividendBasis.lastRow.number}`;
+  setPercentColumn(dividendBasis, "C");
+  dividendBasis.getColumn("F").numFmt = "#,##0";
 
   const development = workbook.addWorksheet("Depotentwicklung", { views: [{ showGridLines: false, state: "frozen", ySplit: 4 }] });
   development.columns = [
@@ -895,6 +955,51 @@ export async function downloadPortfolioPdf(model: PortfolioExportModel): Promise
         hookData.cell.styles.textColor = [180, 83, 9];
         hookData.cell.styles.fontStyle = "bold";
       }
+    },
+    didDrawPage: () => {
+      setPdfTextColor(pdf, COLORS.gray);
+      pdf.setFontSize(6.5);
+      pdf.text(`Portfoliomanager · ${model.title}`, margin, pageHeight - 7);
+      pdf.text(`Seite ${pdf.getNumberOfPages()}`, pageWidth - margin, pageHeight - 7, { align: "right" });
+    },
+  });
+
+  pdf.addPage();
+  setPdfFillColor(pdf, COLORS.navy);
+  pdf.rect(0, 0, pageWidth, 20, "F");
+  setPdfTextColor(pdf, "FFFFFF");
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(13);
+  pdf.text(`Dividendenbasis · ${model.title}`, margin, 12);
+  setPdfTextColor(pdf, COLORS.gray);
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(7);
+  pdf.text("TTM-Brutto = reguläre, datierte Ausschüttungen je heutiger splitbereinigter Aktie. Sonderdividenden sind ausgeschlossen.", margin, 25);
+  autoTable(pdf, {
+    startY: 30,
+    head: [["Ticker", "Unternehmen", "Div.-Rendite", "Basis", "Jahresbetrag / Aktie", "Ereignisse", "Stichtag", "Quelle"]],
+    body: model.positions.map((position) => [
+      position.ticker,
+      position.companyName,
+      formatPercent(position.dividendYieldPct),
+      formatDividendBasis(position.dividendYieldBasis),
+      formatDividendAnnualAmount(position.dividendAnnualAmount, position.dividendCurrency),
+      position.dividendEventCount === null ? "—" : String(position.dividendEventCount),
+      position.dividendAsOfDate ?? "—",
+      position.dividendYieldSource ?? "—",
+    ]),
+    styles: { font: "helvetica", fontSize: 6, cellPadding: 1.2, lineColor: [226, 232, 240], lineWidth: 0.1, textColor: [15, 23, 42] },
+    headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { cellWidth: 13, fontStyle: "bold" },
+      1: { cellWidth: 29 },
+      2: { cellWidth: 16, halign: "right" },
+      3: { cellWidth: 29 },
+      4: { cellWidth: 24, halign: "right" },
+      5: { cellWidth: 15, halign: "right" },
+      6: { cellWidth: 16 },
+      7: { cellWidth: 30 },
     },
     didDrawPage: () => {
       setPdfTextColor(pdf, COLORS.gray);
