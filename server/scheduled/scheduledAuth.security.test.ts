@@ -20,6 +20,7 @@ import { handlePortfolioMetricsSnapshot } from "./portfolioMetricsSnapshotSchedu
 import { handleResearchSignalsRefresh } from "./researchSignalsScheduled";
 import { handleSignalAlerts } from "./signalAlertsScheduled";
 import { handleCorporateActionAudit } from "./corporateActionAuditScheduled";
+import { handleMomentumMonitor } from "./momentumMonitorScheduled";
 
 function responseRecorder() {
   const state = { statusCode: 200, body: undefined as unknown };
@@ -48,6 +49,7 @@ describe("scheduled endpoint authentication", () => {
     ["research signals refresh", handleResearchSignalsRefresh],
     ["signal alerts", handleSignalAlerts],
     ["corporate-action audit", handleCorporateActionAudit],
+    ["momentum monitor", handleMomentumMonitor],
   ])("rejects a non-cron caller before running %s", async (_name, handler) => {
     const { response, state } = responseRecorder();
     await handler({ query: {}, body: {} } as never, response as never);

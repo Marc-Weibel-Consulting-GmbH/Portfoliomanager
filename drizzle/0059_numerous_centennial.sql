@@ -1,0 +1,1 @@
+ALTER TABLE `momentum_monitor_snapshots` ADD `priceAsOfDate` varchar(10);

@@ -52,6 +52,7 @@ import { handlePortfolioMetricsSnapshot } from "../scheduled/portfolioMetricsSna
 import { handleAlgoBacktest } from "../scheduled/algoBacktestScheduled";
 import { handleScreenerValidation } from "../scheduled/screenerValidationScheduled";
 import { handleCorporateActionAudit } from "../scheduled/corporateActionAuditScheduled";
+import { handleMomentumMonitor } from "../scheduled/momentumMonitorScheduled";
 import { handleMarketReportWebhook } from "../routers/marketReportRouter";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -181,6 +182,7 @@ async function startServer() {
   app.post("/api/scheduled/algoBacktest", handleAlgoBacktest);
   app.post("/api/scheduled/screenerValidation", handleScreenerValidation);
   app.post("/api/scheduled/corporateActionAudit", handleCorporateActionAudit);
+  app.post("/api/scheduled/momentumMonitor", handleMomentumMonitor);
   app.post("/api/scheduled/researchSignalsRefresh", handleResearchSignalsRefresh);
   app.post("/api/scheduled/researchGithubIssue", handleResearchGithubIssue);
   app.post("/api/scheduled/researchDeskShadow", handleResearchDeskShadow);

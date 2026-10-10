@@ -258,6 +258,10 @@ export default function Invest() {
                 <Filter className="w-4 h-4 mr-2" />
                 Filter & Kategorien
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setLocation("/momentum")} className="rounded-full">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Momentum-Monitor
+              </Button>
               {hasActiveFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="rounded-full text-muted-foreground">
                   <X className="w-3 h-3 mr-1" />

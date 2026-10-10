@@ -19,6 +19,7 @@ import BubbleRiskCard from "@/components/stock/BubbleRiskCard";
 import AnalystConsensusCard from "@/components/stock/AnalystConsensusCard";
 import GewinnKonstanzCard from "@/components/stock/GewinnKonstanzCard";
 import StockBriefingCard from "@/components/stock/StockBriefingCard";
+import MomentumMonitorCard from "@/components/stock/MomentumMonitorCard";
 import { PegBadge } from "@/components/stock/PegContextCard";
 import {
   ComposedChart,
@@ -753,6 +754,8 @@ export default function StockDetail() {
                 )}
               </CardContent>
             </Card>
+
+            <MomentumMonitorCard ticker={stock.ticker} />
 
             {/* Moats Section */}
             <div>

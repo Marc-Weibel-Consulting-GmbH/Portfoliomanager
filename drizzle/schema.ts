@@ -1385,6 +1385,72 @@ export const corporateActionAuditRuns = mysqlTable("corporate_action_audit_runs"
 export type CorporateActionAuditRun = typeof corporateActionAuditRuns.$inferSelect;
 export type InsertCorporateActionAuditRun = typeof corporateActionAuditRuns.$inferInsert;
 
+/**
+ * Täglicher, reiner Momentum-Snapshot. Die Kennzahlen verwenden ausschliesslich
+ * die bereits getrennte splitbereinigte Preisrenditereihe ohne Cashdividenden;
+ * sie ändern weder Signal, Portfolio, Cash noch Rohpreisdaten.
+ */
+export const momentumMonitorSnapshots = mysqlTable("momentum_monitor_snapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  ticker: varchar("ticker", { length: 50 }).notNull(),
+  snapshotDate: varchar("snapshotDate", { length: 10 }).notNull(), // YYYY-MM-DD
+  /** Tatsächlicher letzter Handelstag der verwendeten Titelpreisreihe. */
+  priceAsOfDate: varchar("priceAsOfDate", { length: 10 }),
+  companyName: varchar("companyName", { length: 255 }).notNull(),
+  sector: varchar("sector", { length: 100 }),
+  region: varchar("region", { length: 80 }),
+  sourceSymbol: varchar("sourceSymbol", { length: 50 }),
+  priceBasis: varchar("priceBasis", { length: 80 }).notNull(),
+  coverageDays: int("coverageDays").notNull().default(0),
+  return6mBps: int("return6mBps"),
+  return12mBps: int("return12mBps"),
+  compositeBps: int("compositeBps"),
+  universePercentile: int("universePercentile"),
+  sectorPercentile: int("sectorPercentile"),
+  benchmarkKey: varchar("benchmarkKey", { length: 32 }),
+  benchmarkReturn6mBps: int("benchmarkReturn6mBps"),
+  benchmarkReturn12mBps: int("benchmarkReturn12mBps"),
+  relative6mBps: int("relative6mBps"),
+  relative12mBps: int("relative12mBps"),
+  trendState: varchar("trendState", { length: 32 }),
+  trendDistanceBps: int("trendDistanceBps"),
+  crashRiskActive: tinyint("crashRiskActive").notNull().default(0),
+  crashRiskReason: text("crashRiskReason"),
+  dataQuality: varchar("dataQuality", { length: 32 }).notNull(), // qualified | data_gap | excluded
+  dataQualityReason: text("dataQualityReason"),
+  methodVersion: varchar("methodVersion", { length: 20 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  tickerDateUnique: unique("uq_momentum_monitor_snapshot_ticker_date").on(t.ticker, t.snapshotDate),
+  latestIdx: index("ix_momentum_monitor_snapshot_date_quality").on(t.snapshotDate, t.dataQuality),
+  sectorIdx: index("ix_momentum_monitor_snapshot_sector_date").on(t.sector, t.snapshotDate),
+}));
+
+export type MomentumMonitorSnapshot = typeof momentumMonitorSnapshots.$inferSelect;
+export type InsertMomentumMonitorSnapshot = typeof momentumMonitorSnapshots.$inferInsert;
+
+/** Ein idempotentes Tagesprotokoll für den rein lesenden Momentum-Monitor. */
+export const momentumMonitorRuns = mysqlTable("momentum_monitor_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  snapshotDate: varchar("snapshotDate", { length: 10 }).notNull().unique(),
+  status: mysqlEnum("status", ["running", "completed", "failed", "skipped"]).notNull().default("running"),
+  activeInstrumentCount: int("activeInstrumentCount").notNull().default(0),
+  qualifiedCount: int("qualifiedCount").notNull().default(0),
+  dataGapCount: int("dataGapCount").notNull().default(0),
+  excludedCount: int("excludedCount").notNull().default(0),
+  crashRiskCount: int("crashRiskCount").notNull().default(0),
+  summary: json("summary"),
+  error: text("error"),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (t) => ({
+  statusIdx: index("ix_momentum_monitor_runs_status").on(t.status),
+}));
+
+export type MomentumMonitorRun = typeof momentumMonitorRuns.$inferSelect;
+export type InsertMomentumMonitorRun = typeof momentumMonitorRuns.$inferInsert;
+
 export const screenerValidationResults = mysqlTable("screener_validation_results", {
   id: int("id").autoincrement().primaryKey(),
   runId: int("runId").notNull(),

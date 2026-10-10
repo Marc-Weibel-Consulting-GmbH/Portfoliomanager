@@ -45,6 +45,7 @@ type NavGroup = { icon: any; label: string; items: NavItem[] };
 const topLevelItems: NavItem[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: TrendingUp, label: "Aktien", path: "/aktien" },
+  { icon: Gauge, label: "Momentum", path: "/momentum" },
   { icon: Globe, label: "Markt", path: "/markt" },
   { icon: Telescope, label: "Research", path: "/research" },
   { icon: Brain, label: "Copilot", path: "/copilot" },

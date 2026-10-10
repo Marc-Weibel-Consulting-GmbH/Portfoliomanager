@@ -43,6 +43,7 @@ import { backtestRouter } from "./routers/backtestRouter";
 import { predictionRouter } from "./routers/predictionRouter";
 import { optimizerRouter } from "./routers/optimizerRouter";
 import { marketRegimeRouter } from "./routers/marketRegimeRouter";
+import { momentumMonitorRouter } from "./routers/momentumMonitorRouter";
 import { copilotRouter } from "./routers/copilotRouter";
 import { recommendationsRouter } from "./routers/recommendationsRouter";
 import { investmentProfileRouter } from "./routers/investmentProfileRouter";
@@ -246,6 +247,7 @@ export const appRouter = router({
   prediction: predictionRouter,
   optimizer: optimizerRouter,
   marketRegime: marketRegimeRouter,
+  momentumMonitor: momentumMonitorRouter,
   copilot: copilotRouter,
   recommendations: recommendationsRouter,
   investmentProfile: investmentProfileRouter,
