@@ -1,0 +1,228 @@
+{
+  "generatedAt": "2026-10-10T09:36:11.925Z",
+  "method": "retrospective_price_only_proxy_v1",
+  "source": "eodhd_split_adjusted",
+  "interval": {
+    "priceHistoryFrom": "2022-08-01",
+    "through": "2026-10-09",
+    "decisionMonths": "2023-10-31 to 2026-08-31",
+    "holding": "first direct close after decision date to first direct close at least 28 days later",
+    "censor": "minimum one trading-day price gap after the observable decision close"
+  },
+  "universe": {
+    "activeInstruments": 313,
+    "excludedEtfsOrKnownDataGaps": 135,
+    "eligibleCurrentUniverse": 178,
+    "survivorshipBias": "Current active universe is used; delisted or removed securities are not reconstructed. This result cannot support signal weighting."
+  },
+  "exactBenchmarkMatchGaps": 1802,
+  "monthCoverage": [
+    {
+      "snapshotDate": "2023-10-31",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2023-11-30",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2023-12-31",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2024-01-31",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2024-02-29",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2024-03-31",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2024-04-30",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2024-05-31",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2024-06-30",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2024-07-31",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2024-08-31",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2024-09-30",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2024-10-31",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2024-11-30",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2024-12-31",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2025-01-31",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2025-02-28",
+      "eligibleCrossSection": 52,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2025-03-31",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2025-04-30",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2025-05-31",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2025-06-30",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2025-07-31",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2025-08-31",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2025-09-30",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2025-10-31",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2025-11-30",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2025-12-31",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2026-01-31",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2026-02-28",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2026-03-31",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2026-04-30",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2026-05-31",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2026-06-30",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2026-07-31",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 0
+    },
+    {
+      "snapshotDate": "2026-08-31",
+      "eligibleCrossSection": 54,
+      "evaluatedRows": 54
+    }
+  ],
+  "result": {
+    "version": "v1.0.0",
+    "inputRows": 54,
+    "validRows": 54,
+    "excludedRows": 0,
+    "censorGapDays": 1,
+    "roundTripCostPct": 1.125,
+    "splitDate": "2026-08-28",
+    "training": {
+      "dates": 1,
+      "selectedN": 0,
+      "baselineN": 2,
+      "selectedMeanNetReturnPct": null,
+      "baselineMeanNetReturnPct": -9.540935683903836,
+      "excessMeanNetReturnPct": null,
+      "selectedHitRatePct": null,
+      "turnoverPct": null
+    },
+    "outOfSample": {
+      "dates": 1,
+      "selectedN": 6,
+      "baselineN": 52,
+      "selectedMeanNetReturnPct": 0.5046248019587879,
+      "baselineMeanNetReturnPct": 0.6108761781263903,
+      "excessMeanNetReturnPct": -0.10625137616760238,
+      "selectedHitRatePct": 33.33333333333333,
+      "turnoverPct": null
+    },
+    "eligibleForSignalWeight": false,
+    "verdict": "Noch nicht auswertbar: 2/24 unabhängige Entscheidungsstichtage."
+  },
+  "conclusion": "This is a fixed, price-only research proxy. It is explicitly not comparable to, and cannot modify, the point-in-time three-score signal. Any apparent outperformance is non-actionable until a survivor-free universe and frozen daily snapshots provide an independent comparison."
+}

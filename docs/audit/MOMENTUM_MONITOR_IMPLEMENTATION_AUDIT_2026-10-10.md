@@ -75,6 +75,16 @@ Der Scheduler wird **erst nach einem Deployment** aktiviert – entsprechend der
 3. **Keine Sektorindex-Proxy-Mischung:** Der Sektorrang ist ein direkter Peer-Rang; Sektorbenchmarks werden erst ergänzt, wenn jede Referenzreihe gleich streng qualifiziert ist.
 4. **Keine ETF-Ränge:** ETFs werden erst nach einer gesonderten Peer- und Indexlinien-Methodik ergänzt.
 
+## Strenger Walk-forward-Befund
+
+Zusätzlich wurde eine zensierte, kostenbelastete Preisrendite-Probe vorbereitet und als **nicht übernehmbar** klassifiziert. Die Regel testet nur Titel oberhalb des 75. Gesamtuniversums-Perzentils mit intaktem/Konsolidierungs-Trend, ohne Crash-Gate. Ein Handel darf frühestens zum ersten Kurs **nach** dem entscheidungsrelevanten Schlusskurs erfolgen; die Rendite endet am ersten direkt beobachtbaren Kurs mindestens 28 Kalendertage später. Pro vollständigem Rundlauf werden **1,125 %** Kosten abgezogen.
+
+Der zentrale Befund ist Datenintegrität, nicht Performance: Sobald relative Stärke und Crash-Gate nur bei **identischem Titel-/Benchmarkschlussdatum** zugelassen werden, stehen im historischen Snapshotbestand nur **2 von mindestens 24** unabhängigen Monatsstichtagen und 54 Beobachtungen zur Verfügung. Ohne dieses Gate hätte die Preisprobe 1'856 Zeilen gezeigt, aber 1'802 davon hätten keinen gleichen Benchmarkstichtag gehabt; das wäre eine verdeckte Annahme von „null relativer Stärke“ und damit methodisch unzulässig gewesen.
+
+> **Entscheid:** Kein Momentumgewicht und keine Signaländerung. Die monatliche Auswertung läuft weiter, aber nur eingefrorene, direkt vergleichbare Tages-Snapshots können die fehlenden Zeitpunkte künftig ehrlich füllen. Zusätzlich sind ein punkt-in-zeitiger Drei-Score-Vergleich und ein Universum ohne Survivorship Bias notwendig.
+
+Der vollständige maschinenlesbare Beleg liegt in `docs/audit/workings/MOMENTUM_WALK_FORWARD_EVIDENCE_2026-10-10.json`; die Implementierung erzwingt die mindestens eintägige Zensur, verwirft Datenqualitätslücken und kann technisch keinen Live-Score gewichten.
+
 ## Quellen
 
 - Projektanalyse zum beigefügten Beitrag: [Momentum-Monitoring-Erkenntnisse](../research/MOMENTUM_MONITORING_INSIGHTS_2026-10-10.md)
