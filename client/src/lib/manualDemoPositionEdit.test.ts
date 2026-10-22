@@ -39,4 +39,27 @@ describe('isShareOnlyDemoPositionEdit', () => {
       },
     })).toBe(false);
   });
+
+  it('erkennt einen rein wertgesteuerten Stückzahlwechsel trotz unveränderter ISIN und reversiblem Portfolio-Startdatum', () => {
+    expect(isShareOnlyDemoPositionEdit({
+      originalTicker: 'CHDVD.SW',
+      displayedHolding: {
+        ticker: 'CHDVD.SW',
+        shares: 500,
+        avgBuyPrice: 188.18,
+        currency: 'CHF',
+        isin: 'CH0012032048',
+        entryDate: null,
+      },
+      initialEntryDate: '2026-09-08',
+      form: {
+        ticker: 'CHDVD.SW',
+        isin: 'CH0012032048',
+        shares: '600',
+        avgBuyPrice: '188.18',
+        currency: 'CHF',
+        entryDate: '2026-09-08',
+      },
+    })).toBe(true);
+  });
 });

@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { trpc } from "@/lib/trpc";
 import { isShareOnlyDemoPositionEdit } from "@/lib/manualDemoPositionEdit";
 import { resolveInitialEntryDate } from "@/lib/positionEntryDate";
+import { calculateSharesForPositionValueChf, getPositionSizeEditorBounds } from "@/lib/positionSizeEditor";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { GitCompareArrows, Trash2 } from "lucide-react";
@@ -29,10 +31,15 @@ interface EditPositionFieldsModalProps {
     entryBasisLabel?: string | null;
     isin?: string;
     currency?: string;
+    currentPriceChf?: number | string | null;
   } | null;
   allowAlternatives?: boolean;
   /** Nur für nicht aktivierte, ledgerfreie Demoportfolios freischalten. */
   allowDelete?: boolean;
+  /** Erlaubt die wertbasierte Stückzahlvorschau nur im serverseitig unterstützten Demo-Cash-Pfad. */
+  allowPositionSizeEdit?: boolean;
+  /** Aktuelle Cash-Reserve; begrenzt den Regler auf die finanzierbare Aufstockung. */
+  cashBalanceChf?: number;
   /** Portfolio-Startdatum ist nur ein reversibler Dialogstandard, nie eine Sofortmutation. */
   portfolioCreatedAt?: string | Date | null;
   onShowAlternatives?: (source: { ticker: string; companyName?: string }) => void;
@@ -52,6 +59,8 @@ export function EditPositionFieldsModal({
   holding,
   allowAlternatives = false,
   allowDelete = false,
+  allowPositionSizeEdit = false,
+  cashBalanceChf = 0,
   portfolioCreatedAt = null,
   onShowAlternatives,
   onSuccess,
@@ -80,6 +89,13 @@ export function EditPositionFieldsModal({
     !holding?.entryDate && holding?.entryBasisStatus !== "multiple_transaction_dates",
   );
   const [appliedQuoteKey, setAppliedQuoteKey] = useState<string | null>(null);
+  const currentPriceChf = Number(holding?.currentPriceChf);
+  const initialPositionValueChf = Number(holding?.shares) * currentPriceChf;
+  const [positionValueInput, setPositionValueInput] = useState(() =>
+    Number.isFinite(initialPositionValueChf) && initialPositionValueChf >= 0
+      ? initialPositionValueChf.toFixed(2)
+      : "",
+  );
 
   const quoteTicker = form.ticker.trim().toUpperCase();
   const quoteKey = useMemo(
@@ -167,6 +183,7 @@ export function EditPositionFieldsModal({
     const isShareOnlyChange = isShareOnlyDemoPositionEdit({
       originalTicker,
       displayedHolding: holding,
+      initialEntryDate,
       form,
     });
     const displayedShares = Number(holding.shares);
@@ -192,11 +209,53 @@ export function EditPositionFieldsModal({
     updateDemoPositionShares.mutate({ portfolioId, ticker: originalTicker, shares: 0 });
   };
 
+  const positionSizeBounds = allowPositionSizeEdit
+    ? getPositionSizeEditorBounds({
+      shares: Number(form.shares),
+      currentPriceChf,
+      cashBalanceChf,
+    })
+    : null;
+  const currentPositionValueChf = positionSizeBounds?.currentValueChf ?? null;
+
+  const setPositionValueChf = (nextValueChf: number, options?: { preserveInput?: boolean }) => {
+    if (!positionSizeBounds) return;
+    const boundedValueChf = Math.min(positionSizeBounds.maxValueChf, Math.max(0, nextValueChf));
+    const shares = calculateSharesForPositionValueChf({
+      targetValueChf: boundedValueChf,
+      currentPriceChf,
+    });
+    if (shares === null) return;
+    setForm((current) => ({ ...current, shares: String(shares) }));
+    if (!options?.preserveInput) setPositionValueInput(boundedValueChf.toFixed(2));
+  };
+
+  const handlePositionValueInput = (raw: string) => {
+    setPositionValueInput(raw);
+    if (raw.trim() === "") return;
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed >= 0) {
+      // Bis zur Obergrenze bleibt die Zahl während der Eingabe editierbar.
+      // Darüber wird sie sofort auf den finanzierten Höchstwert begrenzt,
+      // damit Feld, Regler und Stückvorschau nie auseinanderlaufen.
+      setPositionValueChf(parsed, {
+        preserveInput: !positionSizeBounds || parsed <= positionSizeBounds.maxValueChf,
+      });
+    }
+  };
+
+  const formatChf = (value: number) => new Intl.NumberFormat("de-CH", {
+    style: "currency",
+    currency: "CHF",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+
   if (!holding) return null;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-lg">
+      <DialogContent className="bg-slate-800 border-slate-700 text-white max-w-2xl">
         <DialogHeader>
           <DialogTitle>
             Position bearbeiten
@@ -228,6 +287,66 @@ export function EditPositionFieldsModal({
               />
             </div>
           </div>
+          {allowPositionSizeEdit && positionSizeBounds && currentPositionValueChf !== null && (
+            <div className="rounded-lg border border-cyan-400/25 bg-cyan-400/5 p-4 space-y-3" data-testid="position-size-editor">
+              <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+                <div>
+                  <Label htmlFor="position-size-chf" className="text-xs text-cyan-100">Positionsgrösse (CHF)</Label>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Aktueller Kurs: {formatChf(currentPriceChf)} je Stück · verfügbare Cash-Reserve: {formatChf(Math.max(0, cashBalanceChf))}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Entspricht</p>
+                  <p className="font-mono text-sm font-semibold text-cyan-200" data-testid="position-size-shares-preview">
+                    {Number(form.shares || 0).toLocaleString("de-CH", { maximumFractionDigits: 6 })} Stück
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem] sm:items-center">
+                <Slider
+                  aria-label="Positionsgrösse in CHF"
+                  value={[Math.min(positionSizeBounds.maxValueChf, Math.max(0, currentPositionValueChf))]}
+                  min={0}
+                  max={positionSizeBounds.maxValueChf}
+                  step={positionSizeBounds.sliderStepChf}
+                  onValueChange={([value]) => setPositionValueChf(value)}
+                  className="[&_[data-slot=slider-track]]:bg-slate-600 [&_[data-slot=slider-range]]:bg-cyan-400 [&_[data-slot=slider-thumb]]:border-cyan-300"
+                />
+                <Input
+                  id="position-size-chf"
+                  aria-label="Positionsgrösse in CHF eingeben"
+                  type="number"
+                  min="0"
+                  max={positionSizeBounds.maxValueChf}
+                  step={positionSizeBounds.sliderStepChf}
+                  value={positionValueInput}
+                  onChange={(e) => handlePositionValueInput(e.target.value)}
+                  onBlur={() => {
+                    const parsed = Number(positionValueInput);
+                    if (!Number.isFinite(parsed) || parsed < 0) {
+                      setPositionValueInput(currentPositionValueChf.toFixed(2));
+                      return;
+                    }
+                    setPositionValueChf(parsed);
+                  }}
+                  className="bg-slate-600 border-slate-500 text-white font-mono"
+                />
+              </div>
+              <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+                <span>CHF 0.00</span>
+                <span>Max. {formatChf(positionSizeBounds.maxValueChf)}</span>
+              </div>
+              <p className="text-xs text-cyan-100/80">
+                Vorschau auf Basis des aktuellen CHF-Kurses. Erst «Speichern» passt Stückzahl und Cash-Reserve gemeinsam an; es werden keine Orders oder Ledgerbuchungen erstellt.
+              </p>
+            </div>
+          )}
+          {allowPositionSizeEdit && !positionSizeBounds && (
+            <p className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200">
+              Die wertbasierte Positionsgrösse ist erst verfügbar, wenn ein positiver aktueller CHF-Kurs vorliegt.
+            </p>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <Label className="text-xs">Stück</Label>
@@ -235,7 +354,16 @@ export function EditPositionFieldsModal({
                 type="number"
                 step="0.0001"
                 value={form.shares}
-                onChange={(e) => setForm({ ...form, shares: e.target.value })}
+                onChange={(e) => {
+                  const nextShares = e.target.value;
+                  setForm({ ...form, shares: nextShares });
+                  if (allowPositionSizeEdit && currentPriceChf > 0) {
+                    const parsedShares = Number(nextShares);
+                    if (Number.isFinite(parsedShares) && parsedShares >= 0) {
+                      setPositionValueInput((parsedShares * currentPriceChf).toFixed(2));
+                    }
+                  }
+                }}
                 className="bg-slate-600 border-slate-500 text-white mt-1"
               />
             </div>

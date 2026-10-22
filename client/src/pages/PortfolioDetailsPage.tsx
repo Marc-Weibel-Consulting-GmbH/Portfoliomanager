@@ -1130,7 +1130,7 @@ export default function PortfolioDetailsPage() {
   const [depositAmount, setDepositAmount] = useState('');
 
   // Fetch transactions for edit modal
-  const { data: transactions = [] } = trpc.portfolioTransactions.list.useQuery(
+  const { data: transactions = [], isFetched: transactionsFetched } = trpc.portfolioTransactions.list.useQuery(
     { portfolioId },
     { enabled: portfolioId > 0 }
   );
@@ -3764,9 +3764,17 @@ export default function PortfolioDetailsPage() {
         portfolioId={portfolioId}
         rawPortfolioData={(allPortfolios as any[] | undefined)?.find((p) => p.id === portfolioId)?.portfolioData}
         holding={editFieldsHolding}
+        cashBalanceChf={cashBalance}
         portfolioCreatedAt={portfolio.createdAt ? String(portfolio.createdAt) : null}
         allowAlternatives={!isReadOnly && isDemo}
         allowDelete={!isReadOnly && isDemo}
+        allowPositionSizeEdit={
+          !isReadOnly
+          && portfolio.portfolioType === 'demo'
+          && portfolio.isLive !== 1
+          && transactionsFetched
+          && transactions.length === 0
+        }
         onShowAlternatives={(source) => {
           setIsEditFieldsOpen(false);
           setAlternativesSource(source);
