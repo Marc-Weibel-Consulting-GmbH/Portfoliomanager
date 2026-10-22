@@ -1,0 +1,39 @@
+{
+  "asOfDate": "2026-10-22",
+  "method": "EODHD dated /api/div TTM gross (special dividends excluded) → EODHD forward indicated → EODHD provider highlights; generic multi-provider yields are never persisted.",
+  "scope": {
+    "activeInstrumentCount": 1,
+    "requestedTickerCount": 1,
+    "processed": 1,
+    "concurrency": 4
+  },
+  "result": {
+    "changed": 1,
+    "unchanged": 0,
+    "unavailable": 0
+  },
+  "changes": [
+    {
+      "ticker": "BATS.L",
+      "previous": {
+        "dividendYield": "5.5900",
+        "dividendYieldBasis": "forward_indicated",
+        "dividendAnnualAmount": "2.450000",
+        "dividendCurrency": "GBX",
+        "dividendEventCount": null,
+        "dividendAsOfDate": "2026-10-22",
+        "dividendYieldSource": "EODHD fundamentals"
+      },
+      "next": {
+        "dividendYield": "5.5900",
+        "dividendYieldBasis": "forward_indicated",
+        "dividendAnnualAmount": "2.450000",
+        "dividendCurrency": "GBP",
+        "dividendEventCount": null,
+        "dividendAsOfDate": "2026-10-22",
+        "dividendYieldSource": "EODHD fundamentals"
+      }
+    }
+  ],
+  "unavailable": []
+}

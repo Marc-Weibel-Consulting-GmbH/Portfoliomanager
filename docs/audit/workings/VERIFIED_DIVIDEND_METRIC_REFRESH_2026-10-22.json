@@ -1,0 +1,21 @@
+{
+  "asOfDate": "2026-10-22",
+  "method": "EODHD dated /api/div TTM gross (special dividends excluded) → EODHD forward indicated → EODHD provider highlights; generic multi-provider yields are never persisted.",
+  "scope": {
+    "activeInstrumentCount": 314,
+    "initialGlobalProcessed": 312,
+    "initialGlobalConcurrency": 4
+  },
+  "initialGlobalResult": {
+    "changed": 280,
+    "unchanged": 1,
+    "unavailable": 33
+  },
+  "followUp": {
+    "reason": "Explicit EODHD GBX/GBP London quote-unit evidence was obtained after the global refresh.",
+    "targetedLondonLines": ["VWRL.L", "DGE.L", "YCA.L", "MNG.L", "BATS.L", "0QOK.L", "IWDP.L", "AZN.L", "SGLD.L"],
+    "targetedBatsRefresh": "VERIFIED_DIVIDEND_METRIC_TARGETED_REFRESH_BATS_2026-10-22.json"
+  },
+  "finalVerification": "VERIFIED_DIVIDEND_METRIC_POST_REFRESH_AUDIT_2026-10-22.json",
+  "note": "Only stock master dividend metrics and evidence metadata were changed. No raw price, portfolio, cash, ledger, transaction, order or live-trading record was mutated."
+}

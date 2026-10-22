@@ -16,7 +16,7 @@
  * Route: POST /api/scheduled/signalScoreRefresh
  */
 import type { Request, Response } from "express";
-import { alsProzent } from "../lib/dividendenrendite";
+import { toVerifiedDividendYieldUpdate } from "../lib/dividendYieldPersistence";
 
 export interface SignalScoreRefreshResult {
   ok: boolean;
@@ -85,20 +85,14 @@ export async function runSignalScoreRefresh(): Promise<SignalScoreRefreshResult>
           currency: stock.currency,
           fundamentals,
         });
-        const divYield = alsProzent(dividend.dividendYield, "signalScoreRefresh/dividend-enrichment");
+        const dividendUpdate = toVerifiedDividendYieldUpdate(dividend);
 
         // K2: reine Kennzahlen-Auffrischung — signalScore/signalType/aiReason
         // gehören dem Drei-Score-Signal und werden hier nicht mehr geschrieben.
         await db.update(stocksTable).set({
           peRatio: fundamentals.peRatio?.toString() ?? stock.peRatio,
           pegRatio: fundamentals.pegRatio?.toString() ?? stock.pegRatio,
-          dividendYield: divYield != null ? divYield.toFixed(4) : stock.dividendYield,
-          dividendYieldBasis: dividend.dividendYieldBasis ?? stock.dividendYieldBasis,
-          dividendAnnualAmount: dividend.dividendAnnualAmount != null ? dividend.dividendAnnualAmount.toFixed(6) : stock.dividendAnnualAmount,
-          dividendCurrency: dividend.dividendCurrency ?? stock.dividendCurrency,
-          dividendEventCount: dividend.dividendEventCount ?? stock.dividendEventCount,
-          dividendAsOfDate: dividend.dividendAsOfDate || stock.dividendAsOfDate,
-          dividendYieldSource: dividend.dividendYieldSource ?? stock.dividendYieldSource,
+          ...dividendUpdate,
           // YTD/52W are maintained solely by refreshSplitAdjustedMarketMetrics.
           // Updating them from raw close here would silently undo a confirmed
           // split correction (e.g. SQN/KLAC/CRWD) at the next daily refresh.

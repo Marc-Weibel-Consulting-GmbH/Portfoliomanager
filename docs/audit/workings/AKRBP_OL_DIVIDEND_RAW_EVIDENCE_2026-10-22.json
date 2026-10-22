@@ -1,0 +1,53 @@
+{
+  "retrievedAt": "2026-10-22T11:19:12.827Z",
+  "asOf": "2026-10-22",
+  "from": "2025-10-22",
+  "fundamentals": {
+    "currency": "NOK",
+    "highlightsDividendYield": 0.0067,
+    "forwardAnnualDividendRate": 25.7,
+    "forwardAnnualDividendYield": 0.0671
+  },
+  "realtime": {
+    "close": 387,
+    "currency": "NOK"
+  },
+  "dividends": [
+    {
+      "date": "2025-10-27",
+      "value": 6.33194,
+      "unadjustedValue": 6.33194,
+      "currency": "NOK",
+      "period": "Quarterly",
+      "declarationDate": "2025-10-22",
+      "paymentDate": "2025-11-04"
+    },
+    {
+      "date": "2026-02-16",
+      "value": 6.29417,
+      "unadjustedValue": 6.29417,
+      "currency": "NOK",
+      "period": "Quarterly",
+      "declarationDate": "2026-02-11",
+      "paymentDate": "2026-02-24"
+    },
+    {
+      "date": "2026-05-12",
+      "value": 6.12853,
+      "unadjustedValue": 6.12853,
+      "currency": "NOK",
+      "period": "Quarterly",
+      "declarationDate": "2026-05-07",
+      "paymentDate": "2026-05-21"
+    },
+    {
+      "date": "2026-07-20",
+      "value": 6.42588,
+      "unadjustedValue": 6.42588,
+      "currency": "NOK",
+      "period": "Quarterly",
+      "declarationDate": "2026-07-15",
+      "paymentDate": "2026-07-28"
+    }
+  ]
+}\n

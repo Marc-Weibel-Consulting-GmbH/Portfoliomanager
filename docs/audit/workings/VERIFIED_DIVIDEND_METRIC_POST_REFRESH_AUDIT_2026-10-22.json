@@ -1,0 +1,91 @@
+{
+  "asOfDate": "2026-10-22",
+  "method": "Recomputes TTM gross yield from the stored annual cash amount and the same listing quote unit. GBp LSE master records use price / 100 only when cash events are GBP; GBP-denominated LSE records are never rescaled.",
+  "materialityThresholdPctPoints": 0.05,
+  "activeInstrumentCount": 314,
+  "basisCounts": {
+    "ttm_gross": 209,
+    "forward_indicated": 73,
+    "unverified_or_missing": 32
+  },
+  "ttmChecked": 208,
+  "ttmConsistentWithin005PctPoints": 208,
+  "ttmMismatches": [],
+  "references": [
+    {
+      "ticker": "VWRL.L",
+      "currentPrice": "137.4300",
+      "effectivePriceForDividendYield": 137.43,
+      "currency": "GBP",
+      "dividendYield": "1.3390",
+      "dividendYieldBasis": "ttm_gross",
+      "dividendAnnualAmount": "1.840390",
+      "dividendCurrency": "GBP",
+      "dividendEventCount": 4,
+      "dividendAsOfDate": "2026-10-22",
+      "dividendYieldSource": "EODHD /api/div",
+      "expectedYieldPct": 1.339147202212035,
+      "divergencePctPoints": 0.0001472022120350136
+    },
+    {
+      "ticker": "AKRBP.OL",
+      "currentPrice": "386.5000",
+      "effectivePriceForDividendYield": 386.5,
+      "currency": "NOK",
+      "dividendYield": "6.5133",
+      "dividendYieldBasis": "ttm_gross",
+      "dividendAnnualAmount": "25.180520",
+      "dividendCurrency": "NOK",
+      "dividendEventCount": 4,
+      "dividendAsOfDate": "2026-10-22",
+      "dividendYieldSource": "EODHD /api/div",
+      "expectedYieldPct": 6.515011642949547,
+      "divergencePctPoints": 0.0017116429495471763
+    },
+    {
+      "ticker": "DGE.L",
+      "currentPrice": "1744.8020",
+      "effectivePriceForDividendYield": 17.44802,
+      "currency": "GBp",
+      "dividendYield": "2.1548",
+      "dividendYieldBasis": "ttm_gross",
+      "dividendAnnualAmount": "0.375790",
+      "dividendCurrency": "GBP",
+      "dividendEventCount": 2,
+      "dividendAsOfDate": "2026-10-22",
+      "dividendYieldSource": "EODHD /api/div",
+      "expectedYieldPct": 2.1537687370830616,
+      "divergencePctPoints": 0.0010312629169382248
+    },
+    {
+      "ticker": "MNG.L",
+      "currentPrice": "312.4000",
+      "effectivePriceForDividendYield": 3.1239999999999997,
+      "currency": "GBp",
+      "dividendYield": "6.6004",
+      "dividendYieldBasis": "ttm_gross",
+      "dividendAnnualAmount": "0.206000",
+      "dividendCurrency": "GBP",
+      "dividendEventCount": 2,
+      "dividendAsOfDate": "2026-10-22",
+      "dividendYieldSource": "EODHD /api/div",
+      "expectedYieldPct": 6.594110115236876,
+      "divergencePctPoints": 0.006289884763123865
+    },
+    {
+      "ticker": "AZN.L",
+      "currentPrice": "12654.0000",
+      "effectivePriceForDividendYield": 126.54,
+      "currency": "GBp",
+      "dividendYield": "1.8932",
+      "dividendYieldBasis": "ttm_gross",
+      "dividendAnnualAmount": "2.390000",
+      "dividendCurrency": "GBP",
+      "dividendEventCount": 2,
+      "dividendAsOfDate": "2026-10-22",
+      "dividendYieldSource": "EODHD /api/div",
+      "expectedYieldPct": 1.8887308360992572,
+      "divergencePctPoints": 0.004469163900742812
+    }
+  ]
+}

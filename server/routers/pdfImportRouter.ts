@@ -248,6 +248,9 @@ export const pdfImportRouter = router({
       if (importedStocks.length > 0) {
         try {
           const { fetchCompleteStockData } = await import("../_core/multiApiDataMerger");
+          const { fetchEODHDFundamentals } = await import("../_core/eodhdApi");
+          const { resolveDividendYieldEnrichment } = await import("../_core/dividendYieldEnrichment");
+          const { toVerifiedDividendYieldUpdate } = await import("../lib/dividendYieldPersistence");
           const { insertStock, getStockByTicker } = await import("../db");
 
           // Calculate total CHF value for weight computation
@@ -263,12 +266,21 @@ export const pdfImportRouter = router({
             if (!stockInDb) {
               try {
                 const completeData = await fetchCompleteStockData(s.ticker);
+                const fundamentals = await fetchEODHDFundamentals(s.ticker);
+                const dividend = await resolveDividendYieldEnrichment({
+                  ticker: s.ticker,
+                  currentPrice: completeData.currentPrice ?? s.marketPrice,
+                  currency: fundamentals.currency ?? s.currency,
+                  fundamentals,
+                });
+                const dividendUpdate = toVerifiedDividendYieldUpdate(dividend);
                 await insertStock({
                   ticker: s.ticker,
                   companyName: completeData.companyName || s.name,
                   currentPrice: completeData.currentPrice?.toString() || s.marketPrice?.toString() || "0",
                   currency: s.currency,
-                  dividendYield: completeData.dividendYield?.toString() || "0",
+                  dividendYield: dividendUpdate.dividendYield || "0",
+                  ...dividendUpdate,
                   peRatio: completeData.pe?.toString() || "0",
                   pegRatio: completeData.peg?.toString() || "0",
                   portfolioWeight: "0",

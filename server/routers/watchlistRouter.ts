@@ -16,6 +16,7 @@ import YahooFinanceClass from "yahoo-finance2";
 import { calcWilderRSI } from "../lib/watchlistSignalScore";
 import { fetchEODHDFundamentals } from '../_core/eodhdApi';
 import { resolveDividendYieldEnrichment } from '../_core/dividendYieldEnrichment';
+import { toVerifiedDividendYieldUpdate } from '../lib/dividendYieldPersistence';
 
 const yahooFinance: any = new (YahooFinanceClass as any)();
 
@@ -397,7 +398,11 @@ export const watchlistRouter = router({
         marketCap: metrics.marketCap || null,
         peRatio: metrics.peRatio || null,
         pegRatio: metrics.pegRatio || null,
-        dividendYield: metrics.dividendYield || null,
+        // A newly-added listing may use Yahoo for a provisional quote, but a
+        // dividend yield needs the subsequent EODHD cash-event enrichment.
+        // An empty value is more honest than a potentially forward/annualized
+        // provider field without its basis metadata.
+        dividendYield: hasExplicitEodhdHydration ? (metrics.dividendYield || null) : null,
         beta: metrics.beta || null,
         week52High: metrics.week52High || null,
         week52Low: metrics.week52Low || null,
@@ -513,7 +518,6 @@ export const watchlistRouter = router({
           const low52 = summary?.fiftyTwoWeekLow || 0;
           const peRatio = summary?.trailingPE ?? null;
           const pegRatio = keyStats?.pegRatio ?? null;
-          const dividendYield = summary?.dividendYield ? summary.dividendYield * 100 : 0;
 
           // RSI-14 (Anzeige): Wilder über die LETZTEN 14 Perioden — die alte
           // Variante mittelte das älteste Fenster des 30-Tage-Zeitraums (H5).
@@ -540,7 +544,10 @@ export const watchlistRouter = router({
             currency: price?.currency || stock.currency,
             peRatio: peRatio?.toString() || stock.peRatio,
             pegRatio: pegRatio?.toString() || stock.pegRatio,
-            dividendYield: dividendYield > 0 ? dividendYield.toString() : stock.dividendYield,
+            // The generic Yahoo field is useful as a diagnostic only. It may
+            // differ in trailing/forward basis and must not overwrite the
+            // EODHD event-derived dividend metadata on the shared `stocks`
+            // record (e.g. AKRBP.OL).
             beta: summary?.beta?.toString() || stock.beta,
             week52High: high52?.toString() || stock.week52High,
             week52Low: low52?.toString() || stock.week52Low,
@@ -1171,15 +1178,7 @@ export const watchlistRouter = router({
               fundamentals,
             });
             dividendYield = dividend.dividendYield;
-            if (dividendYield != null && !stock.dividendYield) {
-              updateData.dividendYield = dividendYield.toFixed(4);
-              updateData.dividendYieldBasis = dividend.dividendYieldBasis;
-              updateData.dividendAnnualAmount = dividend.dividendAnnualAmount?.toFixed(6) ?? null;
-              updateData.dividendCurrency = dividend.dividendCurrency;
-              updateData.dividendEventCount = dividend.dividendEventCount;
-              updateData.dividendAsOfDate = dividend.dividendAsOfDate;
-              updateData.dividendYieldSource = dividend.dividendYieldSource;
-            }
+            Object.assign(updateData, toVerifiedDividendYieldUpdate(dividend));
           } catch (_e) { /* EODHD failed, try Yahoo */ }
 
           // 2. Yahoo Finance fallback for sector if still missing
@@ -1204,11 +1203,9 @@ export const watchlistRouter = router({
                 const pe = summary?.trailingPE || keyStats?.trailingEps;
                 if (pe && !isNaN(pe) && pe > 0) updateData.peRatio = pe.toFixed(2);
               }
-              if (!stock.dividendYield && summary?.dividendYield) {
-                const dy = summary.dividendYield * 100;
-                updateData.dividendYield = dy.toFixed(2);
-                dividendYield = dy;
-              }
+              // Yahoo remains a non-authoritative fallback for descriptive
+              // company fields only. Its dividend field must not be presented
+              // as the event-derived TTM metric or overwrite its evidence.
             } catch (_e) { /* Yahoo also failed */ }
           }
 

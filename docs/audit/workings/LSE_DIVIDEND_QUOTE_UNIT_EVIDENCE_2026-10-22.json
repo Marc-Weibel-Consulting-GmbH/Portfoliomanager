@@ -1,0 +1,135 @@
+{
+  "asOfDate": "2026-10-22",
+  "tickers": {
+    "MNG.L": {
+      "symbol": "MNG.LSE",
+      "fundamentals": {
+        "currency": "GBX",
+        "highlightsDividendYield": 0.0663,
+        "forwardAnnualDividendRate": 0.21,
+        "forwardAnnualDividendYield": 0.0657
+      },
+      "realTime": {
+        "close": 312.1,
+        "currency": null
+      },
+      "dividends": [
+        {
+          "date": "2026-03-19",
+          "value": 0.138,
+          "unadjustedValue": 0.138,
+          "currency": "GBP",
+          "period": "Interim"
+        },
+        {
+          "date": "2026-09-10",
+          "value": 0.068,
+          "unadjustedValue": 0.068,
+          "currency": "GBP",
+          "period": "Interim"
+        }
+      ]
+    },
+    "VWRL.L": {
+      "symbol": "VWRL.LSE",
+      "fundamentals": {
+        "currency": "GBP",
+        "highlightsDividendYield": null,
+        "forwardAnnualDividendRate": null,
+        "forwardAnnualDividendYield": null
+      },
+      "realTime": {
+        "close": 137.31,
+        "currency": null
+      },
+      "dividends": [
+        {
+          "date": "2025-12-18",
+          "value": 0.40758,
+          "unadjustedValue": 0.40758,
+          "currency": "GBP",
+          "period": null
+        },
+        {
+          "date": "2026-03-19",
+          "value": 0.34257,
+          "unadjustedValue": 0.34257,
+          "currency": "GBP",
+          "period": null
+        },
+        {
+          "date": "2026-06-18",
+          "value": 0.6833,
+          "unadjustedValue": 0.6833,
+          "currency": "GBP",
+          "period": null
+        },
+        {
+          "date": "2026-09-17",
+          "value": 0.40694,
+          "unadjustedValue": 0.40694,
+          "currency": "GBP",
+          "period": null
+        }
+      ]
+    },
+    "DGE.L": {
+      "symbol": "DGE.LSE",
+      "fundamentals": {
+        "currency": "GBX",
+        "highlightsDividendYield": 0.0285,
+        "forwardAnnualDividendRate": 0.45,
+        "forwardAnnualDividendYield": 0.0257
+      },
+      "realTime": {
+        "close": 1744,
+        "currency": null
+      },
+      "dividends": [
+        {
+          "date": "2026-04-16",
+          "value": 0.1494,
+          "unadjustedValue": 0.1494,
+          "currency": "GBP",
+          "period": "Interim"
+        },
+        {
+          "date": "2026-10-15",
+          "value": 0.22639,
+          "unadjustedValue": 0.22639,
+          "currency": "GBP",
+          "period": "Final"
+        }
+      ]
+    },
+    "AZN.L": {
+      "symbol": "AZN.LSE",
+      "fundamentals": {
+        "currency": "GBX",
+        "highlightsDividendYield": 0.0256,
+        "forwardAnnualDividendRate": 2.39,
+        "forwardAnnualDividendYield": 0.0189
+      },
+      "realTime": {
+        "close": 12644,
+        "currency": null
+      },
+      "dividends": [
+        {
+          "date": "2026-02-19",
+          "value": 1.595,
+          "unadjustedValue": 1.595,
+          "currency": "GBP",
+          "period": "Final"
+        },
+        {
+          "date": "2026-08-06",
+          "value": 0.795,
+          "unadjustedValue": 0.795,
+          "currency": "GBP",
+          "period": "Interim"
+        }
+      ]
+    }
+  }
+}

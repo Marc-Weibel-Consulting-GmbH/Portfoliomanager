@@ -30,6 +30,12 @@ export async function resolveDividendYieldEnrichment(input: {
   asOfDate?: string;
 }): Promise<DividendYieldEnrichment> {
   const asOfDate = input.asOfDate ?? new Date().toISOString().slice(0, 10);
+  // EODHD labels certain LSE price lines as GBX (pence) but exposes annual
+  // dividend rates in GBP. This is a quote-unit normalization, not FX.
+  const dividendCurrency = input.ticker.toUpperCase().endsWith(".L")
+    && String(input.currency ?? "").trim().toUpperCase() === "GBX"
+    ? "GBP"
+    : input.currency?.toUpperCase() ?? null;
   const ttm = await fetchEodhdTrailingDividendYield({
     ticker: input.ticker,
     currentPrice: input.currentPrice,
@@ -58,7 +64,7 @@ export async function resolveDividendYieldEnrichment(input: {
       dividendYield: input.fundamentals.dividendYield,
       dividendYieldBasis: "forward_indicated",
       dividendAnnualAmount: input.fundamentals.forwardAnnualDividendRate,
-      dividendCurrency: input.currency?.toUpperCase() ?? null,
+      dividendCurrency,
       dividendEventCount: null,
       dividendAsOfDate: asOfDate,
       dividendYieldSource: "EODHD fundamentals",
@@ -70,7 +76,7 @@ export async function resolveDividendYieldEnrichment(input: {
       dividendYield: input.fundamentals.dividendYield,
       dividendYieldBasis: "provider_highlights",
       dividendAnnualAmount: null,
-      dividendCurrency: input.currency?.toUpperCase() ?? null,
+      dividendCurrency,
       dividendEventCount: null,
       dividendAsOfDate: asOfDate,
       dividendYieldSource: "EODHD fundamentals",

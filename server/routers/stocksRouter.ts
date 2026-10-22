@@ -4,6 +4,7 @@ import { z } from "zod";
 import { fetchStockMetrics } from "../_core/stockDataApi";
 import { fetchEODHDFundamentals, fetchEODHDRealTime } from "../_core/eodhdApi";
 import { resolveDividendYieldEnrichment } from "../_core/dividendYieldEnrichment";
+import { toVerifiedDividendYieldUpdate } from "../lib/dividendYieldPersistence";
 import { recalculateWeights } from "../_core/portfolioWeightHelper";
 import { getStockLogoUrl } from "../_core/stockLogo";
 import { ENV } from "../_core/env";
@@ -616,6 +617,15 @@ export const stocksRouter = router({
         // Fetch fresh data
         const completeData = await fetchCompleteStockData(ticker);
         const eodhdQuote = await fetchEODHDRealTime(ticker);
+        const fundamentals = await fetchEODHDFundamentals(ticker);
+        const effectivePrice = eodhdQuote.close ?? completeData.currentPrice;
+        const dividend = await resolveDividendYieldEnrichment({
+          ticker,
+          currentPrice: effectivePrice,
+          currency: fundamentals.currency,
+          fundamentals,
+        });
+        const dividendUpdate = toVerifiedDividendYieldUpdate(dividend);
 
         // Prepare update data
         const updateData: any = {
@@ -630,7 +640,7 @@ export const stocksRouter = router({
         }
         if (completeData.pe !== null) updateData.peRatio = completeData.pe.toString();
         if (completeData.peg !== null) updateData.pegRatio = completeData.peg.toString();
-        if (completeData.dividendYield !== null) updateData.dividendYield = completeData.dividendYield.toString();
+        Object.assign(updateData, dividendUpdate);
         if (completeData.beta !== null) updateData.beta = completeData.beta.toString();
         if (completeData.volatility !== null) updateData.volatility = completeData.volatility.toString();
         if (completeData.logoUrl) updateData.logoUrl = completeData.logoUrl;
@@ -718,6 +728,13 @@ export const stocksRouter = router({
 
           // Use multi-API data merger for complete stock data (correct currency + Sharpe Ratio)
           const completeData = await fetchCompleteStockData(cleanTicker);
+          const fundamentals = await fetchEODHDFundamentals(cleanTicker);
+          const dividend = await resolveDividendYieldEnrichment({
+            ticker: cleanTicker,
+            currentPrice: completeData.currentPrice,
+            currency: fundamentals.currency,
+            fundamentals,
+          });
           
           // Fetch YTD data from EODHD (not available in multiApiDataMerger)
           let ytdStartPrice = null;
@@ -753,7 +770,9 @@ export const stocksRouter = router({
             ytdPerformance: ytdPerformance,
             peRatio: completeData.pe,
             pegRatio: completeData.peg,
-            dividendYield: completeData.dividendYield,
+            // The generic multi-provider value lacks the dated-event and
+            // currency evidence required for a headline dividend yield.
+            dividendYield: dividend.dividendYield,
             sharpeRatio: completeData.sharpe,
             volatility: completeData.volatility,
             beta: completeData.beta,
@@ -937,6 +956,7 @@ export const stocksRouter = router({
           console.log(`[AddStock] Using ${completeData.ticker} instead of ${stockData.ticker}`);
           stockData.ticker = completeData.ticker;
         }
+        const fundamentals = await fetchEODHDFundamentals(stockData.ticker);
         
         // Auto-fill missing data from multi-API result
         if (!stockData.currentPrice && completeData.currentPrice) {
@@ -951,9 +971,17 @@ export const stocksRouter = router({
           stockData.pegRatio = completeData.peg.toString();
           console.log(`[AddStock] Auto-filled pegRatio: ${stockData.pegRatio} (from ${completeData.dataSources.peg})`);
         }
-        if (!stockData.dividendYield && completeData.dividendYield) {
-          stockData.dividendYield = completeData.dividendYield.toString();
-          console.log(`[AddStock] Auto-filled dividendYield: ${stockData.dividendYield} (from ${completeData.dataSources.dividendYield})`);
+        if (!stockData.dividendYield) {
+          const dividend = await resolveDividendYieldEnrichment({
+            ticker: stockData.ticker,
+            currentPrice: stockData.currentPrice ?? completeData.currentPrice,
+            currency: fundamentals.currency ?? stockData.currency ?? completeData.currency,
+            fundamentals,
+          });
+          Object.assign(stockData, toVerifiedDividendYieldUpdate(dividend));
+          if (stockData.dividendYield) {
+            console.log(`[AddStock] Auto-filled verified dividendYield: ${stockData.dividendYield} (${stockData.dividendYieldBasis})`);
+          }
         }
         if (!stockData.currency && completeData.currency) {
           stockData.currency = completeData.currency;
@@ -1313,15 +1341,7 @@ export const stocksRouter = router({
                   currency: fundamentals.currency ?? stock.currency,
                   fundamentals,
                 });
-                if (dividend.dividendYield !== null) {
-                  updateData.dividendYield = dividend.dividendYield.toFixed(4);
-                  updateData.dividendYieldBasis = dividend.dividendYieldBasis;
-                  updateData.dividendAnnualAmount = dividend.dividendAnnualAmount != null ? dividend.dividendAnnualAmount.toFixed(6) : null;
-                  updateData.dividendCurrency = dividend.dividendCurrency;
-                  updateData.dividendEventCount = dividend.dividendEventCount;
-                  updateData.dividendAsOfDate = dividend.dividendAsOfDate;
-                  updateData.dividendYieldSource = dividend.dividendYieldSource;
-                }
+                Object.assign(updateData, toVerifiedDividendYieldUpdate(dividend));
                 
                 // Update risk metrics from Yahoo
                 if (metrics.sharpeRatio !== null) updateData.sharpeRatio = metrics.sharpeRatio.toFixed(2);
@@ -1445,15 +1465,7 @@ export const stocksRouter = router({
             currency: fundamentals.currency ?? stock.currency,
             fundamentals,
           });
-          if (dividend.dividendYield !== null) {
-            updateData.dividendYield = dividend.dividendYield.toFixed(4);
-            updateData.dividendYieldBasis = dividend.dividendYieldBasis;
-            updateData.dividendAnnualAmount = dividend.dividendAnnualAmount != null ? dividend.dividendAnnualAmount.toFixed(6) : null;
-            updateData.dividendCurrency = dividend.dividendCurrency;
-            updateData.dividendEventCount = dividend.dividendEventCount;
-            updateData.dividendAsOfDate = dividend.dividendAsOfDate;
-            updateData.dividendYieldSource = dividend.dividendYieldSource;
-          }
+          Object.assign(updateData, toVerifiedDividendYieldUpdate(dividend));
           
           // Update risk metrics from Yahoo
           if (metrics.sharpeRatio !== null) updateData.sharpeRatio = metrics.sharpeRatio.toFixed(2);

@@ -26,6 +26,17 @@ export async function fetchEodhdTrailingDividendYield(input: {
 }): Promise<EodhdTrailingDividendYield> {
   const asOfDate = input.asOfDate ?? new Date().toISOString().slice(0, 10);
   const priceKey = Number(input.currentPrice);
+  const nativeCurrency = String(input.tradingCurrency ?? "").trim().toUpperCase();
+  // EODHD explicitly labels London listings quoted in pence as GBX. Their
+  // cash events remain GBP, so convert the *quote unit* (not FX) to GBP.
+  // Do not infer GBX merely from the .L suffix: VWRL.L is already supplied
+  // in GBP and dividing it again would overstate its yield one hundredfold.
+  const isLsePenceQuote = input.ticker.toUpperCase().endsWith(".L") && nativeCurrency === "GBX";
+  const currentPrice = isLsePenceQuote
+    && Number.isFinite(priceKey)
+    ? priceKey / 100
+    : input.currentPrice;
+  const tradingCurrency = isLsePenceQuote ? "GBP" : nativeCurrency;
   const cacheKey = `eodhd:dividend-ttm:${input.ticker}:${asOfDate}:${Number.isFinite(priceKey) ? priceKey.toFixed(4) : "na"}:${String(input.tradingCurrency ?? "").toUpperCase()}`;
   const cached = apiCache.get<EodhdTrailingDividendYield>(cacheKey);
   if (cached) return cached;
@@ -61,8 +72,8 @@ export async function fetchEodhdTrailingDividendYield(input: {
     const result: EodhdTrailingDividendYield = {
       ...calculateTrailingTwelveMonthDividendYield({
         asOfDate,
-        currentPrice: input.currentPrice,
-        tradingCurrency: input.tradingCurrency,
+        currentPrice,
+        tradingCurrency,
         events: parsed.data.map((event) => ({
           exDate: event.date,
           // EODHD `value` is the cash amount per current, split-adjusted share.

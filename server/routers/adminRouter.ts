@@ -286,6 +286,9 @@ export const adminRouter = router({
       const { stocks } = await import("../../drizzle/schema");
       const { eq } = await import("drizzle-orm");
       const { fetchCompleteStockData } = await import("../_core/multiApiDataMerger");
+      const { fetchEODHDFundamentals } = await import("../_core/eodhdApi");
+      const { resolveDividendYieldEnrichment } = await import("../_core/dividendYieldEnrichment");
+      const { toVerifiedDividendYieldUpdate } = await import("../lib/dividendYieldPersistence");
       
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -306,6 +309,13 @@ export const adminRouter = router({
           
           // Get complete data from multiApiDataMerger
           const completeData = await fetchCompleteStockData(stock.ticker);
+          const fundamentals = await fetchEODHDFundamentals(stock.ticker);
+          const dividend = await resolveDividendYieldEnrichment({
+            ticker: stock.ticker,
+            currentPrice: completeData.currentPrice,
+            currency: fundamentals.currency ?? stock.currency,
+            fundamentals,
+          });
 
           // Prepare update data
           const updateData: any = {};
@@ -326,7 +336,7 @@ export const adminRouter = router({
           // Update other metrics
           if (completeData.pe !== null) updateData.peRatio = completeData.pe.toString();
           if (completeData.peg !== null) updateData.pegRatio = completeData.peg.toString();
-          if (completeData.dividendYield !== null) updateData.dividendYield = completeData.dividendYield.toString();
+          Object.assign(updateData, toVerifiedDividendYieldUpdate(dividend));
           if (completeData.beta !== null) updateData.beta = completeData.beta.toString();
           if (completeData.volatility !== null) updateData.volatility = completeData.volatility.toString();
           if (completeData.logoUrl) updateData.logoUrl = completeData.logoUrl;

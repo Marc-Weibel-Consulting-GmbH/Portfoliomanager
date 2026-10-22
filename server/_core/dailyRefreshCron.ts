@@ -119,9 +119,11 @@ export async function refreshAllStocks(options: { force?: boolean } = {}): Promi
         if (completeData.peg !== null) {
           updateData.pegRatio = completeData.peg.toString();
         }
-        if (completeData.dividendYield !== null) {
-          updateData.dividendYield = completeData.dividendYield.toString();
-        }
+        // `fetchCompleteStockData` is retained for supplementary diagnostics,
+        // but its generic merged dividend field has no dated-event/currency
+        // proof.  It must not overwrite the canonical TTM/forward dividend
+        // basis written by signalScoreRefresh (Aker BP regression: 6.51 % was
+        // otherwise replaced by the provider Highlights value of 0.68 %).
         if (completeData.beta !== null) {
           updateData.beta = completeData.beta.toString();
         }
