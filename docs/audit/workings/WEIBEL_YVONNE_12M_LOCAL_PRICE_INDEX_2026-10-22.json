@@ -1,0 +1,482 @@
+{
+  "asOfDate": "2026-10-22",
+  "fromDate": "2025-10-22",
+  "source": "EODHD /api/eod and /api/splits, retrieved 2026-10-22",
+  "method": "Equal-weighted local-currency, split-adjusted price index. Each included direct or explicitly marked same-ISIN proxy series is rebased to 100 at its first available observation. Monthly values use the last available local trading close in each month. Cash dividends and FX changes are excluded. This is a title-sample price index, not the account's realised or CHF-weighted portfolio performance.",
+  "requestedInstrumentCount": 26,
+  "includedInstrumentCount": 25,
+  "excludedInstrumentCount": 1,
+  "indexStart": 102.09138983541673,
+  "indexEnd": 117.21936327204747,
+  "twelveMonthPriceReturnPct": 14.818069830392954,
+  "monthlyIndex": [
+    {
+      "month": "2025-10",
+      "observationDateRange": "2025-10-31–2025-10-31",
+      "index": 102.09138983541673,
+      "contributingInstruments": 25
+    },
+    {
+      "month": "2025-11",
+      "observationDateRange": "2025-11-28–2025-11-28",
+      "index": 102.1302173984277,
+      "contributingInstruments": 25
+    },
+    {
+      "month": "2025-12",
+      "observationDateRange": "2025-12-30–2025-12-31",
+      "index": 104.23539604149383,
+      "contributingInstruments": 25
+    },
+    {
+      "month": "2026-01",
+      "observationDateRange": "2026-01-30–2026-01-30",
+      "index": 107.05956752912451,
+      "contributingInstruments": 25
+    },
+    {
+      "month": "2026-02",
+      "observationDateRange": "2026-02-27–2026-02-27",
+      "index": 110.90864603543694,
+      "contributingInstruments": 25
+    },
+    {
+      "month": "2026-03",
+      "observationDateRange": "2026-03-31–2026-03-31",
+      "index": 107.44397720384737,
+      "contributingInstruments": 25
+    },
+    {
+      "month": "2026-04",
+      "observationDateRange": "2026-04-30–2026-04-30",
+      "index": 110.87663652814841,
+      "contributingInstruments": 25
+    },
+    {
+      "month": "2026-05",
+      "observationDateRange": "2026-05-29–2026-05-29",
+      "index": 111.92900870575332,
+      "contributingInstruments": 25
+    },
+    {
+      "month": "2026-06",
+      "observationDateRange": "2026-06-30–2026-06-30",
+      "index": 110.22772780401314,
+      "contributingInstruments": 25
+    },
+    {
+      "month": "2026-07",
+      "observationDateRange": "2026-07-31–2026-07-31",
+      "index": 112.12485729698624,
+      "contributingInstruments": 25
+    },
+    {
+      "month": "2026-08",
+      "observationDateRange": "2026-08-28–2026-08-31",
+      "index": 115.87824166440284,
+      "contributingInstruments": 25
+    },
+    {
+      "month": "2026-09",
+      "observationDateRange": "2026-09-30–2026-09-30",
+      "index": 113.96823807831663,
+      "contributingInstruments": 25
+    },
+    {
+      "month": "2026-10",
+      "observationDateRange": "2026-10-21–2026-10-21",
+      "index": 117.21936327204747,
+      "contributingInstruments": 25
+    }
+  ],
+  "included": [
+    {
+      "status": "included",
+      "instrument": {
+        "name": "ABB",
+        "excelSymbol": "ABBN",
+        "eodhdSymbol": "ABBN.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 24.5924384321887
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Aker BP",
+        "excelSymbol": "AKRBP",
+        "eodhdSymbol": "AKRBP.OL",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 49.395711500974656
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Alphabet A",
+        "excelSymbol": "GOOGL",
+        "eodhdSymbol": "GOOGL.US",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 251,
+      "splitEvents": [],
+      "returnPct": 33.004886964122534
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Amazon",
+        "excelSymbol": "AMZN",
+        "eodhdSymbol": "AMZN.US",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 251,
+      "splitEvents": [],
+      "returnPct": 20.380821289286533
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "BB Biotech",
+        "excelSymbol": "BION",
+        "eodhdSymbol": "BION.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 29.396662387676486
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "BKW",
+        "excelSymbol": "BKW",
+        "eodhdSymbol": "BKW.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": -33.48066298342541
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Cembra Money Bank",
+        "excelSymbol": "CMBN",
+        "eodhdSymbol": "CMBN.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": -3.0353200883002196
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Chevron",
+        "excelSymbol": "CVX",
+        "eodhdSymbol": "CVX.US",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 251,
+      "splitEvents": [],
+      "returnPct": 45.77360673651734
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Johnson & Johnson",
+        "excelSymbol": "JNJ",
+        "eodhdSymbol": "JNJ.US",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 251,
+      "splitEvents": [],
+      "returnPct": 33.60630247745411
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Nestlé",
+        "excelSymbol": "NESN",
+        "eodhdSymbol": "NESN.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 1.9916911045943175
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Novartis",
+        "excelSymbol": "NOVN",
+        "eodhdSymbol": "NOVN.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 20.999427808506567
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "NVIDIA",
+        "excelSymbol": "NVDA",
+        "eodhdSymbol": "NVDA.US",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 251,
+      "splitEvents": [],
+      "returnPct": 23.12513867317505
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Palantir",
+        "excelSymbol": "PLTR",
+        "eodhdSymbol": "PLTR.US",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 251,
+      "splitEvents": [],
+      "returnPct": 14.94672061086102
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Poste Italiane",
+        "excelSymbol": "PST",
+        "eodhdSymbol": "7PI.F",
+        "assetClass": "Aktie",
+        "seriesBasis": "same_isin_proxy"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 253,
+      "splitEvents": [],
+      "returnPct": 20.215941884764675
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "PSP Swiss Property",
+        "excelSymbol": "PSPN",
+        "eodhdSymbol": "PSPN.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 5.618776671408265
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Rio Tinto",
+        "excelSymbol": "RIO",
+        "eodhdSymbol": "RIO.LSE",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 253,
+      "splitEvents": [],
+      "returnPct": 24.534101825168108
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Roche",
+        "excelSymbol": "RO",
+        "eodhdSymbol": "RO.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 35.37832310838447
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "SGS",
+        "excelSymbol": "SGSN",
+        "eodhdSymbol": "SGSN.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 13.374717832957117
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "St. Galler Kantonalbank",
+        "excelSymbol": "SGKN",
+        "eodhdSymbol": "SGKN.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 40.27777777777777
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Swiss Re",
+        "excelSymbol": "SREN",
+        "eodhdSymbol": "SREN.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 2.552048354600389
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Swisscom",
+        "excelSymbol": "SCMN",
+        "eodhdSymbol": "SCMN.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 13.006756756756754
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Zurich Insurance",
+        "excelSymbol": "ZURN",
+        "eodhdSymbol": "ZURN.SW",
+        "assetClass": "Aktie",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 10.470463388751327
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "iShares Swiss Dividend ETF",
+        "excelSymbol": "CHDVD",
+        "eodhdSymbol": "CHDVD.SW",
+        "assetClass": "Fonds/ETF",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 14.398806792106477
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "Swisscanto Gold ETF",
+        "excelSymbol": "ZGLD",
+        "eodhdSymbol": "ZGLD.SW",
+        "assetClass": "Fonds/ETF",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": 6.202691337258193
+    },
+    {
+      "status": "included",
+      "instrument": {
+        "name": "21Shares Bitcoin ETP",
+        "excelSymbol": "ABTC",
+        "eodhdSymbol": "ABTC.SW",
+        "assetClass": "Strukturiert",
+        "seriesBasis": "direct"
+      },
+      "startDate": "2025-10-22",
+      "endDate": "2026-10-21",
+      "observations": 250,
+      "splitEvents": [],
+      "returnPct": -16.243748842378224
+    }
+  ],
+  "excluded": [
+    {
+      "status": "excluded",
+      "instrument": {
+        "name": "Carmignac Investissement A CHF Acc Hdg",
+        "excelSymbol": "F00000OJCK",
+        "eodhdSymbol": "F00000OJCK.MSFD",
+        "assetClass": "Fonds/ETF",
+        "seriesBasis": "direct"
+      },
+      "reason": "HTTP 404"
+    }
+  ]
+}

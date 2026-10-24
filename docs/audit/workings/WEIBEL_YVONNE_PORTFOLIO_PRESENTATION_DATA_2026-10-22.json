@@ -1,0 +1,427 @@
+{
+  "asOf": "2026-10-22",
+  "inputFile": "WeibelYvonne,AktienportfolioV2026.10.22.xlsx",
+  "totalPositions": 26,
+  "equityCount": 22,
+  "fundEtfCount": 3,
+  "structuredCount": 1,
+  "equityYtdMean": 13.19,
+  "equityYtdMedian": 11.89,
+  "equityYieldMean": 3.38,
+  "equityYieldMedian": 3.17,
+  "equityPeMean": 22.69,
+  "equityPeMedian": 17.55,
+  "equityPegMedian": 1.79,
+  "sectorCounts": {
+    "Elektrotechnik/Elektronik": 1,
+    "Erdöl": 2,
+    "Internet, Software & IT-Dienstl.": 2,
+    "Detailhandel/Warenhäuser": 1,
+    "Biotechnologie": 1,
+    "Energie-/Wasserversorgung": 1,
+    "Banken/Kreditinstitute": 2,
+    "Pharmazeutik/Kosmetik": 3,
+    "Nahrungsmittel/Getränke": 1,
+    "Elektronik & Halbleiter": 1,
+    "Versicherungen": 3,
+    "Immobiliengesellschaften": 1,
+    "Nichteisenmetalle": 1,
+    "Diverse Dienstleistungen": 1,
+    "Nachrichtenübermittlung": 1
+  },
+  "currencyCounts": {
+    "CHF": 17,
+    "NOK": 1,
+    "USD": 6,
+    "EUR": 1,
+    "GBP": 1
+  },
+  "ytdTop": [
+    [
+      "Aker BP Rg",
+      "AKRBP",
+      48.27
+    ],
+    [
+      "Chevron Rg",
+      "CVX",
+      47.37
+    ],
+    [
+      "Johnson&Johnson Rg",
+      "JNJ",
+      27.9
+    ],
+    [
+      "St.Galler KB N",
+      "SGKN",
+      23.29
+    ],
+    [
+      "Swisscom Rg",
+      "SCMN",
+      19.2
+    ]
+  ],
+  "ytdBottom": [
+    [
+      "Alphabet Rg-A",
+      "GOOGL",
+      4.44
+    ],
+    [
+      "PSP Swiss Propert N",
+      "PSPN",
+      4.39
+    ],
+    [
+      "Zurich Insur Gr N",
+      "ZURN",
+      3.59
+    ],
+    [
+      "Cembra Money Bk N",
+      "CMBN",
+      -11.27
+    ],
+    [
+      "BKW N",
+      "BKW",
+      -28.56
+    ]
+  ],
+  "yieldTop": [
+    [
+      "Aker BP Rg",
+      "AKRBP",
+      6.61
+    ],
+    [
+      "Rio Tinto Rg",
+      "RIO",
+      5.55
+    ],
+    [
+      "Cembra Money Bk N",
+      "CMBN",
+      5.22
+    ],
+    [
+      "Poste Italiane N",
+      "PST",
+      5.19
+    ],
+    [
+      "Zurich Insur Gr N",
+      "ZURN",
+      4.81
+    ],
+    [
+      "BB Biotech AG Ord",
+      "BION",
+      4.48
+    ]
+  ],
+  "equities": [
+    {
+      "Name": "ABB Rg",
+      "Symbol": "ABBN",
+      "Ccy.": "CHF",
+      "Price": 68.58,
+      "Chg. %": -4.54,
+      "Year chg. %": 15.81,
+      "Yield": 1.37,
+      "P/E": 26.95,
+      "PEG": 1.19,
+      "Sector": "Elektrotechnik/Elektronik"
+    },
+    {
+      "Name": "Aker BP Rg",
+      "Symbol": "AKRBP",
+      "Ccy.": "NOK",
+      "Price": 380.9,
+      "Chg. %": -0.6,
+      "Year chg. %": 48.27,
+      "Yield": 6.61,
+      "P/E": 10.68,
+      "PEG": 0.28,
+      "Sector": "Erdöl"
+    },
+    {
+      "Name": "Alphabet Rg-A",
+      "Symbol": "GOOGL",
+      "Ccy.": "USD",
+      "Price": 326.9,
+      "Chg. %": -2.35,
+      "Year chg. %": 4.44,
+      "Yield": 0.26,
+      "P/E": 16.54,
+      "PEG": 1.55,
+      "Sector": "Internet, Software & IT-Dienstl."
+    },
+    {
+      "Name": "Amazon.Com Rg",
+      "Symbol": "AMZN",
+      "Ccy.": "USD",
+      "Price": 251.7,
+      "Chg. %": -4.07,
+      "Year chg. %": 9.05,
+      "Yield": "",
+      "P/E": 20.28,
+      "PEG": 1.48,
+      "Sector": "Detailhandel/Warenhäuser"
+    },
+    {
+      "Name": "BB Biotech AG Ord",
+      "Symbol": "BION",
+      "Ccy.": "CHF",
+      "Price": 50.2,
+      "Chg. %": -0.4,
+      "Year chg. %": 11.68,
+      "Yield": 4.48,
+      "P/E": 19.45,
+      "PEG": -0.14,
+      "Sector": "Biotechnologie"
+    },
+    {
+      "Name": "BKW N",
+      "Symbol": "BKW",
+      "Ccy.": "CHF",
+      "Price": 120.3,
+      "Chg. %": -0.08,
+      "Year chg. %": -28.56,
+      "Yield": 3.16,
+      "P/E": 13.6,
+      "PEG": -2.25,
+      "Sector": "Energie-/Wasserversorgung"
+    },
+    {
+      "Name": "Cembra Money Bk N",
+      "Symbol": "CMBN",
+      "Ccy.": "CHF",
+      "Price": 88.15,
+      "Chg. %": 0.34,
+      "Year chg. %": -11.27,
+      "Yield": 5.22,
+      "P/E": 13.73,
+      "PEG": 1.79,
+      "Sector": "Banken/Kreditinstitute"
+    },
+    {
+      "Name": "Chevron Rg",
+      "Symbol": "CVX",
+      "Ccy.": "USD",
+      "Price": 224.6,
+      "Chg. %": -0.96,
+      "Year chg. %": 47.37,
+      "Yield": 3.14,
+      "P/E": 12.8,
+      "PEG": 0.56,
+      "Sector": "Erdöl"
+    },
+    {
+      "Name": "Johnson&Johnson Rg",
+      "Symbol": "JNJ",
+      "Ccy.": "USD",
+      "Price": 264.685,
+      "Chg. %": 2.68,
+      "Year chg. %": 27.9,
+      "Yield": 2.01,
+      "P/E": 23.32,
+      "PEG": 7.74,
+      "Sector": "Pharmazeutik/Kosmetik"
+    },
+    {
+      "Name": "Nestle N",
+      "Symbol": "NESN",
+      "Ccy.": "CHF",
+      "Price": 84.77,
+      "Chg. %": 1.56,
+      "Year chg. %": 7.66,
+      "Yield": 3.66,
+      "P/E": 18.41,
+      "PEG": 4.44,
+      "Sector": "Nahrungsmittel/Getränke"
+    },
+    {
+      "Name": "Novartis N",
+      "Symbol": "NOVN",
+      "Ccy.": "CHF",
+      "Price": 129.34,
+      "Chg. %": 1.94,
+      "Year chg. %": 18.01,
+      "Yield": 2.86,
+      "P/E": 17.31,
+      "PEG": 2.25,
+      "Sector": "Pharmazeutik/Kosmetik"
+    },
+    {
+      "Name": "NVIDIA Rg",
+      "Symbol": "NVDA",
+      "Ccy.": "USD",
+      "Price": 213.06,
+      "Chg. %": -4.01,
+      "Year chg. %": 14.24,
+      "Yield": 0.24,
+      "P/E": 23.39,
+      "PEG": 0.39,
+      "Sector": "Elektronik & Halbleiter"
+    },
+    {
+      "Name": "Palantir Tchnl-A Rg",
+      "Symbol": "PLTR",
+      "Ccy.": "USD",
+      "Price": 198.58,
+      "Chg. %": -1.56,
+      "Year chg. %": 11.72,
+      "Yield": "",
+      "P/E": 120.37,
+      "PEG": 2.51,
+      "Sector": "Internet, Software & IT-Dienstl."
+    },
+    {
+      "Name": "Poste Italiane N",
+      "Symbol": "PST",
+      "Ccy.": "EUR",
+      "Price": 24.07,
+      "Chg. %": -2.31,
+      "Year chg. %": 12.06,
+      "Yield": 5.19,
+      "P/E": 12.71,
+      "PEG": 1.66,
+      "Sector": "Versicherungen"
+    },
+    {
+      "Name": "PSP Swiss Propert N",
+      "Symbol": "PSPN",
+      "Ccy.": "CHF",
+      "Price": 149.8,
+      "Chg. %": 0.88,
+      "Year chg. %": 4.39,
+      "Yield": 2.64,
+      "P/E": 28.59,
+      "PEG": 9.16,
+      "Sector": "Immobiliengesellschaften"
+    },
+    {
+      "Name": "Rio Tinto Rg",
+      "Symbol": "RIO",
+      "Ccy.": "GBP",
+      "Price": 62.79,
+      "Chg. %": -3.13,
+      "Year chg. %": 4.75,
+      "Yield": 5.55,
+      "P/E": 10.94,
+      "PEG": 1.16,
+      "Sector": "Nichteisenmetalle"
+    },
+    {
+      "Name": "Roche Hldg",
+      "Symbol": "RO",
+      "Ccy.": "CHF",
+      "Price": 398.2,
+      "Chg. %": 0.25,
+      "Year chg. %": 19.14,
+      "Yield": 2.46,
+      "P/E": 16.45,
+      "PEG": "",
+      "Sector": "Pharmazeutik/Kosmetik"
+    },
+    {
+      "Name": "SGS Rg",
+      "Symbol": "SGSN",
+      "Ccy.": "CHF",
+      "Price": 100.95,
+      "Chg. %": 0.5,
+      "Year chg. %": 11.1,
+      "Yield": 3.17,
+      "P/E": 23.85,
+      "PEG": 1.86,
+      "Sector": "Diverse Dienstleistungen"
+    },
+    {
+      "Name": "St.Galler KB N",
+      "Symbol": "SGKN",
+      "Ccy.": "CHF",
+      "Price": 704.0,
+      "Chg. %": -0.42,
+      "Year chg. %": 23.29,
+      "Yield": 2.84,
+      "P/E": 17.79,
+      "PEG": 6.77,
+      "Sector": "Banken/Kreditinstitute"
+    },
+    {
+      "Name": "Swiss Re N",
+      "Symbol": "SREN",
+      "Ccy.": "CHF",
+      "Price": 154.55,
+      "Chg. %": 1.21,
+      "Year chg. %": 16.33,
+      "Yield": 4.08,
+      "P/E": 11.1,
+      "PEG": 3.72,
+      "Sector": "Versicherungen"
+    },
+    {
+      "Name": "Swisscom Rg",
+      "Symbol": "SCMN",
+      "Ccy.": "CHF",
+      "Price": 686.0,
+      "Chg. %": 2.54,
+      "Year chg. %": 19.2,
+      "Yield": 3.79,
+      "P/E": 24.95,
+      "PEG": 2.18,
+      "Sector": "Nachrichtenübermittlung"
+    },
+    {
+      "Name": "Zurich Insur Gr N",
+      "Symbol": "ZURN",
+      "Ccy.": "CHF",
+      "Price": 623.4,
+      "Chg. %": -0.19,
+      "Year chg. %": 3.59,
+      "Yield": 4.81,
+      "P/E": 15.9,
+      "PEG": 2.92,
+      "Sector": "Versicherungen"
+    }
+  ],
+  "funds": [
+    {
+      "Name": "Carmignac Investissement A CHF Acc Hdg",
+      "Symbol": "F00000OJCK",
+      "Ccy.": "CHF",
+      "Price": 313.29,
+      "Chg. %": 1.29,
+      "Year chg. %": 18.63
+    },
+    {
+      "Name": "iShares Swiss Dividend ETF (CH)",
+      "Symbol": "CHDVD",
+      "Ccy.": "CHF",
+      "Price": 200.15,
+      "Chg. %": 0.37,
+      "Year chg. %": 10.76
+    },
+    {
+      "Name": "SWC (CH) Gold ETF EA CHF",
+      "Symbol": "ZGLD",
+      "Ccy.": "CHF",
+      "Price": 989.5,
+      "Chg. %": -2.05,
+      "Year chg. %": -3.1
+    }
+  ],
+  "structured": [
+    {
+      "Name": "ABTC Ct pp 21Shares",
+      "Symbol": "ABTC",
+      "Ccy.": "CHF",
+      "Price": 22.12,
+      "Chg. %": -2.17,
+      "Year chg. %": -5.23
+    }
+  ]
+}
